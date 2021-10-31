@@ -39,41 +39,26 @@ SpellDefCmd::~SpellDefCmd()
 
 
 // construct from file
-SpellDEF::SpellDEF(const wchar_t* path)
+SpellDEF::SpellDEF(wstring &path)
 {
 	data = NULL;
 
-	HANDLE fr = CreateFile(path, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
-	if (fr == INVALID_HANDLE_VALUE)
+	// try open file
+	ifstream fr(path.c_str(), ios::in | ios::binary | ios::ate);
+	if (!fr.is_open())
 	{
-		// opening failed
-		throw std::runtime_error("DEF file not found!");
+		throw runtime_error("Cannot open DEF file!");
 	}
-	// get its size
-	DWORD flen = GetFileSize(fr, NULL);
-	// allocate memory for archive
-	data = new char[flen];
-	if (data == NULL)
-	{
-		// allocation failed
-		CloseHandle(fr);
-		throw std::runtime_error("DEF file memory allocation failed!");
-	}
-	// read data
-	DWORD read;
-	ReadFile(fr, (void*)data, flen, &read, NULL);
-	if (flen != read)
-	{
-		// failed
-		delete(data);
-		CloseHandle(fr);
-		throw std::runtime_error("DEF file reading failed!");
-	}
-	// closse file
-	CloseHandle(fr);
+
+	// read to local buffer and close
+	streampos flen = fr.tellg();
+	fr.seekg(0);
+	data = new char[(int)flen];
+	fr.read(data, flen);
+	fr.close();
 }
 // construct from data buffer
-SpellDEF::SpellDEF(byte* data, int size)
+SpellDEF::SpellDEF(uint8_t* data, int size)
 {
 	this->data = new char[size];
 	if (this->data == NULL)
@@ -174,7 +159,7 @@ Sprite::~Sprite()
 }
 
 // check if sprite row quad mask has transparencies or it is just last quad
-int Sprite::MaskHasTransp(byte *mask)
+int Sprite::MaskHasTransp(uint8_t *mask)
 {
 	return(mask[0] == 0xFF ||
 		!((mask[1] == 0x00 && mask[2] == 0x00 && mask[3] == 0xFF) ||
@@ -185,10 +170,10 @@ int Sprite::MaskHasTransp(byte *mask)
 
 // decode sprite from raw FS archive data, return bytes consumed
 // ###todo: check input memory overrun?
-int Sprite::Decode(byte* src, char* name)
+int Sprite::Decode(uint8_t* src, char* name)
 {
 	// store data start
-	byte* source_start = src;
+	uint8_t* source_start = src;
 	
 	// set width
 	x_size = 80;
@@ -207,8 +192,8 @@ int Sprite::Decode(byte* src, char* name)
 
 	// allocate sprite data (maximum possible value)
 	//data = new byte[(x_size + sizeof(int)*2) * 256];
-	byte *buf = new byte[(x_size + sizeof(int) * 2) * 256];
-	byte *pdata = buf;
+	uint8_t*buf = new uint8_t[(x_size + sizeof(int) * 2) * 256];
+	uint8_t*pdata = buf;
 
 
 	//unsigned char* mp = mem;
@@ -288,12 +273,12 @@ int Sprite::Decode(byte* src, char* name)
 	int len = pdata - buf;
 
 	// store data to sprite record
-	this->data = new byte[len];
+	this->data = new uint8_t[len];
 	std::memcpy((void*)this->data, (void*)buf, len);
 	delete[] buf;
 
 	// store sprite name
-	strcpy(this->name, name);
+	strcpy_s(this->name, sizeof(this->name), name);
 
 	// return bytes consumed from the source
 	return(src - source_start);
@@ -303,7 +288,7 @@ int Sprite::Decode(byte* src, char* name)
 
 
 // render sprite to target buffer, buffer is sprite origin, x_size is buffer width
-void Sprite::Render(byte* buffer, byte* buf_end, int buf_x, int buf_y, int x_size)
+void Sprite::Render(uint8_t* buffer, uint8_t* buf_end, int buf_x, int buf_y, int x_size)
 {
 	// ###todo: optimize for no transparency mode?
 
@@ -365,13 +350,13 @@ AnimL1::~AnimL1()
 {
 	name[0] = '\0';
 	// loose frames
-	for (int k = 0; k < frames.size(); k++)
+	for (unsigned k = 0; k < frames.size(); k++)
 		delete frames[k];
 	frames.clear();
 }
 
 // decode animation file from buffer
-int AnimL1::Decode(byte* data, char* name)
+int AnimL1::Decode(uint8_t* data, char* name)
 {
 	// get frames count
 	int count = *data++;
@@ -401,7 +386,7 @@ int AnimL1::Decode(byte* data, char* name)
 	y_ofs = frames.front()->y_ofs;
 
 	// store animation name
-	strcpy(this->name, name);
+	strcpy_s(this->name, sizeof(this->name), name);
 
 	return(0);
 }
@@ -423,13 +408,13 @@ AnimPNM::~AnimPNM()
 {
 	name[0] = '\0';
 	// loose frames
-	for (int k = 0; k < frames.size(); k++)
+	for (unsigned k = 0; k < frames.size(); k++)
 		delete frames[k];
 	frames.clear();
 }
 
 // decode animation file from buffer
-int AnimPNM::Decode(byte* data, char* name)
+int AnimPNM::Decode(uint8_t* data, char* name)
 {
 	// get frames count
 	int count = *data++;
@@ -447,7 +432,7 @@ int AnimPNM::Decode(byte* data, char* name)
 	for (int fid = 0; fid < count; fid++)
 	{
 		// frame data start
-		byte* pnm = &data[*list++];
+		uint8_t* pnm = &data[*list++];
 
 		// vertilcal offset
 		int y_ofs = *(__int16*)pnm; pnm += 2;
@@ -465,14 +450,14 @@ int AnimPNM::Decode(byte* data, char* name)
 		int max_data = y_size * (2*sizeof(int) + x_size);
 
 		// make local image buffer
-		byte* buf = new byte[max_data];
-		byte* pic = buf;
+		uint8_t* buf = new uint8_t[max_data];
+		uint8_t* pic = buf;
 
 		// for each line:
 		for (int y = 0; y < y_size; y++)
 		{
 			// scanline buffer
-			byte line[256];
+			uint8_t line[256];
 			// clear line
 			std::memset((void*)line, 0, sizeof(line));
 
@@ -543,11 +528,11 @@ int AnimPNM::Decode(byte* data, char* name)
 		// make sprite object for this frame
 		Sprite *spr = new Sprite();
 		// copy frame pixel data
-		spr->data = new byte[pic - buf];
+		spr->data = new uint8_t[pic - buf];
 		std::memcpy((void*)spr->data, (void*)buf, pic - buf);
 		
 		// store name
-		std::strcpy(spr->name, name);
+		strcpy_s(spr->name, sizeof(spr->name), name);
 
 		// store frame geometry
 		spr->has_transp = 1;
@@ -572,7 +557,7 @@ int AnimPNM::Decode(byte* data, char* name)
 	this->y_max = ymax;
 
 	// store animation name
-	strcpy(this->name, name);
+	strcpy_s(this->name, sizeof(this->name), name);
 
 	return(0);
 }
@@ -604,13 +589,13 @@ Terrain::~Terrain()
 	name[0] = '\0';
 	
 	// destruct each sprite element
-	for (int k = 0; k < sprites.size(); k++)
+	for (unsigned k = 0; k < sprites.size(); k++)
 		delete sprites[k];
 	// clear list of sprites
 	sprites.clear();
 
 	// destruct each sprite element
-	for (int k = 0; k < anms.size(); k++)
+	for (unsigned k = 0; k < anms.size(); k++)
 		delete anms[k];
 	// clear list of sprites
 	anms.clear();
@@ -626,7 +611,7 @@ int Terrain::Load(wstring &path)
 	}
 	char temp[sizeof(this->name)];
 	wcsrtombs(temp, &tag, sizeof(this->name), NULL);
-	strcpy(this->name, &temp[1]);
+	strcpy_s(this->name, sizeof(this->name), &temp[1]);
 	char* pstr = strchr(this->name, '.');
 	if (pstr)
 		*pstr = '\0';
@@ -640,7 +625,7 @@ int Terrain::Load(wstring &path)
 	for (int i = 0; i < fs->Count(); i++)
 	{		
 		char* full_name;
-		byte* data;
+		uint8_t* data;
 		int size;
 		
 		// get file from archive
@@ -648,7 +633,7 @@ int Terrain::Load(wstring &path)
 
 		// local name copy
 		char name[14];
-		strcpy(name, full_name);
+		strcpy_s(name, sizeof(name), full_name);
 				
 		// split name and ext
 		char *pstr = strrchr(name, '.');
@@ -668,7 +653,7 @@ int Terrain::Load(wstring &path)
 		{
 			// file with extension
 
-			if (strcmpi(ext, "DTA") == 0)
+			if (_strcmpi(ext, "DTA") == 0)
 			{
 				///////////////////
 				///// Sprites /////
@@ -688,7 +673,7 @@ int Terrain::Load(wstring &path)
 				//st->Caption = "Loading " + N_terr + ": " + IntToStr(fcnt) + " - " + AnsiString(name);
 				fcnt++;
 			}
-			else if (strcmpi(ext, "ANM") == 0)
+			else if (_strcmpi(ext, "ANM") == 0)
 			{
 				/////////////////////////
 				///// ANM animation /////
@@ -708,7 +693,7 @@ int Terrain::Load(wstring &path)
 				//st->Caption = "Loading " + N_terr + ": " + IntToStr(fcnt) + " - " + AnsiString(name);
 				fcnt++;
 			}
-			else if (strcmpi(ext, "PNM") == 0)
+			else if (_strcmpi(ext, "PNM") == 0)
 			{
 				/////////////////////////
 				///// PNM animation /////
@@ -728,7 +713,7 @@ int Terrain::Load(wstring &path)
 				//st->Caption = "Loading " + N_terr + ": " + IntToStr(fcnt) + " - " + AnsiString(name);
 				fcnt++;
 			}
-			else if (strcmpi(ext, "PAL") == 0)
+			else if (_strcmpi(ext, "PAL") == 0)
 			{
 				if (size != 256)
 				{
@@ -736,7 +721,7 @@ int Terrain::Load(wstring &path)
 					///// Palette /////
 					///////////////////
 
-					if (strcmpi(full_name, "map.pal") == 0)
+					if (_strcmpi(full_name, "map.pal") == 0)
 					{
 						// "map.pal"
 						std::memcpy((void*)&pal[0][0], data, 128*3);
@@ -744,7 +729,7 @@ int Terrain::Load(wstring &path)
 						//st->Caption = "Loading " + N_terr + ": " + IntToStr(fcnt) + " - " + AnsiString(name);
 						fcnt++;
 					}
-					else if (strcmpi(full_name, "cycle.pal") == 0)
+					else if (_strcmpi(full_name, "cycle.pal") == 0)
 					{
 						// "cycle.pal"
 						std::memcpy((void*)&pal[240][0], data, 10*3);
@@ -793,9 +778,9 @@ int Terrain::Load(wstring &path)
 // get sprite pointer by its name
 Sprite* Terrain::GetSprite(char* name)
 {
-	for (int k = 0; k < this->sprites.size(); k++)
+	for (unsigned k = 0; k < this->sprites.size(); k++)
 	{
-		if (strcmpi(this->sprites[k]->name, name) == 0)
+		if (_strcmpi(this->sprites[k]->name, name) == 0)
 			return(this->sprites[k]);
 	}
 	return(NULL);
@@ -804,9 +789,9 @@ Sprite* Terrain::GetSprite(char* name)
 // get L1 animation (ANM) pointer by its name
 AnimL1* Terrain::GetANM(char* name)
 {
-	for (int k = 0; k < this->anms.size(); k++)
+	for (unsigned k = 0; k < this->anms.size(); k++)
 	{
-		if (strcmpi(this->anms[k]->name, name) == 0)
+		if (_strcmpi(this->anms[k]->name, name) == 0)
 			return(this->anms[k]);
 	}
 	return(NULL);
@@ -815,9 +800,9 @@ AnimL1* Terrain::GetANM(char* name)
 // get L4 animation (PNM) pointer by its name
 AnimPNM* Terrain::GetPNM(char* name)
 {
-	for (int k = 0; k < this->pnms.size(); k++)
+	for (unsigned k = 0; k < this->pnms.size(); k++)
 	{
-		if (strcmpi(this->pnms[k]->name, name) == 0)
+		if (_strcmpi(this->pnms[k]->name, name) == 0)
 			return(this->pnms[k]);
 	}
 	return(NULL);
@@ -836,7 +821,7 @@ SpellData::SpellData(wstring &data_path)
 	vector<wchar_t*> terrain_list({L"\\T11.FS",
 		                           L"\\PUST.FS",
 		                           L"\\DEVAST.FS"});
-	for (int k = 0; k < terrain_list.size(); k++)
+	for (unsigned k = 0; k < terrain_list.size(); k++)
 	{		
 		// terrain archive path
 		wstring path = data_path + terrain_list[k];
@@ -859,7 +844,7 @@ SpellData::SpellData(wstring &data_path)
 	FSarchive *common;
 	path = data_path + L"\\COMMON.FS";
 	common = new FSarchive(path);
-	byte* data;
+	uint8_t* data;
 	int size;
 	
 	// load UNITS.PAL palette chunk and merge with terrain palette chunk
@@ -868,7 +853,7 @@ SpellData::SpellData(wstring &data_path)
 		delete common;
 		throw runtime_error("UNITS.PAL not found in COMMON.FS!");
 	}
-	for (int k = 0; k < this->terrain.size(); k++)
+	for (unsigned k = 0; k < this->terrain.size(); k++)
 		std::memcpy((void*)&this->terrain[k]->pal[128][0], (void*)data, 96 * 3);
 	
 	// load SYSTEM.PAL palette chunk and merge with terrain palette chunk
@@ -877,9 +862,9 @@ SpellData::SpellData(wstring &data_path)
 		delete common;
 		throw runtime_error("SYSTEM.PAL not found in COMMON.FS!");
 	}
-	for (int k = 0; k < this->terrain.size(); k++)
+	for (unsigned k = 0; k < this->terrain.size(); k++)
 	{
-		byte temp[10][3];
+		uint8_t temp[10][3];
 		std::memcpy((void*)temp, (void*)&this->terrain[k]->pal[240][0], 10 * 3);
 		std::memcpy((void*)&this->terrain[k]->pal[224][0], (void*)data, 32 * 3);
 		std::memcpy((void*)&this->terrain[k]->pal[240][0], (void*)temp, 10 * 3);
@@ -901,7 +886,7 @@ SpellData::SpellData(wstring &data_path)
 SpellData::~SpellData()
 {
 	// destroy terrain data
-	for (int k = 0; k < terrain.size(); k++)
+	for (unsigned k = 0; k < terrain.size(); k++)
 		delete terrain[k];
 	terrain.clear();
 	// clear units list
@@ -926,11 +911,11 @@ int SpellData::LoadSpecialLand(wstring &spec_folder)
 
 		// for each slope:
 		char name[6];
-		strcpy(name, "_.BMP");
+		strcpy_s(name, sizeof(name), "_.BMP");
 		for (char sid = 'A'; sid <= 'M'; sid++)
 		{
 			name[0] = sid;
-			byte* pic;
+			uint8_t* pic;
 			int size;
 			if (fs->GetFile(name, &pic, &size))
 			{
@@ -975,7 +960,7 @@ int SpellData::LoadSpecialLand(wstring &spec_folder)
 			spr->has_transp = 0;
 
 			// allocate image buffer
-			spr->data = new byte[(80 + sizeof(int) * 2) * 200];
+			spr->data = new uint8_t[(80 + sizeof(int) * 2) * 200];
 
 			// recode bmp->Sprite
 			int pp1 = 0;
@@ -983,9 +968,9 @@ int SpellData::LoadSpecialLand(wstring &spec_folder)
 			{
 				// get line
 				int pp2 = 0;
-				byte ss = 0;
+				uint8_t ss = 0;
 				int oo = 0;
-				byte line[80];
+				uint8_t line[80];
 				for (int k = 0; k < x; k++)
 				{
 					if (pic[fofs + (y - 1) * x - j * x + k] == 0x07u && ss == 0)
@@ -1051,8 +1036,8 @@ int SpellData::LoadSpecialLand(wstring &spec_folder)
 // get terrain pointer by terrain name or return NULL
 Terrain* SpellData::GetTerrain(char* name)
 {
-	for (int k = 0; k < this->terrain.size(); k++)
-		if (strcmpi(this->terrain[k]->name, name) == 0)
+	for (unsigned k = 0; k < this->terrain.size(); k++)
+		if (_strcmpi(this->terrain[k]->name, name) == 0)
 			return(this->terrain[k]);
 	return(NULL);
 }

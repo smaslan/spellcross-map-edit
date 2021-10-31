@@ -64,7 +64,7 @@ MapLayer4::~MapLayer4()
 // class Map
 //=============================================================================
 
-Map::Map()
+SpellMap::SpellMap()
 {
 	L1 = NULL;
 	L2 = NULL;
@@ -82,9 +82,12 @@ Map::Map()
 	wL4 = true;
 	wSTCI = true;
 	wUnits = true;
+
+	map_path = L"";
+	def_path = L"";
 }
 
-Map::~Map()
+SpellMap::~SpellMap()
 {
 	int k;
 	if (L1)
@@ -115,8 +118,16 @@ Map::~Map()
 
 }
 
+// returns path to DEF file or DTA file if DEF was not used
+wstring SpellMap::GetTopPath()
+{
+	if (def_path.empty())
+		return(map_path);
+	return(def_path);
+}
+
 // Load MAP from file
-int Map::Load(wstring &path, SpellData *spelldata)
+int SpellMap::Load(wstring &path, SpellData *spelldata)
 {		
 	// default map file
 	wstring map_path = path;
@@ -129,7 +140,7 @@ int Map::Load(wstring &path, SpellData *spelldata)
 		// --- this is DEF file: parse it ---
 
 		// load DEF file
-		def = new SpellDEF(path.c_str());
+		def = new SpellDEF(path);
 
 		// parse mission data
 		vector<SpellDefCmd*> mission_data = def->GetSection("MissionData");
@@ -155,17 +166,25 @@ int Map::Load(wstring &path, SpellData *spelldata)
 		}
 		mission_data.clear();
 
+		// store DEF file path
+		def_path = path;
 	}
 	else
 	{
 		// only *.map file
-		
+
+		def_path = L"";		
 	}
+
+	// store map path
+	this->map_path = map_path;
 	
 	
 	// --- Load MAP file to buffer
 	// try open file
 	ifstream fr(map_path, ios::in | ios::binary | ios::ate);
+	if (!fr.is_open())
+		return(1);
 
 	// read to local buffer and close
 	streampos flen = fr.tellg();
@@ -174,11 +193,7 @@ int Map::Load(wstring &path, SpellData *spelldata)
 	fr.read((char*)map_buffer, flen);
 	fr.close();
 	unsigned char* data = map_buffer;
-
-	
-	
-	// store map path
-	this->path = map_path;
+			
 
 	// get L1 data offset
 	//int L1_offset = *(__int32*)data;
@@ -315,13 +330,13 @@ int Map::Load(wstring &path, SpellData *spelldata)
 
 	// load L2 sprite indices
 	this->L2 = new Sprite * [x_size * y_size];
-	this->flags = new byte[x_size * y_size];
+	this->flags = new uint8_t[x_size * y_size];
 	for (int k = 0; k < (x_size * y_size); k++)
 	{
 		// get sprite index
-		int sid = *(byte*)data++;
+		int sid = *(uint8_t*)data++;
 		// get sprite flags
-		int code = *(byte*)data++;
+		int code = *(uint8_t*)data++;
 		
 		// put sprite ref to map array
 		if (sid > L2_count)
@@ -648,17 +663,17 @@ int Map::Load(wstring &path, SpellData *spelldata)
 }
 
 // convert x,y to combined tile position
-int Map::ConvXY(int x, int y)
+int SpellMap::ConvXY(int x, int y)
 {
 	return(x + y * x_size);
 }
-int Map::ConvXY(MapXY &mxy)
+int SpellMap::ConvXY(MapXY &mxy)
 {
 	return(mxy.x + mxy.y * x_size);
 }
 
 // this sorts units list for proper render order, call after load or units changes
-void Map::SortUnits()
+void SpellMap::SortUnits()
 {
 	int k;
 	// allocate units layer array
@@ -715,7 +730,7 @@ void Map::SortUnits()
 }
 
 // is some valid map data loaded?
-int Map::IsLoaded()
+int SpellMap::IsLoaded()
 {
 	if (!L1 || !L2 || !elev || !flags)
 		return(0);
@@ -727,7 +742,7 @@ int Map::IsLoaded()
 	return(1);
 }
 
-int Map::Render(System::Drawing::Bitmap ^bmp, int *x_pos, int *y_pos, int x_cursor, int y_cursor)
+int SpellMap::Render(System::Drawing::Bitmap ^bmp, int *x_pos, int *y_pos, int x_cursor, int y_cursor)
 {
 	int i, j;
 	int m, n;
@@ -755,12 +770,12 @@ int Map::Render(System::Drawing::Bitmap ^bmp, int *x_pos, int *y_pos, int x_curs
 	pic_x_size = (x_size) * 80 + 40;
 	pic_y_size = MSYOFS + 60 + 47 + (y_size) * 24 + 150;
 	if (!pic)
-		pic = new byte[pic_x_size * pic_y_size];
+		pic = new uint8_t[pic_x_size * pic_y_size];
 	if (!pic)
 	{
 		return(1);
 	}
-	byte* pice = &pic[pic_x_size * pic_y_size];
+	uint8_t* pice = &pic[pic_x_size * pic_y_size];
 
 	// limit scroller to valid range
 	if (*x_pos >= pic_x_size - surf_x)
@@ -1152,7 +1167,7 @@ seldone:
 		// apply gamma correction (this should be maybe optimized out of here?
 		for (int k = 0; k < 256; k++)
 			for (int c = 0; c < 3; c++)
-				pal[k][c] = (byte)(pow((double)pal[k][c] / 255.0, 1.0 / gamma) * 255.0);
+				pal[k][c] = (uint8_t)(pow((double)pal[k][c] / 255.0, 1.0 / gamma) * 255.0);
 	}
 
 	// Lock the bitmap's bits.  
@@ -1160,7 +1175,7 @@ seldone:
 	System::Drawing::Imaging::BitmapData^ bmpData = bmp->LockBits(rect, System::Drawing::Imaging::ImageLockMode::ReadWrite, bmp->PixelFormat);
 
 	// first scanline address
-	byte *scan = (byte*)((void*)bmpData->Scan0);
+	uint8_t*scan = (uint8_t*)((void*)bmpData->Scan0);
 	// actual scanline width in target memory
 	int stride = bmpData->Stride;
 
@@ -1168,8 +1183,8 @@ seldone:
 	for (int y = 0; y < surf_y; y++)
 	{
 		// source scanline
-		byte* src = &pic[(y + (*y_pos / 48 <= MSYOFST ? (*y_pos / 48) * 48 : MSYOFST * 48) + (*y_pos % 48) * smooth)*pic_x_size + ((*x_pos >= 80 ? (80) : (0)) + (*x_pos % 80) * smooth)];
-		byte* dest = scan;
+		uint8_t* src = &pic[(y + (*y_pos / 48 <= MSYOFST ? (*y_pos / 48) * 48 : MSYOFST * 48) + (*y_pos % 48) * smooth)*pic_x_size + ((*x_pos >= 80 ? (80) : (0)) + (*x_pos % 80) * smooth)];
+		uint8_t* dest = scan;
 		for (int x = 0; x < surf_x; x++)
 		{
 			*dest++ = pal[*src][2];
@@ -1188,7 +1203,7 @@ seldone:
 }
 
 // configure map elements visibility
-void Map::SetRender(bool wL1, bool wL2, bool wL3, bool wL4, bool wSTCI, bool wUnits)
+void SpellMap::SetRender(bool wL1, bool wL2, bool wL3, bool wL4, bool wSTCI, bool wUnits)
 {
 	this->wL1 = wL1;
 	this->wL2 = wL2;
@@ -1199,19 +1214,19 @@ void Map::SetRender(bool wL1, bool wL2, bool wL3, bool wL4, bool wSTCI, bool wUn
 }
 
 // set gamma correction for rendering
-void Map::SetGamma(double gamma)
+void SpellMap::SetGamma(double gamma)
 {
 	this->gamma = gamma;
 }
 
 // timer tick - update of palettes and animations
-int Map::Tick()
+int SpellMap::Tick()
 {
 	if (!this->IsLoaded())
 		return(0);
 	
 	// cycle water palette
-	byte water[10][3];
+	uint8_t water[10][3];
 	std::memcpy((void*)water, (void*)&pal[240][0], 10 * 3);
 	std::memcpy((void*)&pal[240][0], (void*)&water[1][0], 9 * 3);
 	std::memcpy((void*)&pal[249][0], (void*)&water[0][0], 1 * 3);

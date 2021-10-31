@@ -8,6 +8,7 @@
 #pragma once
 
 #include "windows.h"
+#include "cstdint"
 #include <vector>
 #include <list>
 #include <string>
@@ -36,8 +37,8 @@ class SpellDEF
 		char *data;
 
 	public:
-		SpellDEF(const wchar_t* path);
-		SpellDEF(byte *data, int size);
+		SpellDEF(wstring &path);
+		SpellDEF(uint8_t *data, int size);
 		~SpellDEF();
 
 		vector<SpellDefCmd*> GetSection(std::string section);
@@ -53,7 +54,7 @@ class Sprite
 		// sprite name tag
 		char name[MAX_SPRITE_NAME + 1];
 		// sprite data
-		byte* data;
+		uint8_t* data;
 		// sprite size
 		int x_size;
 		int y_size;
@@ -68,11 +69,11 @@ class Sprite
 		// void constructor
 		Sprite();
 		~Sprite();
-		int Decode(byte* data, char* name);
-		void Render(byte* buffer, byte* buf_end, int buf_x, int buf_y, int x_size);
+		int Decode(uint8_t* data, char* name);
+		void Render(uint8_t* buffer, uint8_t* buf_end, int buf_x, int buf_y, int x_size);
 
 	private:
-		int MaskHasTransp(byte* mask);
+		int MaskHasTransp(uint8_t* mask);
 
 };
 
@@ -92,7 +93,7 @@ class AnimL1
 		// void constructor
 		AnimL1();
 		~AnimL1();
-		int Decode(byte* data, char* name);
+		int Decode(uint8_t* data, char* name);
 
 };
 
@@ -112,7 +113,7 @@ class AnimPNM
 		// void constructor
 		AnimPNM();
 		~AnimPNM();
-		int Decode(byte* data, char* name);
+		int Decode(uint8_t* data, char* name);
 
 };
 
@@ -128,7 +129,7 @@ class Terrain
 		// Layer 4 animations (PNM)
 		vector<AnimPNM*> pnms;
 		// color palette
-		byte pal[256][3];
+		uint8_t pal[256][3];
 		// filters
 		struct {
 			uint8_t darkpal[256];

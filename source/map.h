@@ -8,6 +8,7 @@
 #pragma once
 
 #include "windows.h"
+#include "cstdint"
 #include <vector>
 #include <list>
 #include <string>
@@ -120,7 +121,7 @@ public:
 	int GetXY();
 };
 
-class Map
+class SpellMap
 {
 	private:
 		int surf_x;
@@ -130,9 +131,9 @@ class Map
 		// indexed raster buffer		
 		int pic_x_size;
 		int pic_y_size;
-		byte *pic;		
+		uint8_t*pic;
 		// local palette (after gamma correction)
-		byte pal[256][3]; 
+		uint8_t pal[256][3];
 		// special tiles pointers
 		Sprite* start_sprite;
 		Sprite* escape_sprite;
@@ -147,7 +148,8 @@ class Map
 	public:
 
 		// this map path
-		wstring path;
+		wstring map_path;
+		wstring def_path;
 		// size
 		int x_size;
 		int y_size;
@@ -159,7 +161,7 @@ class Map
 		Sprite **L1; // terrain array
 		int* elev; // terrain elevation array
 		Sprite **L2; // objects array
-		byte* flags; // flags array
+		uint8_t* flags; // flags array
 		vector<MapLayer3*> L3; // ANM list
 		vector<MapLayer4*> L4; // PNM list				
 		vector<MapXY> start; // start tiles list
@@ -168,8 +170,8 @@ class Map
 		// list of units
 		vector<MapUnit*> units;				
 		
-		Map();
-		~Map();
+		SpellMap();
+		~SpellMap();
 		int Load(wstring &path, SpellData* spelldata);
 		void SortUnits();
 		int IsLoaded();
@@ -177,6 +179,7 @@ class Map
 		void SetRender(bool wL1, bool wL2, bool wL3, bool wL4, bool wSECI, bool wUnits);
 		void SetGamma(double gamma);
 		int Tick();
+		wstring GetTopPath();
 		
 		int ConvXY(int x, int y);
 		int ConvXY(MapXY &mxy);

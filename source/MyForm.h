@@ -1,6 +1,7 @@
 #include <windows.h>
 #include <array>
 #include <regex>
+#include <filesystem>
 #include "vcclr.h"
 #include "spellcross.h"
 #include "map.h"
@@ -9,7 +10,7 @@
 // very lame way of finding main window handle - name it by this, then look for window of that name :)
 #define WIN_TITLE L"Spellcross Map Editor"
 
-extern Map* map;
+extern SpellMap* map;
 extern SpellData* spelldata;
 
 struct {
@@ -72,6 +73,7 @@ namespace CLRformstest {
 	private: System::Windows::Forms::ToolStripSeparator^ toolStripSeparator1;
 	private: System::Windows::Forms::ToolStripTextBox^ btn_SetGamma;
 	private: System::Windows::Forms::ToolStripMenuItem^ cb_wUnits;
+	private: System::Windows::Forms::ToolStripMenuItem^ btn_Exit;
 
 
 
@@ -114,6 +116,7 @@ namespace CLRformstest {
 			this->toolStripSeparator1 = (gcnew System::Windows::Forms::ToolStripSeparator());
 			this->btn_SetGamma = (gcnew System::Windows::Forms::ToolStripTextBox());
 			this->open_dialog = (gcnew System::Windows::Forms::OpenFileDialog());
+			this->btn_Exit = (gcnew System::Windows::Forms::ToolStripMenuItem());
 			(cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->Canvas))->BeginInit();
 			this->menuStrip1->SuspendLayout();
 			this->SuspendLayout();
@@ -148,7 +151,10 @@ namespace CLRformstest {
 			// 
 			// fileToolStripMenuItem
 			// 
-			this->fileToolStripMenuItem->DropDownItems->AddRange(gcnew cli::array< System::Windows::Forms::ToolStripItem^  >(1) { this->btn_open });
+			this->fileToolStripMenuItem->DropDownItems->AddRange(gcnew cli::array< System::Windows::Forms::ToolStripItem^  >(2) {
+				this->btn_open,
+					this->btn_Exit
+			});
 			this->fileToolStripMenuItem->Name = L"fileToolStripMenuItem";
 			this->fileToolStripMenuItem->Size = System::Drawing::Size(35, 20);
 			this->fileToolStripMenuItem->Text = L"File";
@@ -157,7 +163,7 @@ namespace CLRformstest {
 			// 
 			this->btn_open->Name = L"btn_open";
 			this->btn_open->ShortcutKeys = static_cast<System::Windows::Forms::Keys>((System::Windows::Forms::Keys::Control | System::Windows::Forms::Keys::O));
-			this->btn_open->Size = System::Drawing::Size(163, 22);
+			this->btn_open->Size = System::Drawing::Size(180, 22);
 			this->btn_open->Text = L"Open Map";
 			this->btn_open->Click += gcnew System::EventHandler(this, &MyForm::btn_open_Click);
 			// 
@@ -256,6 +262,13 @@ namespace CLRformstest {
 			// 
 			this->open_dialog->FileName = L"openFileDialog1";
 			// 
+			// btn_Exit
+			// 
+			this->btn_Exit->Name = L"btn_Exit";
+			this->btn_Exit->Size = System::Drawing::Size(180, 22);
+			this->btn_Exit->Text = L"Exit";
+			this->btn_Exit->Click += gcnew System::EventHandler(this, &MyForm::btn_Exit_Click);
+			// 
 			// MyForm
 			// 
 			this->AutoScaleDimensions = System::Drawing::SizeF(6, 13);
@@ -329,7 +342,7 @@ namespace CLRformstest {
 		System::Drawing::Rectangle rect = System::Drawing::Rectangle(0, 0, pic->Width, pic->Height);
 		System::Drawing::Bitmap bmp(pic->Width, pic->Height, System::Drawing::Imaging::PixelFormat::Format24bppRgb);
 
-		map->Render(% bmp, &scroll.dx, &scroll.dy, scroll.xref, scroll.yref);
+		::map->Render(% bmp, &scroll.dx, &scroll.dy, scroll.xref, scroll.yref);
 
 		Graphics^ gr = e->Graphics;
 		gr->DrawImage(% bmp, 0, 0);
@@ -364,24 +377,32 @@ namespace CLRformstest {
 	// --- Open Map ---
 	private: System::Void btn_open_Click(System::Object^ sender, System::EventArgs^ e) {
 		
-		open_dialog->Filter = L"Spellcross MAP files (*.dta)|*.dta|Spellcross DEF-map files (*.def)|*.def";
-		open_dialog->ShowDialog();
+		std::filesystem::path last_path = ::map->GetTopPath();
+		wstring dir = last_path.parent_path();
+		wstring name = last_path.filename();
+						
+		open_dialog->InitialDirectory = gcnew System::String(dir.c_str());
+		open_dialog->FileName = gcnew System::String(name.c_str());
+		open_dialog->Filter = L"Spellcross DEF-map files (*.def)|*.def|Spellcross MAP files (*.dta)|*.dta";
 		
-		pin_ptr<const wchar_t> path = PtrToStringChars(open_dialog->FileName);
-		
-		// loose old map
-		delete map;
-		map = new Map();
-		// load new one
-		map->Load(wstring(path), spelldata);
-		// reset layers visibility
-		cb_wL1_Click(sender,e);		
-		map->SetGamma(StrToGamma(btn_SetGamma->Text));
+		if (open_dialog->ShowDialog() == System::Windows::Forms::DialogResult::OK)
+		{
+			pin_ptr<const wchar_t> path = PtrToStringChars(open_dialog->FileName);
+
+			// loose old map
+			delete ::map;
+			::map = new SpellMap();
+			// load new one
+			::map->Load(wstring(path), spelldata);
+			// reset layers visibility
+			cb_wL1_Click(sender, e);
+			::map->SetGamma(StrToGamma(btn_SetGamma->Text));
+		}
 	}
 
 	// change view mode
 	private: System::Void cb_wL1_Click(System::Object^ sender, System::EventArgs^ e) {
-		map->SetRender(cb_wL1->Checked, cb_wL2->Checked, cb_wL3->Checked, cb_wL4->Checked, cb_wSTCI->Checked, cb_wUnits->Checked);
+		::map->SetRender(cb_wL1->Checked, cb_wL2->Checked, cb_wL3->Checked, cb_wL4->Checked, cb_wSTCI->Checked, cb_wUnits->Checked);
 		this->Canvas->Invalidate();
 	}
 	
@@ -402,7 +423,7 @@ namespace CLRformstest {
 		{
 			double gamma = StrToGamma(btn_SetGamma->Text);
 			btn_SetGamma->Text = btn_SetGamma->Text->Format("Set gamma: {0}", gamma);			
-			map->SetGamma(gamma);
+			::map->SetGamma(gamma);
 		}
 	}
 
@@ -414,6 +435,9 @@ namespace CLRformstest {
 			if (swscanf(txt, L"%Lf", &gamma) != 1)
 				gamma = 1.3;
 		return(gamma);
+	}
+	private: System::Void btn_Exit_Click(System::Object^ sender, System::EventArgs^ e) {
+		Close();
 	}
 };
 }
