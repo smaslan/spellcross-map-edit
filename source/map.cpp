@@ -644,7 +644,20 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 		// initialize units state variables:
 		for (int k = 0; k < units.size(); k++)
 		{
-			units[k]->azimuth = rand() % units[k]->unit->gr_base->stat.azimuths;
+			int azn_stat = units[k]->unit->gr_base->stat.azimuths;
+			int azn_anim = units[k]->unit->gr_base->anim.azimuths;
+			int azn_step = 1;
+			if (azn_anim)
+			{
+				azn_step = azn_stat / azn_anim;
+				units[k]->azimuth_anim = rand() % azn_anim;
+				units[k]->azimuth = units[k]->azimuth_anim * azn_step;
+			}
+			else
+			{
+				units[k]->azimuth_anim = 0;
+				units[k]->azimuth = rand() % azn_stat;				
+			}			
 			units[k]->frame = 0;
 		}
 		
@@ -982,6 +995,27 @@ seldone:
 		}
 	}
 
+	// render 3D terrain mesh overlay (for debug only)
+	/*for (m = 0; m < ysz; m++)
+	{
+		if (m + yss * 2 >= y_size)
+			break;
+		for (n = 0; n < xsz; n++)
+		{
+			if (n + xss >= x_size - 1)
+				break;
+			// get sprite parameters
+			Sprite* sid = L1[(m + yss * 2) * x_size + n + xss];
+			int sof = elev[(m + yss * 2) * x_size + n + xss];
+
+			// render sprite
+			int mxx = n * 80 + ((m & 1 != 0) ? 0 : 40);
+			int myy = m * 24 - sof * 18 + MSYOFS + 50;
+
+			sid->RenderTileWires(pic, pice, mxx, myy, pic_x_size, 252);
+		}
+	}*/
+
 	
 	// --- Redner Layer 3 - ANM animations ---
 	if (wL3)
@@ -1057,10 +1091,11 @@ seldone:
 
 			if (n < 0 || m < 0 || (m + yss * 2) >= y_size || (n + xss) >= x_size - 1)
 				continue;
+			int mxy = ConvXY(n + xss, m + yss*2);
 
 			// get map tile
-			Sprite *sid = L1[(m + yss * 2) * x_size + n + xss];
-			int sof = elev[(m + yss * 2) * x_size + n + xss];
+			Sprite *sid = L1[mxy];
+			int sof = elev[mxy];
 
 			// get sprite
 			char sn = sid->name[2];
@@ -1072,6 +1107,10 @@ seldone:
 			int mxx = n * 80 + ((m & 1 != 0) ? 0 : 40);
 			int myy = m * 24 - sof * 18 + MSYOFS + 50;
 			sid->Render(pic, pice, mxx, myy, pic_x_size);
+
+			
+			/*SpellUnitRec* unit = spelldata->units->GetUnit(68);
+			unit->Render(pic, pice, mxx, myy, pic_x_size, terrain->filter.darkpal2, sid, 0);*/
 		}
 	}
 
@@ -1115,8 +1154,11 @@ seldone:
 				break;
 			int mxy = ConvXY(n + xss, m + yss * 2);
 
+			// tile selected
+			int is_selected = (selx != -1 && sely != -1 && selx == n && sely == m);
+
 			// first unit to render
-			MapUnit* unit = Lunit[mxy];
+			MapUnit* unit = Lunit[mxy];			
 			// L1 tile
 			Sprite* sid = L1[mxy];
 			int sof = elev[mxy];
@@ -1134,8 +1176,21 @@ seldone:
 				// units render:
 				while (wUnits && unit)
 				{
+					// unit animation frame selection
+					int frame, azimuth;
+					if (is_selected && unit->unit->gr_base->anim.frames)
+					{
+						frame = unit->frame;
+						azimuth = unit->azimuth_anim;
+					}
+					else
+					{
+						frame = -1;
+						azimuth = unit->azimuth;
+					}
+
 					if ((pass == 0 && unit->unit->isAir()) || pass == 2)
-						unit->unit->Render(pic, pice, mxx, myy, pic_x_size, terrain->filter.darkpal2, slope, unit->azimuth);
+						unit->unit->Render(pic, pice, mxx, myy, pic_x_size, terrain->filter.darkpal2, sid, azimuth, frame);
 					else
 						break;
 					// go to next unit at this position
@@ -1250,9 +1305,24 @@ int SpellMap::Tick()
 		if (pnm->frame_ofs >= pnm->frame_limit)
 			pnm->frame_ofs = 0;
 	}
-	
+
+	// animate units
+	for (int k = 0; k < units.size(); k++)
+	{
+		MapUnit* unit = units[k];
+
+		// cycle frames when animation avilable
+		FSU_resource* fsu = unit->unit->gr_base;
+		if (fsu->anim.frames)
+		{
+			unit->frame++;
+			if (unit->frame >= fsu->anim.frames)
+				unit->frame = 0;
+		}
+	}	
 
 	// repaint
 	return(1);
 }
+
 

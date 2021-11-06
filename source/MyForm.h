@@ -431,7 +431,7 @@ namespace CLRformstest {
 		pin_ptr<const wchar_t> txt = PtrToStringChars(str);
 		double gamma;
 		char dump[256];
-		if (swscanf(txt, L"%[^:]:%Lf", &dump, &gamma) != 2)
+		if (swscanf(txt, L"%[^:]:%Lf", dump, &gamma) != 2)
 			if (swscanf(txt, L"%Lf", &gamma) != 1)
 				gamma = 1.3;
 		return(gamma);

@@ -75,13 +75,13 @@ public:
 	constexpr bool operator==(MapUnitType type) const { return value == type.value; }
 	constexpr bool operator!=(MapUnitType type) const { return value != type.value; }
 	void operator=(const char *type) {
-		if (strcmpi(type, "PatrolUnit") == 0)
+		if (_strcmpi(type, "PatrolUnit") == 0)
 			value = Values::NormalUnit;
-		else if (strcmpi(type, "WaitForContact") == 0)
+		else if (_strcmpi(type, "WaitForContact") == 0)
 			value = Values::WaitForContact;
-		else if (strcmpi(type, "NormalUnit") == 0)
+		else if (_strcmpi(type, "NormalUnit") == 0)
 			value = Values::NormalUnit;
-		else if (strcmpi(type, "ToughDefence") == 0)
+		else if (_strcmpi(type, "ToughDefence") == 0)
 			value = Values::ToughDefence;
 		else
 			value = Values::Unknown;
@@ -116,6 +116,7 @@ public:
 
 	// unit rendering state
 	int azimuth;
+	int azimuth_anim;
 	int frame;
 
 	int GetXY();

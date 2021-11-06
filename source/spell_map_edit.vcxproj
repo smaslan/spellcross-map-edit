@@ -129,6 +129,7 @@
     <ClCompile Include="MyForm.cpp" />
     <ClCompile Include="spell_units.cpp" />
     <ClCompile Include="spellcross.cpp" />
+    <ClCompile Include="sprites.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="fsu_archive.h" />
@@ -141,6 +142,7 @@
       <FileType>CppForm</FileType>
     </ClInclude>
     <ClInclude Include="spellcross.h" />
+    <ClInclude Include="sprites.h" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="MyForm.resx">

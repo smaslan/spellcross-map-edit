@@ -340,7 +340,8 @@ int FSUarchive::LoadResource(uint8_t *data, int rid, FSU_resource *res, LZWexpan
 			for (int azid = 0; azid < res->anim.azimuths; azid++)
 			{
 				res->anim.lists[azid] = new FSU_sprite * [res->anim.frames];
-				memcpy((void*)res->anim.lists[azid], (void*)&res->list[res->anim.frames*azid], res->anim.frames * sizeof(FSU_sprite*));
+				for (int k=0; k < res->anim.frames; k++)
+					res->anim.lists[azid][k] = res->list[azid + k*res->anim.azimuths];
 			}
 		}
 		else
@@ -377,7 +378,8 @@ int FSUarchive::LoadResource(uint8_t *data, int rid, FSU_resource *res, LZWexpan
 			for (int azid = 0; azid < res->anim.azimuths; azid++)
 			{
 				res->anim.lists[azid] = new FSU_sprite * [res->anim.frames];
-				memcpy((void*)res->anim.lists[azid], (void*)&res->list[res->anim.frames * azid], res->anim.frames * sizeof(FSU_sprite*));
+				for (int k = 0; k < res->anim.frames; k++)
+					res->anim.lists[azid][k] = res->list[azid + k*res->anim.azimuths];
 			}
 
 		}

@@ -10,6 +10,7 @@
 
 #include "spell_units.h"
 #include "fsu_archive.h"
+#include "sprites.h"
 #include <vector>
 #include <stdexcept>
 
@@ -87,7 +88,7 @@ SpellUnits::SpellUnits(uint8_t* data, int dlen, FSUarchive *fsu)
 		rdsc(unit->icon, rec + 0x31, 9);
 
 		// unit class flags
-		// 0x01 -
+		// 0x01 - has turret
 		// 0x02 - walk movement
 		// 0x04 - flight movement
 		// 0x08 - hover movement (can move on water)
@@ -312,7 +313,27 @@ int SpellUnitRec::isLight()
 }
 int SpellUnitRec::isHeavy()
 {
-	return((utype & UTYPE_TYPE_MASK) == UTYPE_TYPE_HEAVY);
+	return((utype & UTYPE_TYPE_MASK) == UTYPE_TYPE_ARMORED);
+}
+int SpellUnitRec::hasTurret()
+{
+	return(!!(utype & UTYPE_TURRET));
+}
+int SpellUnitRec::isWalk()
+{
+	return(!!(utype & UTYPE_WALK));
+}
+int SpellUnitRec::isFly()
+{
+	return(!!(utype & UTYPE_FLY));
+}
+int SpellUnitRec::isHover()
+{
+	return(!!(utype & UTYPE_HOVER));
+}
+int SpellUnitRec::isTank()
+{
+	return(!isWalk() && !isFly());
 }
 
 
@@ -340,11 +361,14 @@ SpellUnitRec *SpellUnits::GetUnit(int uid)
 }
 
 
-#define AirUnitOffset 100
 
 // render unit (complete, i.e. group of man or tank with turret)
-void SpellUnitRec::Render(uint8_t* buffer, uint8_t* buf_end, int buf_x_pos, int buf_y_pos, int buf_x_size, uint8_t* shadow_filter, char slope, int azim)
+void SpellUnitRec::Render(uint8_t* buffer, uint8_t* buf_end, int buf_x_pos, int buf_y_pos, int buf_x_size,
+	uint8_t* shadow_filter, ::Sprite *sprt, int azim, int frame)
 {
+	// tile slope
+	char slope = sprt->name[2];
+	
 	// visible man count in unit
 	int man = vis;
 	if (man < 1)
@@ -353,9 +377,12 @@ void SpellUnitRec::Render(uint8_t* buffer, uint8_t* buf_end, int buf_x_pos, int 
 		man = 5; // limit units to 4 (###todo: may be extended later)
 
 	// buffer of man positions relatie to origin
-	int uofs_x[5];
-	int uofs_y[5];
+	double uofs_x[5];
+	double uofs_y[5];
 	int uofs[5];
+
+	/*if (man == 4)
+		man = 40;*/
 
 	// precalculate sin/cos to save time
 	static int isa = 0;
@@ -379,7 +406,6 @@ void SpellUnitRec::Render(uint8_t* buffer, uint8_t* buf_end, int buf_x_pos, int 
 	if (man >= 2 && man <= 5)
 	{
 		// 2-5 units - make ring around center
-		double diam = 9.0; // ring placement diameter
 		int ang_step;
 		int ang_ofs;		
 		if (man == 2)
@@ -394,14 +420,14 @@ void SpellUnitRec::Render(uint8_t* buffer, uint8_t* buf_end, int buf_x_pos, int 
 		}
 		else
 		{
-			ang_ofs = 15;
+			ang_ofs = 1;
 			ang_step = 90;
 		}
 		for (int k = 0; k < min(man,4); k++)
 		{
 			// calculate man placement
-			uofs_x[man_id] = (int)(sina[ang_ofs] * diam * 1.5);
-			uofs_y[man_id] = (int)(cosa[ang_ofs] * diam);
+			uofs_x[man_id] = sina[ang_ofs];
+			uofs_y[man_id] = cosa[ang_ofs];
 			uofs[man_id] = 0;
 			man_id++;
 			// next angle
@@ -410,6 +436,23 @@ void SpellUnitRec::Render(uint8_t* buffer, uint8_t* buf_end, int buf_x_pos, int 
 				ang_ofs -= 360;
 		}
 	}
+	/*else
+	{
+		int ang_step = 360/man;
+		int ang_ofs = 0;
+		for (int k = 0; k < man; k++)
+		{
+			// calculate man placement
+			uofs_x[man_id] = sina[ang_ofs];
+			uofs_y[man_id] = cosa[ang_ofs];
+			uofs[man_id] = 0;
+			man_id++;
+			// next angle
+			ang_ofs += ang_step;
+			if (ang_ofs >= 360)
+				ang_ofs -= 360;
+		}
+	}*/
 
 	int x_pos;
 	int y_pos;
@@ -419,7 +462,7 @@ void SpellUnitRec::Render(uint8_t* buffer, uint8_t* buf_end, int buf_x_pos, int 
 	for (int uid = 0; uid < man; uid++)
 	{
 		// search maximum y-offset because we render from back to front
-		int min_y = 10000;
+		double min_y = 10000.0;
 		for (int k = 0; k < man; k++)
 		{
 			if (!uofs[k] && uofs_y[k] < min_y)
@@ -441,39 +484,41 @@ void SpellUnitRec::Render(uint8_t* buffer, uint8_t* buf_end, int buf_x_pos, int 
 				break;
 			
 			int y_org = 0;
-			/*if (res->stat.slopes == 1)
-				slope = 'A';
-			else
-			{
-				if (slope == 'C' || slope == 'D' || slope == 'M' || slope == 'B')
-					y_org = 47/2;
-				else if (slope == 'L' || slope == 'F')
-					y_org = 29/2;
-			}*/
 			if (res->stat.slopes == 1)
 				slope = 'A';
-			if (slope == 'B' || slope == 'D' || slope == 'L' || slope == 'M' || slope == 'F')
-				y_org = 24;
-			else if (slope == 'C')
-				y_org = 24;
-			else
-				y_org = 0;
-									
+												
 			// get sprite record
-			spr = res->stat.lists[slope-'A'][azim];
+			if (frame >= 0 && res->anim.frames)
+			{
+				// animate
+				spr = res->anim.lists[azim][frame];
+			}
+			else
+				spr = res->stat.lists[slope-'A'][azim];
 
 			// unit position
-			x_pos = buf_x_pos + uofs_x[man_id];
-			y_pos = buf_y_pos - y_org + uofs_y[man_id];
-
+			if (isWalk())
+			{
+				// for walking units we have to perform placement transform based on terrain for each man
+				x_pos = buf_x_pos + (int)(uofs_x[man_id] * MAN_RING_DIAMETER);
+				y_pos = buf_y_pos - (int)(sprt->GetTileProjY(uofs_x[man_id] * MAN_RING_DIAMETER, -uofs_y[man_id] * MAN_RING_DIAMETER));
+			}
+			else
+			{
+				// for all other units do nothing, place it as prescribed by unit sprite itself
+				x_pos = buf_x_pos;
+				y_pos = buf_y_pos + sprt->y_ofs;
+			}
+			
 			if (isAir())
 			{
 				// air unit - shift unit up
-				y_pos -= AirUnitOffset;
+				y_pos -= AIR_UNIT_FLY_HEIGHT;
 			}
 
 			// render man of unit			
 			spr->Render(buffer, buf_end, x_pos, y_pos, buf_x_size, shadow_filter);
+			//buffer[x_pos + (spr->x_max + spr->x_min)/2 + (y_pos + spr->y_ofs + spr->y_size-128) * buf_x_size] = 252;
 		}
 	}
 
@@ -483,21 +528,13 @@ void SpellUnitRec::Render(uint8_t* buffer, uint8_t* buf_end, int buf_x_pos, int 
 		// only for air, single man unit, not tank
 
 		// top of the stick
-		y_pos += spr->y_ofs - 128 + spr->y_size;
-		x_pos += 40;
+		x_pos = buf_x_pos + 40;
+		y_pos = buf_y_pos - AIR_UNIT_FLY_HEIGHT + spr->y_ofs - 128 + spr->y_size + sprt->y_ofs;
 		if (y_pos < 0)
 			y_pos = 0;
 
 		// bottom of the stick
-		int y_down = buf_y_pos;
-		
-		if (slope == 'B' || slope == 'D' || slope == 'F' || slope == 'L' || slope == 'M')
-			spr->y_ofs = +18;
-		else if (slope == 'C')
-			spr->y_ofs = +17;
-		else
-			y_down += 24;
-
+		int y_down = buf_y_pos + sprt->y_size / 2 + sprt->y_ofs;
 		if (y_down > (buf_end - buffer) / buf_x_size)
 			y_down = (buf_end - buffer) / buf_x_size;
 

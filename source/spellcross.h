@@ -14,10 +14,10 @@
 #include <string>
 #include "fs_archive.h"
 #include "fsu_archive.h"
+#include "sprites.h"
 #include "spell_units.h"
 
 using namespace std;
-using namespace System;
 
 class SpellDefCmd
 {
@@ -45,109 +45,8 @@ class SpellDEF
 };
 
 
-#define MAX_STR 256
-#define MAX_SPRITE_NAME 8
 
-class Sprite
-{
-	public:
-		// sprite name tag
-		char name[MAX_SPRITE_NAME + 1];
-		// sprite data
-		uint8_t* data;
-		// sprite size
-		int x_size;
-		int y_size;
-		// sprite offset
-		int y_ofs;
-		int x_ofs;
-		// land type
-		int land_type;
-		// has transparency
-		int has_transp;
 
-		// void constructor
-		Sprite();
-		~Sprite();
-		int Decode(uint8_t* data, char* name);
-		void Render(uint8_t* buffer, uint8_t* buf_end, int buf_x, int buf_y, int x_size);
-
-	private:
-		int MaskHasTransp(uint8_t* mask);
-
-};
-
-class AnimL1
-{
-	public:
-		// animation name
-		char name[MAX_SPRITE_NAME + 1];
-		// frames list
-		vector<Sprite*> frames;
-		// sprite size
-		int x_size;
-		int y_size;
-		// sprite vertical offset
-		int y_ofs;
-
-		// void constructor
-		AnimL1();
-		~AnimL1();
-		int Decode(uint8_t* data, char* name);
-
-};
-
-class AnimPNM
-{
-	public:
-		// animation name
-		char name[MAX_SPRITE_NAME + 1];
-		// frames list
-		vector<Sprite*> frames;
-		// sprite data limits relative to origin defined by frames
-		int x_min;
-		int x_max;
-		int y_min;
-		int y_max;
-								
-		// void constructor
-		AnimPNM();
-		~AnimPNM();
-		int Decode(uint8_t* data, char* name);
-
-};
-
-class Terrain
-{
-	public:
-		// terrain name
-		char name[MAX_STR];
-		// sprites of particular layers
-		vector<Sprite*> sprites;
-		// Layer 1 animations (ANM)
-		vector<AnimL1*> anms;
-		// Layer 4 animations (PNM)
-		vector<AnimPNM*> pnms;
-		// color palette
-		uint8_t pal[256][3];
-		// filters
-		struct {
-			uint8_t darkpal[256];
-			uint8_t darkpal2[256];
-			uint8_t darker[256];
-			uint8_t bluepal[256];
-			uint8_t dbluepal[256];
-			uint8_t redpal[256];
-		} filter; 
-
-		// void contructor
-		Terrain();
-		~Terrain();
-		int Load(wstring &path);
-		Sprite* GetSprite(char* name);
-		AnimL1* GetANM(char* name);
-		AnimPNM* GetPNM(char* name);
-};
 
 class SpellData
 {

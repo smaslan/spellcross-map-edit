@@ -10,9 +10,10 @@
 #pragma once
 
 #include "fsu_archive.h"
+#include "sprites.h"
 #include <vector>
 
-using namespace std;
+//using namespace std;
 
 class SpellUnitRec
 {
@@ -109,18 +110,37 @@ class SpellUnitRec
 		FSU_resource* gr_aux; /* unit aux graphics (turret for tanks) */
 
 		SpellUnitRec();
-		void Render(uint8_t* buffer, uint8_t* buf_end, int buf_x_pos, int buf_y_pos, int buf_x_size, uint8_t* shadow_filter, char slope, int azim);		
+		void Render(uint8_t* buffer, uint8_t* buf_end, int buf_x_pos, int buf_y_pos, int buf_x_size, uint8_t* shadow_filter, Sprite *sprt, int azim, int frame);
 
 		int isAir();
 		int isLight();
 		int isHeavy();
+		int hasTurret();
+		int isWalk();
+		int isHover();
+		int isFly();
+		int isTank();
 
 private:
+
+	// multiple man in unit placement diameter in tile (pixels)
+	static int const MAN_RING_DIAMETER = 15.0;
+
+	// air unit height in projected space (pixels)
+	static int const AIR_UNIT_FLY_HEIGHT = 100;
 
 	static int const UTYPE_TYPE_MASK = 0x30;
 	static int const UTYPE_TYPE_AIR = 0x00;
 	static int const UTYPE_TYPE_LIGHT = 0x10;
-	static int const UTYPE_TYPE_HEAVY = 0x20;
+	static int const UTYPE_TYPE_ARMORED = 0x20;
+	static int const UTYPE_TURRET = 0x01;
+	static int const UTYPE_WALK = 0x02;
+	static int const UTYPE_FLY = 0x04;
+	static int const UTYPE_HOVER = 0x08;
+	static int const UTYPE_FLAHS = 0x40;
+	static int const UTYPE_DEMON = 0x80;
+
+
 	
 };
 
