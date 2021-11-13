@@ -364,55 +364,59 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 	int L3_count = *(__int32*)data; data += 4;
 
 	// load list of used L3 sprites
-	AnimL1 **anims = new AnimL1*[L3_count];
-	for (int k = 0; k < L3_count; k++)
+	if(L3_count)
 	{
-		// read anim name
-		char name[9];
-		std::memset((void*)name, '\0', sizeof(name));
-		std::memcpy((void*)name, (void*)data, 8);
-		data += 8;
-
-		// try to get sprite's data
-		anims[k] = this->terrain->GetANM(name);
-		if (!anims[k])
+		AnimL1 **anims = new AnimL1*[L3_count];
+		for (int k = 0; k < L3_count; k++)
 		{
-			// not found!
-			delete[] anims;
-			delete[] map_buffer;
-			return(1);
-		}
-	}
+			// read anim name
+			char name[9];
+			std::memset((void*)name, '\0', sizeof(name));
+			std::memcpy((void*)name, (void*)data, 8);
+			data += 8;
 
-	// decode animation locations
-	if (L3_count)
-	{
-		// get total ANM items count
-		int L3_items = *(__int32*)data; data += 4;
+			// try to get sprite's data
+			anims[k] = this->terrain->GetANM(name);
+			if (!anims[k])
+			{
+				// not found!
+				delete[] anims;
+				delete[] map_buffer;
+				return(1);
+			}
+		}
+
+		// decode animation locations
+		if (L3_count)
+		{
+			// get total ANM items count
+			int L3_items = *(__int32*)data; data += 4;
 		
-		// for each item:
-		for (int k = 0; k < L3_items; k++)
-		{
-			// initial frame offset
-			int frame_ofs = *data++;
-			// frames count limit, ###note: this may be actually frames count from offset???
-			// ###todo: findout why frame offset is byte and frames count word??? Maybe it is byte limit, and another byte of whatever?
-			int frame_limit = *(__int16*)data; data += 2;
-			// x,y position in map
-			int x_pos = *(__int16*)data; data += 2;
-			int y_pos = *(__int16*)data; data += 2;
-			// animation ID
-			int aid = *(__int16*)data; data += 2;
+			// for each item:
+			for (int k = 0; k < L3_items; k++)
+			{
+				// initial frame offset
+				int frame_ofs = *data++;
+				// frames count limit, ###note: this may be actually frames count from offset???
+				// ###todo: findout why frame offset is byte and frames count word??? Maybe it is byte limit, and another byte of whatever?
+				int frame_limit = *(__int16*)data; data += 2;
+				// x,y position in map
+				int x_pos = *(__int16*)data; data += 2;
+				int y_pos = *(__int16*)data; data += 2;
+				// animation ID
+				int aid = *(__int16*)data; data += 2;
 						
-			// put new animation entry to list
-			MapLayer3* anim = new MapLayer3(anims[aid], x_pos, y_pos, frame_ofs, frame_limit);
-			L3.push_back(anim);
+				// put new animation entry to list
+				MapLayer3* anim = new MapLayer3(anims[aid], x_pos, y_pos, frame_ofs, frame_limit);
+				L3.push_back(anim);
 						
+			}
+
 		}
 
+		// clear used animation list
+		delete[] anims;
 	}
-	// clear used animation list
-	delete[] anims;
 
 
 
@@ -435,10 +439,10 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 
 		// try to get sprite's data
 		pnims[k] = this->terrain->GetPNM(name);
-		if (!anims[k])
+		if (!pnims[k])
 		{
 			// not found!
-			delete[] anims;
+			delete[] pnims;
 			delete[] map_buffer;
 			return(1);
 		}

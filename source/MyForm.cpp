@@ -35,11 +35,10 @@ int tick_thread(int *exit)
 			// yaha - update map
 			if (::map->Tick())
 			{
-				//form->Canvas->Refresh();
 				HWND handle;
 				handle = FindWindow(NULL, WIN_TITLE);
 				if(handle)
-					PostMessage(handle, WM_USER, NULL, NULL);
+					PostMessage(handle, WM_USER, 0, 0);
 			}
 			t_start = t_now;
 		}
