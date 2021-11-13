@@ -17,6 +17,10 @@
 #include <stdexcept>
 #include <regex>
 
+#include "wx/dcgraph.h"
+#include "wx/dcbuffer.h"
+#include <wx/rawbmp.h>
+
 using namespace std;
 
 
@@ -32,7 +36,6 @@ MapLayer3::MapLayer3(AnimL1* anm, int x_pos, int y_pos, int frame_ofs, int frame
 	this->frame_ofs = frame_ofs;
 	this->frame_limit = frame_limit;
 }
-
 MapLayer3::~MapLayer3()
 {
 	anim = NULL;
@@ -51,7 +54,6 @@ MapLayer4::MapLayer4(AnimPNM* pnm, int x_pos, int y_pos, int x_ofs, int y_ofs, i
 	this->frame_ofs = frame_ofs;
 	this->frame_limit = frame_limit;
 }
-
 MapLayer4::~MapLayer4()
 {
 	anim = NULL;
@@ -90,24 +92,37 @@ SpellMap::SpellMap()
 SpellMap::~SpellMap()
 {
 	int k;
+	// loose terrain
 	if (L1)
 		delete[] L1;
 	L1 = NULL;
+	// loose objects
 	if (L2)
 		delete[] L2;
 	L2 = NULL;
+	// loose elevation map
 	if (elev)
 		delete[] this->elev;
 	elev = NULL;
+	// loose flags
 	if (flags)
 		delete[] flags;
 	flags = NULL;	
+	// loose ANM list
+	for(k = 0; k < L3.size(); k++)
+		delete L3[k];
 	L3.clear();
+	// loose PNM list
+	for(k = 0; k < L4.size(); k++)
+		delete L4[k];
 	L4.clear();
+	// loose start/ciel
 	start.clear();
 	escape.clear();
+	// loose units layer
 	if (Lunit)
 		delete[] Lunit;
+	// loose units list
 	for (k = 0; k < units.size(); k++)
 		delete units[k];
 	units.clear();
@@ -133,7 +148,7 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 	wstring map_path = path;
 
 	// DEF file
-	SpellDEF *def;
+	SpellDEF *def = NULL;
 
 	if (path.rfind(L".DEF") != wstring::npos)
 	{
@@ -143,16 +158,16 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 		def = new SpellDEF(path);
 
 		// parse mission data
-		vector<SpellDefCmd*> mission_data = def->GetSection("MissionData");
-		if (!mission_data.size())
+		SpellDefSection *mission_data = def->GetSection("MissionData");
+		if (!mission_data->Size())
 		{
 			// likely not a valid DEF file
 			return(1);
 		}
 
-		for (int k = 0; k < mission_data.size(); k++)
+		for (int k = 0; k < mission_data->Size(); k++)
 		{
-			if (mission_data[k]->name.compare("MissionMap") == 0)
+			if ((*mission_data)[k]->name.compare("MissionMap") == 0)
 			{
 				// --- *.MAP file definition ---
 				size_t pos = map_path.rfind(L"\\", 260);
@@ -160,11 +175,11 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 					map_path.resize(pos);
 				else
 					map_path = L"";
-				string map_name = (*mission_data[k]->parameters)[0];
+				string map_name = (*(*mission_data)[k]->parameters)[0];
 				map_path = map_path + L"\\" + wstring(map_name.begin(), map_name.end()) + L".DTA";
 			}			
 		}
-		mission_data.clear();
+		delete mission_data;
 
 		// store DEF file path
 		def_path = path;
@@ -511,11 +526,11 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 	if (def)
 	{
 		// parse mission data
-		vector<SpellDefCmd*> mission_data = def->GetSection("MissionData");
+		SpellDefSection *mission_data = def->GetSection("MissionData");
 
-		for (int k = 0; k < mission_data.size(); k++)
+		for (int k = 0; k < mission_data->Size(); k++)
 		{
-			SpellDefCmd* cmd = mission_data[k];
+			SpellDefCmd* cmd = (*mission_data)[k];
 			if (cmd->name.compare("AddStartSquare") == 0)
 			{
 				// --- AddStartSquare(s) ---				
@@ -569,6 +584,7 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 				unit->unit = spelldata->units->GetUnit(unit->type_id);				
 				if (!unit->unit)
 				{
+					delete mission_data;
 					delete unit;
 					return(1);
 				}
@@ -597,12 +613,12 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 				
 				// parse event data
 				string event_data_header = "EventData(" + std::to_string(index) + ")";
-				vector<SpellDefCmd*> event_data = def->GetSection(event_data_header);
+				SpellDefSection *event_data = def->GetSection(event_data_header);
 
 				// for each item in event:
-				for (int evid = 0; evid < event_data.size(); evid++)
+				for (int evid = 0; evid < event_data->Size(); evid++)
 				{
-					SpellDefCmd* evcmd = event_data[evid];
+					SpellDefCmd* evcmd = (*event_data)[evid];
 
 					if (evcmd->name.compare("AddSpecialUnit") == 0)
 					{
@@ -630,6 +646,7 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 						unit->unit = spelldata->units->GetUnit(unit->type_id);
 						if (!unit->unit)
 						{
+							delete event_data;
 							delete unit;
 							return(1);
 						}
@@ -639,11 +656,12 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 					}
 				}
 				// clear parsed event data
-				event_data.clear();
+				delete event_data;
 
 			}
 		}
-		mission_data.clear();
+		delete mission_data;
+		delete def;
 
 		// initialize units state variables:
 		for (int k = 0; k < units.size(); k++)
@@ -759,7 +777,7 @@ int SpellMap::IsLoaded()
 	return(1);
 }
 
-int SpellMap::Render(System::Drawing::Bitmap ^bmp, int *x_pos, int *y_pos, int x_cursor, int y_cursor)
+int SpellMap::Render(wxBitmap &bmp, int *x_pos, int *y_pos, int x_cursor, int y_cursor)
 {
 	int i, j;
 	int m, n;
@@ -772,8 +790,8 @@ int SpellMap::Render(System::Drawing::Bitmap ^bmp, int *x_pos, int *y_pos, int x
 		return(1);
 
 	// get surface size
-	surf_x = bmp->Width;
-	surf_y = bmp->Height;
+	surf_x = bmp.GetWidth();
+	surf_y = bmp.GetHeight();
 	if (!last_surf_x || last_surf_x != surf_x || !last_surf_y || last_surf_y != surf_y)
 	{
 		// surface size changed
@@ -1229,7 +1247,29 @@ seldone:
 				pal[k][c] = (uint8_t)(pow((double)pal[k][c] / 255.0, 1.0 / gamma) * 255.0);
 	}
 
-	// Lock the bitmap's bits.  
+	
+	
+	// render 24bit RGB data to raw bmp buffer
+	wxNativePixelData data(bmp);
+	wxNativePixelData::Iterator p(data);
+	for(unsigned int y = 0; y < surf_y; ++y)
+	{
+		uint8_t* scan = p.m_ptr;
+		uint8_t* src = &pic[(y + (*y_pos / 48 <= MSYOFST ? (*y_pos / 48) * 48 : MSYOFST * 48) + (*y_pos % 48) * smooth)*pic_x_size + ((*x_pos >= 80 ? (80) : (0)) + (*x_pos % 80) * smooth)];
+		for(int x = 0; x < surf_x; x++)
+		{
+			*scan++ = pal[*src][2];
+			*scan++ = pal[*src][1];
+			*scan++ = pal[*src][0];
+			src++;
+		}
+		p.OffsetY(data,1);
+	}
+
+
+	
+	
+	/*// Lock the bitmap's bits.  
 	System::Drawing::Rectangle rect = System::Drawing::Rectangle(0, 0, surf_x, surf_y);
 	System::Drawing::Imaging::BitmapData^ bmpData = bmp->LockBits(rect, System::Drawing::Imaging::ImageLockMode::ReadWrite, bmp->PixelFormat);
 
@@ -1256,7 +1296,7 @@ seldone:
 	}
 
 	// Unlock bmp databits
-	bmp->UnlockBits(bmpData);
+	bmp->UnlockBits(bmpData);*/
 
 	return(0);
 }

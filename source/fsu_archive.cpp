@@ -69,7 +69,9 @@ FSUarchive::FSUarchive(std::wstring &path)
 		lists[k].clear();		
 	}
 	delete[] lists;
-			
+
+	// clear FSU file buffer
+	delete[] data;			
 }
 
 //---------------------------------------------------------------------------
@@ -78,11 +80,7 @@ FSUarchive::FSUarchive(std::wstring &path)
 FSUarchive::~FSUarchive()
 {
 	for (unsigned k = 0; k < list.size(); k++)
-	{
-		for (unsigned s = 0; s < list[k]->list.size(); s++)
-			delete[] list[k]->list[s]->data;
-		list[k]->list.clear();
-	}
+		delete list[k];
 	list.clear();
 }
 
@@ -262,7 +260,7 @@ int FSUarchive::LoadResource(uint8_t *data, int rid, FSU_resource *res, LZWexpan
 			img = imge;
 
 			// check real line len
-			int xlen = imge - (llen + sizeof(int));
+			int xlen = (int)(imge - (llen + sizeof(int)));
 
 			// store real line len
 			*(int*)llen = xlen;
@@ -292,7 +290,7 @@ int FSUarchive::LoadResource(uint8_t *data, int rid, FSU_resource *res, LZWexpan
 			xmax = lxmax;
 
 		// store image
-		int img_data_len = img - img_data;
+		int img_data_len = (int)(img - img_data);
 		sprite->data = new uint8_t[img_data_len];
 		std::memcpy((void*)sprite->data, (void*)img_data, img_data_len);
 
@@ -434,12 +432,14 @@ FSU_resource::FSU_resource()
 // single resource cleaner
 FSU_resource::~FSU_resource()
 {
-	// clear sorted sprites lists (not data, just pointer lists!)
+	// clear static unit lists
 	for (int k = 0; k < sizeof(stat.lists) / sizeof(FSU_sprite*); k++)
 		if(stat.lists[k])
-			delete[] stat.lists[k];
+			delete[] stat.lists[k];	
 	stat.azimuths = 0;
 	stat.slopes = 0;
+	
+	// clear unit animation lists
 	if (anim.lists)
 	{
 		for (int k = 0; k < anim.azimuths; k++)
@@ -449,8 +449,28 @@ FSU_resource::~FSU_resource()
 	}
 	anim.azimuths = 0;
 	anim.frames = 0;
+
+	// clear actual sprite data
+	for(unsigned k = 0; k < list.size(); k++)
+		delete list[k];
+	list.clear();
 }
 
+
+
+
+// FSU sprite constructor
+FSU_sprite::FSU_sprite()
+{
+	name[0] = '\0';
+	data = NULL;
+}
+// FSU sprite desctructor
+FSU_sprite::~FSU_sprite()
+{
+	if(data)
+		delete[] data;
+}
 
 // render sprite to target buffer, buffer is sprite origin, x_size is buffer width
 void FSU_sprite::Render(uint8_t* buffer, uint8_t* buf_end, int buf_x_pos, int buf_y_pos, int buf_x_size, uint8_t* shadow_filter)

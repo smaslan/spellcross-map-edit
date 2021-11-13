@@ -34,8 +34,38 @@ SpellDefCmd::SpellDefCmd(std::string command, std::string params, std::string co
 }
 SpellDefCmd::~SpellDefCmd()
 {	
+	parameters->clear();
 	delete parameters;
 }
+
+// --- section of DEF file
+SpellDefSection::SpellDefSection()
+{
+}
+SpellDefSection::~SpellDefSection()
+{
+	for(unsigned k = 0; k < list.size(); k++)
+		delete list[k];
+	list.clear();
+}
+// get section items count
+int SpellDefSection::Size()
+{
+	return(list.size());
+}
+// add item
+void SpellDefSection::Add(SpellDefCmd *cmd)
+{
+	list.push_back(cmd);
+}
+// get item
+SpellDefCmd* SpellDefSection::operator[](int index)
+{
+	if(index < 0 || index > list.size())
+		return(NULL);
+	return(list[index]);
+}
+
 
 
 // construct from file
@@ -77,9 +107,10 @@ SpellDEF::~SpellDEF()
 }
 
 // returns vector of commands in given section
-vector<SpellDefCmd*> SpellDEF::GetSection(std::string section)
+SpellDefSection *SpellDEF::GetSection(std::string section)
 {
-	vector<SpellDefCmd*> cmd_list;
+	//vector<SpellDefCmd*> cmd_list;
+	SpellDefSection *sec_data = new SpellDefSection();
 	
 	std::string data = std::string(this->data);
 	
@@ -99,7 +130,7 @@ vector<SpellDefCmd*> SpellDEF::GetSection(std::string section)
 	if (match.size() < 2)
 	{
 		// failed
-		return(cmd_list);
+		return(sec_data);
 	}
 
 	// found
@@ -112,20 +143,19 @@ vector<SpellDefCmd*> SpellDEF::GetSection(std::string section)
 
 		if (match.size() != 4)
 		{
-			return(cmd_list);
+			return(sec_data);
 		}
 		
 		// parse command data
 		SpellDefCmd* cmd = new SpellDefCmd(match[2], match[3], match[1]);		
-		// store to list
-		cmd_list.push_back(cmd);
+		// store to list		
+		sec_data->Add(cmd);
 
 		// continue
 		sectxt = match.suffix();
 	}
 
-	return(cmd_list);
-
+	return(sec_data);
 }
 
 
@@ -148,10 +178,10 @@ vector<SpellDefCmd*> SpellDEF::GetSection(std::string section)
 SpellData::SpellData(wstring &data_path)
 {
 	// load terrains
-	vector<wchar_t*> terrain_list({L"\\T11.FS",
-		                           L"\\PUST.FS",
-		                           L"\\DEVAST.FS"});
-	for (unsigned k = 0; k < terrain_list.size(); k++)
+	const wchar_t* terrain_list[] = {L"\\T11.FS",
+		                             L"\\PUST.FS",
+		                             L"\\DEVAST.FS"};
+	for (unsigned k = 0; k < sizeof(terrain_list)/sizeof(const wchar_t*); k++)
 	{		
 		// terrain archive path
 		wstring path = data_path + terrain_list[k];
@@ -218,9 +248,11 @@ SpellData::~SpellData()
 	// destroy terrain data
 	for (unsigned k = 0; k < terrain.size(); k++)
 		delete terrain[k];
-	terrain.clear();
+	terrain.clear();	
 	// clear units list
 	delete units;
+	// delete FSU unit data
+	delete units_fsu;
 }
 
 
@@ -229,7 +261,7 @@ int SpellData::LoadSpecialLand(wstring &spec_folder)
 {
 
 	// groups to load
-	wchar_t* files[] = { L"\\solid.fs", L"\\edge.fs", L"\\grid.fs", L"\\select.fs" };
+	const wchar_t* files[] = { L"\\solid.fs", L"\\edge.fs", L"\\grid.fs", L"\\select.fs" };
 	Sprite* lists[] = { special.solid, special.edge, special.grid, special.select };
 	
 	// for each group:

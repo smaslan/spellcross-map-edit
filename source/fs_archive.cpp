@@ -78,15 +78,15 @@ FSarchive::~FSarchive()
 // return files count
 int FSarchive::Count()
 {
-	return(data.size());
+	return((int)data.size());
 }
 
 // get file by name
-int FSarchive::GetFile(char* name, uint8_t** data, int* size)
+int FSarchive::GetFile(const char* name, uint8_t** data, int* size)
 {
 	for (int k = 0; k < names.size(); k++)
 	{
-		if (strcmpi(names[k], name) == 0)
+		if (_strcmpi(names[k], name) == 0)
 		{
 			if(data)
 				*data = this->data[k];

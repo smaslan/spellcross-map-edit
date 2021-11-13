@@ -15,10 +15,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="MyForm.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="spellcross.cpp">
+    <ClCompile Include="fs_archive.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="fsu_archive.cpp">
@@ -27,13 +24,16 @@
     <ClCompile Include="LZ_spell.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="fs_archive.cpp">
+    <ClCompile Include="main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="map.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="spell_units.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="map.cpp">
+    <ClCompile Include="spellcross.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="sprites.cpp">
@@ -41,10 +41,7 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="MyForm.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="spellcross.h">
+    <ClInclude Include="fs_archive.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="fsu_archive.h">
@@ -53,16 +50,19 @@
     <ClInclude Include="LZ_spell.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="fs_archive.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="spell_units.h">
+    <ClInclude Include="main.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="map.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="SimpleIni.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="spell_units.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="spellcross.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="sprites.h">

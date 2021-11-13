@@ -31,6 +31,20 @@ class SpellDefCmd
 		~SpellDefCmd();
 };
 
+class SpellDefSection
+{
+private:
+	vector<SpellDefCmd*> list;
+
+public:
+	SpellDefSection();
+	~SpellDefSection();
+	int Size();
+
+	void Add(SpellDefCmd* cmd);
+	SpellDefCmd* operator[](int index);
+};
+
 class SpellDEF
 {
 	private: 
@@ -41,7 +55,7 @@ class SpellDEF
 		SpellDEF(uint8_t *data, int size);
 		~SpellDEF();
 
-		vector<SpellDefCmd*> GetSection(std::string section);
+		SpellDefSection *GetSection(std::string section);
 };
 
 

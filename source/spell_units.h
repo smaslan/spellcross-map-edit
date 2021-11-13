@@ -124,21 +124,21 @@ class SpellUnitRec
 private:
 
 	// multiple man in unit placement diameter in tile (pixels)
-	static int const MAN_RING_DIAMETER = 15.0;
+	static constexpr double MAN_RING_DIAMETER = 15.0;
 
 	// air unit height in projected space (pixels)
-	static int const AIR_UNIT_FLY_HEIGHT = 100;
+	static constexpr int AIR_UNIT_FLY_HEIGHT = 100;
 
-	static int const UTYPE_TYPE_MASK = 0x30;
-	static int const UTYPE_TYPE_AIR = 0x00;
-	static int const UTYPE_TYPE_LIGHT = 0x10;
-	static int const UTYPE_TYPE_ARMORED = 0x20;
-	static int const UTYPE_TURRET = 0x01;
-	static int const UTYPE_WALK = 0x02;
-	static int const UTYPE_FLY = 0x04;
-	static int const UTYPE_HOVER = 0x08;
-	static int const UTYPE_FLAHS = 0x40;
-	static int const UTYPE_DEMON = 0x80;
+	static constexpr int UTYPE_TYPE_MASK = 0x30;
+	static constexpr int UTYPE_TYPE_AIR = 0x00;
+	static constexpr int UTYPE_TYPE_LIGHT = 0x10;
+	static constexpr int UTYPE_TYPE_ARMORED = 0x20;
+	static constexpr int UTYPE_TURRET = 0x01;
+	static constexpr int UTYPE_WALK = 0x02;
+	static constexpr int UTYPE_FLY = 0x04;
+	static constexpr int UTYPE_HOVER = 0x08;
+	static constexpr int UTYPE_FLAHS = 0x40;
+	static constexpr int UTYPE_DEMON = 0x80;
 
 
 	

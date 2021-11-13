@@ -17,8 +17,10 @@
 #include "spell_units.h"
 #include "spellcross.h"
 
+#include "wx/dcbuffer.h"
+
 using namespace std;
-using namespace System;
+//using namespace System;
 
 #define MAX_STR 256
 #define MAX_SPRITE_NAME 8
@@ -176,7 +178,7 @@ class SpellMap
 		int Load(wstring &path, SpellData* spelldata);
 		void SortUnits();
 		int IsLoaded();
-		int Render(System::Drawing::Bitmap^ bmp, int *x_pos, int *y_pos, int x_cursor, int y_cursor);
+		int Render(wxBitmap &bmp, int *x_pos, int *y_pos, int x_cursor, int y_cursor);
 		void SetRender(bool wL1, bool wL2, bool wL3, bool wL4, bool wSECI, bool wUnits);
 		void SetGamma(double gamma);
 		int Tick();

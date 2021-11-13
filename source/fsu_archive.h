@@ -27,6 +27,8 @@ public:
 	// sprite data
 	uint8_t* data;
 
+	FSU_sprite();
+	~FSU_sprite();
 	void Render(uint8_t* buffer, uint8_t* buf_end, int buf_x_pos, int buf_y_pos, int buf_x_size, uint8_t* shadow_filter);
 };
 
@@ -66,19 +68,6 @@ public:
 };
 
 
-
-/*typedef struct{
-	char name[4];
-
-	int yofs;
-	int ys;
-	int xmin;
-	int xmax;
-
-	int dpos;
-	int dlen;
-}TUSpr;*/
-
 class FSUarchive{
 	private:
 
@@ -96,22 +85,7 @@ class FSUarchive{
 		int ymin;
 		int ymax;
 
-		struct{
-			int used;
-			int pos;
-			int azi;
-		}stat;
-
-		struct{
-			int frm;
-			int azi;
-			int slp;
-		}move;
-
-		/*FSUarchive(wchar_t *path);
-		~FSUarchive();
-
-		int FillItemsList(TListBox *lb);
+		/*int FillItemsList(TListBox *lb);
 		int LoadUnit(int uid);
 		int GetImageName(int fid,char **name);
 		int DrawBmpImage(int fid,Graphics::TBitmap *bmp,int zoom,uchar bcid,uchar scid);

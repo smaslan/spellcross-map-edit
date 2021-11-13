@@ -44,7 +44,7 @@ class LZWdct
 	public:
 		LZWdct();
 		~LZWdct();
-		int LZWdct::Load(uint8_t** src, uint8_t* end);		
+		int Load(uint8_t** src, uint8_t* end);		
 		int LZWreinitDict();
 
 		int inline isclr(int code);

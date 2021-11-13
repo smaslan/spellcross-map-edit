@@ -65,9 +65,9 @@ class Sprite
 		int MaskHasTransp(uint8_t* mask);
 
 		// tile elevation step in pixels
-		static int const TILE_ELEVATION = 22.5;
+		static constexpr double TILE_ELEVATION = 22.5;
 		// tile projection angle (degrees)
-		static int const PROJECTION_ANGLE = 37.0;
+		static constexpr double PROJECTION_ANGLE = 37.0;
 
 
 };
@@ -139,8 +139,8 @@ class Terrain
 		Terrain();
 		~Terrain();
 		int Load(wstring &path);
-		Sprite* GetSprite(char* name);
-		AnimL1* GetANM(char* name);
-		AnimPNM* GetPNM(char* name);
+		Sprite* GetSprite(const char* name);
+		AnimL1* GetANM(const char* name);
+		AnimPNM* GetPNM(const char* name);
 };
 

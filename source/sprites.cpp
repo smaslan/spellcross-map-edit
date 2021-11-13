@@ -1,5 +1,5 @@
 //=============================================================================
-// Unsorted Spellcross data handling routines.
+// Spellcross sprite data handling routines.
 // 
 // This code is part of Spellcross Map Editor project.
 // (c) 2021, Stanislav Maslan, s.maslan@seznam.cz
@@ -572,7 +572,7 @@ int AnimPNM::Decode(uint8_t* data, char* name)
 	int count = *data++;
 
 	// list of frame offsets
-	DWORD* list = (DWORD*)data;
+	uint32_t* list = (uint32_t*)data;
 
 	// frames limits
 	int xmin = 256;
@@ -587,18 +587,19 @@ int AnimPNM::Decode(uint8_t* data, char* name)
 		uint8_t* pnm = &data[*list++];
 
 		// vertilcal offset
-		int y_ofs = *(__int16*)pnm; pnm += 2;
+		int y_ofs = *(int16_t*)pnm; pnm += 2;
 
 		// minimum left offset of all lines
-		int x_ofs = *(WORD*)pnm; pnm += 2;
+		int x_ofs = *(uint16_t*)pnm; pnm += 2;
 
 		// maximum line len
-		int x_size = *(WORD*)pnm; pnm += 2;
+		int x_size = *(uint16_t*)pnm; pnm += 2;
 
 		// lines count
 		int y_size = *pnm++;
 
-		// maximum image data size
+		// maximum estimate of image data size
+		// ###todo: add checking, not safe!
 		int max_data = y_size * (2*sizeof(int) + x_size);
 
 		// make local image buffer
@@ -645,19 +646,19 @@ int AnimPNM::Decode(uint8_t* data, char* name)
 			if (chunk_ofs == 0)
 			{
 				// empty line
-				*(DWORD*)pic = 0; pic += 4;
-				*(DWORD*)pic = 0; pic += 4;
+				*(int*)pic = 0; pic += sizeof(int);
+				*(int*)pic = 0; pic += sizeof(int);
 			}
 			else
 			{
 				// not empty line
 				// store line offset
-				*(DWORD*)pic = line_offset;
-				pic += 4;
+				*(int*)pic = line_offset;
+				pic += sizeof(int);
 
 				// store its len
-				*(DWORD*)pic = chunk_ofs - line_offset;
-				pic += 4;
+				*(int*)pic = chunk_ofs - line_offset;
+				pic += sizeof(int);
 
 				// store its data
 				std::memcpy((void*)pic, (void*)(line + line_offset), chunk_ofs - line_offset);
@@ -751,6 +752,12 @@ Terrain::~Terrain()
 		delete anms[k];
 	// clear list of sprites
 	anms.clear();
+
+	// destruct each sprite element
+	for(unsigned k = 0; k < pnms.size(); k++)
+		delete pnms[k];
+	// clear list of sprites
+	pnms.clear();
 }
 
 int Terrain::Load(wstring &path)
@@ -816,7 +823,7 @@ int Terrain::Load(wstring &path)
 				sprites.push_back(sprite);
 				
 				// try decode sprite data
-				if (!sprites.back()->Decode(data, name))
+				if (!sprite->Decode(data, name))
 				{
 					delete fs;
 					return(1);
@@ -836,7 +843,7 @@ int Terrain::Load(wstring &path)
 				anms.push_back(anim);
 
 				// try decode animation data
-				if (anms.back()->Decode(data, name))
+				if (anim->Decode(data, name))
 				{
 					delete fs;
 					return(1);
@@ -856,7 +863,7 @@ int Terrain::Load(wstring &path)
 				pnms.push_back(pnm);
 
 				// try decode animation data
-				if (pnms.back()->Decode(data, name))
+				if (pnm->Decode(data, name))
 				{
 					delete fs;
 					return(1);
@@ -928,7 +935,7 @@ int Terrain::Load(wstring &path)
 }
 
 // get sprite pointer by its name
-Sprite* Terrain::GetSprite(char* name)
+Sprite* Terrain::GetSprite(const char* name)
 {
 	for (unsigned k = 0; k < this->sprites.size(); k++)
 	{
@@ -939,7 +946,7 @@ Sprite* Terrain::GetSprite(char* name)
 }
 
 // get L1 animation (ANM) pointer by its name
-AnimL1* Terrain::GetANM(char* name)
+AnimL1* Terrain::GetANM(const char* name)
 {
 	for (unsigned k = 0; k < this->anms.size(); k++)
 	{
@@ -950,7 +957,7 @@ AnimL1* Terrain::GetANM(char* name)
 }
 
 // get L4 animation (PNM) pointer by its name
-AnimPNM* Terrain::GetPNM(char* name)
+AnimPNM* Terrain::GetPNM(const char* name)
 {
 	for (unsigned k = 0; k < this->pnms.size(); k++)
 	{

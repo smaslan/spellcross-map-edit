@@ -456,7 +456,7 @@ void SpellUnitRec::Render(uint8_t* buffer, uint8_t* buf_end, int buf_x_pos, int 
 
 	int x_pos;
 	int y_pos;
-	FSU_sprite* spr;
+	FSU_sprite* spr = NULL;
 
 	// --- repeat for each man:
 	for (int uid = 0; uid < man; uid++)
@@ -523,7 +523,7 @@ void SpellUnitRec::Render(uint8_t* buffer, uint8_t* buf_end, int buf_x_pos, int 
 	}
 
 	// --- redner "stick" to ground:
-	if (isAir() && man == 1 && !gr_aux)
+	if (spr && isAir() && man == 1 && !gr_aux)
 	{
 		// only for air, single man unit, not tank
 
