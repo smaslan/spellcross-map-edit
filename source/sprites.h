@@ -52,7 +52,8 @@ class Sprite
 		// void constructor
 		Sprite();
 		~Sprite();		
-		void Render(uint8_t* buffer, uint8_t* buf_end, int buf_x, int buf_y, int x_size);
+		void Render(uint8_t* buffer,uint8_t* buf_end,int buf_x,int buf_y, int x_size);
+		void Render(uint8_t* buffer, uint8_t* buf_end, int buf_x, int buf_y, int x_size, uint8_t* filter);
 		int Decode(uint8_t* data, char* name);
 		void GetTileModel(TFxyz* vert, int* face, int* face_count);
 		TFxyz ProjectVertex(TFxyz *vert);

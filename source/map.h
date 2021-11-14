@@ -56,9 +56,13 @@ public:
 };
 
 
-typedef struct{
-	int x, y;
-}MapXY;
+class MapXY
+{
+public:
+	int x;
+	int y;
+	bool IsSelected();
+};
 
 class MapUnitType
 {
@@ -124,6 +128,22 @@ public:
 	int GetXY();
 };
 
+class TScroll
+{
+public:
+	// cursor position (within screen)
+	int xref, yref;
+	// scroll position
+	int dx, dy;
+	// scroll state
+	int state;
+	// modified?
+	int modified;
+
+	TScroll();
+	void Reset();
+};
+
 class SpellMap
 {
 	private:
@@ -134,12 +154,21 @@ class SpellMap
 		// indexed raster buffer		
 		int pic_x_size;
 		int pic_y_size;
-		uint8_t*pic;
+		uint8_t* pic;
+		uint8_t* pic_end; /* buffer end */
+		// scroll and surface range in tiles
+		int xs_size;
+		int ys_size;
+		int xs_ofs;
+		int ys_ofs;
 		// local palette (after gamma correction)
 		uint8_t pal[256][3];
 		// special tiles pointers
 		Sprite* start_sprite;
 		Sprite* escape_sprite;
+
+		// tile selection
+		MapXY sel;
 
 		// layer visibility flags
 		bool wL1, wL2, wL3, wL4, wSTCI, wUnits;
@@ -147,6 +176,11 @@ class SpellMap
 		// last gamma
 		double last_gamma;
 		double gamma;
+
+		static constexpr int MAP_BACK_COLOR = 230; // map background color index
+		static constexpr int MSYOFS = 150; // map render Y-offset from top (this should make enough space for highest elevation)
+		static constexpr int MSYOFST = 6; // map render Y-offset from top in tiles
+		
 
 	public:
 
@@ -178,7 +212,12 @@ class SpellMap
 		int Load(wstring &path, SpellData* spelldata);
 		void SortUnits();
 		int IsLoaded();
-		int Render(wxBitmap &bmp, int *x_pos, int *y_pos, int x_cursor, int y_cursor);
+		bool TileIsVisible(int x, int y);
+		
+		MapXY GetSelection(wxBitmap& bmp, TScroll* scroll);
+		int RenderPrepare(wxBitmap& bmp, TScroll* scroll);
+		int Render(wxBitmap &bmp, TScroll* scroll);
+
 		void SetRender(bool wL1, bool wL2, bool wL3, bool wL4, bool wSECI, bool wUnits);
 		void SetGamma(double gamma);
 		int Tick();
@@ -186,6 +225,9 @@ class SpellMap
 		
 		int ConvXY(int x, int y);
 		int ConvXY(MapXY &mxy);
+
+		char *GetL1tileName(wxBitmap& bmp,TScroll* scroll);
+		char* GetL2tileName(wxBitmap& bmp,TScroll* scroll);
 
 };
 

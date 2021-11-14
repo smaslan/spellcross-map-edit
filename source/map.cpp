@@ -700,11 +700,15 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 // convert x,y to combined tile position
 int SpellMap::ConvXY(int x, int y)
 {
-	return(x + y * x_size);
+	if(x >= 0 && y >= 0)
+		return(x + y * x_size);
+	return(-1);
 }
 int SpellMap::ConvXY(MapXY &mxy)
 {
-	return(mxy.x + mxy.y * x_size);
+	if(mxy.IsSelected())
+		return(mxy.x + mxy.y * x_size);
+	return(-1);
 }
 
 // this sorts units list for proper render order, call after load or units changes
@@ -777,7 +781,205 @@ int SpellMap::IsLoaded()
 	return(1);
 }
 
-int SpellMap::Render(wxBitmap &bmp, int *x_pos, int *y_pos, int x_cursor, int y_cursor)
+
+// map scroller
+TScroll::TScroll()
+{
+	Reset();
+}
+// reset scroller to default
+void TScroll::Reset()
+{
+	xref = 0;
+	yref = 0;
+	// scroll position
+	dx = 0;
+	dy = 0;
+	// scroll state
+	state = 0;
+}
+
+// selection is valid?
+bool MapXY::IsSelected()
+{
+	return(x >= 0 && y >= 0);
+}
+
+
+// call whenever scroll or screen changes
+// it allocates render buffer and fixes scroller limits
+int SpellMap::RenderPrepare(wxBitmap& bmp, TScroll* scroll)
+{
+	// get surface size
+	surf_x = bmp.GetWidth();
+	surf_y = bmp.GetHeight();
+
+	// allocate maximum indexed image memory for entire map
+	pic_x_size = (x_size) * 80 + 40;
+	pic_y_size = MSYOFS + 60 + 47 + (y_size) * 24 + MSYOFS;
+	if(!pic)
+		pic = new uint8_t[pic_x_size * pic_y_size];
+	if(!pic)
+		return(1);
+	// buffer end for range checking
+	pic_end = &pic[pic_x_size * pic_y_size];
+
+	// limit scroller to valid range
+	if(scroll->dx >= pic_x_size - surf_x)
+		scroll->dx = pic_x_size - surf_x - 1;
+	else if(scroll->dx < 0)
+		scroll->dx = 0;
+	if(scroll->dy >= pic_y_size - surf_y)
+		scroll->dy = pic_y_size - surf_y - 1;
+	else if(scroll->dy < 0)
+		scroll->dy = 0;
+
+	
+	// tiles to draw
+	xs_size = surf_x / 80 + 3;
+	ys_size = surf_y / 24 + 12;
+	// scroll offset in tiles
+	xs_ofs = scroll->dx / 80 - 1;
+	ys_ofs = scroll->dy / 48 - MSYOFST;
+	if(xs_ofs < 0)
+		xs_ofs = 0;
+	if(ys_ofs < 0)
+		ys_ofs = 0;	
+
+	return(0);
+}
+
+// analyze map selection
+MapXY SpellMap::GetSelection(wxBitmap& bmp, TScroll *scroll)
+{
+	int m,n,i;
+
+	// check & fix surface and scroll ranges
+	RenderPrepare(bmp, scroll);
+	
+	// default no selection
+	MapXY selxy = sel;
+	
+	if(scroll->modified)
+	{	
+		scroll->modified = 0;
+		// no select found yet
+		selxy.x = -1;
+		selxy.y = -1;
+		
+		const int smooth = 1;
+
+		// ###todo: this whole thing is just awful and should be reworked! Here should not be direct access to sprite data - move to Sprite class.
+		//          also it is ineffective. Should be more analytical to reduce search range.
+		// find selection tiles
+		for(m = 0; m < ys_size; m++)
+		{
+			if(m + ys_ofs * 2 >= y_size)
+				break;
+			for(n = 0; n < xs_size; n++)
+			{
+				if(n + xs_ofs >= x_size - 1)
+					break;
+				// --- for every valid tile ---
+
+				// get map tile
+				Sprite* sid = L1[(m + ys_ofs * 2) * x_size + n + xs_ofs];
+				int sof = elev[(m + ys_ofs * 2) * x_size + n + xs_ofs];
+
+				// get dimensions for current tile slope
+				char sn = sid->name[2]; /* tile slope */
+				int so = sid->y_ofs; /* vertical offset */
+				int sx = spelldata->special.solid[sn - 'A'].x_size;
+				int sy = spelldata->special.solid[sn - 'A'].y_size;
+
+
+				// pixel coordinates of search rect
+				int mxx = n * 80 + ((m & 1 != 0) ? 0 : 40);
+				int ymn = -((scroll->dy / 48 <= MSYOFST ? (scroll->dy / 48) * 48 : MSYOFST * 48) + (scroll->dy % 48) * smooth);
+				int xmn = mxx - ((scroll->dx >= 80 ? (80) : (0)) + (scroll->dx % 80) * smooth);
+				if(sn == 'C' || sn == 'D' || sn == 'M' || sn == 'B')
+					ymn += (m * 24 - sy + 47 - sof * 18 + MSYOFS + 50);
+				else if(sn == 'L' || sn == 'F')
+					ymn += (m * 24 - sy + 29 - sof * 18 + MSYOFS + 50);
+				else
+					ymn += (m * 24 - sof * 18 + MSYOFS + 50);
+
+				// now decide which tile is selected in search rect
+				if(scroll->yref != -1 && scroll->yref > ymn && scroll->yref < ymn + sy &&
+					scroll->xref != -1 && scroll->xref > xmn && scroll->xref < xmn + sx)
+				{
+					// we are somewhere in the expected tile area - check if we are in tile polygons
+					// tile data
+					unsigned char* seld = spelldata->special.solid[sn - 'A'].data;
+					int sla = 0;
+					for(i = 0; i < sy; i++)
+					{
+						unsigned char oo = *((unsigned int*)seld); seld += 4;
+						unsigned char nn = *((unsigned int*)seld); seld += 4;
+						if(nn == 0)
+							continue;
+						if((scroll->yref - ymn) == i && (scroll->xref - xmn) >= oo && (scroll->xref - xmn) < (oo + nn) &&
+							seld[scroll->xref - xmn - oo] != 0)
+						{
+							sla = 1;
+							break;
+						}
+						seld += nn;
+					}
+
+					// some valid?
+					if(sla)
+					{
+						// yaha, remember which one and leave
+						selxy.x = n + xs_ofs;
+						selxy.y = m + ys_ofs*2;
+						goto seldone;
+					}
+				}
+			}
+		}
+	seldone:
+
+		// store selection
+		sel = selxy;
+
+	}
+
+	return(selxy);
+}
+
+// get L1 terrain tile name
+char *SpellMap::GetL1tileName(wxBitmap& bmp, TScroll* scroll)
+{
+	// fix selection
+	MapXY sel = GetSelection(bmp, scroll);
+
+	if(sel.IsSelected())
+	{
+		// return tile name
+		return(L1[ConvXY(sel)]->name);
+	}
+	else
+		return(NULL);
+}
+
+// get L2 object tile name
+char* SpellMap::GetL2tileName(wxBitmap& bmp,TScroll* scroll)
+{
+	// fix selection
+	MapXY sel = GetSelection(bmp,scroll);
+
+	if(sel.IsSelected())
+	{
+		// return tile name
+		return(L2[ConvXY(sel)]->name);
+	}
+	else
+		return(NULL);
+}
+
+// render frame
+int SpellMap::Render(wxBitmap &bmp, TScroll* scroll)
 {
 	int i, j;
 	int m, n;
@@ -789,52 +991,17 @@ int SpellMap::Render(wxBitmap &bmp, int *x_pos, int *y_pos, int x_cursor, int y_
 	if (!IsLoaded())
 		return(1);
 
-	// get surface size
-	surf_x = bmp.GetWidth();
-	surf_y = bmp.GetHeight();
-	if (!last_surf_x || last_surf_x != surf_x || !last_surf_y || last_surf_y != surf_y)
-	{
-		// surface size changed
-	}
-
-
-#define MSYOFS 150
-#define MSYOFST 6
-
-	// allocate maximum indexed image memory
-	pic_x_size = (x_size) * 80 + 40;
-	pic_y_size = MSYOFS + 60 + 47 + (y_size) * 24 + 150;
-	if (!pic)
-		pic = new uint8_t[pic_x_size * pic_y_size];
-	if (!pic)
-	{
+	// prepare scroll & buffer
+	if(RenderPrepare(bmp, scroll))
 		return(1);
-	}
-	uint8_t* pice = &pic[pic_x_size * pic_y_size];
 
-	// limit scroller to valid range
-	if (*x_pos >= pic_x_size - surf_x)
-		*x_pos = pic_x_size - surf_x - 1;
-	else if (*x_pos < 0)
-		*x_pos = 0;
-	if (*y_pos >= pic_y_size - surf_y)
-		*y_pos = pic_y_size - surf_y - 1;
-	else if (*y_pos < 0)
-		*y_pos = 0;
-	
+	// find selection tiles
+	MapXY sel = GetSelection(bmp,scroll);
 
-
-	// tiles to draw
-	int xsz = surf_x / 80 + 3;
-	int ysz = surf_y / 24 + 12;
-
-	// scroll offset in tiles
-	int xss = *x_pos / 80 - 1;
-	int yss = *y_pos / 48 - MSYOFST;
-	if (yss < 0)
-		yss = 0;
-	if (xss < 0)
-		xss = 0;
+	int x_pos = scroll->dx;
+	int y_pos = scroll->dy;
+	int x_cursor = scroll->xref;
+	int y_cursor = scroll->yref;
 
 	// visible tiles range to clear
 	m = surf_x + 80 * 2;
@@ -843,84 +1010,10 @@ int SpellMap::Render(wxBitmap &bmp, int *x_pos, int *y_pos, int x_cursor, int y_
 	n = surf_y + MSYOFST * 48;
 	if (n > +48 > pic_y_size)
 		n = pic_y_size - 48;
-
-#define MAP_BACK_COLOR 230 /* map background color index */
-
 	// clear visible tiles range
 	for (i = 0; i < n; i++)
-		std::memset((void*)(pic + pic_x_size * (i + ((yss >= 1) ? 48 : 0)) + ((xss * 80 >= 1) ? 80 : 0)), MAP_BACK_COLOR, m);
-
-
-	// find selection tiles
-	int selx = -1;
-	int sely = -1;
-	for (m = 0; m < ysz; m++)
-	{
-		if (m + yss * 2 >= y_size)
-			break;
-		for (n = 0; n < xsz; n++)
-		{
-			if (n + xss >= x_size - 1)
-				break;
-			// --- for every valid tile ---
-
-			// get map tile
-			Sprite* sid = L1[(m + yss * 2) * x_size + n + xss];
-			int sof = elev[(m + yss * 2) * x_size + n + xss];
-
-			// get dimensions for current tile slope
-			char sn = sid->name[2]; /* tile slope */
-			int so = sid->y_ofs; /* vertical offset */
-			int sx = spelldata->special.solid[sn - 'A'].x_size;
-			int sy = spelldata->special.solid[sn - 'A'].y_size;
-
-
-			// pixel coordinates of search rect
-			int mxx = n * 80 + ((m & 1 != 0) ? 0 : 40);
-			int ymn = -((*y_pos / 48 <= MSYOFST ? (*y_pos / 48) * 48 : MSYOFST * 48) + (*y_pos % 48) * smooth);
-			int xmn = mxx - ((*x_pos >= 80 ? (80) : (0)) + (*x_pos % 80) * smooth);
-			if (sn == 'C' || sn == 'D' || sn == 'M' || sn == 'B')
-				ymn += (m * 24 - sy + 47 - sof * 18 + MSYOFS + 50);
-			else if (sn == 'L' || sn == 'F')
-				ymn += (m * 24 - sy + 29 - sof * 18 + MSYOFS + 50);
-			else
-				ymn += (m * 24 - sof * 18 + MSYOFS + 50);
-
-			// now decide which tile is selected in search rect
-			if (y_cursor != -1 && y_cursor > ymn && y_cursor<ymn + sy &&
-				x_cursor != -1 && x_cursor>xmn && x_cursor < xmn + sx)
-			{
-				// tile data				
-				unsigned char* seld = spelldata->special.solid[sn - 'A'].data;
-				int sla = 0;
-				for (i = 0; i < sy; i++)
-				{
-					unsigned char oo = *((unsigned int*)seld); seld += 4;
-					unsigned char nn = *((unsigned int*)seld); seld += 4;
-					if (nn == 0)
-						continue;
-					if ((y_cursor - ymn) == i && (x_cursor - xmn) >= oo && (x_cursor - xmn) < (oo + nn) &&
-						seld[x_cursor - xmn - oo] != 0)
-					{
-						sla = 1;
-						break;
-					}
-					seld += nn;
-				}
-
-				// some valid?
-				if (sla)
-				{
-					// yaha, remember which one and leave
-					selx = n;
-					sely = m;
-					goto seldone;
-				}
-			}
-		}
-	}
-seldone:
-
+		std::memset((void*)(pic + pic_x_size * (i + ((ys_ofs >= 1) ? 48 : 0)) + ((xs_ofs * 80 >= 1) ? 80 : 0)), MAP_BACK_COLOR, m);
+	
 	// refresh statusbar
 	/*if (selx == -1)
 	{
@@ -991,17 +1084,24 @@ seldone:
 
 
 	// --- Render Layer 1 - ground sprites ---
-	for (m = 0; m < ysz; m++)
+	for (m = 0; m < ys_size; m++)
 	{
-		if (m + yss * 2 >= y_size)
+		if (m + ys_ofs * 2 >= y_size)
 			break;
-		for (n = 0; n < xsz; n++)
+		for (n = 0; n < xs_size; n++)
 		{
-			if (n + xss >= x_size - 1)
+			if (n + xs_ofs >= x_size - 1)
 				break;
+
+			// select view area
+			uint8_t *filter = NULL;
+			if(!TileIsVisible(n + xs_ofs,m + ys_ofs*2))
+				filter = terrain->filter.darkpal2;
+
 			// get sprite parameters
-			Sprite* sid = L1[(m + yss * 2) * x_size + n + xss];
-			int sof = elev[(m + yss * 2) * x_size + n + xss];
+			int mxy = ConvXY(n + xs_ofs,m + ys_ofs*2);
+			Sprite* sid = L1[mxy];
+			int sof = elev[mxy];
 
 			// override sprite by plain one?
 			if (!wL1)
@@ -1013,7 +1113,7 @@ seldone:
 			// render sprite
 			int mxx = n * 80 + ((m & 1 != 0) ? 0 : 40);
 			int myy = m * 24 - sof * 18 + MSYOFS + 50;
-			sid->Render(pic, pice, mxx, myy, pic_x_size);
+			sid->Render(pic, pic_end, mxx, myy, pic_x_size, filter);
 		}
 	}
 
@@ -1047,7 +1147,7 @@ seldone:
 			MapLayer3* anm = L3[i];
 
 			// skip if not in visible area
-			if (anm->x_pos < xss || anm->x_pos >= (xss + xsz) || anm->y_pos < yss * 2 || anm->y_pos >= (yss * 2 + ysz))
+			if (anm->x_pos < xs_ofs || anm->x_pos >= (xs_ofs + xs_size) || anm->y_pos < ys_ofs * 2 || anm->y_pos >= (ys_ofs * 2 + ys_size))
 				continue;
 
 			// L1 elevation
@@ -1057,9 +1157,9 @@ seldone:
 			Sprite* frame = anm->anim->frames[anm->frame_ofs];
 
 			// render sprite
-			int mxx = (anm->x_pos - xss) * 80 + (((anm->y_pos - yss * 2) & 1 != 0) ? 0 : 40);
-			int myy = (anm->y_pos - yss * 2) * 24 - sof * 18 + MSYOFS + 50;
-			frame->Render(pic, pice, mxx, myy, pic_x_size);
+			int mxx = (anm->x_pos - xs_ofs) * 80 + (((anm->y_pos - ys_ofs * 2) & 1 != 0) ? 0 : 40);
+			int myy = (anm->y_pos - ys_ofs * 2) * 24 - sof * 18 + MSYOFS + 50;
+			frame->Render(pic, pic_end, mxx, myy, pic_x_size);
 		}
 	}
 
@@ -1076,16 +1176,16 @@ seldone:
 				MapXY* pos = &(*spec[sid])[i];
 
 				// skip if not in visible area
-				if (pos->x < xss || pos->x >= (xss + xsz) || pos->y < yss * 2 || pos->y >= (yss * 2 + ysz))
+				if (pos->x < xs_ofs || pos->x >= (xs_ofs + xs_size) || pos->y < ys_ofs * 2 || pos->y >= (ys_ofs * 2 + ys_size))
 					continue;
 
 				// L1 elevation
 				int y_elev = elev[(pos->y) * x_size + pos->x];
 
 				// render sprite
-				int mxx = (pos->x - xss) * 80 + (((pos->y - yss * 2) & 1 != 0) ? 0 : 40);
-				int myy = (pos->y - yss * 2) * 24 - y_elev * 18 + MSYOFS + 50;
-				spec_sprite[sid]->Render(pic, pice, mxx, myy, pic_x_size);
+				int mxx = (pos->x - xs_ofs) * 80 + (((pos->y - ys_ofs * 2) & 1 != 0) ? 0 : 40);
+				int myy = (pos->y - ys_ofs * 2) * 24 - y_elev * 18 + MSYOFS + 50;
+				spec_sprite[sid]->Render(pic, pic_end, mxx, myy, pic_x_size);
 
 			}
 		}
@@ -1094,7 +1194,7 @@ seldone:
 
 
 	// --- Render selection tiles ---
-	if (selx != -1 && sely != -1)
+	if (sel.x != -1 && sel.y != -1)
 	{
 		struct {
 			int seln;
@@ -1103,17 +1203,17 @@ seldone:
 			}sel[1];
 		} msel;
 		msel.seln = 1;
-		msel.sel[0].x = selx;
-		msel.sel[0].y = sely;
+		msel.sel[0].x = sel.x;
+		msel.sel[0].y = sel.y;
 		
 		for (i = 0; i < msel.seln; i++)
 		{
-			n = msel.sel[i].x /*- xss*/;
-			m = msel.sel[i].y /*- yss * 2*/;
+			n = msel.sel[i].x - xs_ofs;
+			m = msel.sel[i].y - ys_ofs * 2;
 
-			if (n < 0 || m < 0 || (m + yss * 2) >= y_size || (n + xss) >= x_size - 1)
+			if (n < 0 || m < 0 || (m + ys_ofs * 2) >= y_size || (n + xs_ofs) >= x_size - 1)
 				continue;
-			int mxy = ConvXY(n + xss, m + yss*2);
+			int mxy = ConvXY(n + xs_ofs, m + ys_ofs*2);
 
 			// get map tile
 			Sprite *sid = L1[mxy];
@@ -1128,7 +1228,7 @@ seldone:
 			// draw selection sprite
 			int mxx = n * 80 + ((m & 1 != 0) ? 0 : 40);
 			int myy = m * 24 - sof * 18 + MSYOFS + 50;
-			sid->Render(pic, pice, mxx, myy, pic_x_size);
+			sid->Render(pic, pic_end, mxx, myy, pic_x_size);
 
 			
 			/*SpellUnitRec* unit = spelldata->units->GetUnit(68);
@@ -1146,7 +1246,7 @@ seldone:
 			MapLayer4* pnm = L4[i];
 
 			// skip if not in visible area
-			if (pnm->x_pos < xss || pnm->x_pos >= (xss + xsz) || pnm->y_pos < yss * 2 || pnm->y_pos >= (yss * 2 + ysz))
+			if (pnm->x_pos < xs_ofs || pnm->x_pos >= (xs_ofs + xs_size) || pnm->y_pos < ys_ofs * 2 || pnm->y_pos >= (ys_ofs * 2 + ys_size))
 				continue;
 
 			// L1 elevation
@@ -1156,9 +1256,9 @@ seldone:
 			Sprite* frame = pnm->anim->frames[pnm->frame_ofs];
 
 			// render sprite
-			int mxx = (pnm->x_pos - xss)*80 + pnm->x_ofs + (((pnm->y_pos - yss*2) & 1 != 0) ? 0 : 40);
-			int myy = (pnm->y_pos - yss * 2) * 24 + pnm->y_ofs - y_elev*18 + MSYOFS + 50;
-			frame->Render(pic, pice, mxx, myy, pic_x_size);
+			int mxx = (pnm->x_pos - xs_ofs)*80 + pnm->x_ofs + (((pnm->y_pos - ys_ofs*2) & 1 != 0) ? 0 : 40);
+			int myy = (pnm->y_pos - ys_ofs * 2) * 24 + pnm->y_ofs - y_elev*18 + MSYOFS + 50;
+			frame->Render(pic, pic_end, mxx, myy, pic_x_size);
 		}
 	}
 
@@ -1166,18 +1266,23 @@ seldone:
 
 	// --- Render Layer 2 - Objects ---
 	// --- Redner Units ---
-	for (m = 0; m < ysz; m++)
+	for (m = 0; m < ys_size; m++)
 	{
-		if (m + yss * 2 >= y_size)
+		if (m + ys_ofs * 2 >= y_size)
 			break;
-		for (n = 0; n < xsz; n++)
+		for (n = 0; n < xs_size; n++)
 		{
-			if (n + xss >= x_size - 1)
+			if (n + xs_ofs >= x_size - 1)
 				break;
-			int mxy = ConvXY(n + xss, m + yss * 2);
+			int mxy = ConvXY(n + xs_ofs, m + ys_ofs * 2);
+
+			// select view area
+			uint8_t* filter = NULL;
+			if(!TileIsVisible(n + xs_ofs,m + ys_ofs*2))
+				filter = terrain->filter.darkpal2;
 
 			// tile selected
-			int is_selected = (selx != -1 && sely != -1 && selx == n && sely == m);
+			int is_selected = (sel.x != -1 && sel.y != -1 && sel.x - xs_ofs == n && sel.y - ys_ofs*2 == m);
 
 			// first unit to render
 			MapUnit* unit = Lunit[mxy];			
@@ -1212,7 +1317,7 @@ seldone:
 					}
 
 					if ((pass == 0 && unit->unit->isAir()) || pass == 2)
-						unit->unit->Render(pic, pice, mxx, myy, pic_x_size, terrain->filter.darkpal2, sid, azimuth, frame);
+						unit->unit->Render(pic, pic_end, mxx, myy, pic_x_size, terrain->filter.darkpal2, sid, azimuth, frame);
 					else
 						break;
 					// go to next unit at this position
@@ -1221,7 +1326,7 @@ seldone:
 					
 				// object render:
 				if (wL2 && pass == 1 && sid2)
-					sid2->Render(pic, pice, mxx, myy, pic_x_size);
+					sid2->Render(pic, pic_end, mxx, myy + sid->y_ofs, pic_x_size, filter);
 			}
 		}
 	}
@@ -1255,7 +1360,7 @@ seldone:
 	for(unsigned int y = 0; y < surf_y; ++y)
 	{
 		uint8_t* scan = p.m_ptr;
-		uint8_t* src = &pic[(y + (*y_pos / 48 <= MSYOFST ? (*y_pos / 48) * 48 : MSYOFST * 48) + (*y_pos % 48) * smooth)*pic_x_size + ((*x_pos >= 80 ? (80) : (0)) + (*x_pos % 80) * smooth)];
+		uint8_t* src = &pic[(y + (y_pos / 48 <= MSYOFST ? (y_pos / 48) * 48 : MSYOFST * 48) + (y_pos % 48) * smooth)*pic_x_size + ((x_pos >= 80 ? (80) : (0)) + (x_pos % 80) * smooth)];
 		for(int x = 0; x < surf_x; x++)
 		{
 			*scan++ = pal[*src][2];
@@ -1266,39 +1371,15 @@ seldone:
 		p.OffsetY(data,1);
 	}
 
-
-	
-	
-	/*// Lock the bitmap's bits.  
-	System::Drawing::Rectangle rect = System::Drawing::Rectangle(0, 0, surf_x, surf_y);
-	System::Drawing::Imaging::BitmapData^ bmpData = bmp->LockBits(rect, System::Drawing::Imaging::ImageLockMode::ReadWrite, bmp->PixelFormat);
-
-	// first scanline address
-	uint8_t*scan = (uint8_t*)((void*)bmpData->Scan0);
-	// actual scanline width in target memory
-	int stride = bmpData->Stride;
-
-	// for each row:
-	for (int y = 0; y < surf_y; y++)
-	{
-		// source scanline
-		uint8_t* src = &pic[(y + (*y_pos / 48 <= MSYOFST ? (*y_pos / 48) * 48 : MSYOFST * 48) + (*y_pos % 48) * smooth)*pic_x_size + ((*x_pos >= 80 ? (80) : (0)) + (*x_pos % 80) * smooth)];
-		uint8_t* dest = scan;
-		for (int x = 0; x < surf_x; x++)
-		{
-			*dest++ = pal[*src][2];
-			*dest++ = pal[*src][1];
-			*dest++ = pal[*src][0];
-			src++;
-		}
-		// goto next destination scanline
-		scan += stride;
-	}
-
-	// Unlock bmp databits
-	bmp->UnlockBits(bmpData);*/
-
 	return(0);
+}
+
+// returns true when tile is in the normally visible area of map, false for the dark map bevel
+bool SpellMap::TileIsVisible(int x, int y)
+{
+	int is_even = !!(y&1);
+	int x_ok = (x >= (1 + is_even)) && (x < x_size-3);	
+	return(x_ok && y >= 8 && y < (y_size-14));
 }
 
 // configure map elements visibility

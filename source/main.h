@@ -5,12 +5,6 @@
 #include "spellcross.h"
 #include "map.h"
 
-typedef struct {
-	int xref,yref;
-	int dx,dy;
-	int state;
-}TScroll;
-
 // main
 class MyApp : public wxApp
 {

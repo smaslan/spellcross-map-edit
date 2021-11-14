@@ -539,7 +539,7 @@ void SpellUnitRec::Render(uint8_t* buffer, uint8_t* buf_end, int buf_x_pos, int 
 			y_down = (buf_end - buffer) / buf_x_size;
 
 		// render stick
-		for (int y = y_pos; y < y_down; y+=3)
+		for (int y = y_down; y >= y_pos; y-=3)
 			buffer[x_pos + y * buf_x_size] = 250;
 
 	}

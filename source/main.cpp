@@ -120,12 +120,13 @@ MyFrame::MyFrame(SpellMap** map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "
     menuBar->Append(menuHelp, "&Help");
     SetMenuBar(menuBar);
     
-
-    CreateStatusBar();
+    CreateStatusBar(6);
+    const int ss_w[] = {50,50,70,100,100,100};
+    this->SetStatusWidths(6,ss_w);
     SetStatusText("");
 
     // view scroller
-    scroll = {0,0,0,0,0};
+    scroll.Reset();
 
     this->SetDoubleBuffered(1);
 
@@ -158,7 +159,9 @@ MyFrame::MyFrame(SpellMap** map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "
 void MyFrame::OnTimer(wxTimerEvent& event)
 {
     if((*spell_map)->Tick())
+    {
         Refresh();
+    }
 }
 void MyFrame::OnResize(wxSizeEvent& event)
 {
@@ -172,14 +175,21 @@ void MyFrame::OnPaint(wxPaintEvent& event)
     {
         m_buffer = wxBitmap(x_size, y_size, 24);
     }
-     
-    wxPaintDC pdc(this);
-    wxStopWatch sw;
 
-    (*spell_map)->Render(m_buffer, &scroll.dx, &scroll.dy, scroll.xref, scroll.yref);    
+    wxPaintDC pdc(this);
+    
+
+    SpellMap *map = (*spell_map);
+
+    //wxStopWatch sw;
+    map->Render(m_buffer, &scroll);
     pdc.DrawBitmap(m_buffer,wxPoint(0,0));
 
-    SetStatusText(wxString::Format(wxT("%ld"),sw.Time()));
+    /*static int count = 0;
+    count++;
+    SetStatusText(wxString::Format(wxT("%d"),count),5);*/
+
+    //SetStatusText(wxString::Format(wxT("%ld"),sw.Time()),5);
 }
 void MyFrame::OnExit(wxCommandEvent& event)
 {
@@ -220,7 +230,9 @@ void MyFrame::OnOpenMap(wxCommandEvent& event)
     (*spell_map)->Load(path, spell_data);
     // reset layers visibility
     (*spell_map)->SetGamma(1.30);
-    OnViewLayer(event);  
+    OnViewLayer(event);
+    // reset scroller
+    scroll.Reset();
     
 }
 
@@ -231,10 +243,12 @@ void MyFrame::OnMouseDown(wxMouseEvent& event)
     scroll.xref = event.GetX();
     scroll.yref = event.GetY();
     scroll.state = 1;
+    scroll.modified = 1;
 }
 void MyFrame::OnMouseLeave(wxMouseEvent& event)
 {
     scroll.state = 0;
+    scroll.modified = 1;
 }
 void MyFrame::OnMouseMove(wxMouseEvent& event)
 {
@@ -245,9 +259,21 @@ void MyFrame::OnMouseMove(wxMouseEvent& event)
     }
     scroll.xref = event.GetX();
     scroll.yref = event.GetY();
+    scroll.modified = 1;
+    
+    // update map selection
+    SpellMap* map = (*spell_map);
+    MapXY mxy = map->GetSelection(m_buffer,&scroll);
+    SetStatusText(wxString::Format(wxT("x=%d"),mxy.x),0);
+    SetStatusText(wxString::Format(wxT("y=%d"),mxy.y),1);
+    SetStatusText(wxString::Format(wxT("xy=%d"),map->ConvXY(mxy)),2);
+    SetStatusText(wxString::Format(wxT("L1: %s"),map->GetL1tileName(m_buffer,&scroll)),3);
+    SetStatusText(wxString::Format(wxT("L2: %s"),map->GetL2tileName(m_buffer,&scroll)),4);
+    
     Refresh();
 }
 void MyFrame::OnMouseUp(wxMouseEvent& event)
 {
     scroll.state = 0;
+    scroll.modified = 1;
 }

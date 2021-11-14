@@ -174,7 +174,11 @@ int Sprite::Decode(uint8_t* src, char* name)
 
 
 // render sprite to target buffer, buffer is sprite origin, x_size is buffer width
-void Sprite::Render(uint8_t* buffer, uint8_t* buf_end, int buf_x, int buf_y, int x_size)
+void Sprite::Render(uint8_t* buffer,uint8_t* buf_end,int buf_x,int buf_y,int x_size)
+{
+	Render(buffer, buf_end, buf_x, buf_y, x_size, NULL);
+}
+void Sprite::Render(uint8_t* buffer, uint8_t* buf_end, int buf_x, int buf_y, int x_size, uint8_t *filter)
 {
 	// ###todo: optimize for no transparency mode?
 
@@ -187,27 +191,57 @@ void Sprite::Render(uint8_t* buffer, uint8_t* buf_end, int buf_x, int buf_y, int
 	uint8_t* data = this->data;
 
 	// render each line:
-	for (int y = 0; y < y_size; y++)
+	if(filter)
 	{
-		// line x-offset
-		int offset = *(int*)data; data += sizeof(int);
-		// pixels count
-		int count = *(int*)data; data += sizeof(int);
-
-		// copy line to buffer
-		uint8_t* scan = &dest[offset];
-		if (scan + count > buf_end)
-			break;
-		for (int x = 0; x < count; x++)
+		// with filter
+		for (int y = 0; y < y_size; y++)
 		{
-			if (*data)
-				*scan = *data;
-			data++;
-			scan++;
+			// line x-offset
+			int offset = *(int*)data; data += sizeof(int);
+			// pixels count
+			int count = *(int*)data; data += sizeof(int);
+
+			// copy line to buffer
+			uint8_t* scan = &dest[offset];
+			if (scan + count > buf_end)
+				break;
+			for (int x = 0; x < count; x++)
+			{
+				if (*data)
+					*scan = filter[*data];
+				data++;
+				scan++;
+			}
+			// move to next buffer line
+			dest += x_size;
 		}
-		// move to next buffer line
-		dest += x_size;
 	}
+	else
+	{
+		// no filter
+		for(int y = 0; y < y_size; y++)
+		{
+			// line x-offset
+			int offset = *(int*)data; data += sizeof(int);
+			// pixels count
+			int count = *(int*)data; data += sizeof(int);
+
+			// copy line to buffer
+			uint8_t* scan = &dest[offset];
+			if(scan + count > buf_end)
+				break;
+			for(int x = 0; x < count; x++)
+			{
+				if(*data)
+					*scan = *data;
+				data++;
+				scan++;
+			}
+			// move to next buffer line
+			dest += x_size;
+		}
+	}
+
 }
 
 // returns 4 vertices of tile and/or max two faces [vert_count, vert_1, vert_2, ..., vert_count, vert_1, vert_2, ...]
