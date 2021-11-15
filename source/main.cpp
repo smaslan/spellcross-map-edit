@@ -37,6 +37,9 @@ std::string wstring2string(const std::wstring& str)
 }
 
 
+
+
+
 wxIMPLEMENT_APP(MyApp);
 bool MyApp::OnInit()
 {
@@ -59,9 +62,22 @@ bool MyApp::OnInit()
     spell_map = new SpellMap();
     spell_map->Load(map_path,spell_data);
     spell_map->SetGamma(1.3);
+
+
+    // view scroller
+    scroll.Reset();
     
-    // --- run main form
+    // --- run main form    
+    // main window frame
     MyFrame* frame = new MyFrame(&spell_map, spell_data);
+    // main sizer 
+    wxBoxSizer* sizer = new wxBoxSizer(wxHORIZONTAL);
+    // render canvas
+    mapCanvas* canvas = new mapCanvas(frame, spell_map, &scroll);
+    sizer->Add(canvas,1,wxEXPAND|wxALL,1);
+    // show main frame
+    frame->SetSizer(sizer);
+    frame->SetAutoLayout(true);
     frame->Show(true);
     return(true);
 }
@@ -79,6 +95,22 @@ int MyApp::OnExit()
     delete spell_data;
 
     return(0);
+}
+
+
+mapCanvas::mapCanvas(wxFrame* parent,SpellMap* spell_map,TScroll *scroll) :wxPanel(parent)
+{
+    this->spell_map = spell_map;
+    this->scroll = scroll;    
+    this->parent = parent;
+
+    Bind(wxEVT_PAINT,&mapCanvas::OnPaint,this);
+    //Bind(wxEVT_SIZING,&myCanvas::OnResize,this);
+
+    Bind(wxEVT_RIGHT_DOWN,&mapCanvas::OnMouseDown,this);
+    Bind(wxEVT_RIGHT_UP,&mapCanvas::OnMouseUp,this);
+    Bind(wxEVT_MOTION,&mapCanvas::OnMouseMove,this);
+    Bind(wxEVT_LEAVE_WINDOW,&mapCanvas::OnMouseLeave,this);
 }
 
 
@@ -122,11 +154,9 @@ MyFrame::MyFrame(SpellMap** map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "
     
     CreateStatusBar(6);
     const int ss_w[] = {50,50,70,100,100,100};
-    this->SetStatusWidths(6,ss_w);
+    SetStatusWidths(6,ss_w);
     SetStatusText("");
-
-    // view scroller
-    scroll.Reset();
+      
 
     this->SetDoubleBuffered(1);
 
@@ -145,15 +175,14 @@ MyFrame::MyFrame(SpellMap** map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "
     Bind(wxEVT_MENU,&MyFrame::OnViewLayer,this,ID_ViewUnt);
     Bind(wxEVT_MENU,&MyFrame::OnViewLayer,this,ID_ViewStTa);
     
-    Bind(wxEVT_PAINT, &MyFrame::OnPaint, this);
-    Bind(wxEVT_SIZING, &MyFrame::OnResize,this);
+    //Bind(wxEVT_PAINT, &MyFrame::OnPaint, this);
+    //Bind(wxEVT_SIZING, &MyFrame::OnResize,this);
+    //Bind(wxEVT_PAINT,&MyFrame::OnPaint,this);
 
-    Bind(wxEVT_PAINT,&MyFrame::OnPaint,this);
-
-    Bind(wxEVT_RIGHT_DOWN,&MyFrame::OnMouseDown,this);
+    /*Bind(wxEVT_RIGHT_DOWN,&MyFrame::OnMouseDown,this);
     Bind(wxEVT_RIGHT_UP,&MyFrame::OnMouseUp,this);
     Bind(wxEVT_MOTION,&MyFrame::OnMouseMove,this);
-    Bind(wxEVT_LEAVE_WINDOW,&MyFrame::OnMouseLeave,this);
+    Bind(wxEVT_LEAVE_WINDOW,&MyFrame::OnMouseLeave,this);*/
     
 }
 void MyFrame::OnTimer(wxTimerEvent& event)
@@ -167,7 +196,8 @@ void MyFrame::OnResize(wxSizeEvent& event)
 {
     Refresh();
 }
-void MyFrame::OnPaint(wxPaintEvent& event)
+
+void mapCanvas::OnPaint(wxPaintEvent& event)
 {
     int x_size = GetClientSize().x;
     int y_size = GetClientSize().y;
@@ -177,18 +207,18 @@ void MyFrame::OnPaint(wxPaintEvent& event)
     }
 
     wxPaintDC pdc(this);
-    
-
-    SpellMap *map = (*spell_map);
 
     //wxStopWatch sw;
-    map->Render(m_buffer, &scroll);
+    spell_map->Render(m_buffer, scroll);
     pdc.DrawBitmap(m_buffer,wxPoint(0,0));
+
+    event.Skip();
+
+    
 
     /*static int count = 0;
     count++;
     SetStatusText(wxString::Format(wxT("%d"),count),5);*/
-
     //SetStatusText(wxString::Format(wxT("%ld"),sw.Time()),5);
 }
 void MyFrame::OnExit(wxCommandEvent& event)
@@ -238,42 +268,42 @@ void MyFrame::OnOpenMap(wxCommandEvent& event)
 
 
 // --- scrolling control ---
-void MyFrame::OnMouseDown(wxMouseEvent& event)
+void mapCanvas::OnMouseDown(wxMouseEvent& event)
 {    
-    scroll.xref = event.GetX();
-    scroll.yref = event.GetY();
-    scroll.state = 1;
-    scroll.modified = 1;
+    scroll->xref = event.GetX();
+    scroll->yref = event.GetY();
+    scroll->state = 1;
+    scroll->modified = 1;
 }
-void MyFrame::OnMouseLeave(wxMouseEvent& event)
+void mapCanvas::OnMouseLeave(wxMouseEvent& event)
 {
-    scroll.state = 0;
-    scroll.modified = 1;
+    scroll->state = 0;
+    scroll->modified = 1;
 }
-void MyFrame::OnMouseMove(wxMouseEvent& event)
+void mapCanvas::OnMouseMove(wxMouseEvent& event)
 {
-    if(scroll.state)
+    if(scroll->state)
     {
-        scroll.dx -= (event.GetX() - scroll.xref);
-        scroll.dy -= (event.GetY() - scroll.yref);
+        scroll->dx -= (event.GetX() - scroll->xref);
+        scroll->dy -= (event.GetY() - scroll->yref);
     }
-    scroll.xref = event.GetX();
-    scroll.yref = event.GetY();
-    scroll.modified = 1;
+    scroll->xref = event.GetX();
+    scroll->yref = event.GetY();
+    scroll->modified = 1;
     
     // update map selection
-    SpellMap* map = (*spell_map);
-    MapXY mxy = map->GetSelection(m_buffer,&scroll);
-    SetStatusText(wxString::Format(wxT("x=%d"),mxy.x),0);
-    SetStatusText(wxString::Format(wxT("y=%d"),mxy.y),1);
-    SetStatusText(wxString::Format(wxT("xy=%d"),map->ConvXY(mxy)),2);
-    SetStatusText(wxString::Format(wxT("L1: %s"),map->GetL1tileName(m_buffer,&scroll)),3);
-    SetStatusText(wxString::Format(wxT("L2: %s"),map->GetL2tileName(m_buffer,&scroll)),4);
+    //SpellMap* map = (*spell_map);
+    MapXY mxy = spell_map->GetSelection(m_buffer,scroll);
+    parent->SetStatusText(wxString::Format(wxT("x=%d"),mxy.x),0);
+    parent->SetStatusText(wxString::Format(wxT("y=%d"),mxy.y),1);
+    parent->SetStatusText(wxString::Format(wxT("xy=%d"),spell_map->ConvXY(mxy)),2);
+    parent->SetStatusText(wxString::Format(wxT("L1: %s"),spell_map->GetL1tileName(m_buffer,scroll)),3);
+    parent->SetStatusText(wxString::Format(wxT("L2: %s"),spell_map->GetL2tileName(m_buffer,scroll)),4);
     
     Refresh();
 }
-void MyFrame::OnMouseUp(wxMouseEvent& event)
+void mapCanvas::OnMouseUp(wxMouseEvent& event)
 {
-    scroll.state = 0;
-    scroll.modified = 1;
+    scroll->state = 0;
+    scroll->modified = 1;
 }
