@@ -12,6 +12,7 @@
 #include <vector>
 #include <list>
 #include <string>
+#include <tuple>
 #include "fs_archive.h"
 #include "fsu_archive.h"
 #include "spell_units.h"
@@ -62,6 +63,7 @@ public:
 	int x;
 	int y;
 	bool IsSelected();
+	MapXY() {x=0;y=0;};
 };
 
 class MapUnitType
@@ -128,21 +130,46 @@ public:
 	int GetXY();
 };
 
+// Scroller
 class TScroll
 {
-public:
+private:
 	// cursor position (within screen)
-	int xref, yref;
+	int xref,yref;
 	// scroll position
-	int dx, dy;
+	int dx,dy;
 	// scroll state
 	int state;
+	// selection size
+	int size;
 	// modified?
 	int modified;
 
+	static constexpr int MAX_SEL_SIZE = 8;
+
+public:	
 	TScroll();
 	void Reset();
+	void SetRef(int x, int y);
+	void Move(int x, int y);
+	void Idle();
+	int ResizeSelection(int delta);
+	bool wasModified();
+	bool Commit();
+	
+	tuple<int,int> CheckScroll(int x_limit,int y_limit);
+	tuple<int,int> GetScroll();
+	tuple<int,int> GetCursor();
+	int GetSize();
 };
+
+
+typedef struct{
+	int x;
+	int y;
+	int edir;
+	int elev;
+}TTileElevMod;
 
 class SpellMap
 {
@@ -169,6 +196,7 @@ class SpellMap
 
 		// tile selection
 		MapXY sel;
+		vector<MapXY> msel;
 
 		// layer visibility flags
 		bool wL1, wL2, wL3, wL4, wSTCI, wUnits;
@@ -180,7 +208,21 @@ class SpellMap
 		static constexpr int MAP_BACK_COLOR = 230; // map background color index
 		static constexpr int MSYOFS = 150; // map render Y-offset from top (this should make enough space for highest elevation)
 		static constexpr int MSYOFST = 6; // map render Y-offset from top in tiles
+
+		static constexpr int ELEV_MIN = 0; // minimum tile elevation
+		static constexpr int ELEV_MAX = 8; // maximum tile elevation
+
 		
+		int GetFlagHeight(MapXY* sel);
+		int GetFlagFlag(MapXY* sel);
+		MapXY GetTileNeihgborXY(int x,int y,int angle);
+		MapXY GetTileNeihgborXY(MapXY mxy,int angle);
+		int EditElevNbrQuad(int x,int y,int elv,int* min);
+		int EditElevNbrDbl(int x,int y,int elv);
+		void EditElevNbrRule(uint8_t* flag,TTileElevMod* mod,int x,int y,int elv);
+		void EditElevNbr(uint8_t* flag,int elv,int edir,int x,int y);
+		void EditElevSlope(uint8_t* flag);
+		void EditElevText(uint8_t* flag);
 
 	public:
 
@@ -209,12 +251,14 @@ class SpellMap
 		
 		SpellMap();
 		~SpellMap();
+		void Close();
 		int Load(wstring &path, SpellData* spelldata);
 		void SortUnits();
 		int IsLoaded();
 		bool TileIsVisible(int x, int y);
 		
-		MapXY GetSelection(wxBitmap& bmp, TScroll* scroll);
+		MapXY GetSelection(wxBitmap& bmp,TScroll* scroll);
+		vector<MapXY> &GetSelections(wxBitmap& bmp, TScroll* scroll);
 		int RenderPrepare(wxBitmap& bmp, TScroll* scroll);
 		int Render(wxBitmap &bmp, TScroll* scroll);
 
@@ -225,9 +269,14 @@ class SpellMap
 		
 		int ConvXY(int x, int y);
 		int ConvXY(MapXY &mxy);
-
+		int ConvXY(MapXY *mxy);
+			
 		char *GetL1tileName(wxBitmap& bmp,TScroll* scroll);
 		char* GetL2tileName(wxBitmap& bmp,TScroll* scroll);
+		tuple<int,int,int> GetTileFlags(wxBitmap& bmp,TScroll* scroll);
+
+		int EditElev(wxBitmap& bmp,TScroll* scroll,int step);
+
 
 };
 

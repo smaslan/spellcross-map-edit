@@ -6,6 +6,7 @@
 // Distributed under MIT license, https://opensource.org/licenses/MIT.
 //=============================================================================
 #include "sprites.h"
+#include "other.h"
 #include "fs_archive.h"
 #include "fsu_archive.h"
 
@@ -43,7 +44,6 @@ Sprite::~Sprite()
 	if (data)
 		delete[] data;
 }
-
 // check if sprite row quad mask has transparencies or it is just last quad
 int Sprite::MaskHasTransp(uint8_t *mask)
 {
@@ -51,6 +51,11 @@ int Sprite::MaskHasTransp(uint8_t *mask)
 		!((mask[1] == 0x00 && mask[2] == 0x00 && mask[3] == 0xFF) ||
 		  (mask[1] == 0x00 && mask[2] == 0xFF && mask[3] == 0xFF) ||
 		  (mask[1] == 0xFF && mask[2] == 0xFF && mask[3] == 0xFF)));
+}
+// ge tile slope letter
+char Sprite::GetSlope()
+{
+	return(name[2]);
 }
 
 
@@ -978,6 +983,37 @@ Sprite* Terrain::GetSprite(const char* name)
 	}
 	return(NULL);
 }
+
+// get sprite by wildcard string
+Sprite* Terrain::GetSpriteWild(const char* wild, WildMode mode)
+{
+	if(mode == FIRST)
+	{
+		// get first match
+		for(unsigned k = 0; k < sprites.size(); k++)
+			if(wildcmp(wild,sprites[k]->name))
+				return(sprites[k]);
+		return(NULL);
+	}
+	else
+	{
+		// get random match
+		Sprite** list = new Sprite*[sprites.size()];
+		Sprite *ret = NULL;
+		int count = 0;
+		for(unsigned k = 0; k < sprites.size(); k++)
+			if(wildcmp(wild,sprites[k]->name))
+				list[count++] = sprites[k];
+		if(count)
+			ret = list[rand()%count];
+		delete[] list;
+		return(ret);
+	}
+	
+	return(NULL);
+}
+
+
 
 // get L1 animation (ANM) pointer by its name
 AnimL1* Terrain::GetANM(const char* name)

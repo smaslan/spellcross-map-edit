@@ -24,6 +24,7 @@
     <ClCompile Include="LZ_spell.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="map.cpp" />
+    <ClCompile Include="other.cpp" />
     <ClCompile Include="spellcross.cpp" />
     <ClCompile Include="spell_units.cpp" />
     <ClCompile Include="sprites.cpp" />
@@ -31,6 +32,7 @@
   <ItemGroup>
     <ClInclude Include="fsu_archive.h" />
     <ClInclude Include="fs_archive.h" />
+    <ClInclude Include="other.h" />
     <ClInclude Include="LZ_spell.h" />
     <ClInclude Include="main.h" />
     <ClInclude Include="map.h" />

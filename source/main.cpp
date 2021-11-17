@@ -13,28 +13,14 @@
 
 #include <filesystem>
 #include <codecvt>
+#include <tuple>
+#include <string>
 
 #include "main.h"
+#include "other.h"
 #include "simpleini.h"
 #include "spellcross.h"
 #include "map.h"
-
-
-
-std::wstring char2wstring(const char* str)
-{
-    //setup converter
-    typedef std::codecvt_utf8<wchar_t> convert_type;
-    std::wstring_convert<convert_type,wchar_t> converter;
-    return converter.from_bytes(str);
-}
-
-// convert wstring to UTF-8 string
-std::string wstring2string(const std::wstring& str)
-{
-    std::wstring_convert<std::codecvt_utf8<wchar_t>> myconv;
-    return myconv.to_bytes(str);
-}
 
 
 
@@ -62,22 +48,12 @@ bool MyApp::OnInit()
     spell_map = new SpellMap();
     spell_map->Load(map_path,spell_data);
     spell_map->SetGamma(1.3);
-
-
-    // view scroller
-    scroll.Reset();
+        
     
     // --- run main form    
     // main window frame
-    MyFrame* frame = new MyFrame(&spell_map, spell_data);
-    // main sizer 
-    wxBoxSizer* sizer = new wxBoxSizer(wxHORIZONTAL);
-    // render canvas
-    mapCanvas* canvas = new mapCanvas(frame, spell_map, &scroll);
-    sizer->Add(canvas,1,wxEXPAND|wxALL,1);
+    MyFrame* frame = new MyFrame(spell_map, spell_data);
     // show main frame
-    frame->SetSizer(sizer);
-    frame->SetAutoLayout(true);
     frame->Show(true);
     return(true);
 }
@@ -98,27 +74,23 @@ int MyApp::OnExit()
 }
 
 
-mapCanvas::mapCanvas(wxFrame* parent,SpellMap* spell_map,TScroll *scroll) :wxPanel(parent)
-{
-    this->spell_map = spell_map;
-    this->scroll = scroll;    
-    this->parent = parent;
-
-    Bind(wxEVT_PAINT,&mapCanvas::OnPaint,this);
-    //Bind(wxEVT_SIZING,&myCanvas::OnResize,this);
-
-    Bind(wxEVT_RIGHT_DOWN,&mapCanvas::OnMouseDown,this);
-    Bind(wxEVT_RIGHT_UP,&mapCanvas::OnMouseUp,this);
-    Bind(wxEVT_MOTION,&mapCanvas::OnMouseMove,this);
-    Bind(wxEVT_LEAVE_WINDOW,&mapCanvas::OnMouseLeave,this);
-}
-
-
-MyFrame::MyFrame(SpellMap** map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "Spellcross Map Editor", wxDefaultPosition, wxSize(800,600))
+MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "Spellcross Map Editor", wxDefaultPosition, wxSize(800,600))
 {
     // store local reference to initial map and data
     spell_map = map;
     spell_data = spelldata;
+
+    // view scroller
+    scroll.Reset();
+
+    // main sizer 
+    wxBoxSizer* sizer = new wxBoxSizer(wxHORIZONTAL);
+    // make and attach render canvas
+    mapCanvas* canvas = new mapCanvas(this,spell_map,&scroll);
+    sizer->Add(canvas,1,wxEXPAND|wxALL,1);
+    this->SetSizer(sizer);
+    this->SetAutoLayout(true);
+
     
     // File menu
     wxMenu* menuFile = new wxMenu;
@@ -185,9 +157,30 @@ MyFrame::MyFrame(SpellMap** map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "
     Bind(wxEVT_LEAVE_WINDOW,&MyFrame::OnMouseLeave,this);*/
     
 }
+
+
+mapCanvas::mapCanvas(wxFrame* parent,SpellMap* spell_map,TScroll* scroll) :wxPanel(parent)
+{
+    this->spell_map = spell_map;
+    this->scroll = scroll;
+    this->parent = parent;
+
+    Bind(wxEVT_PAINT,&mapCanvas::OnPaint,this);
+    //Bind(wxEVT_SIZING,&myCanvas::OnResize,this);
+
+    Bind(wxEVT_RIGHT_DOWN,&mapCanvas::OnMouseDown,this);
+    Bind(wxEVT_RIGHT_UP,&mapCanvas::OnMouseUp,this);
+    Bind(wxEVT_MOTION,&mapCanvas::OnMouseMove,this);
+    Bind(wxEVT_LEAVE_WINDOW,&mapCanvas::OnMouseLeave,this);
+    Bind(wxEVT_MOUSEWHEEL,&mapCanvas::OnMouseWheel,this);    
+    Bind(wxEVT_KEY_DOWN,&mapCanvas::OnKeyDown,this);
+}
+
+
+
 void MyFrame::OnTimer(wxTimerEvent& event)
 {
-    if((*spell_map)->Tick())
+    if(spell_map->Tick())
     {
         Refresh();
     }
@@ -238,28 +231,27 @@ void MyFrame::OnViewLayer(wxCommandEvent& event)
     bool wL4 = GetMenuBar()->FindItem(ID_ViewPnm)->IsChecked();
     bool wL5 = GetMenuBar()->FindItem(ID_ViewUnt)->IsChecked();
     bool wSS = GetMenuBar()->FindItem(ID_ViewStTa)->IsChecked();
-    (*spell_map)->SetRender(wL1,wL2,wL3,wL4,wSS,wL5);
+    spell_map->SetRender(wL1,wL2,wL3,wL4,wSS,wL5);
     Refresh();
 }
 void MyFrame::OnOpenMap(wxCommandEvent& event)
 {
-    std::filesystem::path last_path = (*spell_map)->GetTopPath();
+    // split path to folder and file
+    std::filesystem::path last_path = spell_map->GetTopPath();
     wstring dir = last_path.parent_path();
     wstring name = last_path.filename();
     
+    // show open dialog
     wxFileDialog openFileDialog(this,_("Open Spellcross Map File"),dir,name,"Map script file (*.def)|*.def|Map data file (*.dta)|*.dta",
         wxFD_OPEN|wxFD_FILE_MUST_EXIST);
     if(openFileDialog.ShowModal() == wxID_CANCEL)
         return;
     wstring path = wstring(openFileDialog.GetPath().ToStdWstring());
 
-    // loose old map
-    delete (*spell_map);
-    (*spell_map) = new SpellMap();
     // load new one
-    (*spell_map)->Load(path, spell_data);
+    spell_map->Load(path, spell_data);
     // reset layers visibility
-    (*spell_map)->SetGamma(1.30);
+    spell_map->SetGamma(1.30);
     OnViewLayer(event);
     // reset scroller
     scroll.Reset();
@@ -270,26 +262,19 @@ void MyFrame::OnOpenMap(wxCommandEvent& event)
 // --- scrolling control ---
 void mapCanvas::OnMouseDown(wxMouseEvent& event)
 {    
-    scroll->xref = event.GetX();
-    scroll->yref = event.GetY();
-    scroll->state = 1;
-    scroll->modified = 1;
+    scroll->SetRef(event.GetX(), event.GetY());
 }
 void mapCanvas::OnMouseLeave(wxMouseEvent& event)
 {
-    scroll->state = 0;
-    scroll->modified = 1;
+    scroll->Idle();
+}
+void mapCanvas::OnMouseUp(wxMouseEvent& event)
+{
+    scroll->Idle();
 }
 void mapCanvas::OnMouseMove(wxMouseEvent& event)
 {
-    if(scroll->state)
-    {
-        scroll->dx -= (event.GetX() - scroll->xref);
-        scroll->dy -= (event.GetY() - scroll->yref);
-    }
-    scroll->xref = event.GetX();
-    scroll->yref = event.GetY();
-    scroll->modified = 1;
+    scroll->Move(event.GetX(), event.GetY());
     
     // update map selection
     //SpellMap* map = (*spell_map);
@@ -299,11 +284,30 @@ void mapCanvas::OnMouseMove(wxMouseEvent& event)
     parent->SetStatusText(wxString::Format(wxT("xy=%d"),spell_map->ConvXY(mxy)),2);
     parent->SetStatusText(wxString::Format(wxT("L1: %s"),spell_map->GetL1tileName(m_buffer,scroll)),3);
     parent->SetStatusText(wxString::Format(wxT("L2: %s"),spell_map->GetL2tileName(m_buffer,scroll)),4);
+    //int height, flags, code;
+    auto [flags,height,code] = spell_map->GetTileFlags(m_buffer,scroll);
+    parent->SetStatusText(wxString::Format(wxT("(0x%02X)"),code),5);
     
     Refresh();
 }
-void mapCanvas::OnMouseUp(wxMouseEvent& event)
+void mapCanvas::OnMouseWheel(wxMouseEvent& event)
 {
-    scroll->state = 0;
-    scroll->modified = 1;
+    scroll->ResizeSelection(event.GetWheelRotation()/event.GetWheelDelta());
+    Refresh();
+}
+void mapCanvas::OnKeyDown(wxKeyEvent& event)
+{
+    if(event.ControlDown())
+    {
+        int step = 0;
+        if(event.GetKeyCode() == WXK_PAGEUP)
+            step++;
+        else if(event.GetKeyCode() == WXK_PAGEDOWN)
+            step--;
+        if(step != 0)
+        {
+            spell_map->EditElev(m_buffer, scroll, step);
+            Refresh();
+        }
+    }
 }

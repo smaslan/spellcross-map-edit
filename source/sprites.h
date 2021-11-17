@@ -58,6 +58,7 @@ class Sprite
 		void GetTileModel(TFxyz* vert, int* face, int* face_count);
 		TFxyz ProjectVertex(TFxyz *vert);
 		void RenderTileWires(uint8_t* buffer, uint8_t* buf_end, int buf_x, int buf_y, int x_size, uint8_t color);
+		char GetSlope();
 		
 		double GetTileZ(double x, double y);
 		double GetTileProjY(double x, double y);
@@ -136,11 +137,14 @@ class Terrain
 			uint8_t redpal[256];
 		} filter; 
 
+		enum WildMode { FIRST,RANDOM };
+
 		// void contructor
 		Terrain();
 		~Terrain();
 		int Load(wstring &path);
 		Sprite* GetSprite(const char* name);
+		Sprite* GetSpriteWild(const char* wild,WildMode mode);
 		AnimL1* GetANM(const char* name);
 		AnimPNM* GetPNM(const char* name);
 };

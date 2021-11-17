@@ -16,12 +16,127 @@
 #include <vector>
 #include <stdexcept>
 #include <regex>
+#include <tuple>
 
 #include "wx/dcgraph.h"
 #include "wx/dcbuffer.h"
 #include <wx/rawbmp.h>
 
 using namespace std;
+
+
+
+
+
+
+//=============================================================================
+// Map scroller class
+//=============================================================================
+// map scroller
+TScroll::TScroll()
+{
+	Reset();
+}
+// reset scroller to default
+void TScroll::Reset()
+{
+	xref = 0;
+	yref = 0;
+	// scroll position
+	dx = 0;
+	dy = 0;
+	// selection size
+	size = 1;
+	// scroll state
+	state = 0;
+	// no change
+	modified = 0;
+}
+// set cursor ref. position (callwed on mouse down event)
+void TScroll::SetRef(int x,int y)
+{
+	xref = x;
+	yref = y;
+	// shift active
+	state = 1;
+}
+// cursor moved to new position
+void TScroll::Move(int x,int y)
+{
+	if(state)
+	{
+		// calculate scroll shift
+		dx -= (x - xref);
+		dy -= (y - yref);
+	}
+	// set new ref position
+	xref = x;
+	yref = y;
+	// something changed
+	modified = 1;
+}
+// cursor to idle state (mouse leave or up)
+void TScroll::Idle()
+{
+	state = 0;
+	modified = 0;
+}
+// check if there was any change in cursor 
+bool TScroll::wasModified()
+{
+	return(modified);
+}
+// check if there was any change in cursor and commit the change will be processed
+bool TScroll::Commit()
+{
+	bool mod = modified;
+	modified = 0;
+	return(mod);
+}
+// limit scroll to valid range
+tuple<int,int> TScroll::CheckScroll(int x_limit,int y_limit)
+{
+	if(dx >= x_limit)
+		dx = x_limit - 1;
+	else if(dx < 0)
+		dx = 0;
+	if(dy >= y_limit)
+		dy = y_limit - 1;
+	else if(dy < 0)
+		dy = 0;
+	return {dx, dy};
+}
+// return scroll position
+tuple<int,int> TScroll::GetScroll()
+{
+	return {dx,dy};
+}
+// return cursor position relative to selection
+tuple<int,int> TScroll::GetCursor()
+{
+	return {xref,yref};
+}
+// get selction region size
+int TScroll::GetSize()
+{
+	return(size);
+}
+// resize selection size by delta
+int TScroll::ResizeSelection(int delta)
+{
+	// change selection size
+	size += delta;
+	if(size < 1)
+		size = 1;
+	if(size > MAX_SEL_SIZE)
+		size = MAX_SEL_SIZE;
+	// something changed
+	modified = 1;
+	// return new size
+	return(size);
+}
+
+
 
 
 
@@ -91,23 +206,38 @@ SpellMap::SpellMap()
 
 SpellMap::~SpellMap()
 {
+	// cleanup heap allocated stuff
+	Close();
+}
+
+// returns path to DEF file or DTA file if DEF was not used
+wstring SpellMap::GetTopPath()
+{
+	if (def_path.empty())
+		return(map_path);
+	return(def_path);
+}
+
+// cleanup MAP data
+void SpellMap::Close()
+{
 	int k;
 	// loose terrain
-	if (L1)
+	if(L1)
 		delete[] L1;
 	L1 = NULL;
 	// loose objects
-	if (L2)
+	if(L2)
 		delete[] L2;
 	L2 = NULL;
 	// loose elevation map
-	if (elev)
+	if(elev)
 		delete[] this->elev;
 	elev = NULL;
 	// loose flags
-	if (flags)
+	if(flags)
 		delete[] flags;
-	flags = NULL;	
+	flags = NULL;
 	// loose ANM list
 	for(k = 0; k < L3.size(); k++)
 		delete L3[k];
@@ -120,30 +250,25 @@ SpellMap::~SpellMap()
 	start.clear();
 	escape.clear();
 	// loose units layer
-	if (Lunit)
+	if(Lunit)
 		delete[] Lunit;
+	Lunit = NULL;
 	// loose units list
-	for (k = 0; k < units.size(); k++)
+	for(k = 0; k < units.size(); k++)
 		delete units[k];
 	units.clear();
 
-	if (pic)
+	if(pic)
 		delete[] pic;
 	pic = NULL;
-
-}
-
-// returns path to DEF file or DTA file if DEF was not used
-wstring SpellMap::GetTopPath()
-{
-	if (def_path.empty())
-		return(map_path);
-	return(def_path);
 }
 
 // Load MAP from file
 int SpellMap::Load(wstring &path, SpellData *spelldata)
 {		
+	// loose old map data
+	Close();
+	
 	// default map file
 	wstring map_path = path;
 
@@ -177,6 +302,7 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 					map_path = L"";
 				string map_name = (*(*mission_data)[k]->parameters)[0];
 				map_path = map_path + L"\\" + wstring(map_name.begin(), map_name.end()) + L".DTA";
+				break;
 			}			
 		}
 		delete mission_data;
@@ -187,7 +313,6 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 	else
 	{
 		// only *.map file
-
 		def_path = L"";		
 	}
 
@@ -704,11 +829,15 @@ int SpellMap::ConvXY(int x, int y)
 		return(x + y * x_size);
 	return(-1);
 }
+int SpellMap::ConvXY(MapXY *mxy)
+{
+	if(mxy->IsSelected())
+		return(mxy->x + mxy->y * x_size);
+	return(-1);
+}
 int SpellMap::ConvXY(MapXY &mxy)
 {
-	if(mxy.IsSelected())
-		return(mxy.x + mxy.y * x_size);
-	return(-1);
+	return(ConvXY(&mxy));
 }
 
 // this sorts units list for proper render order, call after load or units changes
@@ -720,7 +849,7 @@ void SpellMap::SortUnits()
 		Lunit = new MapUnit*[x_size * y_size];
 	
 	// clear units layer array
-	memset((void*)Lunit, NULL, sizeof(MapUnit*)*x_size*y_size);
+	std::memset((void*)Lunit, NULL, sizeof(MapUnit*)*x_size*y_size);
 
 	// clear render chain pointers
 	for (k = 0; k < units.size(); k++)
@@ -771,7 +900,7 @@ void SpellMap::SortUnits()
 // is some valid map data loaded?
 int SpellMap::IsLoaded()
 {
-	if (!L1 || !L2 || !elev || !flags)
+	if (!L1 || !L2 || !elev || !flags || !Lunit)
 		return(0);
 
 	if (!x_size || !y_size)
@@ -782,22 +911,8 @@ int SpellMap::IsLoaded()
 }
 
 
-// map scroller
-TScroll::TScroll()
-{
-	Reset();
-}
-// reset scroller to default
-void TScroll::Reset()
-{
-	xref = 0;
-	yref = 0;
-	// scroll position
-	dx = 0;
-	dy = 0;
-	// scroll state
-	state = 0;
-}
+
+
 
 // selection is valid?
 bool MapXY::IsSelected()
@@ -825,22 +940,15 @@ int SpellMap::RenderPrepare(wxBitmap& bmp, TScroll* scroll)
 	pic_end = &pic[pic_x_size * pic_y_size];
 
 	// limit scroller to valid range
-	if(scroll->dx >= pic_x_size - surf_x)
-		scroll->dx = pic_x_size - surf_x - 1;
-	else if(scroll->dx < 0)
-		scroll->dx = 0;
-	if(scroll->dy >= pic_y_size - surf_y)
-		scroll->dy = pic_y_size - surf_y - 1;
-	else if(scroll->dy < 0)
-		scroll->dy = 0;
-
-	
+	scroll->CheckScroll(pic_x_size - surf_x, pic_y_size - surf_y);
+		
 	// tiles to draw
 	xs_size = surf_x / 80 + 3;
 	ys_size = surf_y / 24 + 12;
 	// scroll offset in tiles
-	xs_ofs = scroll->dx / 80 - 1;
-	ys_ofs = scroll->dy / 48 - MSYOFST;
+	auto [dx,dy] = scroll->GetScroll();
+	xs_ofs = dx / 80 - 1;
+	ys_ofs = dy / 48 - MSYOFST;
 	if(xs_ofs < 0)
 		xs_ofs = 0;
 	if(ys_ofs < 0)
@@ -849,10 +957,15 @@ int SpellMap::RenderPrepare(wxBitmap& bmp, TScroll* scroll)
 	return(0);
 }
 
+
+
+
+
+
 // analyze map selection
-MapXY SpellMap::GetSelection(wxBitmap& bmp, TScroll *scroll)
+vector<MapXY> &SpellMap::GetSelections(wxBitmap& bmp, TScroll *scroll)
 {
-	int m,n,i;
+	int m,n,i,j;
 
 	// check & fix surface and scroll ranges
 	RenderPrepare(bmp, scroll);
@@ -860,12 +973,16 @@ MapXY SpellMap::GetSelection(wxBitmap& bmp, TScroll *scroll)
 	// default no selection
 	MapXY selxy = sel;
 	
-	if(scroll->modified)
+	if(scroll->Commit())
 	{	
-		scroll->modified = 0;
 		// no select found yet
 		selxy.x = -1;
 		selxy.y = -1;
+
+		// get scroll position
+		auto [dx,dy] = scroll->GetScroll();
+		// get cursor position relative to scroll
+		auto [xref,yref] = scroll->GetCursor();
 		
 		const int smooth = 1;
 
@@ -895,8 +1012,8 @@ MapXY SpellMap::GetSelection(wxBitmap& bmp, TScroll *scroll)
 
 				// pixel coordinates of search rect
 				int mxx = n * 80 + ((m & 1 != 0) ? 0 : 40);
-				int ymn = -((scroll->dy / 48 <= MSYOFST ? (scroll->dy / 48) * 48 : MSYOFST * 48) + (scroll->dy % 48) * smooth);
-				int xmn = mxx - ((scroll->dx >= 80 ? (80) : (0)) + (scroll->dx % 80) * smooth);
+				int ymn = -((dy / 48 <= MSYOFST ? (dy / 48) * 48 : MSYOFST * 48) + (dy % 48) * smooth);
+				int xmn = mxx - ((dx >= 80 ? (80) : (0)) + (dx % 80) * smooth);
 				if(sn == 'C' || sn == 'D' || sn == 'M' || sn == 'B')
 					ymn += (m * 24 - sy + 47 - sof * 18 + MSYOFS + 50);
 				else if(sn == 'L' || sn == 'F')
@@ -905,8 +1022,8 @@ MapXY SpellMap::GetSelection(wxBitmap& bmp, TScroll *scroll)
 					ymn += (m * 24 - sof * 18 + MSYOFS + 50);
 
 				// now decide which tile is selected in search rect
-				if(scroll->yref != -1 && scroll->yref > ymn && scroll->yref < ymn + sy &&
-					scroll->xref != -1 && scroll->xref > xmn && scroll->xref < xmn + sx)
+				if(yref != -1 && yref > ymn && yref < ymn + sy &&
+					xref != -1 && xref > xmn && xref < xmn + sx)
 				{
 					// we are somewhere in the expected tile area - check if we are in tile polygons
 					// tile data
@@ -918,8 +1035,8 @@ MapXY SpellMap::GetSelection(wxBitmap& bmp, TScroll *scroll)
 						unsigned char nn = *((unsigned int*)seld); seld += 4;
 						if(nn == 0)
 							continue;
-						if((scroll->yref - ymn) == i && (scroll->xref - xmn) >= oo && (scroll->xref - xmn) < (oo + nn) &&
-							seld[scroll->xref - xmn - oo] != 0)
+						if((yref - ymn) == i && (xref - xmn) >= oo && (xref - xmn) < (oo + nn) &&
+							seld[xref - xmn - oo] != 0)
 						{
 							sla = 1;
 							break;
@@ -943,9 +1060,45 @@ MapXY SpellMap::GetSelection(wxBitmap& bmp, TScroll *scroll)
 		// store selection
 		sel = selxy;
 
+		// first multiselect item is always central
+		msel.clear();
+		msel.push_back(selxy);
+
+		// find multiselect tiles:
+		if(selxy.IsSelected())
+		{		
+			// selection size
+			int size = scroll->GetSize();
+			int minref = -(size - 1)/2;
+
+			for(j = 0; j < size; j++)
+			{
+				for(i = 0; i < size; i++)
+				{
+					// this point
+					MapXY pxy;
+					pxy.x = (selxy.x*2 + ((selxy.y%2)?0:1) + minref+i+minref+j)>>1;
+					pxy.y = selxy.y + minref+j-(minref+i);
+
+					// skip point if center point
+					if(pxy.x == selxy.x && pxy.y == selxy.y)
+						continue;
+				
+					// put new point to list
+					if(pxy.x < x_size && pxy.x >= 0 && pxy.y < y_size && pxy.y >= 0)
+						msel.push_back(pxy);
+				}
+			}
+		}
+
 	}
 
-	return(selxy);
+	return(msel);
+}
+MapXY SpellMap::GetSelection(wxBitmap& bmp,TScroll* scroll)
+{
+	vector<MapXY>& sel = GetSelections(bmp, scroll);
+	return(sel[0]);
 }
 
 // get L1 terrain tile name
@@ -978,6 +1131,31 @@ char* SpellMap::GetL2tileName(wxBitmap& bmp,TScroll* scroll)
 		return(NULL);
 }
 
+// get map flag array's object height
+int SpellMap::GetFlagHeight(MapXY *sel)
+{
+	return((flags[ConvXY(sel)] >> 4)&0x0F);
+}
+// get map flag array's flag part
+int SpellMap::GetFlagFlag(MapXY* sel)
+{
+	return((flags[ConvXY(sel)])&0x0F);
+}
+// get flags for given tile (###todo: decode what those flags actually means?)
+tuple<int,int,int> SpellMap::GetTileFlags(wxBitmap& bmp,TScroll* scroll)
+{
+	// fix selection
+	MapXY sel = GetSelection(bmp,scroll);
+	
+	if(sel.IsSelected())
+	{
+		// return tile name
+		return {GetFlagFlag(&sel), GetFlagHeight(&sel), flags[ConvXY(sel)]};
+	}
+	else
+		return {0,0,0};
+}
+
 // render frame
 int SpellMap::Render(wxBitmap &bmp, TScroll* scroll)
 {
@@ -996,13 +1174,8 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll)
 		return(1);
 
 	// find selection tiles
-	MapXY sel = GetSelection(bmp,scroll);
-
-	int x_pos = scroll->dx;
-	int y_pos = scroll->dy;
-	int x_cursor = scroll->xref;
-	int y_cursor = scroll->yref;
-
+	auto msel = GetSelections(bmp,scroll);
+		
 	// visible tiles range to clear
 	m = surf_x + 80 * 2;
 	if (m + 80 > pic_x_size)
@@ -1014,74 +1187,6 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll)
 	for (i = 0; i < n; i++)
 		std::memset((void*)(pic + pic_x_size * (i + ((ys_ofs >= 1) ? 48 : 0)) + ((xs_ofs * 80 >= 1) ? 80 : 0)), MAP_BACK_COLOR, m);
 	
-	// refresh statusbar
-	/*if (selx == -1)
-	{
-		msel.x = -1;
-		msel.y = -1;
-		MForm->SB->Panels->Items[0]->Text = "x=";
-		MForm->SB->Panels->Items[1]->Text = "y=";
-		MForm->SB->Panels->Items[2]->Text = "xy=";
-		MForm->SB->Panels->Items[3]->Text = "L1=";
-		MForm->SB->Panels->Items[4]->Text = "L2=";
-	}
-	else
-	{
-		// central select
-		msel.x = xss + selx;
-		msel.y = yss * 2 + sely;
-
-		// extend to multiselect
-		msel.seln = MAP_SEL_MAX * MAP_SEL_MAX;
-		MapSelectList(map, msel.sel, &msel.seln, msel.x, msel.y, -(tscr.size - 1) / 2, -(tscr.size - 1) / 2, tscr.size, tscr.size);
-
-
-		sid = map->L1[msel.y * map->x + msel.x];
-		sof = map->L1h[msel.y * map->x + msel.x];
-		sid2 = map->L2[msel.y * map->x + msel.x];
-		sof2 = map->L2h[msel.y * map->x + msel.x];
-
-		sprintf(str, "x=%d", msel.x);
-		MForm->SB->Panels->Items[0]->Text = str;
-		sprintf(str, "y=%d", msel.y);
-		MForm->SB->Panels->Items[1]->Text = str;
-		sprintf(str, "xy=%d", msel.y * map->x + msel.x);
-		MForm->SB->Panels->Items[2]->Text = str;
-		sprintf(str, "L1=%s (%d)", TT->spr[sid].name, sof);
-		MForm->SB->Panels->Items[3]->Text = str;
-		if (sid2 == 0)
-		{
-			sprintf(str, "L2= (0x%02X)", sof2);
-			MForm->SB->Panels->Items[4]->Text = str;
-		}
-		else
-		{
-			sprintf(str, "L2=%s (0x%02X)", TT->spr[sid2 - 1].name, sof2);
-			MForm->SB->Panels->Items[4]->Text = str;
-		}
-	}
-	MForm->SB->Repaint();*/
-
-	// leave if no change
-	/*if (selx == lselx && sely == lsely &&
-		xsz == lxsz && ysz == lysz &&
-		xss == lxss && yss == lyss &&
-		!map->dforce && !(smooth && (lxps != x_pos || lyps != y_pos)))
-	{
-		return(0);
-	}
-	// remember last selection
-	map->dforce = 0;
-	lxps = tscr.xpos;
-	lyps = tscr.ypos;
-	lselx = selx;
-	lsely = sely;
-	lxsz = xsz;
-	lysz = ysz;
-	lxss = xss;
-	lyss = yss;*/
-
-
 
 	// --- Render Layer 1 - ground sprites ---
 	for (m = 0; m < ys_size; m++)
@@ -1194,9 +1299,9 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll)
 
 
 	// --- Render selection tiles ---
-	if (sel.x != -1 && sel.y != -1)
+	if (msel[0].IsSelected())
 	{
-		struct {
+		/*struct {
 			int seln;
 			struct {
 				int x, y;
@@ -1204,12 +1309,12 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll)
 		} msel;
 		msel.seln = 1;
 		msel.sel[0].x = sel.x;
-		msel.sel[0].y = sel.y;
+		msel.sel[0].y = sel.y;*/
 		
-		for (i = 0; i < msel.seln; i++)
+		for (i = 0; i < msel.size(); i++)
 		{
-			n = msel.sel[i].x - xs_ofs;
-			m = msel.sel[i].y - ys_ofs * 2;
+			n = msel[i].x - xs_ofs;
+			m = msel[i].y - ys_ofs * 2;
 
 			if (n < 0 || m < 0 || (m + ys_ofs * 2) >= y_size || (n + xs_ofs) >= x_size - 1)
 				continue;
@@ -1282,7 +1387,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll)
 				filter = terrain->filter.darkpal2;
 
 			// tile selected
-			int is_selected = (sel.x != -1 && sel.y != -1 && sel.x - xs_ofs == n && sel.y - ys_ofs*2 == m);
+			int is_selected = (msel[0].IsSelected() && msel[0].x - xs_ofs == n && msel[0].y - ys_ofs*2 == m);
 
 			// first unit to render
 			MapUnit* unit = Lunit[mxy];			
@@ -1353,6 +1458,8 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll)
 	}
 
 	
+	// get scroll position
+	auto [x_pos,y_pos] = scroll->GetScroll();
 	
 	// render 24bit RGB data to raw bmp buffer
 	wxNativePixelData data(bmp);
@@ -1360,7 +1467,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll)
 	for(unsigned int y = 0; y < surf_y; ++y)
 	{
 		uint8_t* scan = p.m_ptr;
-		uint8_t* src = &pic[(y + (y_pos / 48 <= MSYOFST ? (y_pos / 48) * 48 : MSYOFST * 48) + (y_pos % 48) * smooth)*pic_x_size + ((x_pos >= 80 ? (80) : (0)) + (x_pos % 80) * smooth)];
+		uint8_t* src = &pic[(y + (y_pos / 48 <= MSYOFST ? (y_pos / 48) * 48 : MSYOFST * 48) + (y_pos % 48) * smooth)*pic_x_size + ((x_pos >= 80 ? (80) : (0)) + (x_pos % 80) * smooth)];		
 		for(int x = 0; x < surf_x; x++)
 		{
 			*scan++ = pal[*src][2];
@@ -1451,3 +1558,730 @@ int SpellMap::Tick()
 }
 
 
+
+
+
+
+
+
+
+
+
+
+
+typedef struct {
+	short x,y;
+	short elv;
+	short edir;
+}TMEEN;
+
+#define ALTEDBG 0
+
+int SpellMap::EditElevNbrQuad(int x, int y, int elv, int* min)
+{
+	int i,j;
+
+	// no quad yet
+	int hquad[4];
+
+	// --- for each possible quad ---
+	for(j = 0; j < 4; j++)
+	{
+		// total neighbours higher than center tile
+		int hcnt = 0;
+
+		for(i = 0; i < 3; i++)
+		{
+			// for every tile in quad
+			int tile = (7 + i + j*2)%8;
+
+			// neighbour position
+			MapXY nxy = GetTileNeihgborXY(x,y,tile);
+
+			// skip if outside map
+			if(nxy.x < 0 || nxy.x >= x_size || nxy.y < 0 || nxy.y >= y_size)
+				continue;
+
+			// neighbour higher?
+			int nelv = elev[ConvXY(nxy)];
+			if(nelv > elv)
+				hcnt++;
+		}
+
+		// store count
+		hquad[j] = hcnt;
+	}
+
+	// --- decide which quad needs to be aligned ---
+	// find minimum
+	int qmin = 4;
+	int qminid;
+	for(i = 0; i < 4; i++)
+	{
+		if(hquad[i] < qmin)
+		{
+			qmin = hquad[i];
+			qminid = i;
+		}
+	}
+
+	// return min count if requested
+	if(min)
+		*min = qmin;
+
+	// and its id
+	return(qminid);
+}
+
+int SpellMap::EditElevNbrDbl(int x,int y,int elv)
+{
+	int j, k;
+	int hdbl[4] = {0,0,0,0};
+
+	// --- for each corner ---
+	for(j = 0; j < 4; j++)
+	{
+		for(k = 0; k < 3; k++)
+		{
+			// neighbour tile id
+			int tile = (7 + k + j*2)%8;
+
+			// neighbour position
+			MapXY nxy = GetTileNeihgborXY(x,y,tile);
+
+			// done if outside map
+			if(nxy.x < 0 || nxy.x >= x_size || nxy.y < 0 || nxy.y >= y_size)
+				continue;
+
+			// higher?
+			int nelv = elev[ConvXY(nxy)];
+			hdbl[j] |= (nelv > elv);
+		}
+	}
+
+	return((hdbl[0]&hdbl[2]&!hdbl[1]&!hdbl[3]) || (hdbl[1]&hdbl[3]&!hdbl[0]&!hdbl[2]));
+}
+
+void SpellMap::EditElevNbrRule(uint8_t* flag,TTileElevMod* mod,int x,int y,int elv)
+{
+	int mxy = ConvXY(x,y);
+
+	// check neigbouring quads for valid one
+	int qmin;
+	EditElevNbrQuad(x, y, elv, &qmin);
+	// neighbor pair?
+	int dbl = EditElevNbrDbl(x, y, elv);
+	
+	// is there some valid?
+	if(qmin > 0 || dbl)
+	{		 		
+		// nope, increase center tile
+		elv++;
+
+		// store it
+		elev[mxy] = elv;
+		// tile modified flag
+		flag[mxy] = 1;
+
+		// and mark as modified
+		mod->x = x;
+		mod->y = y;
+		mod->elev = elv;
+		mod->edir =+1;
+	}
+}
+
+void SpellMap::EditElevNbr(uint8_t* flag,int elv,int edir,int x,int y)
+{
+	int i;
+
+	if(edir != 0)
+		flag[ConvXY(x,y)] = 1;
+
+	// no modified neighbour yet
+	TTileElevMod mod[8];
+	for(i = 0; i < 8; i++)
+		mod[i].elev = -1;
+
+	// === check slopes for each neighbour ===
+	for(i = 0; i < 8 && edir != 0; i++)
+	{
+		// neighbour position
+		MapXY nxy = GetTileNeihgborXY(x,y,i);
+
+		// done if outside map
+		if(nxy.x < 0 || nxy.x >= x_size || nxy.y < 0 || nxy.y >= y_size)
+			continue;
+
+		// get neighbour elev
+		int nelv = elev[ConvXY(nxy)];
+		int nelv_o = nelv;
+
+		// limit diference to +/-1
+		if(nelv - elv > 1)
+			nelv = elv + 1;
+		else if(nelv - elv < -1)
+			nelv = elv - 1;
+
+		// modified?
+		if(nelv != nelv_o)
+		{
+			// yaha
+			elev[ConvXY(nxy)] = nelv;
+			flag[ConvXY(nxy)] = 1;
+
+			// set neighbour modified flag
+			mod[i].x = nxy.x;
+			mod[i].y = nxy.y;
+			mod[i].elev = nelv;
+			mod[i].edir = nelv - nelv_o;
+		}
+	}
+
+
+	// === check quads for center tile ===
+	int qmin;
+	int qminid = EditElevNbrQuad(x,y,elv,&qmin);
+
+	// terrain lowered and quad invalid?
+	if(qmin > 0 && edir < 0)
+	{
+		// yaha, fix quad
+
+		// for every tile in quad
+		for(i = 0; i < 3; i++)
+		{
+			// tile
+			int tile = (7 + i + qminid*2)%8;
+
+			// neighbour position
+			MapXY nxy = GetTileNeihgborXY(x,y,tile);
+
+			// done if outside map
+			if(nxy.x < 0 || nxy.x >= x_size || nxy.y < 0 || nxy.y >= y_size)
+				continue;
+
+			// neighbour elevation
+			int nelv = elev[ConvXY(nxy)];
+
+			// align if neighbour higher
+			elev[ConvXY(nxy)] = elv;
+			flag[ConvXY(nxy)] = 1;
+
+			// set neighbour modified flag
+			mod[tile].x = nxy.x;
+			mod[tile].y = nxy.y;
+			if(nelv > elv)
+				mod[tile].edir = -1;
+			else
+				mod[tile].edir = 0;
+			mod[tile].elev = elv;
+		}
+	}
+
+	// === check invalid pattern ===
+	int dbl = EditElevNbrDbl(x,y,elv);
+	if(dbl && edir <= 0)
+	{
+		for(i = 0; i < 2; i++)
+		{
+			int tile = 4 + i*2;
+
+			// neighbour position
+			MapXY nxy = GetTileNeihgborXY(x,y,tile);
+
+			// done if outside map
+			if(nxy.x < 0 || nxy.x >= x_size || nxy.y < 0 || nxy.y >= y_size)
+				continue;
+
+			// neighbour elevation
+			int nelv = elev[ConvXY(nxy)];
+
+			if(nelv > elv)
+			{
+				// align if neighbour higher
+				elev[ConvXY(nxy)] = elv;
+				flag[ConvXY(nxy)] = 1;
+				
+				// set neighbour modified flag
+				mod[tile].x = nxy.x;
+				mod[tile].y = nxy.y;
+				mod[tile].edir = -1;
+				mod[tile].elev = elv;
+			}
+		}
+	}
+
+
+	// === check quads for every neighbouring tile ===
+	for(i = 0; i < 8; i++)
+	{
+		// neighbour position
+		MapXY nxy = GetTileNeihgborXY(x,y,i);
+
+		// done if outside map
+		if(nxy.x < 0 || nxy.x >= x_size || nxy.y < 0 || nxy.y >= y_size)
+			continue;
+
+		// get neighbour elev
+		int nelv = elev[ConvXY(nxy)];
+
+		// and check/fix
+		if(edir > 0)
+		{
+			EditElevNbrRule(flag,&mod[i],nxy.x,nxy.y,nelv);
+		}
+		else if(edir < 0)
+		{
+			int dbl = EditElevNbrDbl(nxy.x,nxy.y,nelv);
+			if(dbl)
+			{
+				mod[i].x = nxy.x;
+				mod[i].y = nxy.y;
+				mod[i].elev = nelv;
+				mod[i].edir = 0;
+			}
+		}
+	}
+
+
+	// === now repeat for all modified tiles ===
+	for(i = 0; i < 8; i++)
+	{
+		if(mod[i].elev >= 0)
+		{
+			// modified
+			EditElevNbr(flag,mod[i].elev,mod[i].edir,mod[i].x,mod[i].y);
+		}
+	}
+}
+
+void SpellMap::EditElevSlope(uint8_t* flag)
+{
+	int i,j,k,m;
+
+	const char slopes[16] = {'A','K','C','M','E','A','D','B','H','J','A','L','G','I','F','A'};
+
+	// === mark modified area ===
+	for(j = 0; j < y_size; j++)
+	{
+		for(i = 0; i < x_size; i++)
+		{
+			// for each neighbour
+			for(k = 0; k < 8 && flag[ConvXY(i,j)] == 1; k++)
+			{
+				// neighbour position				
+				MapXY nxy = GetTileNeihgborXY(i,j,k);
+
+				// done if outside map
+				if(nxy.x < 0 || nxy.x >= x_size || nxy.y < 0 || nxy.y >= y_size)
+					continue;
+
+				// mark neigbours
+				if(flag[ConvXY(nxy)] != 1)
+					flag[ConvXY(nxy)] = 2;
+			}
+		}
+	}
+
+	// === find land slopes for each modified tile ===
+	for(j = 0; j < y_size; j++)
+	{
+		for(i = 0; i < x_size; i++)
+		{
+			if(flag[ConvXY(i,j)] > 0)
+			{
+				// center tile alt
+				int alt = elev[ConvXY(i,j)];
+
+				// corners
+				int corn = 0x00;
+
+				// check corner alts
+				for(k = 0; k < 4; k++)
+				{
+					for(m = 0; m < 3; m++)
+					{
+						// neighbour tile id
+						int tile = (7 + m + k*2)%8;
+
+						// neighbour position
+						MapXY nxy = GetTileNeihgborXY(i,j,tile);
+
+						// done if outside map
+						if(nxy.x < 0 || nxy.x >= x_size || nxy.y < 0 || nxy.y >= y_size)
+							continue;
+
+						// current alt
+						int nalt = elev[ConvXY(nxy)];
+						if(nalt > alt)
+							break;
+					}
+
+					// store corner alt
+					corn |= (((m!=3)?1:0)<<k);
+				}
+				char slp = slopes[corn];
+				
+				// try to get some tile of requested slope
+				char sprname[9] = "PLx00_00"; // this should exist in each terrain
+				sprname[2] = slp;
+				Sprite *sprite = terrain->GetSprite(sprname);
+				if(!sprite)
+					continue; // skip if not found, but this should not happen
+
+				// assign new sprite to L1
+				L1[ConvXY(i,j)] = sprite;
+				
+				// remove objects?
+				if(slp != 'A')
+				{
+					L2[ConvXY(i,j)] = NULL;
+					flags[ConvXY(i,j)] = 0;
+				}
+			}
+		}
+	}
+}
+
+// fix textures after elevation change (only basic, need to implement full map retexture)
+void SpellMap::EditElevText(uint8_t* flag)
+{
+	int i,j,k;
+
+	// === mark modified area ===
+	for(j = 0; j < y_size; j++)
+	{
+		for(i = 0; i < x_size; i++)
+		{
+			// for each neighbour
+			for(k = 0; k < 8 && flag[ConvXY(i,j)] == 2; k++)
+			{
+				// neighbour position
+				MapXY nxy = GetTileNeihgborXY(i,j,k);
+
+				// done if outside map
+				if(nxy.x < 0 || nxy.x >= x_size || nxy.y < 0 || nxy.y >= y_size)
+					continue;
+
+				// mark neigbours
+				if(flag[ConvXY(nxy)] == 0)
+					flag[ConvXY(nxy)] = 3;
+			}
+		}
+	}
+
+	// === find land slopes for each modified tile ===
+	for(j = 0; j < y_size; j++)
+	{
+		for(i = 0; i < x_size; i++)
+		{
+			if(flag[ConvXY(i,j)] > 0)
+			{
+				// center tile alt
+				int alt = elev[ConvXY(i,j)];
+
+				Sprite *sprite = L1[ConvXY(i,j)];
+				char slp = sprite->GetSlope();
+
+				int msk = 0;
+				int mskh = 0;
+				if(slp == 'A')
+				{
+					// --- A slope ---
+					for(k = 0; k < 4; k++)
+					{
+						// neighbour tile
+						int tile = (7+k*2)%8;
+						MapXY nxy = GetTileNeihgborXY(i,j,tile);
+
+						// center tile alt
+						int nalt = elev[ConvXY(nxy)];
+
+						// build mask
+						msk |= (nalt<alt?1:0)<<k;
+					}
+				}
+				else if(slp == 'D' || slp == 'G' || slp == 'J' || slp == 'M')
+				{
+					int sid = (slp-'D')/3;
+					int did = (7+2*sid)%8;
+					int uid = (7+2*(sid+2))%8;
+
+					MapXY dxy = GetTileNeihgborXY(i,j,did);
+					MapXY uxy = GetTileNeihgborXY(i,j,uid);
+					//MapXY sxy = GetTileNeihgborXY(i,j,uid);
+
+					if(elev[ConvXY(dxy)] == alt)
+						msk |= (1<<sid);
+										
+					Sprite *sprite = L1[ConvXY(uxy)];
+					if(sprite->GetSlope() == 'A')
+						msk |= (1<<((sid+2)%4));
+
+				}
+				else if(slp == 'C' || slp == 'E' || slp == 'H' || slp == 'K')
+				{
+					int sid = (slp=='C')?0:((slp-'E')/3+1);
+					int dna = (5+sid*2)%8;
+					int dnb = (7+sid*2)%8;
+					int uid = (2+sid*2)%8;
+
+					MapXY dnaxy = GetTileNeihgborXY(i,j,dna);
+					MapXY dnbxy = GetTileNeihgborXY(i,j,dnb);
+					MapXY uxy = GetTileNeihgborXY(i,j,uid);
+					
+					if(elev[ConvXY(dnaxy)] == alt)
+						msk |= (1<<((sid+3)%4));
+					if(elev[ConvXY(dnbxy)] == alt)
+						msk |= (1<<((sid+0)%4));
+
+					Sprite* sprite = L1[ConvXY(uxy)];
+					if(sprite->GetSlope() == 'A')
+						mskh |= (1<<((sid+2)%4));
+				}
+				else
+				{
+					int sid = (slp=='B')?2:((slp=='F')?3:((slp-'I')/3));
+
+					int una = (5+sid*2)%8;
+					int unb = (7+sid*2)%8;
+					int did = (2+sid*2)%8;
+
+					MapXY axy = GetTileNeihgborXY(i,j,una);
+					Sprite* spr1 = L1[ConvXY(axy)];
+					MapXY bxy = GetTileNeihgborXY(i,j,unb);								
+					Sprite* spr2 = L1[ConvXY(bxy)];
+					if(spr1->GetSlope() == 'A' && spr2->GetSlope() == 'A')
+					{
+						msk |= (1<<((sid+0)%4));
+						msk |= (1<<((sid+3)%4));
+					}
+
+					MapXY dxy = GetTileNeihgborXY(i,j,did);
+					if(elev[ConvXY(dxy)] == alt)
+						mskh |= (1<<((sid+2)%4));
+				}
+
+				// search suitable sprite
+				char name[9] = "PLxdd_??";
+				name[2] = slp;
+				name[3] = msk + '0' + ((msk>9)?('A'-'0'-10):0);
+				name[4] = mskh + '0' + ((mskh>9)?('A'-'0'-10):0);
+				Sprite *spr = terrain->GetSpriteWild(name, Terrain::RANDOM);
+				
+				if(spr)
+				{
+					// update sprite
+					L1[ConvXY(i,j)] = spr;
+				}
+				
+				
+			}
+		}
+	}
+
+
+}
+
+
+
+
+
+// returns XY of tiles neighboring the XY tile at angle = <0;7>
+MapXY SpellMap::GetTileNeihgborXY(MapXY mxy,int angle)
+{
+	return(GetTileNeihgborXY(mxy.x, mxy.y, angle));
+}
+MapXY SpellMap::GetTileNeihgborXY(int x, int y, int angle)
+{
+	const int xlsta[8]={+1,+1, 0, 0,-1, 0, 0,+1};
+	const int xlstb[8]={+1, 0, 0,-1,-1,-1, 0, 0};
+	const int ylst[8] ={0,-1,-2,-1, 0,+1,+2,+1};
+
+	MapXY nxy;
+	if(angle < 0 || angle > 7)
+		return(nxy);
+	nxy.x = x + ((y&1)?xlstb[angle]:xlsta[angle]);
+	nxy.y = y + ylst[angle];
+
+	return(nxy);
+}
+
+// change elevation of terrain by step for all selected tiles
+int SpellMap::EditElev(wxBitmap& bmp, TScroll* scroll, int step)
+{
+	//TMap* map=&cmap;
+	//int x,y;
+	int i,j;
+
+	// leave if map not loaded
+	if(!IsLoaded())
+		return(1);
+
+	// get selection tiles
+	auto msel = GetSelections(bmp, scroll);
+	if(!msel[0].IsSelected())
+		return(2);
+
+	// select terrain
+	/*TTerr* TT;
+	MapGetTerr((void**)&TT);*/
+
+	// === for each selected ===
+	int min = ELEV_MAX;
+	int max = ELEV_MIN;
+	for(i = 0; i < msel.size(); i++)
+	{
+		// selected tile
+		int mxy = ConvXY(msel[i]);
+		Sprite *sprite = L1[mxy];
+
+		// tile slope
+		char sn = sprite->name[2];
+
+		// normal tile - use its alt
+		int elv = elev[mxy];
+		if(elv > max)
+			max = elv;
+		if(elv < min)
+			min = elv;
+
+		// find min/max
+		if(sn!='A' && step<0)
+		{
+			// shaped tile - check neighbours
+			for(j=0;j<8;j++)
+			{
+				MapXY nxy = GetTileNeihgborXY(msel[i],j);
+				
+				// done if outside map
+				if(nxy.x < 0 || nxy.x >= x_size || nxy.y < 0 || nxy.y >= y_size)
+					continue;
+
+				// tile alt
+				int nalt = elev[ConvXY(nxy)];
+
+				if(nalt > max)
+					max = nalt;
+				if(nalt < min)
+					min = nalt;
+			}
+		}
+	}
+
+
+	vector<TTileElevMod> elist;
+	for(i = 0; i < msel.size(); i++)
+	{
+		// selected tile
+		int mxy = ConvXY(msel[i]);
+		Sprite* sprite = L1[mxy];
+
+		// tile slope
+		//int sid=MapL1getId(map,x,y);
+		char sn = sprite->name[2];
+
+		if(step > 0 || sn == 'A')
+		{
+			// update alt
+			int elv = elev[mxy];
+			int elv_o = elv;
+			if((step > 0 && elv == min) || (step < 0 && elv == max))
+			{
+				elv += step;
+				if(elv < ELEV_MIN)
+					elv = ELEV_MIN;
+				if(elv > ELEV_MAX-1)
+					elv = ELEV_MAX-1;
+				elev[mxy] = elv;
+
+				// add tile to list of modified
+				TTileElevMod pel;
+				pel.x = msel[i].x;
+				pel.y = msel[i].y;
+				pel.edir = elv - elv_o; // delta elevation
+				elist.push_back(pel);
+			}
+		}
+		else
+		{
+			// shaped tile
+			for(j = 0; j < 8; j++)
+			{				
+				// skip if outside map
+				MapXY nxy = GetTileNeihgborXY(msel[i],j);
+				if(nxy.x < 0 || nxy.x >= x_size || nxy.y < 0 || nxy.y >= y_size)
+					continue;
+				
+				// tile alt down
+				int alt = elev[ConvXY(nxy)];
+				int alt_o = alt;
+
+				if(alt == max)
+				{
+					alt += step;
+					if(alt < ELEV_MIN)
+						alt = ELEV_MIN;
+					if(alt > ELEV_MAX-1)
+						alt = ELEV_MAX-1;
+					elev[ConvXY(nxy)] = alt;
+					
+					// add tile to list of modified
+					TTileElevMod pel;
+					pel.x = nxy.x;
+					pel.y = nxy.y;
+					pel.edir = alt - alt_o; // delta elevation
+					elist.push_back(pel);
+				}
+			}
+		}
+	}
+
+	// allocate modification flag array
+	uint8_t *flag = new uint8_t[x_size*y_size];
+	std::memset((void*)flag, 0x00,x_size* y_size*sizeof(uint8_t));
+
+	for(i = 0; i < elist.size(); i++)
+	{
+		// selected tile
+		int x = elist[i].x;
+		int y = elist[i].y;
+
+		// modify heigth
+		int elv = elev[ConvXY(x,y)];
+
+		if(elist[i].edir != 0)
+		{
+			// update elevations
+			EditElevNbr(flag,elv,elist[i].edir,x,y);
+
+			// update land slopes
+			EditElevSlope(flag);
+		}
+	}
+	for(i = 0; i < elist.size(); i++)
+	{
+		if(elist[i].edir != 0)
+		{
+			// update land slopes
+			EditElevSlope(flag);
+		}
+	}
+	for(i = 0; i < elist.size(); i++)
+	{
+		if(elist[i].edir != 0)
+		{
+			// update land textures
+			EditElevText(flag);
+		}
+	}
+
+
+	// loose memory
+	delete[] flag;
+
+	//DrawCMapSectorForce();
+
+	return(0);
+}

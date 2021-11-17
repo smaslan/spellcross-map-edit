@@ -23,6 +23,8 @@ public:
     void OnMouseUp(wxMouseEvent& event);
     void OnMouseMove(wxMouseEvent& event);
     void OnMouseLeave(wxMouseEvent& event);
+    void OnMouseWheel(wxMouseEvent& event);
+    void OnKeyDown(wxKeyEvent& event);
 
     // some useful events
     /*
@@ -46,10 +48,7 @@ class MyApp : public wxApp
 private:
     CSimpleIniA ini;
     SpellMap* spell_map;
-    SpellData* spell_data;
-    
-    TScroll scroll;
-
+    SpellData* spell_data;   
 public:
     virtual bool OnInit();
     virtual int OnExit();
@@ -61,7 +60,7 @@ public:
 class MyFrame : public wxFrame
 {
 public:
-    MyFrame(SpellMap** map,SpellData* spelldata);
+    MyFrame(SpellMap* map,SpellData* spelldata);
 
 private:
     void OnViewLayer(wxCommandEvent& event);
@@ -79,7 +78,7 @@ private:
     void OnMouseMove(wxMouseEvent& event);
     void OnMouseLeave(wxMouseEvent& event);*/
 
-    SpellMap** spell_map;
+    SpellMap* spell_map;
     SpellData* spell_data;
 
     //wxBitmap m_buffer;
