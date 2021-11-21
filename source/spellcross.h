@@ -83,6 +83,8 @@ public:
 	~SpellData();
 	int LoadSpecialLand(wstring &path);
 	Terrain* GetTerrain(char* name);
+	Terrain* GetTerrain(int index);
+	int GetTerrainCount();
 
 };
 

@@ -6,6 +6,7 @@
 // Distributed under MIT license, https://opensource.org/licenses/MIT.
 //=============================================================================
 #include "spellcross.h"
+#include "sprites.h"
 #include "fs_archive.h"
 #include "fsu_archive.h"
 #include "spell_units.h"
@@ -187,7 +188,7 @@ SpellData::SpellData(wstring &data_path)
 		wstring path = data_path + terrain_list[k];
 						
 		// load terrain
-		Terrain* new_terrain = new Terrain;
+		Terrain* new_terrain = new Terrain();
 		new_terrain->Load(path);
 
 		// store to list
@@ -395,6 +396,11 @@ int SpellData::LoadSpecialLand(wstring &spec_folder)
 	return(0);
 }
 
+// get number of loaded terraings
+int SpellData::GetTerrainCount()
+{
+	return(terrain.size());
+}
 // get terrain pointer by terrain name or return NULL
 Terrain* SpellData::GetTerrain(char* name)
 {
@@ -402,4 +408,11 @@ Terrain* SpellData::GetTerrain(char* name)
 		if (_strcmpi(this->terrain[k]->name, name) == 0)
 			return(this->terrain[k]);
 	return(NULL);
+}
+// get terrain pointer by index or NULL
+Terrain* SpellData::GetTerrain(int index)
+{
+	if(index >= terrain.size())
+		return(NULL);
+	return(terrain[index]);
 }

@@ -10,6 +10,7 @@
 #include <wx/rawbmp.h>
 #include <wx/timer.h>
 #include <wx/filedlg.h>
+#include "wx/slider.h"
 
 #include <filesystem>
 #include <codecvt>
@@ -21,6 +22,8 @@
 #include "simpleini.h"
 #include "spellcross.h"
 #include "map.h"
+
+#include "form_sprite_view.h"
 
 
 
@@ -74,7 +77,7 @@ int MyApp::OnExit()
 }
 
 
-MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "Spellcross Map Editor", wxDefaultPosition, wxSize(800,600))
+MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "Spellcross Map Editor", wxDefaultPosition, wxSize(1024,768))
 {
     // store local reference to initial map and data
     spell_map = map;
@@ -82,16 +85,7 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
 
     // view scroller
     scroll.Reset();
-
-    // main sizer 
-    wxBoxSizer* sizer = new wxBoxSizer(wxHORIZONTAL);
-    // make and attach render canvas
-    mapCanvas* canvas = new mapCanvas(this,spell_map,&scroll);
-    sizer->Add(canvas,1,wxEXPAND|wxALL,1);
-    this->SetSizer(sizer);
-    this->SetAutoLayout(true);
-
-    
+        
     // File menu
     wxMenu* menuFile = new wxMenu;
     menuFile->Append(ID_OpenMap, "&Open Map\tCtrl-O", "Open new Spellcross map file.");
@@ -101,18 +95,32 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     // View menu
     wxMenu* menuView = new wxMenu;
     menuView->Append(ID_ViewTer,"Layer 1: Terrain\tF1","",wxITEM_CHECK);
-    menuView->Append(ID_ViewObj,"Layer 2: Objects\tF2","",wxITEM_CHECK);
-    menuView->Append(ID_ViewAnm,"Layer 3: Tile anmiations\tF3","",wxITEM_CHECK);
-    menuView->Append(ID_ViewPnm,"Layer 4: Sprite animations\tF4","",wxITEM_CHECK);
-    menuView->Append(ID_ViewUnt,"Layer 5: Units\tF5","",wxITEM_CHECK);
-    menuView->Append(ID_ViewStTa,"Layer 6: Start/Target\tF6","",wxITEM_CHECK);
     menuView->FindItem(ID_ViewTer)->Check(true);
+    menuView->Append(ID_ViewObj,"Layer 2: Objects\tF2","",wxITEM_CHECK);
     menuView->FindItem(ID_ViewObj)->Check(true);
+    menuView->Append(ID_ViewAnm,"Layer 3: Tile anmiations\tF3","",wxITEM_CHECK);
     menuView->FindItem(ID_ViewAnm)->Check(true);
+    menuView->Append(ID_ViewPnm,"Layer 4: Sprite animations\tF4","",wxITEM_CHECK);
     menuView->FindItem(ID_ViewPnm)->Check(true);
+    menuView->Append(ID_ViewUnt,"Layer 5: Units\tF5","",wxITEM_CHECK);
     menuView->FindItem(ID_ViewUnt)->Check(true);
+    menuView->Append(ID_ViewStTa,"Layer 6: Start/Target\tF6","",wxITEM_CHECK);
     menuView->FindItem(ID_ViewStTa)->Check(true);
+    menuView->Append(wxID_ANY,"","",wxITEM_SEPARATOR);
+    menuView->Append(ID_SetGamma,"Set gamma","",wxITEM_NORMAL);
+
+    // edit menu
+    wxMenu* menuEdit = new wxMenu;
+    menuEdit->Append(ID_SelectAll,"Select all tiles\tCtrl+A","",wxITEM_NORMAL);
+    menuEdit->Append(ID_DeselectAll,"Deselect all tiles\tCtrl+Shift+A","",wxITEM_NORMAL);
     
+    // tools
+    wxMenu* menuTools = new wxMenu;
+    menuTools->Append(ID_ViewSprites,"Sprites viewer","",wxITEM_NORMAL);
+    menuTools->Append(ID_SetGamma,"","",wxITEM_SEPARATOR);
+    menuTools->Append(ID_UpdateSprContext, "Update tile context","",wxITEM_NORMAL);
+    
+        
     // Help menu
     wxMenu* menuHelp = new wxMenu;
     menuHelp->Append(wxID_ABOUT);
@@ -120,7 +128,9 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     // Main menu
     wxMenuBar* menuBar = new wxMenuBar;    
     menuBar->Append(menuFile, "&File");
+    menuBar->Append(menuEdit,"&Edit");
     menuBar->Append(menuView, "&View");
+    menuBar->Append(menuTools,"&Tools");
     menuBar->Append(menuHelp, "&Help");
     SetMenuBar(menuBar);
     
@@ -135,6 +145,16 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     m_timer.SetOwner(this);
     this->Connect(wxEVT_TIMER,wxTimerEventHandler(MyFrame::OnTimer),NULL,this);
     m_timer.Start(100);
+
+
+    // main sizer 
+    wxBoxSizer* sizer = new wxBoxSizer(wxHORIZONTAL);
+    // make and attach render canvas
+    mapCanvas* canvas = new mapCanvas(this,spell_map,&scroll);
+    sizer->Add(canvas,1,wxEXPAND|wxALL,1);
+    this->SetSizer(sizer);
+    this->SetAutoLayout(true);
+
     
     Bind(wxEVT_MENU, &MyFrame::OnOpenMap, this, ID_OpenMap);
     Bind(wxEVT_MENU, &MyFrame::OnAbout, this, wxID_ABOUT);
@@ -146,15 +166,15 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     Bind(wxEVT_MENU,&MyFrame::OnViewLayer,this,ID_ViewPnm);
     Bind(wxEVT_MENU,&MyFrame::OnViewLayer,this,ID_ViewUnt);
     Bind(wxEVT_MENU,&MyFrame::OnViewLayer,this,ID_ViewStTa);
-    
-    //Bind(wxEVT_PAINT, &MyFrame::OnPaint, this);
-    //Bind(wxEVT_SIZING, &MyFrame::OnResize,this);
-    //Bind(wxEVT_PAINT,&MyFrame::OnPaint,this);
 
-    /*Bind(wxEVT_RIGHT_DOWN,&MyFrame::OnMouseDown,this);
-    Bind(wxEVT_RIGHT_UP,&MyFrame::OnMouseUp,this);
-    Bind(wxEVT_MOTION,&MyFrame::OnMouseMove,this);
-    Bind(wxEVT_LEAVE_WINDOW,&MyFrame::OnMouseLeave,this);*/
+    Bind(wxEVT_MENU,&MyFrame::OnSetGamma,this,ID_SetGamma);
+    Bind(wxEVT_MENU,&MyFrame::OnViewSprites,this,ID_ViewSprites);
+    Bind(wxEVT_MENU,&MyFrame::OnUpdateTileContext,this,ID_UpdateSprContext);
+
+    Bind(wxEVT_MENU,&MyFrame::OnSelectAll,this,ID_SelectAll);
+    Bind(wxEVT_MENU,&MyFrame::OnDeselectAll,this,ID_DeselectAll);
+    
+   
     
 }
 
@@ -254,9 +274,26 @@ void MyFrame::OnOpenMap(wxCommandEvent& event)
     spell_map->SetGamma(1.30);
     OnViewLayer(event);
     // reset scroller
-    scroll.Reset();
-    
+    scroll.Reset();  
 }
+// set gamma correction
+void MyFrame::OnSetGamma(wxCommandEvent& event)
+{
+    FormGamma *gamma_form = new FormGamma(this, spell_map);
+    gamma_form->Show(true);
+}
+// open sprite viewer
+void MyFrame::OnViewSprites(wxCommandEvent& event)
+{
+    FormSprite *form = new FormSprite(this, spell_data);
+    form->Show();
+}
+// update tiles context from map selection
+void MyFrame::OnUpdateTileContext(wxCommandEvent& event)
+{
+    spell_map->BuildSpriteContext();
+}
+
 
 
 // --- scrolling control ---
@@ -299,15 +336,70 @@ void mapCanvas::OnKeyDown(wxKeyEvent& event)
 {
     if(event.ControlDown())
     {
+        int key = event.GetKeyCode();
+
+        // --- edit terrain elevation:
         int step = 0;
-        if(event.GetKeyCode() == WXK_PAGEUP)
+        if(key == WXK_PAGEUP)
             step++;
-        else if(event.GetKeyCode() == WXK_PAGEDOWN)
+        else if(key == WXK_PAGEDOWN)
             step--;
         if(step != 0)
         {
             spell_map->EditElev(m_buffer, scroll, step);
             Refresh();
         }
+
+        // --- edit selection:
+        if(key == '=' || key == '+')
+        {
+            // add selection
+            auto list = spell_map->GetSelections(m_buffer, scroll);
+            spell_map->SelectTiles(list, SpellMap::SELECT_ADD);
+        }
+        else if(key == '-')
+        {
+            // clear selection
+            auto list = spell_map->GetSelections(m_buffer,scroll);
+            spell_map->SelectTiles(list,SpellMap::SELECT_CLEAR);
+        }
     }
+}
+// select all tiles
+void MyFrame::OnSelectAll(wxCommandEvent& event)
+{
+    spell_map->SelectTiles(SpellMap::SELECT_ADD);
+}
+void MyFrame::OnDeselectAll(wxCommandEvent& event)
+{
+    spell_map->SelectTiles(SpellMap::SELECT_CLEAR);
+}
+
+
+
+
+
+
+//--------------------------------------------------------------------------------------------------------------------
+// Set Gamma Dialog
+//--------------------------------------------------------------------------------------------------------------------
+FormGamma::FormGamma(wxFrame* parent,SpellMap* map) :wxDialog(parent,wxID_ANY,"Gamma correction",wxDefaultPosition,wxSize(400,50),wxDEFAULT_FRAME_STYLE|wxSTAY_ON_TOP)
+{
+    // store local reference to initial map and data
+    spell_map = map;
+
+    // make slider
+    slider = new wxSlider(this,wxID_ANY,1300,500,2000);
+    wxBoxSizer* sizer = new wxBoxSizer(wxHORIZONTAL);
+    sizer->Add(slider,1,wxEXPAND|wxALL);
+    this->SetSizer(sizer);
+    this->SetAutoLayout(true); 
+    
+    Bind(wxEVT_COMMAND_SLIDER_UPDATED,&FormGamma::OnChangeGamma, this);
+}
+void FormGamma::OnChangeGamma(wxCommandEvent& event)
+{
+    double gamma = 0.001*(double)slider->GetValue();
+    SetTitle(wxString::Format(wxT("Gamma correction = %#0.2f"),gamma));
+    spell_map->SetGamma(gamma);
 }

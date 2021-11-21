@@ -42,6 +42,9 @@
     <ClCompile Include="other.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="form_sprite_view.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="fs_archive.h">
@@ -72,6 +75,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="other.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="form_sprite_view.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

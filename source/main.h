@@ -73,6 +73,12 @@ private:
 
     void OnTimer(wxTimerEvent& event);
 
+    void OnSetGamma(wxCommandEvent& event);
+    void OnViewSprites(wxCommandEvent& event);
+    void OnUpdateTileContext(wxCommandEvent& event);
+    void OnSelectAll(wxCommandEvent& event);
+    void OnDeselectAll(wxCommandEvent& event);
+
     /*void OnMouseDown(wxMouseEvent& event);
     void OnMouseUp(wxMouseEvent& event);
     void OnMouseMove(wxMouseEvent& event);
@@ -81,10 +87,22 @@ private:
     SpellMap* spell_map;
     SpellData* spell_data;
 
-    //wxBitmap m_buffer;
     wxTimer m_timer;
     TScroll scroll;
 };
+
+
+// gamma form
+class FormGamma : public wxDialog
+{
+public:
+    FormGamma(wxFrame* parent,SpellMap* map);    
+private:    
+    void OnChangeGamma(wxCommandEvent& event);
+    SpellMap* spell_map;
+    wxSlider* slider;
+};
+
 
 // GUI elements
 enum
@@ -95,7 +113,12 @@ enum
     ID_ViewAnm = 203,
     ID_ViewPnm = 204,
     ID_ViewUnt = 205,
-    ID_ViewStTa = 206
+    ID_ViewStTa = 206,
+    ID_SetGamma = 207,
+    ID_ViewSprites = 301,
+    ID_UpdateSprContext = 302,
+    ID_SelectAll = 401,
+    ID_DeselectAll = 402
 };
 
 

@@ -188,7 +188,7 @@ SpellMap::SpellMap()
 	elev = NULL;
 	flags = NULL;
 	Lunit = NULL;
-
+	select = NULL;
 	pic = NULL;
 
 	last_gamma = 0.0;
@@ -201,7 +201,7 @@ SpellMap::SpellMap()
 	wUnits = true;
 
 	map_path = L"";
-	def_path = L"";
+	def_path = L"";	
 }
 
 SpellMap::~SpellMap()
@@ -257,10 +257,17 @@ void SpellMap::Close()
 	for(k = 0; k < units.size(); k++)
 		delete units[k];
 	units.clear();
+	// loose selection array
+	if(select)
+		delete[] select;
+	select = NULL;
+
 
 	if(pic)
 		delete[] pic;
 	pic = NULL;
+
+	msel.clear();
 }
 
 // Load MAP from file
@@ -644,6 +651,11 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 	// loose map data buffer
 	delete[] map_buffer;
 
+	
+	// create selections maps
+	select = new uint8_t[x_size*y_size];
+	std::memset((void*)select, 0x00, x_size*y_size);
+
 
 	//////////////////////////
 	///// Load DEF stuff /////
@@ -925,6 +937,9 @@ bool MapXY::IsSelected()
 // it allocates render buffer and fixes scroller limits
 int SpellMap::RenderPrepare(wxBitmap& bmp, TScroll* scroll)
 {
+	if(!IsLoaded())
+		return(1);
+	
 	// get surface size
 	surf_x = bmp.GetWidth();
 	surf_y = bmp.GetHeight();
@@ -958,7 +973,28 @@ int SpellMap::RenderPrepare(wxBitmap& bmp, TScroll* scroll)
 }
 
 
-
+// update map persistent selection by list of selected tiles
+void SpellMap::SelectTiles(vector<MapXY> tiles, int mode)
+{
+	// modify selection array
+	for(int k = 0;k < tiles.size();k++)
+	{
+		if(mode == SELECT_ADD)
+			select[ConvXY(tiles[k])] = 1;
+		else if(mode == SELECT_CLEAR)
+			select[ConvXY(tiles[k])] = 0;
+		else if(mode == SELECT_XOR)
+			select[ConvXY(tiles[k])] ^= 1;
+	}
+}
+// (de)select all tiles in visible map range (ignores borders where are mostly some texture mismatches)
+void SpellMap::SelectTiles(int mode)
+{
+	for(int y = 0; y < y_size; y++)
+		for(int x = 0; x < x_size; x++)
+			if(TileIsVisible(x,y))
+				select[ConvXY(x,y)] = (mode == SELECT_ADD);
+}
 
 
 
@@ -966,131 +1002,132 @@ int SpellMap::RenderPrepare(wxBitmap& bmp, TScroll* scroll)
 vector<MapXY> &SpellMap::GetSelections(wxBitmap& bmp, TScroll *scroll)
 {
 	int m,n,i,j;
-
-	// check & fix surface and scroll ranges
-	RenderPrepare(bmp, scroll);
-	
-	// default no selection
-	MapXY selxy = sel;
-	
-	if(scroll->Commit())
-	{	
-		// no select found yet
-		selxy.x = -1;
-		selxy.y = -1;
-
-		// get scroll position
-		auto [dx,dy] = scroll->GetScroll();
-		// get cursor position relative to scroll
-		auto [xref,yref] = scroll->GetCursor();
 		
-		const int smooth = 1;
+	// check & fix surface and scroll ranges
+	if(!RenderPrepare(bmp, scroll))
+	{	
+		// default no selection
+		MapXY selxy = sel;
+	
+		if(scroll->Commit())
+		{	
+			// no select found yet
+			selxy.x = -1;
+			selxy.y = -1;
 
-		// ###todo: this whole thing is just awful and should be reworked! Here should not be direct access to sprite data - move to Sprite class.
-		//          also it is ineffective. Should be more analytical to reduce search range.
-		// find selection tiles
-		for(m = 0; m < ys_size; m++)
-		{
-			if(m + ys_ofs * 2 >= y_size)
-				break;
-			for(n = 0; n < xs_size; n++)
+			// get scroll position
+			auto [dx,dy] = scroll->GetScroll();
+			// get cursor position relative to scroll
+			auto [xref,yref] = scroll->GetCursor();
+		
+			const int smooth = 1;
+
+			// ###todo: this whole thing is just awful and should be reworked! Here should not be direct access to sprite data - move to Sprite class.
+			//          also it is ineffective. Should be more analytical to reduce search range.
+			// find selection tiles
+			for(m = 0; m < ys_size; m++)
 			{
-				if(n + xs_ofs >= x_size - 1)
+				if(m + ys_ofs * 2 >= y_size)
 					break;
-				// --- for every valid tile ---
-
-				// get map tile
-				Sprite* sid = L1[(m + ys_ofs * 2) * x_size + n + xs_ofs];
-				int sof = elev[(m + ys_ofs * 2) * x_size + n + xs_ofs];
-
-				// get dimensions for current tile slope
-				char sn = sid->name[2]; /* tile slope */
-				int so = sid->y_ofs; /* vertical offset */
-				int sx = spelldata->special.solid[sn - 'A'].x_size;
-				int sy = spelldata->special.solid[sn - 'A'].y_size;
-
-
-				// pixel coordinates of search rect
-				int mxx = n * 80 + ((m & 1 != 0) ? 0 : 40);
-				int ymn = -((dy / 48 <= MSYOFST ? (dy / 48) * 48 : MSYOFST * 48) + (dy % 48) * smooth);
-				int xmn = mxx - ((dx >= 80 ? (80) : (0)) + (dx % 80) * smooth);
-				if(sn == 'C' || sn == 'D' || sn == 'M' || sn == 'B')
-					ymn += (m * 24 - sy + 47 - sof * 18 + MSYOFS + 50);
-				else if(sn == 'L' || sn == 'F')
-					ymn += (m * 24 - sy + 29 - sof * 18 + MSYOFS + 50);
-				else
-					ymn += (m * 24 - sof * 18 + MSYOFS + 50);
-
-				// now decide which tile is selected in search rect
-				if(yref != -1 && yref > ymn && yref < ymn + sy &&
-					xref != -1 && xref > xmn && xref < xmn + sx)
+				for(n = 0; n < xs_size; n++)
 				{
-					// we are somewhere in the expected tile area - check if we are in tile polygons
-					// tile data
-					unsigned char* seld = spelldata->special.solid[sn - 'A'].data;
-					int sla = 0;
-					for(i = 0; i < sy; i++)
+					if(n + xs_ofs >= x_size - 1)
+						break;
+					// --- for every valid tile ---
+
+					// get map tile
+					Sprite* sid = L1[(m + ys_ofs * 2) * x_size + n + xs_ofs];
+					int sof = elev[(m + ys_ofs * 2) * x_size + n + xs_ofs];
+
+					// get dimensions for current tile slope
+					char sn = sid->name[2]; /* tile slope */
+					int so = sid->y_ofs; /* vertical offset */
+					int sx = spelldata->special.solid[sn - 'A'].x_size;
+					int sy = spelldata->special.solid[sn - 'A'].y_size;
+
+
+					// pixel coordinates of search rect
+					int mxx = n * 80 + ((m & 1 != 0) ? 0 : 40);
+					int ymn = -((dy / 48 <= MSYOFST ? (dy / 48) * 48 : MSYOFST * 48) + (dy % 48) * smooth);
+					int xmn = mxx - ((dx >= 80 ? (80) : (0)) + (dx % 80) * smooth);
+					if(sn == 'C' || sn == 'D' || sn == 'M' || sn == 'B')
+						ymn += (m * 24 - sy + 47 - sof * 18 + MSYOFS + 50);
+					else if(sn == 'L' || sn == 'F')
+						ymn += (m * 24 - sy + 29 - sof * 18 + MSYOFS + 50);
+					else
+						ymn += (m * 24 - sof * 18 + MSYOFS + 50);
+
+					// now decide which tile is selected in search rect
+					if(yref != -1 && yref > ymn && yref < ymn + sy &&
+						xref != -1 && xref > xmn && xref < xmn + sx)
 					{
-						unsigned char oo = *((unsigned int*)seld); seld += 4;
-						unsigned char nn = *((unsigned int*)seld); seld += 4;
-						if(nn == 0)
-							continue;
-						if((yref - ymn) == i && (xref - xmn) >= oo && (xref - xmn) < (oo + nn) &&
-							seld[xref - xmn - oo] != 0)
+						// we are somewhere in the expected tile area - check if we are in tile polygons
+						// tile data
+						unsigned char* seld = spelldata->special.solid[sn - 'A'].data;
+						int sla = 0;
+						for(i = 0; i < sy; i++)
 						{
-							sla = 1;
-							break;
+							unsigned char oo = *((unsigned int*)seld); seld += 4;
+							unsigned char nn = *((unsigned int*)seld); seld += 4;
+							if(nn == 0)
+								continue;
+							if((yref - ymn) == i && (xref - xmn) >= oo && (xref - xmn) < (oo + nn) &&
+								seld[xref - xmn - oo] != 0)
+							{
+								sla = 1;
+								break;
+							}
+							seld += nn;
 						}
-						seld += nn;
-					}
 
-					// some valid?
-					if(sla)
-					{
-						// yaha, remember which one and leave
-						selxy.x = n + xs_ofs;
-						selxy.y = m + ys_ofs*2;
-						goto seldone;
+						// some valid?
+						if(sla)
+						{
+							// yaha, remember which one and leave
+							selxy.x = n + xs_ofs;
+							selxy.y = m + ys_ofs*2;
+							goto seldone;
+						}
 					}
 				}
 			}
-		}
-	seldone:
+		seldone:
 
-		// store selection
-		sel = selxy;
+			// store selection
+			sel = selxy;
 
-		// first multiselect item is always central
-		msel.clear();
-		msel.push_back(selxy);
+			// first multiselect item is always central
+			msel.clear();
+			msel.push_back(selxy);
 
-		// find multiselect tiles:
-		if(selxy.IsSelected())
-		{		
-			// selection size
-			int size = scroll->GetSize();
-			int minref = -(size - 1)/2;
+			// find multiselect tiles:
+			if(selxy.IsSelected())
+			{		
+				// selection size
+				int size = scroll->GetSize();
+				int minref = -(size - 1)/2;
 
-			for(j = 0; j < size; j++)
-			{
-				for(i = 0; i < size; i++)
+				for(j = 0; j < size; j++)
 				{
-					// this point
-					MapXY pxy;
-					pxy.x = (selxy.x*2 + ((selxy.y%2)?0:1) + minref+i+minref+j)>>1;
-					pxy.y = selxy.y + minref+j-(minref+i);
+					for(i = 0; i < size; i++)
+					{
+						// this point
+						MapXY pxy;
+						pxy.x = (selxy.x*2 + ((selxy.y%2)?0:1) + minref+i+minref+j)>>1;
+						pxy.y = selxy.y + minref+j-(minref+i);
 
-					// skip point if center point
-					if(pxy.x == selxy.x && pxy.y == selxy.y)
-						continue;
+						// skip point if center point
+						if(pxy.x == selxy.x && pxy.y == selxy.y)
+							continue;
 				
-					// put new point to list
-					if(pxy.x < x_size && pxy.x >= 0 && pxy.y < y_size && pxy.y >= 0)
-						msel.push_back(pxy);
+						// put new point to list
+						if(pxy.x < x_size && pxy.x >= 0 && pxy.y < y_size && pxy.y >= 0)
+							msel.push_back(pxy);
+					}
 				}
 			}
-		}
 
+		}
 	}
 
 	return(msel);
@@ -1297,20 +1334,45 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll)
 	}
 
 
-
-	// --- Render selection tiles ---
-	if (msel[0].IsSelected())
+	// --- Render selection tiles (persistent ones) ---
+	for(m = 0; m < ys_size; m++)
 	{
-		/*struct {
-			int seln;
-			struct {
-				int x, y;
-			}sel[1];
-		} msel;
-		msel.seln = 1;
-		msel.sel[0].x = sel.x;
-		msel.sel[0].y = sel.y;*/
-		
+		if(m + ys_ofs * 2 >= y_size)
+			break;
+		for(n = 0; n < xs_size; n++)
+		{
+			if(n + xs_ofs >= x_size - 1)
+				break;
+			int x_pos = n + xs_ofs;
+			int y_pos = m + ys_ofs*2;
+			int mxy = ConvXY(x_pos, y_pos);			
+
+			// skip if not selected
+			if(!select[mxy])
+				continue;
+
+			// remap tile colors
+			uint8_t fil[256];
+			fil[193] = 230;
+			
+			// get tile
+			Sprite *spr = L1[mxy];							
+			int sof = elev[mxy];
+			// override by selector
+			spr = &spelldata->special.select[spr->GetSlope() - 'A'];
+
+			// render sprite
+			int mxx = n * 80 + ((m & 1 != 0) ? 0 : 40);
+			int myy = m * 24 - sof * 18 + MSYOFS + 50;
+			spr->Render(pic,pic_end,mxx,myy,pic_x_size,fil);
+		}
+	}
+
+
+
+	// --- Render cursor selection tiles ---
+	if (msel.size() && msel[0].IsSelected())
+	{		
 		for (i = 0; i < msel.size(); i++)
 		{
 			n = msel[i].x - xs_ofs;
@@ -1387,7 +1449,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll)
 				filter = terrain->filter.darkpal2;
 
 			// tile selected
-			int is_selected = (msel[0].IsSelected() && msel[0].x - xs_ofs == n && msel[0].y - ys_ofs*2 == m);
+			int is_selected = (msel.size() && msel[0].IsSelected() && msel[0].x - xs_ofs == n && msel[0].y - ys_ofs*2 == m);
 
 			// first unit to render
 			MapUnit* unit = Lunit[mxy];			
@@ -1563,19 +1625,6 @@ int SpellMap::Tick()
 
 
 
-
-
-
-
-
-
-typedef struct {
-	short x,y;
-	short elv;
-	short edir;
-}TMEEN;
-
-#define ALTEDBG 0
 
 int SpellMap::EditElevNbrQuad(int x, int y, int elv, int* min)
 {
@@ -2111,8 +2160,6 @@ MapXY SpellMap::GetTileNeihgborXY(int x, int y, int angle)
 // change elevation of terrain by step for all selected tiles
 int SpellMap::EditElev(wxBitmap& bmp, TScroll* scroll, int step)
 {
-	//TMap* map=&cmap;
-	//int x,y;
 	int i,j;
 
 	// leave if map not loaded
@@ -2123,10 +2170,6 @@ int SpellMap::EditElev(wxBitmap& bmp, TScroll* scroll, int step)
 	auto msel = GetSelections(bmp, scroll);
 	if(!msel[0].IsSelected())
 		return(2);
-
-	// select terrain
-	/*TTerr* TT;
-	MapGetTerr((void**)&TT);*/
 
 	// === for each selected ===
 	int min = ELEV_MAX;
@@ -2283,5 +2326,74 @@ int SpellMap::EditElev(wxBitmap& bmp, TScroll* scroll, int step)
 
 	//DrawCMapSectorForce();
 
+	return(0);
+}
+
+
+// get neighboring map tile pos
+MapXY SpellMap::GetNeighborTile(int x, int y, int quad)
+{
+	MapXY tile;
+	if(quad > 4 || quad < 0)
+		return(tile);
+
+	// get neighbor
+	const int y_ofs[4] ={-1,-1,+1,+1};
+	if(y&1)
+	{
+		// odd row
+		const int x_ofs[4] ={0,-1,-1,0};		
+		tile.x = x + x_ofs[quad];
+	}
+	else
+	{
+		// even row
+		const int x_ofs[4] = {1,0,0,1};
+		tile.x = x + x_ofs[quad];
+	}
+	tile.y = y + y_ofs[quad];
+
+	// check range
+	if(tile.y < 0 || tile.y > y_size || tile.x < 0 || tile.x > x_size)
+	{
+		tile.x = -1;
+		tile.y = -1;
+	}
+	return(tile);
+}
+
+// update sprite context based on selected map tiles
+int SpellMap::BuildSpriteContext()
+{
+	for(int y=0;y<y_size;y++)
+	{
+		for(int x=0;x<x_size;x++)
+		{
+			// for each selection
+			int mxy = ConvXY(x,y);
+			if(!select[mxy])
+				continue;
+
+			// get center tile
+			Sprite *tile = L1[mxy];
+			int tid = terrain->GetSpriteID(tile);
+			if(tid < 0)
+				return(1);
+
+			// for each neighbor
+			for(int qid = 0; qid < 4; qid++)
+			{
+				// get neighbor
+				auto nxy = GetNeighborTile(x, y, qid);
+				if(nxy.IsSelected())
+				{
+					// add to list
+					Sprite* sprite = L1[ConvXY(nxy)];
+					terrain->context[tid].AddContext(qid, sprite);
+				}
+			}
+		}
+	}
+	
 	return(0);
 }

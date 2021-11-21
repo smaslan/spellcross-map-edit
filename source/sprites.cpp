@@ -15,6 +15,10 @@
 #include <vector>
 #include <stdexcept>
 
+#include "wx/dcgraph.h"
+#include "wx/dcbuffer.h"
+#include <wx/rawbmp.h>
+
 using namespace std;
 
 
@@ -246,7 +250,26 @@ void Sprite::Render(uint8_t* buffer, uint8_t* buf_end, int buf_x, int buf_y, int
 			dest += x_size;
 		}
 	}
+}
 
+// get vertices pair of edge 0-3 (Q1 - Q4)
+int Sprite::GetTileEdge(int edge,TFxyz* vert)
+{
+	if(edge < 0 || edge > 3)
+		return(1);
+
+	// get vertices
+	TFxyz tvert[4];
+	GetTileModel(tvert, NULL, NULL);
+
+	// return edge vertices in CCW order
+	vert[0] = tvert[edge];
+	edge++;
+	if(edge > 3)
+		edge = 0;
+	vert[1] = tvert[edge];
+
+	return(0);
 }
 
 // returns 4 vertices of tile and/or max two faces [vert_count, vert_1, vert_2, ..., vert_count, vert_1, vert_2, ...]
@@ -760,8 +783,46 @@ int AnimPNM::Decode(uint8_t* data, char* name)
 
 
 
+SpriteContext::SpriteContext()
+{
+}
+SpriteContext::~SpriteContext()
+{
+	for(int k = 0;k<4;k++)
+		quad[k].clear();
+}
+// add tile to context
+int SpriteContext::AddContext(int quadrant,Sprite* sprite)
+{
+	if(quadrant < 0 || quadrant > 4)
+		return(1);
 
+	// leave if the context sprite is already there
+	auto q = quad[quadrant];
+	for(int k = 0; k < q.size(); k++)
+		if(q[k] == sprite)
+			return(0);
 
+	// add sprite to context
+	quad[quadrant].push_back(sprite);
+
+	return(0);
+}
+// get size of context list for quadrant
+int SpriteContext::GetContextCount(int quadrant)
+{
+	if(quadrant < 0 || quadrant > 4)
+		return(0);
+	return(quad[quadrant].size());
+}
+// get n-th sprite context tile for given tile quadrant
+Sprite *SpriteContext::GetContext(int quadrant, int index)
+{
+	if(quadrant < 0 || quadrant > 4 || index < 0 || index >= quad[quadrant].size())
+		return(NULL);
+	// return sprite pointer
+	return(quad[quadrant][index]);
+}
 
 
 
@@ -774,6 +835,8 @@ Terrain::Terrain()
 	name[0] = '\0';	
 	sprites.clear();
 	anms.clear();
+	last_gamma = 0.0;
+	context = NULL;
 }
 
 Terrain::~Terrain()
@@ -797,6 +860,10 @@ Terrain::~Terrain()
 		delete pnms[k];
 	// clear list of sprites
 	pnms.clear();
+
+	// free context
+	if(context)
+		delete[] context;
 }
 
 int Terrain::Load(wstring &path)
@@ -963,9 +1030,12 @@ int Terrain::Load(wstring &path)
 		}
 	}
 
-
 	// free archive
 	delete fs;
+
+	// initialize context list
+	wstring cont_path = L"";
+	InitSpriteContext(cont_path);
 	
 	//st->Caption = "Loading " + N_terr + ": " + IntToStr(fcnt) + " files in " + IntToStr(UN->memlen / 1024) + "kB ...";
 
@@ -982,6 +1052,27 @@ Sprite* Terrain::GetSprite(const char* name)
 			return(this->sprites[k]);
 	}
 	return(NULL);
+}
+// get sprite pointer by index
+Sprite* Terrain::GetSprite(int index)
+{
+	if(index >= sprites.size())
+		return(NULL);
+	return(sprites[index]);
+}
+// get sprites count
+int Terrain::GetSpriteCount()
+{
+	return(sprites.size());
+}
+// get order index in terrain list of sprite by sprite pointer
+int Terrain::GetSpriteID(Sprite* spr)
+{
+	for(int k = 0; k < sprites.size(); k++)
+		if(sprites[k] == spr)
+			return(k);
+	// not found
+	return(-1);
 }
 
 // get sprite by wildcard string
@@ -1011,6 +1102,125 @@ Sprite* Terrain::GetSpriteWild(const char* wild, WildMode mode)
 	}
 	
 	return(NULL);
+}
+
+// initialize sprite tiles context from file (optional)
+int Terrain::InitSpriteContext(wstring &path)
+{
+	// total sprites count
+	int count = sprites.size();
+	
+	// make sprite context record for each sprite
+	context = new SpriteContext[count];
+
+	return(0);
+}
+
+// render sprite(s) to buffer for sprite preview
+int Terrain::RenderPreview(wxBitmap& bmp, int count, int *tiles, int flags, double gamma)
+{
+	if(count > 5)
+		return(1);
+
+	// zoom mode
+	int zoom = (flags&Terrain::RENDER_ZOOMX2)?2:1;
+	
+	// allocate render buffer for indexed image
+	int surf_x = bmp.GetWidth();
+	int surf_y = bmp.GetHeight();
+	uint8_t *buf = new uint8_t[surf_x*surf_y];
+	uint8_t *buf_end = &buf[surf_x*surf_y];
+
+	// clear background
+	std::memset((void*)buf, 230, surf_x*surf_y);
+
+	// multiple tiles mode origins (cener, then ccw from Q1 to Q4)
+	const int org_x[5] = {0,+40,-40,-40,+40};
+	const int org_y[5] = {0,-24,-24,+24,+24};
+
+	if(count >= 1)
+	{
+		int xs, ys;
+		Sprite* spr_ref = NULL;
+		for(int tid = 0;tid < count;tid++)
+		{
+			int sid = tiles[tid];
+			if(sid < 0)
+				continue;
+			Sprite *spr = sprites[sid];
+			
+			// center
+			int elev = 0;
+			if(tid == 0)
+			{
+				xs = spr->x_size;
+				ys = spr->y_size + spr->y_ofs;
+				spr_ref = spr;
+			}
+			else if(spr_ref)
+			{
+				// get refence tile edge
+				TFxyz vref[2];
+				spr_ref->GetTileEdge(tid-1, vref);
+				
+				// get neighbor edge				
+				int edge_x = tid - 1 + 2;
+				if(edge_x > 3)
+					edge_x -= 4;
+				TFxyz nref[2];
+				spr->GetTileEdge(edge_x,nref);
+
+				// align neighbor so edge elevation matches center tile
+				if(nref[1].z > vref[0].z || nref[0].z > vref[1].z)
+					elev--;
+				else if(nref[1].z < vref[0].z || nref[0].z < vref[1].z)
+					elev++;
+			}
+
+			int ref_x = (surf_x/zoom - xs)/2 + org_x[tid];
+			int ref_y = (surf_y/zoom - ys)/2 + org_y[tid] - elev*18;
+
+			// render tile
+			spr->Render(buf, buf_end, ref_x, ref_y,surf_x);
+		}
+	}
+
+	// apply gamma correction to palette:
+	if(gamma != last_gamma)
+	{
+		// store last gamma to prevent recalculatiom in each frame
+		last_gamma = gamma;
+
+		// male local copy of palette	
+		std::memcpy((void*)gamma_pal,(void*)pal,3 * 256);
+
+		// apply gamma correction (this should be maybe optimized out of here?
+		for(int k = 0; k < 256; k++)
+			for(int c = 0; c < 3; c++)
+				gamma_pal[k][c] = (uint8_t)(pow((double)pal[k][c] / 255.0,1.0 / gamma) * 255.0);
+	}
+
+	// render 24bit RGB data to raw bmp buffer
+	wxNativePixelData data(bmp);
+	wxNativePixelData::Iterator p(data);
+	for(int y = 0; y < surf_y; ++y)
+	{
+		uint8_t* scan = p.m_ptr;
+		uint8_t* src = &buf[y/zoom*surf_x];
+		for(int x = 0; x < surf_x; x++)
+		{
+			*scan++ = gamma_pal[*src][2];
+			*scan++ = gamma_pal[*src][1];
+			*scan++ = gamma_pal[*src][0];
+			src += (zoom == 1)?1:(x&1);
+		}
+		p.OffsetY(data,1);
+	}
+
+	// loose local buffer
+	delete[] buf;
+
+	return(0);
 }
 
 

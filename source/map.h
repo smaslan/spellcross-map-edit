@@ -226,6 +226,10 @@ class SpellMap
 
 	public:
 
+		static constexpr int SELECT_ADD = 1;
+		static constexpr int SELECT_CLEAR = 2;
+		static constexpr int SELECT_XOR = 3;
+
 		// this map path
 		wstring map_path;
 		wstring def_path;
@@ -246,8 +250,10 @@ class SpellMap
 		vector<MapXY> start; // start tiles list
 		vector<MapXY> escape; // escape tiles list
 		MapUnit** Lunit; // units layer array
+		uint8_t *select; // selection flags array
 		// list of units
-		vector<MapUnit*> units;				
+		vector<MapUnit*> units;
+
 		
 		SpellMap();
 		~SpellMap();
@@ -259,6 +265,8 @@ class SpellMap
 		
 		MapXY GetSelection(wxBitmap& bmp,TScroll* scroll);
 		vector<MapXY> &GetSelections(wxBitmap& bmp, TScroll* scroll);
+		void SelectTiles(vector<MapXY> tiles,int mode);
+		void SelectTiles(int mode);
 		int RenderPrepare(wxBitmap& bmp, TScroll* scroll);
 		int Render(wxBitmap &bmp, TScroll* scroll);
 
@@ -277,7 +285,8 @@ class SpellMap
 
 		int EditElev(wxBitmap& bmp,TScroll* scroll,int step);
 
-
+		MapXY GetNeighborTile(int x,int y,int quad);
+		int BuildSpriteContext();
 };
 
 

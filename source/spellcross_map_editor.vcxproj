@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="form_sprite_view.cpp" />
     <ClCompile Include="fsu_archive.cpp" />
     <ClCompile Include="fs_archive.cpp" />
     <ClCompile Include="LZ_spell.cpp" />
@@ -30,6 +31,7 @@
     <ClCompile Include="sprites.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="form_sprite_view.h" />
     <ClInclude Include="fsu_archive.h" />
     <ClInclude Include="fs_archive.h" />
     <ClInclude Include="other.h" />

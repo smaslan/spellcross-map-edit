@@ -15,6 +15,8 @@
 #include "fs_archive.h"
 #include "fsu_archive.h"
 
+#include "wx/dcbuffer.h"
+
 using namespace std;
 
 
@@ -56,6 +58,7 @@ class Sprite
 		void Render(uint8_t* buffer, uint8_t* buf_end, int buf_x, int buf_y, int x_size, uint8_t* filter);
 		int Decode(uint8_t* data, char* name);
 		void GetTileModel(TFxyz* vert, int* face, int* face_count);
+		int GetTileEdge(int edge,TFxyz* vert);
 		TFxyz ProjectVertex(TFxyz *vert);
 		void RenderTileWires(uint8_t* buffer, uint8_t* buf_end, int buf_x, int buf_y, int x_size, uint8_t color);
 		char GetSlope();
@@ -73,6 +76,7 @@ class Sprite
 
 
 };
+
 
 class AnimL1
 {
@@ -114,38 +118,71 @@ class AnimPNM
 
 };
 
+
+
+class SpriteContext
+{
+public:
+	SpriteContext();
+	~SpriteContext();
+
+	int AddContext(int quadrant, Sprite *sprite);
+	int GetContextCount(int quadrant);
+	Sprite *GetContext(int quadrant,int index);
+
+private:
+	// quadrant lists of allowed tile neighbors
+	vector<Sprite*> quad[4];
+};
+
 class Terrain
 {
-	public:
-		// terrain name
-		char name[MAX_STR];
-		// sprites of particular layers
-		vector<Sprite*> sprites;
-		// Layer 1 animations (ANM)
-		vector<AnimL1*> anms;
-		// Layer 4 animations (PNM)
-		vector<AnimPNM*> pnms;
-		// color palette
-		uint8_t pal[256][3];
-		// filters
-		struct {
-			uint8_t darkpal[256];
-			uint8_t darkpal2[256];
-			uint8_t darker[256];
-			uint8_t bluepal[256];
-			uint8_t dbluepal[256];
-			uint8_t redpal[256];
-		} filter; 
+private:
+	//double gamma;
+	double last_gamma;
+	uint8_t gamma_pal[256][3];
 
-		enum WildMode { FIRST,RANDOM };
+public:
+	// terrain name
+	char name[MAX_STR];
+	// sprites of particular layers
+	vector<Sprite*> sprites;
+	// sprites context
+	SpriteContext* context;
+	// Layer 1 animations (ANM)
+	vector<AnimL1*> anms;
+	// Layer 4 animations (PNM)
+	vector<AnimPNM*> pnms;
+	// color palette
+	uint8_t pal[256][3];
+	// filters
+	struct {
+		uint8_t darkpal[256];
+		uint8_t darkpal2[256];
+		uint8_t darker[256];
+		uint8_t bluepal[256];
+		uint8_t dbluepal[256];
+		uint8_t redpal[256];
+	} filter; 
 
-		// void contructor
-		Terrain();
-		~Terrain();
-		int Load(wstring &path);
-		Sprite* GetSprite(const char* name);
-		Sprite* GetSpriteWild(const char* wild,WildMode mode);
-		AnimL1* GetANM(const char* name);
-		AnimPNM* GetPNM(const char* name);
+	enum WildMode { FIRST,RANDOM };
+
+	// void contructor
+	Terrain();
+	~Terrain();
+	int Load(wstring &path);
+	Sprite* GetSprite(const char* name);
+	Sprite* GetSprite(int index);
+	int GetSpriteID(Sprite *spr);
+	int GetSpriteCount();
+	Sprite* GetSpriteWild(const char* wild,WildMode mode);
+	AnimL1* GetANM(const char* name);
+	AnimPNM* GetPNM(const char* name);
+	int InitSpriteContext(wstring& path);
+
+	int RenderPreview(wxBitmap& bmp,int count,int* data,int flags,double gamma);
+
+	static constexpr int RENDER_CENTER = 0x01;
+	static constexpr int RENDER_ZOOMX2 = 0x02;
 };
 
