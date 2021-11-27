@@ -55,3 +55,14 @@ int wildcmp(const char* wild,const char* string)
     }
     return !*wild;
 }
+
+// convert single hex digit to int
+int hex2num(char hex)
+{
+    if(hex >= '0' && hex <= '9')
+        return(hex - '0');
+    else if(hex >= 'A' && hex <= 'F')
+        return(hex - 'A' + 10);
+    else
+        return(-1);
+}

@@ -41,6 +41,20 @@ bool MyApp::OnInit()
     // try load spellcross data
     spell_data = new SpellData(spelldata_path);
 
+    // for each terrain load tile context
+    for(int k = 0; k < spell_data->GetTerrainCount(); k++)
+    {
+        // get terrain
+        Terrain *terr = spell_data->GetTerrain(k);
+        // make INI section
+        string sec_name = "TERRAIN::" + string(terr->name);
+        // get context path
+        wstring cont_path = char2wstring(ini.GetValue(sec_name.c_str(), "context_path", ""));
+        // try to load context
+        terr->InitSpriteContext(cont_path);
+    }
+
+
     // special data folder
     wstring spec_folder = char2wstring(ini.GetValue("DATA","spec_tiles_path",""));
     // load special sprites
@@ -51,6 +65,10 @@ bool MyApp::OnInit()
     spell_map = new SpellMap();
     spell_map->Load(map_path,spell_data);
     spell_map->SetGamma(1.3);
+
+    
+    
+    
         
     
     // --- run main form    
@@ -258,7 +276,7 @@ void MyFrame::OnOpenMap(wxCommandEvent& event)
 {
     // split path to folder and file
     std::filesystem::path last_path = spell_map->GetTopPath();
-    wstring dir = last_path.parent_path();
+    wstring dir = last_path.parent_path(); dir += wstring(L"\\");
     wstring name = last_path.filename();
     
     // show open dialog

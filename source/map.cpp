@@ -148,8 +148,8 @@ MapLayer3::MapLayer3(AnimL1* anm, int x_pos, int y_pos, int frame_ofs, int frame
 	this->anim = anm;
 	this->x_pos = x_pos;
 	this->y_pos = y_pos;
-	this->frame_ofs = frame_ofs;
-	this->frame_limit = frame_limit;
+	this->frame_ofs = min(frame_ofs,anm->frames.size()-1);
+	this->frame_limit = min(frame_limit,anm->frames.size()-1);
 }
 MapLayer3::~MapLayer3()
 {
@@ -190,6 +190,7 @@ SpellMap::SpellMap()
 	Lunit = NULL;
 	select = NULL;
 	pic = NULL;
+	L1_flags = NULL;
 
 	last_gamma = 0.0;
 	gamma = 1.0;
@@ -261,7 +262,9 @@ void SpellMap::Close()
 	if(select)
 		delete[] select;
 	select = NULL;
-
+	if(L1_flags)
+		delete[] L1_flags;
+	L1_flags = NULL;
 
 	if(pic)
 		delete[] pic;
@@ -387,6 +390,7 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 	
 	// load list of used L1 sprites
 	Sprite** sprites = new Sprite*[L1_count];
+	int *sprite_ids = new int[L1_count];
 	for (int k = 0; k < L1_count; k++)
 	{
 		// read sprite name		
@@ -401,13 +405,16 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 		{
 			// not found!
 			delete[] sprites;
+			delete[] sprite_ids;
 			delete[] map_buffer;
 			return(1);
 		}
+		sprite_ids[k] = this->terrain->GetSpriteID(sprites[k]);
 	}
 
 	// load L1 sprite indices
 	this->L1 = new Sprite * [x_size*y_size];
+	this->L1_flags = new uint32_t[x_size*y_size];
 	this->elev = new int[x_size * y_size];
 	for (int k = 0; k < (x_size * y_size); k++)
 	{
@@ -426,16 +433,21 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 		{
 			// out of available range
 			delete[] sprites;
+			delete[] sprite_ids;
 			delete[] map_buffer;
 			return(1);
 		}
 		this->L1[k] = sprites[sid];
 		this->elev[k] = elev;
+
+		// get tile flags from context data
+		this->L1_flags[k] = this->terrain->context[sprite_ids[sid]].GetFlags();		
 	}
 	// get rid of L1 sprites list
 	delete[] sprites;
+	delete[] sprite_ids;
 	
-
+	
 
 
 
@@ -2222,7 +2234,6 @@ int SpellMap::EditElev(wxBitmap& bmp, TScroll* scroll, int step)
 		Sprite* sprite = L1[mxy];
 
 		// tile slope
-		//int sid=MapL1getId(map,x,y);
 		char sn = sprite->name[2];
 
 		if(step > 0 || sn == 'A')
@@ -2283,7 +2294,7 @@ int SpellMap::EditElev(wxBitmap& bmp, TScroll* scroll, int step)
 
 	// allocate modification flag array
 	uint8_t *flag = new uint8_t[x_size*y_size];
-	std::memset((void*)flag, 0x00,x_size* y_size*sizeof(uint8_t));
+	std::memset((void*)flag, 0x00,x_size*y_size*sizeof(uint8_t));
 
 	for(i = 0; i < elist.size(); i++)
 	{
@@ -2311,14 +2322,14 @@ int SpellMap::EditElev(wxBitmap& bmp, TScroll* scroll, int step)
 			EditElevSlope(flag);
 		}
 	}
-	for(i = 0; i < elist.size(); i++)
+	/*for(i = 0; i < elist.size(); i++)
 	{
 		if(elist[i].edir != 0)
 		{
 			// update land textures
 			EditElevText(flag);
 		}
-	}
+	}*/
 
 
 	// loose memory
@@ -2328,7 +2339,6 @@ int SpellMap::EditElev(wxBitmap& bmp, TScroll* scroll, int step)
 
 	return(0);
 }
-
 
 // get neighboring map tile pos
 MapXY SpellMap::GetNeighborTile(int x, int y, int quad)
@@ -2361,6 +2371,70 @@ MapXY SpellMap::GetNeighborTile(int x, int y, int quad)
 	}
 	return(tile);
 }
+
+// this routine tries to fix textures of modified tiles
+int SpellMap::ReTexture(uint8_t *modz)
+{
+	
+	// make list of modified tiles (zig-zag order)
+	vector<MapXY> tlist;
+	MapXY mxy;
+	mxy.x = 0;
+	mxy.y = 0;
+	while(mxy.y < y_size)
+	{
+		while(mxy.x < x_size)
+		{
+			if(modz[ConvXY(mxy)])
+				tlist.push_back(mxy);
+			mxy.x++;
+		}
+		mxy.y++;
+		if(mxy.y >= y_size)
+			break;
+		while(mxy.x > 0)
+		{
+			mxy.x--;
+			if(modz[ConvXY(mxy)])
+				tlist.push_back(mxy);
+		}
+		mxy.y++;
+	}
+
+	vector<SpellMapTxt> seq;
+
+	int level = 0;
+	while(1)
+	{
+		if(level >= seq.size())
+		{
+			// new level
+			SpellMapTxt rec;
+			seq.push_back(rec);
+		}
+		// this tile
+		MapXY mxy = tlist[level];
+		if(!seq[level].TilesCount())
+		{
+			
+			Sprite *spr = terrain->sprites[ConvXY(mxy)];
+
+			// this level is still empty: fill in all possible tiles
+			for(int k = 0; k < terrain->sprites.size(); k++)
+			{
+				
+			}
+		}
+	}
+}
+
+
+int SpellMapTxt::TilesCount()
+{
+	return(tile_list.size());
+}
+
+
 
 // update sprite context based on selected map tiles
 int SpellMap::BuildSpriteContext()

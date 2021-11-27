@@ -14,6 +14,7 @@
 #include <string>
 #include <vector>
 #include <stdexcept>
+#include <filesystem>
 
 #include "wx/dcgraph.h"
 #include "wx/dcbuffer.h"
@@ -785,23 +786,38 @@ int AnimPNM::Decode(uint8_t* data, char* name)
 
 SpriteContext::SpriteContext()
 {
+	flags = 0;
+	for(int k = 0; k < 4; k++)
+		edge_class[k] = SpriteContext::CLASS_GENERIC;
+	shading = 0;
 }
 SpriteContext::~SpriteContext()
 {
 	for(int k = 0;k<4;k++)
 		quad[k].clear();
 }
+// reserve buffer for tile context (for speedup)
+int SpriteContext::ReserveContext(int quadrant,int size)
+{
+	if(quadrant < 0 || quadrant > 4)
+		return(1);
+	quad[quadrant].reserve(size);
+	return(0);
+}
 // add tile to context
-int SpriteContext::AddContext(int quadrant,Sprite* sprite)
+int SpriteContext::AddContext(int quadrant,Sprite* sprite,bool no_check)
 {
 	if(quadrant < 0 || quadrant > 4)
 		return(1);
 
 	// leave if the context sprite is already there
-	auto q = quad[quadrant];
-	for(int k = 0; k < q.size(); k++)
-		if(q[k] == sprite)
-			return(0);
+	if(!no_check)
+	{
+		auto q = quad[quadrant];
+		for(int k = 0; k < q.size(); k++)
+			if(q[k] == sprite)
+				return(0);
+	}
 
 	// add sprite to context
 	quad[quadrant].push_back(sprite);
@@ -823,7 +839,54 @@ Sprite *SpriteContext::GetContext(int quadrant, int index)
 	// return sprite pointer
 	return(quad[quadrant][index]);
 }
-
+// get tile flags
+uint32_t SpriteContext::GetFlags()
+{
+	return(flags);
+}
+// set tile flags
+uint32_t SpriteContext::SetFlags(uint32_t new_flags)
+{
+	flags = new_flags;
+	return(flags);
+}
+// set edge/corner shading flags (overrides alll preexisting flags)
+uint32_t SpriteContext::SetShadingFlags(uint32_t new_flags)
+{
+	shading = new_flags;
+	return(shading);
+}
+// OR edge/corner shading flags
+uint32_t SpriteContext::OrShadingFlags(uint32_t new_flags)
+{
+	shading |= new_flags;
+	return(shading);
+}
+// clear edge/corner shading flags
+uint32_t SpriteContext::ClrShadingFlags(uint32_t new_flags)
+{
+	shading &= ~new_flags;
+	return(shading);
+}
+// get edge/corner shading flags
+uint32_t SpriteContext::GetShadingFlags()
+{
+	return(shading);
+}
+// set edge class
+void SpriteContext::SetEdgeClass(int edge, uint32_t new_class)
+{
+	if(edge < 0 || edge > 3)
+		return;
+	edge_class[edge] = new_class;
+}
+// get edge class
+uint32_t SpriteContext::GetEdgeClass(int edge)
+{
+	if(edge < 0 || edge > 3)
+		return(SpriteContext::CLASS_GENERIC);
+	return(edge_class[edge]);
+}
 
 
 //=============================================================================
@@ -837,6 +900,7 @@ Terrain::Terrain()
 	anms.clear();
 	last_gamma = 0.0;
 	context = NULL;
+	context_path = L"";
 }
 
 Terrain::~Terrain()
@@ -1034,8 +1098,8 @@ int Terrain::Load(wstring &path)
 	delete fs;
 
 	// initialize context list
-	wstring cont_path = L"";
-	InitSpriteContext(cont_path);
+	//wstring cont_path = L"";
+	//InitSpriteContext(cont_path);
 	
 	//st->Caption = "Loading " + N_terr + ": " + IntToStr(fcnt) + " files in " + IntToStr(UN->memlen / 1024) + "kB ...";
 
@@ -1052,6 +1116,16 @@ Sprite* Terrain::GetSprite(const char* name)
 			return(this->sprites[k]);
 	}
 	return(NULL);
+}
+// get sprite ID by its name
+int Terrain::GetSpriteID(const char* name)
+{
+	for(unsigned k = 0; k < this->sprites.size(); k++)
+	{
+		if(_strcmpi(this->sprites[k]->name,name) == 0)
+			return(k);
+	}
+	return(-1);
 }
 // get sprite pointer by index
 Sprite* Terrain::GetSprite(int index)
@@ -1108,13 +1182,276 @@ Sprite* Terrain::GetSpriteWild(const char* wild, WildMode mode)
 int Terrain::InitSpriteContext(wstring &path)
 {
 	// total sprites count
-	int count = sprites.size();
+	int spr_count = sprites.size();
 	
 	// make sprite context record for each sprite
-	context = new SpriteContext[count];
+	context = new SpriteContext[spr_count];
+
+	// leave if not path
+	if(!path.length())
+		return(1);
+	
+	ifstream fr(path,ios::in | ios::binary);
+	if(!fr.is_open())
+		return(1);
+
+	// check version
+	const char ver_ref[] = "SpellMapEditContextV1.0";
+	char ver[sizeof(ver_ref)];
+	fr.read(ver,sizeof(ver_ref));
+	if(memcmp(ver, ver_ref, sizeof(ver_ref)))
+	{
+		fr.close();
+		return(1);
+	}
+
+	// get context tile list size
+	uint32_t count;
+	fr.read((char*)&count, sizeof(uint32_t));
+
+	// read tile names
+	int *list = new int[count];
+	for(int k = 0; k < count; k++)
+	{
+		// get tile name
+		char tile_name[9];
+		fr.read(tile_name, sizeof(tile_name));
+		
+		// try to find its index in terrain list
+		list[k] = GetSpriteID(tile_name);
+	}
+
+	// for each tile in the list:
+	for(int k = 0; k < count; k++)
+	{
+		// get reference tile		
+		if(list[k] < 0)
+			continue;
+
+		for(int quid = 0; quid < 4; quid++)
+		{
+			// L1 context count
+			uint32_t cont_count;
+			fr.read((char*)&cont_count,sizeof(uint32_t));
+
+			// reserve context buffer (faster adding tiles)
+			context[list[k]].ReserveContext(quid, cont_count);
+
+			// for each context tile
+			for(int sid = 0; sid < cont_count; sid++)
+			{
+				// get context tile index				
+				uint16_t tile_id;
+				fr.read((char*)&tile_id,sizeof(uint16_t));
+				
+				// reindex to terrain indices
+				int terr_id = list[tile_id];
+				if(terr_id < 0)
+					continue;
+											
+				// add to context list (not check duplicates)
+				context[list[k]].AddContext(quid, sprites[terr_id], true);
+			}
+		}
+
+		// load edge classes
+		for(int quid = 0; quid < 4; quid++)
+		{
+			// read class
+			uint8_t edge_class;
+			fr.read((char*)&edge_class,sizeof(uint8_t));
+			context[list[k]].SetEdgeClass(quid, edge_class);
+		}
+
+		// load flags
+		uint32_t flags;
+		fr.read((char*)&flags,sizeof(uint32_t));
+		context[list[k]].SetFlags(flags);
+		// load shading flags		
+		fr.read((char*)&flags,sizeof(uint32_t));
+		context[list[k]].SetShadingFlags(flags);
+	}
+
+	delete[] list;
+
+	// close context file
+	fr.close();
+
+	// store load path expanded to absolute
+	context_path = std::filesystem::absolute(path).wstring();
 
 	return(0);
 }
+// save terrain sprites context to file
+int Terrain::SaveSpriteContext(wstring& path)
+{
+	// create file
+	ofstream fw(path,ios::out | ios::binary);
+	if(!fw.is_open())
+		return(1);
+
+	// store last path
+	context_path = path;
+
+	// store version string
+	const char ver[] = "SpellMapEditContextV1.0";
+	fw.write(ver, sizeof(ver));
+
+	// store sprite count
+	uint32_t count = sprites.size();
+	fw.write((char*)&count, sizeof(uint32_t));
+
+	// store sprite name list, following code will work with indexes corresponding to this list
+	for(int k = 0; k < count;k++)
+		fw.write(sprites[k]->name, sizeof(sprites[k]->name));
+
+	// --- for each sprite:
+	for(int k = 0; k < count;k++)
+	{
+		// for each tile side:
+		for(int quid = 0; quid < 4; quid++)
+		{
+			// L1 context count
+			uint32_t cont_count = context[k].GetContextCount(quid);
+			fw.write((char*)&cont_count,sizeof(uint32_t));
+
+			// for each context tile
+			for(int sid = 0; sid < cont_count; sid++)
+			{
+				// get context tile index
+				Sprite *sprite = context[k].GetContext(quid, sid);
+				uint16_t tile_id = GetSpriteID(sprite);
+				// store index
+				fw.write((char*)&tile_id,sizeof(uint16_t));
+			}
+		}
+		// store edge classes
+		for(int quid = 0; quid < 4; quid++)
+		{
+			uint8_t edge_class = context[k].GetEdgeClass(quid);
+			fw.write((char*)&edge_class,sizeof(uint8_t));
+		}
+
+		// store flags
+		uint32_t flags = context[k].GetFlags();
+		fw.write((char*)&flags,sizeof(uint32_t));
+		
+		// store shading flags
+		uint32_t shade_flags = context[k].GetShadingFlags();
+		fw.write((char*)&shade_flags,sizeof(uint32_t));
+	}
+
+	// close file
+	fw.close();
+
+	return(0);
+}
+// return last context path
+wstring& Terrain::GetSpriteContextPath()
+{
+	return(context_path);
+}
+// auto build context based on tile edge data
+int Terrain::UpdateSpriteContext()
+{
+	// for each sprite:
+	for(int k = 0; k < sprites.size(); k++)
+	{
+		SpriteContext *cont = &context[k];
+		
+		// check possible neighbors:
+		for(int sid = 0; sid < sprites.size(); sid++)
+		{
+			Sprite *sprite = sprites[sid];
+			SpriteContext* contspr = &context[sid];
+
+			// repeat for each tile side:
+			bool match = 1;
+			for(int eid = 0; eid < 4; eid++)
+			{
+				// skip generic classes
+				if(cont->GetEdgeClass(eid) == SpriteContext::CLASS_GENERIC)
+					continue;
+
+				int eid2 = eid + 2;
+				if(eid2 >= 4)
+					eid2 -= 4;
+				// skip no matching edge classes
+				if(cont->GetEdgeClass(eid) != contspr->GetEdgeClass(eid2))
+					continue;
+
+				// get ref tile edge vertices
+				TFxyz refv[2];
+				sprites[k]->GetTileEdge(eid, refv);
+				
+				// get dut tile edge vertices
+				TFxyz dutv[2];
+				sprites[sid]->GetTileEdge(eid2,dutv);
+
+				// skip if not matching tile types (based on tile model, ###todo: optimize by strict tile slope lists?)
+				bool same_level = (refv[0].z == dutv[1].z) && (refv[1].z == dutv[0].z);
+				bool diff_level = (dutv[1].z - refv[0].z) == (dutv[0].z - refv[1].z);
+				if(!same_level && !diff_level)
+					continue;
+
+				// edge class match - add sprite to context list
+				cont->AddContext(eid, sprite);				
+			}
+		}
+	}
+	return(0);
+}
+// auto set edge/corner shading flags from known sprite types (PLx*)
+int Terrain::InitSpriteContextShading()
+{
+	for(int k = 0; k < sprites.size(); k++)
+	{		
+		Sprite *spr = sprites[k];
+		if(wildcmp("PL???_??",spr->name))
+		{
+			// PL[s][c][e]_[nn]
+			//  s - slope
+			//  c - corner shading
+			//  e - edge shading
+			//  nn - alternative index
+			SpriteContext* cont = &context[k];
+
+			const uint32_t edge_list[] = {
+				SpriteContext::SHADING_SIDE_Q4, SpriteContext::SHADING_SIDE_Q1, SpriteContext::SHADING_SIDE_Q2, SpriteContext::SHADING_SIDE_Q3};
+			const uint32_t corn_list[] ={
+				SpriteContext::SHADING_CORNER_Q4, SpriteContext::SHADING_CORNER_Q1, SpriteContext::SHADING_CORNER_Q2, SpriteContext::SHADING_CORNER_Q3};
+			
+			// decode flags
+			uint32_t flags = 0x00;
+			for(int f = 0; f < 4; f++)
+				if(hex2num(spr->name[3]) & (1<<f))
+					flags |= edge_list[f];
+			for(int f = 0; f < 4; f++)
+				if(hex2num(spr->name[4]) & (1<<f))
+					flags |= corn_list[f];
+
+			// assign to context
+			cont->SetShadingFlags(flags);
+
+			// also set edge classes as they are all the same
+			if(_strcmpi(this->name,"T11") == 0 || _strcmpi(this->name,"DEVAST") == 0)
+			{
+				// for T11/DEVAST the default layer is grass
+				for(int e = 0; e < 4; e++)
+					cont->SetEdgeClass(e, SpriteContext::CLASS_GRASS);
+			}
+			else if(_strcmpi(this->name,"PUST") == 0)
+			{
+				// for PUST the default layer is sand
+				for(int e = 0; e < 4; e++)
+					cont->SetEdgeClass(e,SpriteContext::CLASS_SAND);
+			}			
+		}
+	}
+	return(0);
+}
+
+
 
 // render sprite(s) to buffer for sprite preview
 int Terrain::RenderPreview(wxBitmap& bmp, int count, int *tiles, int flags, double gamma)

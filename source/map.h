@@ -251,6 +251,7 @@ class SpellMap
 		vector<MapXY> escape; // escape tiles list
 		MapUnit** Lunit; // units layer array
 		uint8_t *select; // selection flags array
+		uint32_t *L1_flags; // terrain class flags array
 		// list of units
 		vector<MapUnit*> units;
 
@@ -284,12 +285,20 @@ class SpellMap
 		tuple<int,int,int> GetTileFlags(wxBitmap& bmp,TScroll* scroll);
 
 		int EditElev(wxBitmap& bmp,TScroll* scroll,int step);
+		int ReTexture(uint8_t* modz);
 
 		MapXY GetNeighborTile(int x,int y,int quad);
 		int BuildSpriteContext();
 };
 
 
+class SpellMapTxt
+{
+	vector<int> tile_list;
+public:
+	int TilesCount();
+	void AddTile(int tile);
 
+};
 
 

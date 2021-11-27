@@ -117,6 +117,7 @@ enum
     ID_SetGamma = 207,
     ID_ViewSprites = 301,
     ID_UpdateSprContext = 302,
+    ID_SaveSprContext = 303,
     ID_SelectAll = 401,
     ID_DeselectAll = 402
 };
