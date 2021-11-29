@@ -441,7 +441,7 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 		this->elev[k] = elev;
 
 		// get tile flags from context data
-		this->L1_flags[k] = this->terrain->context[sprite_ids[sid]].GetFlags();		
+		this->L1_flags[k] = this->terrain->sprites[sprite_ids[sid]]->GetFlags();
 	}
 	// get rid of L1 sprites list
 	delete[] sprites;
@@ -938,13 +938,6 @@ int SpellMap::IsLoaded()
 
 
 
-// selection is valid?
-bool MapXY::IsSelected()
-{
-	return(x >= 0 && y >= 0);
-}
-
-
 // call whenever scroll or screen changes
 // it allocates render buffer and fixes scroller limits
 int SpellMap::RenderPrepare(wxBitmap& bmp, TScroll* scroll)
@@ -1149,7 +1142,19 @@ MapXY SpellMap::GetSelection(wxBitmap& bmp,TScroll* scroll)
 	vector<MapXY>& sel = GetSelections(bmp, scroll);
 	return(sel[0]);
 }
-
+// get selection elevation
+int SpellMap::GetElevation(wxBitmap& bmp,TScroll* scroll)
+{
+	// fix selection
+	MapXY sel = GetSelection(bmp,scroll);
+	if(sel.IsSelected())
+	{
+		// return tile name
+		return((elev[ConvXY(sel)]));
+	}
+	else
+		return(0);	
+}
 // get L1 terrain tile name
 char *SpellMap::GetL1tileName(wxBitmap& bmp, TScroll* scroll)
 {
@@ -2331,6 +2336,9 @@ int SpellMap::EditElev(wxBitmap& bmp, TScroll* scroll, int step)
 		}
 	}*/
 
+	// apply textures
+	//ReTexture(flag);
+
 
 	// loose memory
 	delete[] flag;
@@ -2386,7 +2394,10 @@ int SpellMap::ReTexture(uint8_t *modz)
 		while(mxy.x < x_size)
 		{
 			if(modz[ConvXY(mxy)])
+			{
 				tlist.push_back(mxy);
+				modz[ConvXY(mxy)] = 1;
+			}
 			mxy.x++;
 		}
 		mxy.y++;
@@ -2396,7 +2407,10 @@ int SpellMap::ReTexture(uint8_t *modz)
 		{
 			mxy.x--;
 			if(modz[ConvXY(mxy)])
+			{
 				tlist.push_back(mxy);
+				modz[ConvXY(mxy)] = 1;
+			}
 		}
 		mxy.y++;
 	}
@@ -2412,26 +2426,158 @@ int SpellMap::ReTexture(uint8_t *modz)
 			SpellMapTxt rec;
 			seq.push_back(rec);
 		}
+
+		// this level
+		SpellMapTxt *rec = &seq[level];
+		
 		// this tile
 		MapXY mxy = tlist[level];
-		if(!seq[level].TilesCount())
+		if(!rec->TilesCount())
 		{
-			
-			Sprite *spr = terrain->sprites[ConvXY(mxy)];
-
 			// this level is still empty: fill in all possible tiles
+			
+			// ref tile
+			Sprite *spr = L1[ConvXY(mxy)];
+			uint32_t ref_flags = spr->GetFlags();
+			
+			// fill in the candidates:
 			for(int k = 0; k < terrain->sprites.size(); k++)
 			{
+				Sprite* cont = terrain->sprites[k];
+				// check slope
+				if(cont->GetSlope() != spr->GetSlope())
+					continue;
+				// check class flags
+				if(cont->GetFlags() != ref_flags)
+					continue;
 				
+				// add to list of candidates
+				rec->AddTile(k);
+
+				// reset candidate index
+				rec->SetIndex();
 			}
 		}
+
+		// try to fit the new tile from list of candidates:
+		while(1)
+		{
+			// get candidate
+			int cid = rec->GetTile();
+			// move to next tile
+			rec->NextIndex();
+			if(cid < 0)
+			{
+				// all candidates tested (unsuccessfully) 
+				 
+				// mark current position as not assigned
+				modz[ConvXY(mxy)] = 1;
+				 
+				// move level back
+				level--;
+				break;
+			}
+
+			// candidate sprite
+			Sprite *spr = terrain->sprites[cid];
+
+			// check valid tile context for all edges
+			bool match = true;
+			for(int eid = 0; eid < 4; eid++)
+			{
+				// neighbor tile
+				MapXY nxy = GetTileNeihgborXY(mxy, eid*2+1);
+				
+				// skip if outside map
+				if(!nxy.IsSelected())
+					continue;
+				
+				// skip if not yet assigned
+				int ff = modz[ConvXY(nxy)];
+				if(modz[ConvXY(nxy)] == 1)
+					continue;
+
+				// check if this candidate is in allowed context of neighbor
+				int eid180 = eid + 2;
+				if(eid180 >= 4)
+					eid180 -= 4;				
+				Sprite *nspr = L1[ConvXY(nxy)];				
+				if(!nspr->CheckContext(eid180, spr))
+				{
+					match = false;
+					break;
+				}
+			}
+			if(match)
+			{
+				// some match found
+				
+				// put new sprite to current position
+				L1[ConvXY(mxy)] = spr;
+				// mark it as assigned
+				modz[ConvXY(mxy)] = 2;
+								
+				// move to next level
+				level++;
+
+				// reset search index
+				if(level < seq.size())
+					seq[level].SetIndex();
+
+				break;
+			}			
+		}
+
+		if(level < 0)
+		{
+			// search failed:
+			break;
+		}
+		if(level >= tlist.size())
+		{
+			// texturing done with success:
+			break;
+		}
 	}
+
+	return(0);
 }
 
 
 int SpellMapTxt::TilesCount()
 {
 	return(tile_list.size());
+}
+// add tile to list
+void SpellMapTxt::AddTile(int tile)
+{
+	tile_list.push_back(tile);
+}
+// set tile index in the list
+int SpellMapTxt::SetIndex(int id)
+{
+	if(id >= tile_list.size())
+		return(1);
+	index = id;
+	return(0);
+}
+// move tile index forward, return 1 if outside
+int SpellMapTxt::NextIndex()
+{	
+	index++;
+	if(index >= tile_list.size())
+		return(1);
+	return(0);
+}
+// get current tile from list or -1 if empty
+int SpellMapTxt::GetTile(int id)
+{
+	if(!tile_list.size() || index >= tile_list.size())
+		return(-1);
+	if(id >= 0)
+		return(tile_list[id]);
+	else
+		return(tile_list[index]);
 }
 
 
@@ -2463,7 +2609,7 @@ int SpellMap::BuildSpriteContext()
 				{
 					// add to list
 					Sprite* sprite = L1[ConvXY(nxy)];
-					terrain->context[tid].AddContext(qid, sprite);
+					terrain->sprites[tid]->AddContext(qid, sprite);
 				}
 			}
 		}

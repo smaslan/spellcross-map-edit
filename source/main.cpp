@@ -152,9 +152,9 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     menuBar->Append(menuHelp, "&Help");
     SetMenuBar(menuBar);
     
-    CreateStatusBar(6);
-    const int ss_w[] = {50,50,70,100,100,100};
-    SetStatusWidths(6,ss_w);
+    CreateStatusBar(7);
+    const int ss_w[] = {45,45,45,60,100,100,100};
+    SetStatusWidths(7,ss_w);
     SetStatusText("");
       
 
@@ -334,14 +334,16 @@ void mapCanvas::OnMouseMove(wxMouseEvent& event)
     // update map selection
     //SpellMap* map = (*spell_map);
     MapXY mxy = spell_map->GetSelection(m_buffer,scroll);
+    int elev = spell_map->GetElevation(m_buffer,scroll);
     parent->SetStatusText(wxString::Format(wxT("x=%d"),mxy.x),0);
-    parent->SetStatusText(wxString::Format(wxT("y=%d"),mxy.y),1);
-    parent->SetStatusText(wxString::Format(wxT("xy=%d"),spell_map->ConvXY(mxy)),2);
-    parent->SetStatusText(wxString::Format(wxT("L1: %s"),spell_map->GetL1tileName(m_buffer,scroll)),3);
-    parent->SetStatusText(wxString::Format(wxT("L2: %s"),spell_map->GetL2tileName(m_buffer,scroll)),4);
+    parent->SetStatusText(wxString::Format(wxT("y=%d"),mxy.y),1);    
+    parent->SetStatusText(wxString::Format(wxT("z=%d"),elev),2);
+    parent->SetStatusText(wxString::Format(wxT("xy=%d"),spell_map->ConvXY(mxy)),3);
+    parent->SetStatusText(wxString::Format(wxT("L1: %s"),spell_map->GetL1tileName(m_buffer,scroll)),4);
+    parent->SetStatusText(wxString::Format(wxT("L2: %s"),spell_map->GetL2tileName(m_buffer,scroll)),5);
     //int height, flags, code;
     auto [flags,height,code] = spell_map->GetTileFlags(m_buffer,scroll);
-    parent->SetStatusText(wxString::Format(wxT("(0x%02X)"),code),5);
+    parent->SetStatusText(wxString::Format(wxT("(0x%02X)"),code),6);
     
     Refresh();
 }

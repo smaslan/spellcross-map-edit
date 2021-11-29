@@ -434,8 +434,8 @@ void FormSprite::OnEdgeShadeChange(wxCommandEvent& event)
 		wxID_CB_SHADE_Q1, wxID_CB_SHADE_Q2, wxID_CB_SHADE_Q3, wxID_CB_SHADE_Q4,
 		wxID_CB_SHADE_C1, wxID_CB_SHADE_C2, wxID_CB_SHADE_C3, wxID_CB_SHADE_C4};
 	const uint32_t flags[] = {
-		SpriteContext::SHADING_SIDE_Q1, SpriteContext::SHADING_SIDE_Q2, SpriteContext::SHADING_SIDE_Q3, SpriteContext::SHADING_SIDE_Q4,
-		SpriteContext::SHADING_CORNER_Q1, SpriteContext::SHADING_CORNER_Q2, SpriteContext::SHADING_CORNER_Q3, SpriteContext::SHADING_CORNER_Q4};
+		Sprite::SHADING_SIDE_Q1, Sprite::SHADING_SIDE_Q2, Sprite::SHADING_SIDE_Q3, Sprite::SHADING_SIDE_Q4,
+		Sprite::SHADING_CORNER_Q1, Sprite::SHADING_CORNER_Q2, Sprite::SHADING_CORNER_Q3, Sprite::SHADING_CORNER_Q4};
 
 	if(lboxSprites->GetCount() && lboxSprites->GetSelection() >= 0)
 	{
@@ -447,9 +447,9 @@ void FormSprite::OnEdgeShadeChange(wxCommandEvent& event)
 		{
 			wxCheckBox* cb = (wxCheckBox*)FindItem(list[k]);
 			if(cb->IsChecked())
-				terr->context[lboxSprites->GetSelection()].OrShadingFlags(flags[k]);
+				terr->sprites[lboxSprites->GetSelection()]->OrShadingFlags(flags[k]);
 			else
-				terr->context[lboxSprites->GetSelection()].ClrShadingFlags(flags[k]);
+				terr->sprites[lboxSprites->GetSelection()]->ClrShadingFlags(flags[k]);
 		}
 	}	
 }
@@ -459,8 +459,8 @@ void FormSprite::SetShadingFlags()
 		wxID_CB_SHADE_Q1, wxID_CB_SHADE_Q2, wxID_CB_SHADE_Q3, wxID_CB_SHADE_Q4,
 		wxID_CB_SHADE_C1, wxID_CB_SHADE_C2, wxID_CB_SHADE_C3, wxID_CB_SHADE_C4};
 	const uint32_t flags[] ={
-		SpriteContext::SHADING_SIDE_Q1, SpriteContext::SHADING_SIDE_Q2, SpriteContext::SHADING_SIDE_Q3, SpriteContext::SHADING_SIDE_Q4,
-		SpriteContext::SHADING_CORNER_Q1, SpriteContext::SHADING_CORNER_Q2, SpriteContext::SHADING_CORNER_Q3, SpriteContext::SHADING_CORNER_Q4};
+		Sprite::SHADING_SIDE_Q1, Sprite::SHADING_SIDE_Q2, Sprite::SHADING_SIDE_Q3, Sprite::SHADING_SIDE_Q4,
+		Sprite::SHADING_CORNER_Q1, Sprite::SHADING_CORNER_Q2, Sprite::SHADING_CORNER_Q3, Sprite::SHADING_CORNER_Q4};
 
 	if(lboxSprites->GetCount() && lboxSprites->GetSelection() >= 0)
 	{
@@ -470,7 +470,7 @@ void FormSprite::SetShadingFlags()
 		for(int k = 0; k < 8;k++)
 		{
 			wxCheckBox* cb = (wxCheckBox*)FindItem(list[k]);
-			cb->SetValue(!!(terr->context[lboxSprites->GetSelection()].GetShadingFlags() & flags[k]));				
+			cb->SetValue(!!(terr->sprites[lboxSprites->GetSelection()]->GetShadingFlags() & flags[k]));
 		}
 	}
 }
@@ -487,7 +487,7 @@ void FormSprite::OnEdgeClassChange(wxCommandEvent& event)
 		// update class(es)
 		wxChoice* chc[4] ={chbQ1class, chbQ2class, chbQ3class, chbQ4class};
 		for(int k = 0; k < 4; k++)
-			terr->context[lboxSprites->GetSelection()].SetEdgeClass(k, chc[k]->GetSelection());
+			terr->sprites[lboxSprites->GetSelection()]->SetEdgeClass(k, chc[k]->GetSelection());
 	}
 }
 void FormSprite::SetEdgeClasses()
@@ -501,7 +501,7 @@ void FormSprite::SetEdgeClasses()
 		wxChoice* chc[4] ={chbQ1class, chbQ2class, chbQ3class, chbQ4class};
 		for(int k = 0; k < 4; k++)
 		{
-			int edge_class = terr->context[lboxSprites->GetSelection()].GetEdgeClass(k);
+			int edge_class = terr->sprites[lboxSprites->GetSelection()]->GetEdgeClass(k);
 			chc[k]->Select(edge_class);
 		}
 	}
@@ -514,23 +514,23 @@ void FormSprite::OnFlagsChange(wxCommandEvent& event)
 	bool check = event.IsChecked();
 
 	const uint32_t list[][2] = {
-		{wxID_CB_IS_GRASS, SpriteContext::IS_GRASS},
-		{wxID_CB_IS_DGRASS, SpriteContext::IS_DGRASS},
-		{wxID_CB_IS_BLOOD, SpriteContext::IS_BLOOD},
-		{wxID_CB_IS_MUD, SpriteContext::IS_MUD},
-		{wxID_CB_IS_SWAMP, SpriteContext::IS_SWAPM},
-		{wxID_CB_IS_ASH, SpriteContext::IS_ASH},
-		{wxID_CB_IS_HIGH_LAND, SpriteContext::IS_HIGHLAND},
-		{wxID_CB_IS_ASH_ROAD, SpriteContext::IS_ROAD},
-		{wxID_CB_IS_BROKE_ASH_ROAD, SpriteContext::IS_BROKE_ROAD},
-		{wxID_CB_IS_DIRT_ROAD, SpriteContext::IS_DIRT_ROAD},
-		{wxID_CB_IS_MUD_PATH, SpriteContext::IS_MUD_PATH},
-		{wxID_CB_IS_CLIFF, SpriteContext::IS_CLIFF},
-		{wxID_CB_IS_WATER, SpriteContext::IS_WATER},
-		{wxID_CB_IS_WBRIDGE, SpriteContext::IS_WOOD_BRIDGE},
-		{wxID_CB_IS_BRIDGE, SpriteContext::IS_BRIDGE},
-		{wxID_CB_IS_FORD, SpriteContext::IS_FORD},
-		{wxID_CB_IS_SAND, SpriteContext::IS_SAND},
+		{wxID_CB_IS_GRASS, Sprite::IS_GRASS},
+		{wxID_CB_IS_DGRASS, Sprite::IS_DGRASS},
+		{wxID_CB_IS_BLOOD, Sprite::IS_BLOOD},
+		{wxID_CB_IS_MUD, Sprite::IS_MUD},
+		{wxID_CB_IS_SWAMP, Sprite::IS_SWAPM},
+		{wxID_CB_IS_ASH, Sprite::IS_ASH},
+		{wxID_CB_IS_HIGH_LAND, Sprite::IS_HIGHLAND},
+		{wxID_CB_IS_ASH_ROAD, Sprite::IS_ROAD},
+		{wxID_CB_IS_BROKE_ASH_ROAD, Sprite::IS_BROKE_ROAD},
+		{wxID_CB_IS_DIRT_ROAD, Sprite::IS_DIRT_ROAD},
+		{wxID_CB_IS_MUD_PATH, Sprite::IS_MUD_PATH},
+		{wxID_CB_IS_CLIFF, Sprite::IS_CLIFF},
+		{wxID_CB_IS_WATER, Sprite::IS_WATER},
+		{wxID_CB_IS_WBRIDGE, Sprite::IS_WOOD_BRIDGE},
+		{wxID_CB_IS_BRIDGE, Sprite::IS_BRIDGE},
+		{wxID_CB_IS_FORD, Sprite::IS_FORD},
+		{wxID_CB_IS_SAND, Sprite::IS_SAND},
 		{0,0}
 	};
 
@@ -540,7 +540,7 @@ void FormSprite::OnFlagsChange(wxCommandEvent& event)
 		Terrain* terr = FindTerrain();
 	
 		// build flags from checkbox states
-		uint32_t flags = terr->context[lboxSprites->GetSelection()].GetFlags();
+		uint32_t flags = terr->sprites[lboxSprites->GetSelection()]->GetFlags();
 		int flag_id = 0;
 		while(list[flag_id][0])
 		{
@@ -552,7 +552,7 @@ void FormSprite::OnFlagsChange(wxCommandEvent& event)
 		}
 
 		// update flags
-		terr->context[lboxSprites->GetSelection()].SetFlags(flags);
+		terr->sprites[lboxSprites->GetSelection()]->SetFlags(flags);
 	}	
 }
 // show tile flags
@@ -562,23 +562,23 @@ void FormSprite::SetFlags()
 		wxCheckBox *cb;
 		uint32_t flag;
 	} list[] = {
-		{cbIsGrass, SpriteContext::IS_GRASS},
-		{cbIsDarkGrass, SpriteContext::IS_DGRASS},
-		{cbIsBlood, SpriteContext::IS_BLOOD},
-		{cbIsMud, SpriteContext::IS_MUD},
-		{cbIsSwamp, SpriteContext::IS_SWAPM},
-		{cbIsAsh, SpriteContext::IS_ASH},
-		{cbIsHigh, SpriteContext::IS_HIGHLAND},
-		{cbIsRoad, SpriteContext::IS_ROAD},
-		{cbIsBrokeAshroad, SpriteContext::IS_BROKE_ROAD},
-		{cbIsDirtRoad, SpriteContext::IS_DIRT_ROAD},
-		{cbIsMudPath, SpriteContext::IS_MUD_PATH},
-		{cbIsCliff, SpriteContext::IS_CLIFF},
-		{cbIsWater, SpriteContext::IS_WATER},
-		{cbIsWBridge, SpriteContext::IS_WOOD_BRIDGE},
-		{cbIsBridge, SpriteContext::IS_BRIDGE},
-		{cbIsFord, SpriteContext::IS_FORD},
-		{cbIsSand, SpriteContext::IS_SAND},
+		{cbIsGrass, Sprite::IS_GRASS},
+		{cbIsDarkGrass, Sprite::IS_DGRASS},
+		{cbIsBlood, Sprite::IS_BLOOD},
+		{cbIsMud, Sprite::IS_MUD},
+		{cbIsSwamp, Sprite::IS_SWAPM},
+		{cbIsAsh, Sprite::IS_ASH},
+		{cbIsHigh, Sprite::IS_HIGHLAND},
+		{cbIsRoad, Sprite::IS_ROAD},
+		{cbIsBrokeAshroad, Sprite::IS_BROKE_ROAD},
+		{cbIsDirtRoad, Sprite::IS_DIRT_ROAD},
+		{cbIsMudPath, Sprite::IS_MUD_PATH},
+		{cbIsCliff, Sprite::IS_CLIFF},
+		{cbIsWater, Sprite::IS_WATER},
+		{cbIsWBridge, Sprite::IS_WOOD_BRIDGE},
+		{cbIsBridge, Sprite::IS_BRIDGE},
+		{cbIsFord, Sprite::IS_FORD},
+		{cbIsSand, Sprite::IS_SAND},
 		{NULL,0}
 	};
 
@@ -589,7 +589,7 @@ void FormSprite::SetFlags()
 		Terrain* terr = FindTerrain();
 
 		// get this tile flags
-		flags = terr->context[lboxSprites->GetSelection()].GetFlags();
+		flags = terr->sprites[lboxSprites->GetSelection()]->GetFlags();
 
 		// set particular checkboxes
 		int flag_id = 0;
@@ -648,13 +648,13 @@ void FormSprite::OnCanvasRepaint(wxPaintEvent& event)
 			Sprite* spr;
 			if(quid == chbSide->GetSelection())
 			{
-				// is selected side
-				spr = terr->context[ref_id].GetContext(quid, lboxNeighbor->GetSelection());				
+				// is selected side				
+				spr = terr->sprites[ref_id]->GetContext(quid, lboxNeighbor->GetSelection());
 			}
 			else
 			{
 				// not selected side
-				spr = terr->context[ref_id].GetContext(quid,0);
+				spr = terr->sprites[ref_id]->GetContext(quid,0);
 			}			
 			int sid = terr->GetSpriteID(spr);						
 			*tile++ = sid;			
@@ -759,8 +759,8 @@ void FormSprite::SelectQuad()
 	int quid = chbSide->GetSelection();
 	// get center tile
 	int refid = lboxSprites->GetSelection();
-	// get center tile context
-	SpriteContext* cont = &terr->context[refid];
+	// get center tile context	
+	Sprite* cont = terr->sprites[refid];
 
 	// fill list of context sprites
 	lboxNeighbor->Clear();

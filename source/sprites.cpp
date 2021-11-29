@@ -40,6 +40,11 @@ Sprite::Sprite()
 	has_transp = 0;
 	land_type = 0;
 	data = NULL;
+
+	flags = 0;
+	for(int k = 0; k < 4; k++)
+		edge_class[k] = Sprite::CLASS_GENERIC;
+	shading = 0;
 }
 
 // destroy sprite
@@ -48,6 +53,8 @@ Sprite::~Sprite()
 	name[0] = '\0';
 	if (data)
 		delete[] data;
+	for(int k = 0;k<4;k++)
+		quad[k].clear();
 }
 // check if sprite row quad mask has transparencies or it is just last quad
 int Sprite::MaskHasTransp(uint8_t *mask)
@@ -782,30 +789,24 @@ int AnimPNM::Decode(uint8_t* data, char* name)
 
 
 
-
-
-SpriteContext::SpriteContext()
-{
-	flags = 0;
-	for(int k = 0; k < 4; k++)
-		edge_class[k] = SpriteContext::CLASS_GENERIC;
-	shading = 0;
-}
-SpriteContext::~SpriteContext()
-{
-	for(int k = 0;k<4;k++)
-		quad[k].clear();
-}
 // reserve buffer for tile context (for speedup)
-int SpriteContext::ReserveContext(int quadrant,int size)
+int Sprite::ReserveContext(int quadrant,int size)
 {
-	if(quadrant < 0 || quadrant > 4)
+	if(quadrant < 0 || quadrant >= 4)
 		return(1);
 	quad[quadrant].reserve(size);
 	return(0);
 }
+// clear context list for given quadrant
+int Sprite::ClearContext(int quadrant)
+{
+	if(quadrant < 0 || quadrant >= 4)
+		return(1);
+	quad[quadrant].clear();
+	return(0);
+}
 // add tile to context
-int SpriteContext::AddContext(int quadrant,Sprite* sprite,bool no_check)
+int Sprite::AddContext(int quadrant,Sprite* sprite,bool no_check)
 {
 	if(quadrant < 0 || quadrant > 4)
 		return(1);
@@ -825,66 +826,84 @@ int SpriteContext::AddContext(int quadrant,Sprite* sprite,bool no_check)
 	return(0);
 }
 // get size of context list for quadrant
-int SpriteContext::GetContextCount(int quadrant)
+int Sprite::GetContextCount(int quadrant)
 {
 	if(quadrant < 0 || quadrant > 4)
 		return(0);
 	return(quad[quadrant].size());
 }
 // get n-th sprite context tile for given tile quadrant
-Sprite *SpriteContext::GetContext(int quadrant, int index)
+Sprite * Sprite::GetContext(int quadrant, int index)
 {
 	if(quadrant < 0 || quadrant > 4 || index < 0 || index >= quad[quadrant].size())
 		return(NULL);
 	// return sprite pointer
 	return(quad[quadrant][index]);
 }
+// check context match with given sprite
+int Sprite::CheckContext(int quadrant,Sprite* sprite)
+{
+	for(int k = 0; k < quad[quadrant].size(); k++)
+		if(quad[quadrant][k] == sprite)
+			return(1);
+	return(0);
+}
 // get tile flags
-uint32_t SpriteContext::GetFlags()
+uint32_t Sprite::GetFlags()
 {
 	return(flags);
 }
 // set tile flags
-uint32_t SpriteContext::SetFlags(uint32_t new_flags)
+uint32_t Sprite::SetFlags(uint32_t new_flags)
 {
 	flags = new_flags;
 	return(flags);
 }
 // set edge/corner shading flags (overrides alll preexisting flags)
-uint32_t SpriteContext::SetShadingFlags(uint32_t new_flags)
+uint32_t Sprite::SetShadingFlags(uint32_t new_flags)
 {
 	shading = new_flags;
 	return(shading);
 }
 // OR edge/corner shading flags
-uint32_t SpriteContext::OrShadingFlags(uint32_t new_flags)
+uint32_t Sprite::OrShadingFlags(uint32_t new_flags)
 {
 	shading |= new_flags;
 	return(shading);
 }
 // clear edge/corner shading flags
-uint32_t SpriteContext::ClrShadingFlags(uint32_t new_flags)
+uint32_t Sprite::ClrShadingFlags(uint32_t new_flags)
 {
 	shading &= ~new_flags;
 	return(shading);
 }
 // get edge/corner shading flags
-uint32_t SpriteContext::GetShadingFlags()
+uint32_t Sprite::GetShadingFlags()
 {
 	return(shading);
 }
+// is tile side shaded?
+bool Sprite::isSideShaded(int side)
+{
+	return(!!(shading & (Sprite::SHADING_SIDE_Q1 << side)));
+}
+// is tile corner shaded?
+bool Sprite::isCornerShaded(int corner)
+{
+	return(!!(shading & (Sprite::SHADING_CORNER_Q1 << corner)));
+}
 // set edge class
-void SpriteContext::SetEdgeClass(int edge, uint32_t new_class)
+void Sprite::SetEdgeClass(int edge, uint32_t new_class)
 {
 	if(edge < 0 || edge > 3)
 		return;
 	edge_class[edge] = new_class;
 }
 // get edge class
-uint32_t SpriteContext::GetEdgeClass(int edge)
+uint32_t Sprite::GetEdgeClass(int edge)
 {
 	if(edge < 0 || edge > 3)
-		return(SpriteContext::CLASS_GENERIC);
+		return(Sprite::CLASS_GENERIC);
 	return(edge_class[edge]);
 }
 
@@ -899,7 +918,6 @@ Terrain::Terrain()
 	sprites.clear();
 	anms.clear();
 	last_gamma = 0.0;
-	context = NULL;
 	context_path = L"";
 }
 
@@ -924,10 +942,6 @@ Terrain::~Terrain()
 		delete pnms[k];
 	// clear list of sprites
 	pnms.clear();
-
-	// free context
-	if(context)
-		delete[] context;
 }
 
 int Terrain::Load(wstring &path)
@@ -1184,9 +1198,6 @@ int Terrain::InitSpriteContext(wstring &path)
 	// total sprites count
 	int spr_count = sprites.size();
 	
-	// make sprite context record for each sprite
-	context = new SpriteContext[spr_count];
-
 	// leave if not path
 	if(!path.length())
 		return(1);
@@ -1235,7 +1246,7 @@ int Terrain::InitSpriteContext(wstring &path)
 			fr.read((char*)&cont_count,sizeof(uint32_t));
 
 			// reserve context buffer (faster adding tiles)
-			context[list[k]].ReserveContext(quid, cont_count);
+			sprites[list[k]]->ReserveContext(quid, cont_count);
 
 			// for each context tile
 			for(int sid = 0; sid < cont_count; sid++)
@@ -1250,7 +1261,7 @@ int Terrain::InitSpriteContext(wstring &path)
 					continue;
 											
 				// add to context list (not check duplicates)
-				context[list[k]].AddContext(quid, sprites[terr_id], true);
+				sprites[list[k]]->AddContext(quid, sprites[terr_id], true);
 			}
 		}
 
@@ -1260,16 +1271,16 @@ int Terrain::InitSpriteContext(wstring &path)
 			// read class
 			uint8_t edge_class;
 			fr.read((char*)&edge_class,sizeof(uint8_t));
-			context[list[k]].SetEdgeClass(quid, edge_class);
+			sprites[list[k]]->SetEdgeClass(quid, edge_class);
 		}
 
 		// load flags
 		uint32_t flags;
 		fr.read((char*)&flags,sizeof(uint32_t));
-		context[list[k]].SetFlags(flags);
+		sprites[list[k]]->SetFlags(flags);
 		// load shading flags		
 		fr.read((char*)&flags,sizeof(uint32_t));
-		context[list[k]].SetShadingFlags(flags);
+		sprites[list[k]]->SetShadingFlags(flags);
 	}
 
 	delete[] list;
@@ -1311,15 +1322,15 @@ int Terrain::SaveSpriteContext(wstring& path)
 		// for each tile side:
 		for(int quid = 0; quid < 4; quid++)
 		{
-			// L1 context count
-			uint32_t cont_count = context[k].GetContextCount(quid);
+			// L1 context count			
+			uint32_t cont_count = sprites[k]->GetContextCount(quid);
 			fw.write((char*)&cont_count,sizeof(uint32_t));
 
 			// for each context tile
 			for(int sid = 0; sid < cont_count; sid++)
 			{
 				// get context tile index
-				Sprite *sprite = context[k].GetContext(quid, sid);
+				Sprite *sprite = sprites[k]->GetContext(quid, sid);
 				uint16_t tile_id = GetSpriteID(sprite);
 				// store index
 				fw.write((char*)&tile_id,sizeof(uint16_t));
@@ -1328,16 +1339,16 @@ int Terrain::SaveSpriteContext(wstring& path)
 		// store edge classes
 		for(int quid = 0; quid < 4; quid++)
 		{
-			uint8_t edge_class = context[k].GetEdgeClass(quid);
+			uint8_t edge_class = sprites[k]->GetEdgeClass(quid);
 			fw.write((char*)&edge_class,sizeof(uint8_t));
 		}
 
 		// store flags
-		uint32_t flags = context[k].GetFlags();
+		uint32_t flags = sprites[k]->GetFlags();
 		fw.write((char*)&flags,sizeof(uint32_t));
 		
 		// store shading flags
-		uint32_t shade_flags = context[k].GetShadingFlags();
+		uint32_t shade_flags = sprites[k]->GetShadingFlags();
 		fw.write((char*)&shade_flags,sizeof(uint32_t));
 	}
 
@@ -1357,45 +1368,170 @@ int Terrain::UpdateSpriteContext()
 	// for each sprite:
 	for(int k = 0; k < sprites.size(); k++)
 	{
-		SpriteContext *cont = &context[k];
+		Sprite *ref = sprites[k];
+
+		if(ref->name[0] != 'P' && ref->name[1] != 'L')
+			continue;
+		
+		// debug
+		ref->ClearContext(0);
+		ref->ClearContext(1);
+		ref->ClearContext(2);
+		ref->ClearContext(3);
 		
 		// check possible neighbors:
 		for(int sid = 0; sid < sprites.size(); sid++)
 		{
-			Sprite *sprite = sprites[sid];
-			SpriteContext* contspr = &context[sid];
+			Sprite *neig = sprites[sid];
+
+			if(neig->name[0] != 'P' && neig->name[1] != 'L')
+				continue;
 
 			// repeat for each tile side:
 			bool match = 1;
 			for(int eid = 0; eid < 4; eid++)
 			{
 				// skip generic classes
-				if(cont->GetEdgeClass(eid) == SpriteContext::CLASS_GENERIC)
+				if(ref->GetEdgeClass(eid) == Sprite::CLASS_GENERIC)
 					continue;
 
 				int eid2 = eid + 2;
 				if(eid2 >= 4)
 					eid2 -= 4;
 				// skip no matching edge classes
-				if(cont->GetEdgeClass(eid) != contspr->GetEdgeClass(eid2))
+				if(ref->GetEdgeClass(eid) != neig->GetEdgeClass(eid2))
 					continue;
 
 				// get ref tile edge vertices
 				TFxyz refv[2];
-				sprites[k]->GetTileEdge(eid, refv);
+				ref->GetTileEdge(eid, refv);
 				
 				// get dut tile edge vertices
 				TFxyz dutv[2];
-				sprites[sid]->GetTileEdge(eid2,dutv);
+				neig->GetTileEdge(eid2,dutv);
 
 				// skip if not matching tile types (based on tile model, ###todo: optimize by strict tile slope lists?)
 				bool same_level = (refv[0].z == dutv[1].z) && (refv[1].z == dutv[0].z);
 				bool diff_level = (dutv[1].z - refv[0].z) == (dutv[0].z - refv[1].z);
 				if(!same_level && !diff_level)
 					continue;
+				
+				// ref tile side shading
+				bool ref_is_shaded = ref->isSideShaded(eid);
+				// neighboring tile side shading
+				bool neig_is_shaded = neig->isSideShaded(eid2);
+
+				// check shading matches				
+				// It should work now except there are errors in spellcross maps itself (sometimes
+				// missing correct shading combinations, so violating them in some cases)
+				// ###todo: implement corner flags checking (not that visible, so screw it for now)
+				// ###note: there are likely few invalid tile combinations (sharp edges) but it should not make any troubles
+				bool is_sharp = 0;
+				bool can_shade = 0;
+				char slp = ref->GetSlope();
+				char nslp = neig->GetSlope();
+				bool match = false;
+				switch(slp)
+				{
+					case 'A':
+						if(nslp == 'A')
+							match = !ref_is_shaded && !neig_is_shaded;
+						else if(nslp == 'B' || nslp == 'F' || nslp == 'I' || nslp == 'L')
+							match = ref_is_shaded; // note: this is valid because of fail in spellcross tiles design
+						else if(nslp == 'C' || nslp == 'E' || nslp == 'H' || nslp == 'K')
+							match = !ref_is_shaded && neig_is_shaded;
+						else if((nslp == 'D' && eid == 1) || (nslp == 'G' && eid == 2) || (nslp == 'J' && eid == 3) || (nslp == 'M' && eid == 0))
+							match = !ref_is_shaded && neig_is_shaded;
+						else
+							match = ref_is_shaded && neig_is_shaded;
+						break;					
+					
+					case 'B':
+						can_shade = (eid == 0 || eid == 1);
+						is_sharp = nslp == 'J' || nslp == 'G' || nslp == 'I' || nslp == 'L' || nslp == 'F';
+						goto BFIL;
+					case 'F':
+						can_shade = (eid == 1 || eid == 2);
+						is_sharp = nslp == 'J' || nslp == 'M' || nslp == 'B' || nslp == 'I' || nslp == 'L';
+						goto BFIL;
+					case 'I':
+						can_shade = (eid == 2 || eid == 3);
+						is_sharp = nslp == 'D' || nslp == 'M' || nslp == 'B' || nslp == 'F' || nslp == 'L';
+						goto BFIL;
+					case 'L':
+						can_shade = (eid == 3 || eid == 0);
+						is_sharp = nslp == 'D' || nslp == 'G' || nslp == 'B' || nslp == 'F' || nslp == 'I';
+					BFIL:
+						if(!can_shade)
+							match = !neig_is_shaded; // not shadeable side: do not allow neighbor shading
+						else if(nslp == 'A')
+							match = neig_is_shaded; // note: spellcross fail, allowing neighbor when at least 'A' is shaded
+						else if(is_sharp)
+							match = ref_is_shaded && neig_is_shaded; // sharp edges: both shaded only
+						else
+							match = (neig_is_shaded && ref_is_shaded) || (!neig_is_shaded && !ref_is_shaded);
+						break;
+					
+					case 'C':
+						can_shade = (eid == 2 || eid == 3);
+						is_sharp = nslp == 'G' || nslp == 'J' || nslp == 'E' || nslp == 'H' || nslp == 'K';
+						goto CEHK;
+					case 'E':
+						can_shade = (eid == 3 || eid == 0);
+						is_sharp = nslp == 'M' || nslp == 'J' || nslp == 'C' || nslp == 'H' || nslp == 'K';
+						goto CEHK;
+					case 'H':
+						can_shade = (eid == 0 || eid == 1);
+						is_sharp = nslp == 'M' || nslp == 'D' || nslp == 'C' || nslp == 'E' || nslp == 'K';
+						goto CEHK;
+					case 'K':						
+						can_shade = (eid == 1 || eid == 2);
+						is_sharp = nslp == 'G' || nslp == 'D' || nslp == 'C' || nslp == 'E' || nslp == 'H';
+					CEHK:
+						if(!can_shade)
+							match = !neig_is_shaded; // not shadeable side: do not allow neighbor shading
+						else if(nslp == 'A')
+							match = !neig_is_shaded && ref_is_shaded;
+						else if(is_sharp)
+							match = ref_is_shaded && neig_is_shaded; // sharp edges: both shaded only
+						else
+							match = !neig_is_shaded && !ref_is_shaded; // all others must not be shaded
+						break;
+
+					case 'D':
+						can_shade = (eid == 1 || eid == 3);
+						is_sharp = nslp == 'J' || nslp == 'H' || nslp == 'K' || nslp == 'I' || nslp == 'L' ||(eid == 1 && nslp == 'A');
+						goto DGJM;
+					case 'G':
+						can_shade = (eid == 0 || eid == 2);
+						is_sharp = nslp == 'M' || nslp == 'C' || nslp == 'K' || nslp == 'B' || nslp == 'L' || (eid == 2 && nslp == 'A');
+						goto DGJM;
+					case 'J':
+						can_shade = (eid == 1 || eid == 3);
+						is_sharp = nslp == 'D' || nslp == 'C' || nslp == 'E' || nslp == 'B' || nslp == 'F' || (eid == 3 && nslp == 'A');
+						goto DGJM;
+					case 'M':
+						can_shade = (eid == 0 || eid == 2);
+						is_sharp = nslp == 'G' || nslp == 'H' || nslp == 'E' || nslp == 'F' || nslp == 'I' || (eid == 0 && nslp == 'A');
+					DGJM:
+						if(!can_shade)
+							match = !neig_is_shaded; // not shadeable side: do not allow neighbor shading
+						else if(is_sharp)
+							match = ref_is_shaded && neig_is_shaded; // sharp edges: both shaded only
+						else if(nslp == 'A')
+							match = !neig_is_shaded && ref_is_shaded; // bottom 'A' tile: shading only this tile						
+						else
+							match = !neig_is_shaded && !ref_is_shaded; // all others must not be shaded
+						break;
+					
+					default:
+						match = false;
+				}
+				if(!match)
+					continue;
 
 				// edge class match - add sprite to context list
-				cont->AddContext(eid, sprite);				
+				ref->AddContext(eid, neig);
 			}
 		}
 	}
@@ -1414,12 +1550,12 @@ int Terrain::InitSpriteContextShading()
 			//  c - corner shading
 			//  e - edge shading
 			//  nn - alternative index
-			SpriteContext* cont = &context[k];
+			Sprite* cont = sprites[k];
 
 			const uint32_t edge_list[] = {
-				SpriteContext::SHADING_SIDE_Q4, SpriteContext::SHADING_SIDE_Q1, SpriteContext::SHADING_SIDE_Q2, SpriteContext::SHADING_SIDE_Q3};
+				Sprite::SHADING_SIDE_Q4, Sprite::SHADING_SIDE_Q1, Sprite::SHADING_SIDE_Q2, Sprite::SHADING_SIDE_Q3};
 			const uint32_t corn_list[] ={
-				SpriteContext::SHADING_CORNER_Q4, SpriteContext::SHADING_CORNER_Q1, SpriteContext::SHADING_CORNER_Q2, SpriteContext::SHADING_CORNER_Q3};
+				Sprite::SHADING_CORNER_Q4, Sprite::SHADING_CORNER_Q1, Sprite::SHADING_CORNER_Q2, Sprite::SHADING_CORNER_Q3};
 			
 			// decode flags
 			uint32_t flags = 0x00;
@@ -1438,13 +1574,15 @@ int Terrain::InitSpriteContextShading()
 			{
 				// for T11/DEVAST the default layer is grass
 				for(int e = 0; e < 4; e++)
-					cont->SetEdgeClass(e, SpriteContext::CLASS_GRASS);
+					cont->SetEdgeClass(e,Sprite::CLASS_GRASS);
+				cont->SetFlags(Sprite::IS_GRASS);
 			}
 			else if(_strcmpi(this->name,"PUST") == 0)
 			{
 				// for PUST the default layer is sand
 				for(int e = 0; e < 4; e++)
-					cont->SetEdgeClass(e,SpriteContext::CLASS_SAND);
+					cont->SetEdgeClass(e,Sprite::CLASS_SAND);
+				cont->SetFlags(Sprite::IS_SAND);
 			}			
 		}
 	}

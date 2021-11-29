@@ -74,15 +74,15 @@ class FormSprite : public wxFrame
 			int cls;
 			const char* name;
 		} class_list[] = {
-			{SpriteContext::CLASS_GENERIC, "Generic"},
-			{SpriteContext::CLASS_GRASS, "Grass"},
-			{SpriteContext::CLASS_DARK_GRASS, "Dark grass"},
-			{SpriteContext::CLASS_MUD, "Mud"},
-			{SpriteContext::CLASS_SWAMP, "Swamp"},
-			{SpriteContext::CLASS_BLOOD, "Blood"},
-			{SpriteContext::CLASS_ASH, "Ash"},
-			{SpriteContext::CLASS_HIGH_LAND, "High land"},
-			{SpriteContext::CLASS_SAND, "Sand"},
+			{Sprite::CLASS_GENERIC, "Generic"},
+			{Sprite::CLASS_GRASS, "Grass"},
+			{Sprite::CLASS_DARK_GRASS, "Dark grass"},
+			{Sprite::CLASS_MUD, "Mud"},
+			{Sprite::CLASS_SWAMP, "Swamp"},
+			{Sprite::CLASS_BLOOD, "Blood"},
+			{Sprite::CLASS_ASH, "Ash"},
+			{Sprite::CLASS_HIGH_LAND, "High land"},
+			{Sprite::CLASS_SAND, "Sand"},
 			{0,NULL}
 		};
 

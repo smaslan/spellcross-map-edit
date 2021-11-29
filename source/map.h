@@ -62,7 +62,7 @@ class MapXY
 public:
 	int x;
 	int y;
-	bool IsSelected();
+	bool IsSelected() {return(x >= 0 && y >= 0);};
 	MapXY() {x=0;y=0;};
 };
 
@@ -280,6 +280,7 @@ class SpellMap
 		int ConvXY(MapXY &mxy);
 		int ConvXY(MapXY *mxy);
 			
+		int GetElevation(wxBitmap& bmp,TScroll* scroll);
 		char *GetL1tileName(wxBitmap& bmp,TScroll* scroll);
 		char* GetL2tileName(wxBitmap& bmp,TScroll* scroll);
 		tuple<int,int,int> GetTileFlags(wxBitmap& bmp,TScroll* scroll);
@@ -295,10 +296,13 @@ class SpellMap
 class SpellMapTxt
 {
 	vector<int> tile_list;
+	int index;
 public:
 	int TilesCount();
 	void AddTile(int tile);
-
+	int SetIndex(int id=0);
+	int NextIndex();
+	int GetTile(int id=-1);
 };
 
 
