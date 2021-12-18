@@ -19,6 +19,8 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="form_new_object.cpp" />
+    <ClCompile Include="form_objects.cpp" />
     <ClCompile Include="form_sprite_view.cpp" />
     <ClCompile Include="fsu_archive.cpp" />
     <ClCompile Include="fs_archive.cpp" />
@@ -31,9 +33,12 @@
     <ClCompile Include="sprites.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="form_new_object.h" />
+    <ClInclude Include="form_objects.h" />
     <ClInclude Include="form_sprite_view.h" />
     <ClInclude Include="fsu_archive.h" />
     <ClInclude Include="fs_archive.h" />
+    <ClInclude Include="map_types.h" />
     <ClInclude Include="other.h" />
     <ClInclude Include="LZ_spell.h" />
     <ClInclude Include="main.h" />

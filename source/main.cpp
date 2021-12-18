@@ -24,6 +24,8 @@
 #include "map.h"
 
 #include "form_sprite_view.h"
+#include "form_objects.h"
+#include "form_new_object.h"
 
 
 
@@ -48,10 +50,18 @@ bool MyApp::OnInit()
         Terrain *terr = spell_data->GetTerrain(k);
         // make INI section
         string sec_name = "TERRAIN::" + string(terr->name);
-        // get context path
-        wstring cont_path = char2wstring(ini.GetValue(sec_name.c_str(), "context_path", ""));
+
+        // try load tool palette (must be loaded before context and objects!)
+        wstring tool_path = char2wstring(ini.GetValue(sec_name.c_str(),"tools_path",""));
+        terr->LoadTools(tool_path);
+        
         // try to load context
+        wstring cont_path = char2wstring(ini.GetValue(sec_name.c_str(), "context_path", ""));        
         terr->InitSpriteContext(cont_path);
+        
+        // try to load objects list
+        wstring obj_path = char2wstring(ini.GetValue(sec_name.c_str(),"objects_path",""));
+        terr->LoadObjects(obj_path);        
     }
 
 
@@ -67,8 +77,8 @@ bool MyApp::OnInit()
     spell_map->SetGamma(1.3);
 
     
-    
-    
+    // for saving PNG file (among other stuff)
+    wxInitAllImageHandlers();
         
     
     // --- run main form    
@@ -101,12 +111,16 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     spell_map = map;
     spell_data = spelldata;
 
+    // subforms
+    form_objects = NULL;
+
     // view scroller
     scroll.Reset();
         
     // File menu
     wxMenu* menuFile = new wxMenu;
     menuFile->Append(ID_OpenMap, "&Open Map\tCtrl-O", "Open new Spellcross map file.");
+    menuFile->Append(ID_NewMap,"&Ceate new Map\tCtrl-N","Create new map.");
     menuFile->AppendSeparator();
     menuFile->Append(wxID_EXIT);
     
@@ -131,12 +145,17 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     wxMenu* menuEdit = new wxMenu;
     menuEdit->Append(ID_SelectAll,"Select all tiles\tCtrl+A","",wxITEM_NORMAL);
     menuEdit->Append(ID_DeselectAll,"Deselect all tiles\tCtrl+Shift+A","",wxITEM_NORMAL);
+    menuEdit->Append(wxID_ANY,"","",wxITEM_SEPARATOR);
+    menuEdit->Append(ID_CreateNewObject,"Create new object\tCtrl+Shift+O","",wxITEM_NORMAL);
+
     
     // tools
     wxMenu* menuTools = new wxMenu;
     menuTools->Append(ID_ViewSprites,"Sprites viewer","",wxITEM_NORMAL);
+    menuTools->Append(ID_ViewObjects,"Objects viewer","",wxITEM_NORMAL);
     menuTools->Append(ID_SetGamma,"","",wxITEM_SEPARATOR);
-    menuTools->Append(ID_UpdateSprContext, "Update tile context","",wxITEM_NORMAL);
+    menuTools->Append(ID_UpdateSprContext, "Update tile context from map","",wxITEM_NORMAL);
+    menuTools->Append(ID_UpdateSprContextMaps,"Update tile context from ALL maps","",wxITEM_NORMAL);
     
         
     // Help menu
@@ -146,15 +165,15 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     // Main menu
     wxMenuBar* menuBar = new wxMenuBar;    
     menuBar->Append(menuFile, "&File");
-    menuBar->Append(menuEdit,"&Edit");
+    menuBar->Append(menuEdit, "&Edit");
     menuBar->Append(menuView, "&View");
     menuBar->Append(menuTools,"&Tools");
     menuBar->Append(menuHelp, "&Help");
     SetMenuBar(menuBar);
     
-    CreateStatusBar(7);
-    const int ss_w[] = {45,45,45,60,100,100,100};
-    SetStatusWidths(7,ss_w);
+    CreateStatusBar(8);
+    const int ss_w[] = {45,45,45,60,100,100,100,-1};
+    SetStatusWidths(8,ss_w);
     SetStatusText("");
       
 
@@ -166,15 +185,58 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
 
 
     // main sizer 
-    wxBoxSizer* sizer = new wxBoxSizer(wxHORIZONTAL);
+    wxBoxSizer* sizer = new wxBoxSizer(wxVERTICAL);
+    
+    this->SetSizeHints(wxDefaultSize,wxDefaultSize);
+
+    ribbonBar = new wxRibbonBar(this,wxID_ANY,wxDefaultPosition,wxDefaultSize,wxRIBBON_BAR_DEFAULT_STYLE);
+    ribbonBar->SetArtProvider(new wxRibbonDefaultArtProvider);
+                
+    /*wxBitmap *bmp = new wxBitmap();
+    bmp->LoadFile("data\\objects\\T11\\object_006.png",wxBITMAP_TYPE_PNG);
+    ribLandBtns->AddButton(wxID_ANY,wxT("Grass"),*bmp,wxEmptyString);*/
+
+    // for each tool:
+    for(int tool_id = 0; tool_id  < spell_map->terrain->GetToolsCount(); tool_id++)
+    {   
+        SpellToolsGroup *toolset = spell_map->terrain->GetToolSet(tool_id);
+        string toolset_name = toolset->GetClassName();
+        string toolset_title = toolset->GetClassTitle();
+
+        wxRibbonPage* ribPage = new wxRibbonPage(ribbonBar,wxID_ANY,toolset_name,wxNullBitmap,0);
+        wxRibbonPanel* ribPanel = new wxRibbonPanel(ribPage,wxID_ANY,toolset_title,wxNullBitmap,wxDefaultPosition,wxDefaultSize,wxRIBBON_PANEL_DEFAULT_STYLE|wxRIBBON_PANEL_NO_AUTO_MINIMISE|wxRIBBON_PANEL_FLEXIBLE);
+        wxRibbonButtonBar* ribBtns= new wxRibbonButtonBar(ribPanel,wxID_ANY,wxDefaultPosition,wxDefaultSize,0);
+        for(int item_id = 0; item_id < toolset->GetCount(); item_id++)
+        {            
+            // render glyph
+            wxBitmap* bmp = spell_map->terrain->RenderToolItemImage(tool_id, item_id, 1.30);            
+            // add tool item
+            string item_name = toolset->GetItem(item_id);
+            ribBtns->AddButton(ID_TOOL_BASE + tool_id*ID_TOOL_CLASS_STEP + item_id,item_name,*bmp,wxEmptyString, wxRIBBON_BUTTON_TOGGLE);
+            delete bmp;
+        }
+    }
+            
+    ribbonBar->Realize();
+    sizer->Add(ribbonBar,0,wxALL|wxEXPAND,2);
+
+    Bind(wxEVT_RIBBONBUTTONBAR_CLICKED,&MyFrame::OnToolBtnClick,this);
+    Bind(wxEVT_RIBBONBAR_PAGE_CHANGED,&MyFrame::OnToolPageClick,this);
+
+
+
     // make and attach render canvas
-    mapCanvas* canvas = new mapCanvas(this,spell_map,&scroll);
+    canvas = new mapCanvas(this,spell_map,&scroll);
+    canvas->SetToolRef(&spell_tool);
     sizer->Add(canvas,1,wxEXPAND|wxALL,1);
-    this->SetSizer(sizer);
+
+    this->SetSizer(sizer);    
     this->SetAutoLayout(true);
+    this->Layout();
 
     
     Bind(wxEVT_MENU, &MyFrame::OnOpenMap, this, ID_OpenMap);
+    Bind(wxEVT_MENU,&MyFrame::OnNewMap,this,ID_NewMap);
     Bind(wxEVT_MENU, &MyFrame::OnAbout, this, wxID_ABOUT);
     Bind(wxEVT_MENU, &MyFrame::OnExit, this, wxID_EXIT);
 
@@ -187,12 +249,13 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
 
     Bind(wxEVT_MENU,&MyFrame::OnSetGamma,this,ID_SetGamma);
     Bind(wxEVT_MENU,&MyFrame::OnViewSprites,this,ID_ViewSprites);
+    Bind(wxEVT_MENU,&MyFrame::OnViewObjects,this,ID_ViewObjects);
     Bind(wxEVT_MENU,&MyFrame::OnUpdateTileContext,this,ID_UpdateSprContext);
+    Bind(wxEVT_MENU,&MyFrame::OnUpdateTileContextMaps,this,ID_UpdateSprContextMaps);
 
     Bind(wxEVT_MENU,&MyFrame::OnSelectAll,this,ID_SelectAll);
     Bind(wxEVT_MENU,&MyFrame::OnDeselectAll,this,ID_DeselectAll);
-    
-   
+    Bind(wxEVT_MENU,&MyFrame::OnCreateNewObject,this,ID_CreateNewObject);
     
 }
 
@@ -210,8 +273,16 @@ mapCanvas::mapCanvas(wxFrame* parent,SpellMap* spell_map,TScroll* scroll) :wxPan
     Bind(wxEVT_RIGHT_UP,&mapCanvas::OnMouseUp,this);
     Bind(wxEVT_MOTION,&mapCanvas::OnMouseMove,this);
     Bind(wxEVT_LEAVE_WINDOW,&mapCanvas::OnMouseLeave,this);
+    Bind(wxEVT_ENTER_WINDOW,&mapCanvas::OnMouseEnter,this);
     Bind(wxEVT_MOUSEWHEEL,&mapCanvas::OnMouseWheel,this);    
     Bind(wxEVT_KEY_DOWN,&mapCanvas::OnKeyDown,this);
+    
+    Bind(wxEVT_LEFT_DOWN,&mapCanvas::OnLMouseDown,this);
+}
+// set pointer to editing tool
+void mapCanvas::SetToolRef(SpellTool* spell_tool)
+{
+    this->spell_tool = spell_tool;
 }
 
 
@@ -220,7 +291,7 @@ void MyFrame::OnTimer(wxTimerEvent& event)
 {
     if(spell_map->Tick())
     {
-        Refresh();
+        canvas->Refresh();
     }
 }
 void MyFrame::OnResize(wxSizeEvent& event)
@@ -230,36 +301,27 @@ void MyFrame::OnResize(wxSizeEvent& event)
 
 void mapCanvas::OnPaint(wxPaintEvent& event)
 {
+    // make buffer
     int x_size = GetClientSize().x;
     int y_size = GetClientSize().y;
-    if (!m_buffer.IsOk() || m_buffer.GetSize() != GetClientSize())
-    {
-        m_buffer = wxBitmap(x_size, y_size, 24);
-    }
+    if(!m_buffer.IsOk() || m_buffer.GetSize() != GetClientSize())
+        m_buffer = wxBitmap(x_size,y_size,24);
 
+    // render map
     wxPaintDC pdc(this);
-
-    //wxStopWatch sw;
-    spell_map->Render(m_buffer, scroll);
+    spell_map->Render(m_buffer,scroll);
     pdc.DrawBitmap(m_buffer,wxPoint(0,0));
 
     event.Skip();
-
-    
-
-    /*static int count = 0;
-    count++;
-    SetStatusText(wxString::Format(wxT("%d"),count),5);*/
-    //SetStatusText(wxString::Format(wxT("%ld"),sw.Time()),5);
 }
+
 void MyFrame::OnExit(wxCommandEvent& event)
 {
     Close(true);
 }
 void MyFrame::OnAbout(wxCommandEvent& event)
 {
-    wxMessageBox("This is a wxWidgets Hello World example",
-        "About Hello World", wxOK | wxICON_INFORMATION);
+    wxMessageBox("Experimental Spellcross map editor, V0.0\n(c) Stanislav Maslan, s.maslan@seznam.cz", "About Dpellcross Map Editor", wxOK | wxICON_INFORMATION);
 }
 void MyFrame::OnViewLayer(wxCommandEvent& event)
 {
@@ -294,6 +356,18 @@ void MyFrame::OnOpenMap(wxCommandEvent& event)
     // reset scroller
     scroll.Reset();  
 }
+// create new map
+void MyFrame::OnNewMap(wxCommandEvent& event)
+{
+    // create some map (###todo: set parameters by some menu)
+    spell_map->Create(spell_data, "T11", 20,50);
+    // reset layers visibility
+    spell_map->SetGamma(1.30);
+    OnViewLayer(event);
+    // reset scroller
+    scroll.Reset();
+}
+
 // set gamma correction
 void MyFrame::OnSetGamma(wxCommandEvent& event)
 {
@@ -311,6 +385,73 @@ void MyFrame::OnUpdateTileContext(wxCommandEvent& event)
 {
     spell_map->BuildSpriteContext();
 }
+// update tiles context from all maps
+void MyFrame::OnUpdateTileContextMaps(wxCommandEvent& event)
+{   
+    // split path to folder and file
+    wstring dir = spell_data->spell_data_root + L"\\DATA\\COMMON\\";
+
+    // show open dialog
+    wxDirDialog fd = wxDirDialog(this, _("Select Spellcross COMMON folder"), dir, wxDD_DIR_MUST_EXIST);
+    if(fd.ShowModal() == wxID_CANCEL)
+        return;
+    wstring path = wstring(fd.GetPath().ToStdWstring());
+    
+    // load map context (###todo: add terrain type selector?)
+    spell_data->BuildSpriteContextOfMaps(path, "T11", bind(&MyFrame::OnUpdateTileContextMapsCallback,this,placeholders::_1));
+}
+void MyFrame::OnUpdateTileContextMapsCallback(std::string info)
+{
+    SetStatusText(info,7);
+}
+
+// open objects viewer
+void MyFrame::OnViewObjects(wxCommandEvent& event)
+{
+    if(!FindWindowById(ID_OBJECTS_WIN))
+    {
+        form_objects = new FormObjects(this,spell_data,ID_OBJECTS_WIN);
+        form_objects->Connect(wxID_ANY,wxEVT_DESTROY,(wxObjectEventFunction)&MyFrame::OnViewObjectsClose);
+        form_objects->SetMap(spell_map);
+        form_objects->Show();
+    }
+}
+void MyFrame::OnViewObjectsClose(wxWindowDestroyEvent& ev)
+{
+    // todo: somehow destroy child???
+    ev.Skip();
+}
+// open create new object
+void MyFrame::OnCreateNewObject(wxCommandEvent& event)
+{
+
+    FormNewObject* form = new FormNewObject(this,spell_map->terrain);
+    if(form->ShowModal() == wxID_OK)
+    {
+        // --- confirmed
+
+        // get selection    
+        auto xy_list = spell_map->GetPersistSelections();
+        auto L1_spr_list = spell_map->GetL1sprites(xy_list);
+        auto L2_spr_list = spell_map->GetL2sprites(xy_list);
+        auto flag_list = spell_map->GetFlags(xy_list);
+
+        // get object descriptions
+        std::string description = form->GetDescription();
+        std::string glyph_name = form->GetGlyphName();
+        std::filesystem::path full_path = "data\\objects\\" + string(spell_map->terrain->name) + "\\" + glyph_name;
+        
+        // add object to list
+        spell_map->terrain->AddObject(xy_list, L1_spr_list, L2_spr_list, flag_list, full_path, (uint8_t*)spell_map->terrain->pal, description);
+                
+        // clear selection
+        spell_map->SelectTiles(SpellMap::SELECT_CLEAR);
+    }
+    
+    // destroy form
+    delete form;    
+}
+
 
 
 
@@ -318,6 +459,10 @@ void MyFrame::OnUpdateTileContext(wxCommandEvent& event)
 void mapCanvas::OnMouseDown(wxMouseEvent& event)
 {    
     scroll->SetRef(event.GetX(), event.GetY());
+}
+void mapCanvas::OnMouseEnter(wxMouseEvent& event)
+{
+    this->SetFocus();
 }
 void mapCanvas::OnMouseLeave(wxMouseEvent& event)
 {
@@ -357,6 +502,8 @@ void mapCanvas::OnKeyDown(wxKeyEvent& event)
     if(event.ControlDown())
     {
         int key = event.GetKeyCode();
+        if(key == WXK_CONTROL)
+            return;
 
         // --- edit terrain elevation:
         int step = 0;
@@ -383,7 +530,13 @@ void mapCanvas::OnKeyDown(wxKeyEvent& event)
             auto list = spell_map->GetSelections(m_buffer,scroll);
             spell_map->SelectTiles(list,SpellMap::SELECT_CLEAR);
         }
-    }
+        else if(key == 'I')
+        {
+            // invalidate region
+            auto list = spell_map->GetSelections(m_buffer,scroll);
+            spell_map->IvalidateTiles(list);
+        }        
+    }    
 }
 // select all tiles
 void MyFrame::OnSelectAll(wxCommandEvent& event)
@@ -397,6 +550,77 @@ void MyFrame::OnDeselectAll(wxCommandEvent& event)
 
 
 
+// tool edit click
+void mapCanvas::OnLMouseDown(wxMouseEvent& event)
+{
+    // get selection
+    auto xy_list = spell_map->GetSelections(m_buffer, scroll);
+
+    if(spell_tool->isActive() && xy_list.size() && xy_list[0].IsSelected())
+    {
+        // something selected: edit map class
+        spell_map->EditClass(xy_list, spell_tool);
+    }
+}
+// tool selected
+void MyFrame::OnToolBtnClick(wxRibbonButtonBarEvent& event)
+{
+    // get button id
+    int id = event.GetId();
+
+    // no tool selection
+    spell_tool.Set();
+
+    if(!spell_map->IsLoaded())
+        return;
+
+    int tool_id = (id - ID_TOOL_BASE)/ID_TOOL_CLASS_STEP;
+    int item_id = (id - ID_TOOL_BASE)%ID_TOOL_CLASS_STEP;
+
+    // very schmutzig way to deselect all other tool buttons
+    for(int tid = 0; tid < spell_map->terrain->GetToolsCount(); tid++)
+    {        
+        for(int iid = 0; iid < spell_map->terrain->GetToolSet(tid)->GetCount(); iid++)
+        {
+            int btn_id = ID_TOOL_BASE + tid*ID_TOOL_CLASS_STEP + iid;            
+            wxRibbonPage *page = ribbonBar->GetPage(tid);
+            auto wlist = page->GetChildren();
+            wxRibbonPanel* panel = (wxRibbonPanel*)wlist[0];
+            auto clist = panel->GetChildren();
+            wxRibbonButtonBar* btns = (wxRibbonButtonBar*)clist[0];            
+            if(id != btn_id)
+                btns->ToggleButton(btn_id, false);
+            else
+            {            
+                // this button (event caller):
+                if(event.IsChecked())
+                {
+                    // some tool selected: setup tool pointer
+                    spell_tool.Set(tid, iid);
+                }
+            }
+        }
+    }
+}
+void MyFrame::OnToolPageClick(wxRibbonBarEvent& event)
+{
+    // no tool selection
+    spell_tool.Set();
+    // very schmutzig way to deselect all other tool buttons
+    for(int tid = 0; tid < spell_map->terrain->GetToolsCount(); tid++)
+    {
+        for(int iid = 0; iid < spell_map->terrain->GetToolSet(tid)->GetCount(); iid++)
+        {
+            int btn_id = ID_TOOL_BASE + tid*ID_TOOL_CLASS_STEP + iid;
+            wxRibbonPage* page = ribbonBar->GetPage(tid);
+            auto wlist = page->GetChildren();
+            wxRibbonPanel* panel = (wxRibbonPanel*)wlist[0];
+            auto clist = panel->GetChildren();
+            wxRibbonButtonBar* btns = (wxRibbonButtonBar*)clist[0];
+            btns->ToggleButton(btn_id,false);
+        }
+    }
+}
 
 
 

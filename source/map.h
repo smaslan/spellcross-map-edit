@@ -5,7 +5,9 @@
 // (c) 2021, Stanislav Maslan, s.maslan@seznam.cz
 // Distributed under MIT license, https://opensource.org/licenses/MIT.
 //=============================================================================
-#pragma once
+//#pragma once
+#ifndef _MAP_H_
+#define _MAP_H_
 
 #include "windows.h"
 #include "cstdint"
@@ -17,11 +19,11 @@
 #include "fsu_archive.h"
 #include "spell_units.h"
 #include "spellcross.h"
+#include "map_types.h"
 
 #include "wx/dcbuffer.h"
 
 using namespace std;
-//using namespace System;
 
 #define MAX_STR 256
 #define MAX_SPRITE_NAME 8
@@ -57,14 +59,14 @@ public:
 };
 
 
-class MapXY
+/*class MapXY
 {
 public:
 	int x;
 	int y;
 	bool IsSelected() {return(x >= 0 && y >= 0);};
 	MapXY() {x=0;y=0;};
-};
+};*/
 
 class MapUnitType
 {
@@ -259,6 +261,7 @@ class SpellMap
 		SpellMap();
 		~SpellMap();
 		void Close();
+		int Create(SpellData* spelldata,const char* terr_name,int x,int y);
 		int Load(wstring &path, SpellData* spelldata);
 		void SortUnits();
 		int IsLoaded();
@@ -266,8 +269,13 @@ class SpellMap
 		
 		MapXY GetSelection(wxBitmap& bmp,TScroll* scroll);
 		vector<MapXY> &GetSelections(wxBitmap& bmp, TScroll* scroll);
+		vector<Sprite*> GetL1sprites(vector<MapXY> &selection);
+		vector<Sprite*> GetL2sprites(vector<MapXY>& selection);
+		vector<uint8_t> GetFlags(vector<MapXY>& selection);
+		vector<MapXY> GetPersistSelections();
 		void SelectTiles(vector<MapXY> tiles,int mode);
 		void SelectTiles(int mode);
+		int IvalidateTiles(vector<MapXY> tiles);
 		int RenderPrepare(wxBitmap& bmp, TScroll* scroll);
 		int Render(wxBitmap &bmp, TScroll* scroll);
 
@@ -287,22 +295,28 @@ class SpellMap
 
 		int EditElev(wxBitmap& bmp,TScroll* scroll,int step);
 		int ReTexture(uint8_t* modz);
+		void SyncL1flags();
+
+		int EditClass(vector<MapXY>& selection,SpellTool* tool);
 
 		MapXY GetNeighborTile(int x,int y,int quad);
+		MapXY GetNeighborTile(MapXY xy,int quad);
 		int BuildSpriteContext();
 };
 
 
 class SpellMapTxt
 {
-	vector<int> tile_list;
+	vector<Sprite*> tile_list;
 	int index;
 public:
 	int TilesCount();
-	void AddTile(int tile);
+	void AddTile(Sprite *tile);
+	void ClearTiles();
+	void Shuffle();
 	int SetIndex(int id=0);
 	int NextIndex();
-	int GetTile(int id=-1);
+	Sprite *GetTile(int id=-1);
 };
 
-
+#endif // !_MAP_H_

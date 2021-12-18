@@ -10,6 +10,8 @@
 #include "fs_archive.h"
 #include "fsu_archive.h"
 #include "spell_units.h"
+#include "other.h"
+#include "map.h"
 
 #include <fstream>
 #include <string>
@@ -17,7 +19,7 @@
 #include <stdexcept>
 #include <regex>
 
-#include <format>
+//#include <format>
 
 using namespace std;
 
@@ -178,6 +180,9 @@ SpellDefSection *SpellDEF::GetSection(std::string section)
 
 SpellData::SpellData(wstring &data_path)
 {
+	// store path
+	spell_data_root = data_path;
+	
 	// load terrains
 	const wchar_t* terrain_list[] = {L"\\T11.FS",
 		                             L"\\PUST.FS",
@@ -194,8 +199,7 @@ SpellData::SpellData(wstring &data_path)
 		// store to list
 		terrain.push_back(new_terrain);		
 	}
-
-
+	
 	// load FSU data
 	wstring path = data_path + L"\\UNITS.FSU";
 	units_fsu = new FSUarchive(path);
@@ -254,6 +258,50 @@ SpellData::~SpellData()
 	delete units;
 	// delete FSU unit data
 	delete units_fsu;
+}
+
+// auto build sprite context from all available spellcross maps
+int SpellData::BuildSpriteContextOfMaps(wstring folder, string terrain_name,std::function<void(std::string)> status_cb)
+{
+	// for each file in given folder:
+	int count = 0;
+	for(const auto& entry : std::filesystem::directory_iterator(folder))
+	{		
+		if(wildcmp("*.DTA",wstring2string(entry.path().filename()).c_str()))
+		{
+			// this seems to be a map data file
+			wstring map_path = entry.path();
+			
+			// try to load map
+			SpellMap map;				
+			if(map.Load(map_path, this))
+				continue;
+
+			// check if this is correct terrain type
+			if(terrain_name.compare(map.terrain_name))
+			{
+				map.Close();
+				continue;
+			}
+
+			string name = wstring2string(entry.path().filename());
+			string status = string_format("Processing map #%d: %s",++count, name.c_str());
+			if(status_cb)
+				status_cb(status);
+
+			// build context from entire map
+			map.SelectTiles(SpellMap::SELECT_ADD);
+			map.BuildSpriteContext();
+			map.Close();			
+		}
+	}
+
+
+	string status = string_format("Done (%d files processed)",count);
+	if(status_cb)
+		status_cb(status);
+
+	return(0);
 }
 
 
@@ -402,7 +450,7 @@ int SpellData::GetTerrainCount()
 	return(terrain.size());
 }
 // get terrain pointer by terrain name or return NULL
-Terrain* SpellData::GetTerrain(char* name)
+Terrain* SpellData::GetTerrain(const char* name)
 {
 	for (unsigned k = 0; k < this->terrain.size(); k++)
 		if (_strcmpi(this->terrain[k]->name, name) == 0)

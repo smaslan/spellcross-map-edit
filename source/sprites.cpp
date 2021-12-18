@@ -9,8 +9,9 @@
 #include "other.h"
 #include "fs_archive.h"
 #include "fsu_archive.h"
+#include "map_types.h"
 
-#include <fstream>
+#include "simpleini.h"
 #include <string>
 #include <vector>
 #include <stdexcept>
@@ -40,11 +41,16 @@ Sprite::Sprite()
 	has_transp = 0;
 	land_type = 0;
 	data = NULL;
+	index = 0;
 
 	flags = 0;
 	for(int k = 0; k < 4; k++)
 		edge_class[k] = Sprite::CLASS_GENERIC;
 	shading = 0;
+	spec_class = Sprite::SPEC_CLASS_NONE;
+
+	tool_class = 0;
+	tool_group = 0;
 }
 
 // destroy sprite
@@ -54,7 +60,8 @@ Sprite::~Sprite()
 	if (data)
 		delete[] data;
 	for(int k = 0;k<4;k++)
-		quad[k].clear();
+		for(int m = 'A'; m <= 'M'; m++)
+			quad[k][m-'A'].clear();
 }
 // check if sprite row quad mask has transparencies or it is just last quad
 int Sprite::MaskHasTransp(uint8_t *mask)
@@ -64,10 +71,20 @@ int Sprite::MaskHasTransp(uint8_t *mask)
 		  (mask[1] == 0x00 && mask[2] == 0xFF && mask[3] == 0xFF) ||
 		  (mask[1] == 0xFF && mask[2] == 0xFF && mask[3] == 0xFF)));
 }
-// ge tile slope letter
+// get tile slope letter
 char Sprite::GetSlope()
 {
 	return(name[2]);
+}
+// set sprite index
+void Sprite::SetIndex(int id)
+{
+	index = id;
+}
+// get sprite index
+int Sprite::GetIndex()
+{
+	return(index);
 }
 
 
@@ -259,6 +276,66 @@ void Sprite::Render(uint8_t* buffer, uint8_t* buf_end, int buf_x, int buf_y, int
 		}
 	}
 }
+
+// render sprite to EMPTY bitmap (it will set its format and size)
+wxBitmap *Sprite::Render(uint8_t *pal, double gamma)
+{
+	// allocate render buffer for indexed image
+	int surf_x = x_size;
+	int surf_y = 0 + y_size + 0;
+	uint8_t* buf = new uint8_t[surf_x*surf_y];
+	uint8_t* buf_end = &buf[surf_x*surf_y];
+	// render origin
+	int org_x = 0;
+	int org_y = 0;
+
+	// make local bitmap buffer
+	wxBitmap *bmp = new wxBitmap(surf_x,surf_y,32);
+	bmp->UseAlpha(true);
+
+	// clear background
+	std::memset((void*)buf,230,surf_x*surf_y);
+
+	// render tile aligned to left
+	this->Render(buf, buf_end, -this->x_ofs,-this->y_ofs, surf_x);
+	
+	// apply gamma correction to palette:		
+	// male local copy of palette	
+	uint8_t gamma_pal[256][3];
+	std::memcpy((void*)gamma_pal,(void*)pal,3 * 256);
+
+	// apply gamma correction (this should be maybe optimized out of here?
+	for(int k = 0; k < 256; k++)
+		for(int c = 0; c < 3; c++)
+			gamma_pal[k][c] = (uint8_t)(pow((double)gamma_pal[k][c] / 255.0,1.0 / gamma) * 255.0);
+	
+
+	// render 24bit RGB data to raw bmp buffer
+	typedef wxPixelData<wxBitmap,wxAlphaPixelFormat> PixelData;
+	PixelData data(*bmp);
+	PixelData::Iterator p(data);
+	for(int y = 0; y < surf_y; ++y)
+	{
+		uint8_t* scan = p.m_ptr;
+		uint8_t* src = &buf[y*surf_x];
+		for(int x = 0; x < surf_x; x++)
+		{
+			*scan++ = gamma_pal[*src][2];
+			*scan++ = gamma_pal[*src][1];
+			*scan++ = gamma_pal[*src][0];
+			*scan++ = (*src != 230)*255;
+			src++;
+		}
+		p.OffsetY(data,1);
+	}
+
+	// loose local buffer
+	delete[] buf;
+
+	return(bmp);
+
+}
+
 
 // get vertices pair of edge 0-3 (Q1 - Q4)
 int Sprite::GetTileEdge(int edge,TFxyz* vert)
@@ -790,11 +867,11 @@ int AnimPNM::Decode(uint8_t* data, char* name)
 
 
 // reserve buffer for tile context (for speedup)
-int Sprite::ReserveContext(int quadrant,int size)
+int Sprite::ReserveContext(int quadrant, char tile, int size)
 {
-	if(quadrant < 0 || quadrant >= 4)
+	if(quadrant < 0 || quadrant >= 4 || tile < 'A' || tile > 'M')
 		return(1);
-	quad[quadrant].reserve(size);
+	quad[quadrant][tile-'A'].reserve(size);
 	return(0);
 }
 // clear context list for given quadrant
@@ -802,49 +879,76 @@ int Sprite::ClearContext(int quadrant)
 {
 	if(quadrant < 0 || quadrant >= 4)
 		return(1);
-	quad[quadrant].clear();
+	for(char tile = 'A'; tile <= 'M'; tile++)
+		quad[quadrant][tile-'A'].clear();
 	return(0);
 }
 // add tile to context
-int Sprite::AddContext(int quadrant,Sprite* sprite,bool no_check)
+int Sprite::AddContext(int quadrant, Sprite* sprite,bool no_check)
 {
 	if(quadrant < 0 || quadrant > 4)
 		return(1);
 
+	// ge ttile slope
+	int tile = sprite->GetSlope() - 'A';
+
 	// leave if the context sprite is already there
 	if(!no_check)
 	{
-		auto q = quad[quadrant];
-		for(int k = 0; k < q.size(); k++)
-			if(q[k] == sprite)
-				return(0);
+		for(auto const & cont : quad[quadrant][tile])
+			if(cont == sprite)
+				return(1);
 	}
 
 	// add sprite to context
-	quad[quadrant].push_back(sprite);
+	quad[quadrant][tile].push_back(sprite);
 
 	return(0);
 }
 // get size of context list for quadrant
+int Sprite::GetContextCount(int quadrant, char tile)
+{
+	if(quadrant < 0 || quadrant > 4 || tile < 'A' || tile > 'M')
+		return(0);
+	return(quad[quadrant][tile-'A'].size());
+}
+// get size of context list for quadrant (all tile types)
 int Sprite::GetContextCount(int quadrant)
 {
 	if(quadrant < 0 || quadrant > 4)
 		return(0);
-	return(quad[quadrant].size());
+	int count = 0;
+	for(char tile = 'A'; tile <= 'M'; tile++)
+		count += quad[quadrant][tile-'A'].size();
+	return(count);
 }
-// get n-th sprite context tile for given tile quadrant
-Sprite * Sprite::GetContext(int quadrant, int index)
+// get n-th sprite context tile for given tile quadrant (for given tile slope)
+Sprite * Sprite::GetContext(int quadrant, char tile, int index)
 {
-	if(quadrant < 0 || quadrant > 4 || index < 0 || index >= quad[quadrant].size())
+	if(quadrant < 0 || quadrant > 4 || tile < 'A' || tile > 'M' || index < 0 || index >= quad[quadrant][tile-'A'].size())
 		return(NULL);
 	// return sprite pointer
-	return(quad[quadrant][index]);
+	return(quad[quadrant][tile-'A'][index]);
+}
+// get n-th sprite context tile for given tile quadrant (all tile slopes together sequentially)
+Sprite* Sprite::GetContext(int quadrant,int index)
+{
+	if(quadrant < 0 || quadrant > 4 || index < 0)
+		return(NULL);
+	int id = 0;
+	for(int tid = 'A'; tid <= 'M'; tid++)
+	{
+		if(index < (id + quad[quadrant][tid-'A'].size()))
+			return(quad[quadrant][tid-'A'][index - id]);
+		id += quad[quadrant][tid-'A'].size();
+	}
+	return(NULL);
 }
 // check context match with given sprite
 int Sprite::CheckContext(int quadrant,Sprite* sprite)
 {
-	for(int k = 0; k < quad[quadrant].size(); k++)
-		if(quad[quadrant][k] == sprite)
+	for(auto const cont : quad[quadrant][sprite->GetSlope()-'A'])
+		if(cont == sprite)
 			return(1);
 	return(0);
 }
@@ -859,28 +963,39 @@ uint32_t Sprite::SetFlags(uint32_t new_flags)
 	flags = new_flags;
 	return(flags);
 }
+// set tile glyph flags
+uint32_t Sprite::SetGlyphFlags(uint32_t new_flags)
+{
+	flags2 = new_flags;
+	return(flags2);
+}
+// get tile glyph flags
+uint32_t Sprite::GetGlyphFlags()
+{
+	return(flags2);
+}
+
 // set edge/corner shading flags (overrides alll preexisting flags)
 uint32_t Sprite::SetShadingFlags(uint32_t new_flags)
 {
 	shading = new_flags;
 	return(shading);
 }
-// OR edge/corner shading flags
-uint32_t Sprite::OrShadingFlags(uint32_t new_flags)
-{
-	shading |= new_flags;
-	return(shading);
-}
-// clear edge/corner shading flags
-uint32_t Sprite::ClrShadingFlags(uint32_t new_flags)
-{
-	shading &= ~new_flags;
-	return(shading);
-}
 // get edge/corner shading flags
 uint32_t Sprite::GetShadingFlags()
 {
 	return(shading);
+}
+// set edge/corner shading flags mask (0 means the shading does not matter)
+uint32_t Sprite::SetShadingMask(uint32_t mask)
+{
+	shading = (shading & 0x00FF) | (mask << 8);
+	return(shading);
+}
+// get edge/corner shading mask
+uint32_t Sprite::GetShadingMask()
+{
+	return((shading >> 8) & 0x00FF);
 }
 // is tile side shaded?
 bool Sprite::isSideShaded(int side)
@@ -892,6 +1007,12 @@ bool Sprite::isCornerShaded(int corner)
 {
 	return(!!(shading & (Sprite::SHADING_CORNER_Q1 << corner)));
 }
+// is tile side shaded?
+bool Sprite::isSideShadedMask(int side)
+{
+	return(!!((shading >> 8) & (Sprite::SHADING_SIDE_Q1 << side)));
+}
+
 // set edge class
 void Sprite::SetEdgeClass(int edge, uint32_t new_class)
 {
@@ -906,6 +1027,56 @@ uint32_t Sprite::GetEdgeClass(int edge)
 		return(Sprite::CLASS_GENERIC);
 	return(edge_class[edge]);
 }
+// get special tile classes count
+int Sprite::GetSpecClassCount()
+{
+	return(SPEC_CLASS_MAX+1);
+}
+// get special tile class name string
+std::string Sprite::GetSpecClassName(int id)
+{
+	switch(id)
+	{
+		case SPEC_CLASS_NONE: return("None");
+		case SPEC_CLASS_GRAVE: return("Graves");
+		case SPEC_CLASS_RUBBLE1: return("Light rubble");
+		case SPEC_CLASS_RUBBLE2: return("Average rubble");
+		case SPEC_CLASS_RUBBLE3: return("Dense rubble");		
+		case SPEC_CLASS_ROCK: return("Rock");
+		case SPEC_CLASS_FIREPLACE: return("Fireplace");
+		case SPEC_CLASS_SCAR: return("Terrain scars");
+		case SPEC_CLASS_OBJECT: return("Object/house");		
+		default: return("N/A");
+	}
+}
+// set special class
+void Sprite::SetSpecClass(uint32_t class_id)
+{
+	spec_class = class_id;
+}
+// get special tile class
+uint32_t Sprite::GetSpecClass()
+{
+	return(spec_class);
+}
+// tools class/group clasification
+void Sprite::SetToolClass(int id)
+{
+	tool_class = id;
+}
+void Sprite::SetToolClassGroup(int id)
+{
+	tool_group = id;
+}
+int Sprite::GetToolClass()
+{
+	return(tool_class);
+}
+int Sprite::GetToolClassGroup()
+{
+	return(tool_group);
+}
+
 
 
 //=============================================================================
@@ -928,20 +1099,27 @@ Terrain::~Terrain()
 	// destruct each sprite element
 	for (unsigned k = 0; k < sprites.size(); k++)
 		delete sprites[k];
-	// clear list of sprites
 	sprites.clear();
 
 	// destruct each sprite element
 	for (unsigned k = 0; k < anms.size(); k++)
 		delete anms[k];
-	// clear list of sprites
 	anms.clear();
 
 	// destruct each sprite element
 	for(unsigned k = 0; k < pnms.size(); k++)
 		delete pnms[k];
-	// clear list of sprites
 	pnms.clear();
+
+	// destruct each object element
+	for(unsigned k = 0; k < objects.size(); k++)
+		delete objects[k];
+	objects.clear();
+
+	// clear tools
+	for(unsigned k = 0; k < tools.size(); k++)
+		delete tools[k];
+	tools.clear();
 }
 
 int Terrain::Load(wstring &path)
@@ -964,6 +1142,7 @@ int Terrain::Load(wstring &path)
 	fs = new FSarchive(path);
 
 	// --- read files from archive:
+	int sprite_index = 0;
 	int fcnt = 0;
 	for (int i = 0; i < fs->Count(); i++)
 	{		
@@ -1012,6 +1191,8 @@ int Terrain::Load(wstring &path)
 					delete fs;
 					return(1);
 				}
+				// set sprite index (linear unsorted)
+				sprite->SetIndex(sprite_index++);
 				
 				//st->Caption = "Loading " + N_terr + ": " + IntToStr(fcnt) + " - " + AnsiString(name);
 				fcnt++;
@@ -1156,9 +1337,11 @@ int Terrain::GetSpriteCount()
 // get order index in terrain list of sprite by sprite pointer
 int Terrain::GetSpriteID(Sprite* spr)
 {
-	for(int k = 0; k < sprites.size(); k++)
+	/*for(int k = 0; k < sprites.size(); k++)
 		if(sprites[k] == spr)
-			return(k);
+			return(k);*/
+	if(spr)
+		return(spr->GetIndex());
 	// not found
 	return(-1);
 }
@@ -1216,6 +1399,64 @@ int Terrain::InitSpriteContext(wstring &path)
 		return(1);
 	}
 
+	
+	// --- tool clasification:	
+	vector<vector<int>> tool_list;
+	vector<int> tool_ids;
+
+	// read tool classes count
+	uint32_t tool_count;
+	fr.read((char*)&tool_count,sizeof(uint32_t));
+	// for each tool list:
+	for(int tid = 0; tid < tool_count; tid++)
+	{
+		// get class name
+		uint16_t len;
+		fr.read((char*)&len, sizeof(uint16_t));		
+		char *name = new char[len];
+		fr.read(name,len);
+		
+		// try to get this class ID in currently loaded class list (may differ if one or other was modified!)
+		int class_id = GetToolSetID(name);
+		SpellToolsGroup *tool = NULL;
+		if(class_id >= 0)
+			tool = tools[class_id];
+
+		delete[] name;
+		
+		// read tool items count
+		uint32_t items_count;
+		fr.read((char*)&items_count,sizeof(uint32_t));		
+
+		// for each item in tool class:
+		vector<int> list;
+		for(int k = 0; k < items_count; k++)
+		{
+			// read item name
+			uint16_t len;
+			fr.read((char*)&len,sizeof(uint16_t));
+			char* name = new char[len];
+			fr.read(name,len);
+
+			int item_id = -1;
+			if(tool)
+			{
+				// try get item id inside tool class
+				item_id = tool->GetItemID(name);				
+			}
+			
+			// add item ID to list (0 for not found)
+			list.push_back(item_id);
+
+			delete[] name;
+		}
+		
+		// store items list to tools list
+		tool_ids.push_back(class_id);
+		tool_list.push_back(list);
+	}
+
+
 	// get context tile list size
 	uint32_t count;
 	fr.read((char*)&count, sizeof(uint32_t));
@@ -1246,7 +1487,8 @@ int Terrain::InitSpriteContext(wstring &path)
 			fr.read((char*)&cont_count,sizeof(uint32_t));
 
 			// reserve context buffer (faster adding tiles)
-			sprites[list[k]]->ReserveContext(quid, cont_count);
+			/*for(int tid = 'A'; tid <= 'M'; tid++) // ###temp
+				sprites[list[k]]->ReserveContext(quid, tid, cont_count);*/
 
 			// for each context tile
 			for(int sid = 0; sid < cont_count; sid++)
@@ -1278,9 +1520,69 @@ int Terrain::InitSpriteContext(wstring &path)
 		uint32_t flags;
 		fr.read((char*)&flags,sizeof(uint32_t));
 		sprites[list[k]]->SetFlags(flags);
+		
+		// load special flags
+		fr.read((char*)&flags,sizeof(uint32_t));
+		sprites[list[k]]->SetGlyphFlags(flags);
+
+		// load special tile class
+		uint32_t spec_class;
+		fr.read((char*)&spec_class,sizeof(uint32_t));
+		sprites[list[k]]->SetSpecClass(spec_class);
+
 		// load shading flags		
 		fr.read((char*)&flags,sizeof(uint32_t));
-		sprites[list[k]]->SetShadingFlags(flags);
+		sprites[list[k]]->SetShadingFlags(flags & 0x00FF);
+		sprites[list[k]]->SetShadingMask((flags >> 8) & 0x00FF);
+
+		// load tools class id
+		uint32_t tool_class;
+		fr.read((char*)&tool_class,sizeof(uint32_t));
+		
+		// load tools class item id
+		uint32_t tool_class_item;
+		fr.read((char*)&tool_class_item,sizeof(uint32_t));
+		
+		// try assign tool classes
+		if(tool_class)
+		{
+			// non empty class:
+			int class_id = tool_ids[tool_class-1];
+			if(class_id >= 0)
+			{		
+				if(tool_class_item)
+				{
+					// non empty item:
+					int item_id = tool_list[tool_class-1][tool_class_item - 1];
+					if(item_id >= 0)
+					{
+						// some item found
+						tool_class_item = item_id + 1;
+					}
+					else
+					{
+						// item not found: discard
+						tool_class_item = 0;
+					}
+				}
+
+				// class found
+				tool_class = class_id + 1;
+			}
+			else
+			{
+				// class not found in currently loaded tool set: discard classes
+				tool_class = 0;
+				tool_class_item = 0;
+			}
+		}
+		else
+		{
+			// class empty
+			tool_class_item = 0;
+		}			
+		sprites[list[k]]->SetToolClass(tool_class);
+		sprites[list[k]]->SetToolClassGroup(tool_class_item);
 	}
 
 	delete[] list;
@@ -1290,6 +1592,9 @@ int Terrain::InitSpriteContext(wstring &path)
 
 	// store load path expanded to absolute
 	context_path = std::filesystem::absolute(path).wstring();
+
+	// select tiles to be used as class type glyphs
+	UpdateTileGlyphs();
 
 	return(0);
 }
@@ -1308,6 +1613,38 @@ int Terrain::SaveSpriteContext(wstring& path)
 	const char ver[] = "SpellMapEditContextV1.0";
 	fw.write(ver, sizeof(ver));
 
+	// --- tool clasification:
+	// store tool classes count
+	uint32_t tool_count = GetToolsCount();
+	fw.write((char*)&tool_count,sizeof(uint32_t));
+	// for each tool list:
+	for(int tid = 0; tid < tool_count; tid++)
+	{
+		// get tool set
+		SpellToolsGroup *tool = GetToolSet(tid);
+		
+		// store tool set name
+		string name = tool->GetClassName();
+		uint16_t len = name.size() + 1;
+		fw.write((char*)&len, sizeof(uint16_t));
+		fw.write(name.c_str(), len);
+		
+		// store class items count
+		uint32_t items_count = tool->GetCount();
+		fw.write((char*)&items_count,sizeof(uint32_t));
+
+		// store class item names:
+		for(int k = 0; k < items_count; k++)
+		{
+			// store item name
+			string name = tool->GetItem(k);
+			uint16_t len = name.size() + 1;
+			fw.write((char*)&len,sizeof(uint16_t));
+			fw.write(name.c_str(),len);
+		}
+	}
+
+
 	// store sprite count
 	uint32_t count = sprites.size();
 	fw.write((char*)&count, sizeof(uint32_t));
@@ -1322,7 +1659,7 @@ int Terrain::SaveSpriteContext(wstring& path)
 		// for each tile side:
 		for(int quid = 0; quid < 4; quid++)
 		{
-			// L1 context count			
+			// L1 context count
 			uint32_t cont_count = sprites[k]->GetContextCount(quid);
 			fw.write((char*)&cont_count,sizeof(uint32_t));
 
@@ -1331,10 +1668,11 @@ int Terrain::SaveSpriteContext(wstring& path)
 			{
 				// get context tile index
 				Sprite *sprite = sprites[k]->GetContext(quid, sid);
-				uint16_t tile_id = GetSpriteID(sprite);
 				// store index
+				uint16_t tile_id = sprite->GetIndex();
 				fw.write((char*)&tile_id,sizeof(uint16_t));
 			}
+
 		}
 		// store edge classes
 		for(int quid = 0; quid < 4; quid++)
@@ -1347,9 +1685,25 @@ int Terrain::SaveSpriteContext(wstring& path)
 		uint32_t flags = sprites[k]->GetFlags();
 		fw.write((char*)&flags,sizeof(uint32_t));
 		
-		// store shading flags
-		uint32_t shade_flags = sprites[k]->GetShadingFlags();
+		// store special flags
+		flags = sprites[k]->GetGlyphFlags();
+		fw.write((char*)&flags,sizeof(uint32_t));
+		
+		// store special tile class
+		uint32_t spec_class = sprites[k]->GetSpecClass();
+		fw.write((char*)&spec_class,sizeof(uint32_t));
+		
+		// store shading flags and masks
+		uint32_t shade_flags = sprites[k]->GetShadingFlags() | (sprites[k]->GetShadingMask() << 8);
 		fw.write((char*)&shade_flags,sizeof(uint32_t));
+
+		// store tool class
+		uint32_t tool_class = sprites[k]->GetToolClass();
+		fw.write((char*)&tool_class,sizeof(uint32_t));
+
+		// store tool class item
+		uint32_t tool_class_item = sprites[k]->GetToolClassGroup();
+		fw.write((char*)&tool_class_item,sizeof(uint32_t));				
 	}
 
 	// close file
@@ -1362,30 +1716,43 @@ wstring& Terrain::GetSpriteContextPath()
 {
 	return(context_path);
 }
+// clear sprite context (only the Q1-Q4 tiles context, but not the flags of course!)
+void Terrain::ClearSpriteContext()
+{
+	for(auto const & spr : sprites)
+	{
+		// clear all quadrants
+		for(int k = 0; k < 4; k++)
+			spr->ClearContext(k);
+	}
+}
 // auto build context based on tile edge data
-int Terrain::UpdateSpriteContext()
+int Terrain::UpdateSpriteContext(std::function<void(std::string)> status_cb)
 {
 	// for each sprite:
 	for(int k = 0; k < sprites.size(); k++)
 	{
 		Sprite *ref = sprites[k];
-
-		if(ref->name[0] != 'P' && ref->name[1] != 'L')
-			continue;
 		
 		// debug
+		/*if(ref->name[0] != 'P' && ref->name[1] != 'L')
+			continue;
 		ref->ClearContext(0);
 		ref->ClearContext(1);
 		ref->ClearContext(2);
-		ref->ClearContext(3);
+		ref->ClearContext(3);*/
+
+		string status = string_format("Processing sprite #%d: %s", k+1, ref->name);
+		if(status_cb)
+			status_cb(status);
 		
 		// check possible neighbors:
 		for(int sid = 0; sid < sprites.size(); sid++)
 		{
 			Sprite *neig = sprites[sid];
 
-			if(neig->name[0] != 'P' && neig->name[1] != 'L')
-				continue;
+			/*if(neig->name[0] != 'P' && neig->name[1] != 'L')
+				continue;*/
 
 			// repeat for each tile side:
 			bool match = 1;
@@ -1417,9 +1784,11 @@ int Terrain::UpdateSpriteContext()
 					continue;
 				
 				// ref tile side shading
-				bool ref_is_shaded = ref->isSideShaded(eid);
+				bool ref_is_shaded = ref->isSideShaded(eid) || !ref->isSideShadedMask(eid);
+				bool ref_not_shaded = !ref->isSideShaded(eid) || !ref->isSideShadedMask(eid);
 				// neighboring tile side shading
-				bool neig_is_shaded = neig->isSideShaded(eid2);
+				bool neig_is_shaded = neig->isSideShaded(eid2) || !neig->isSideShadedMask(eid2);
+				bool neig_not_shaded = !neig->isSideShaded(eid2) || !neig->isSideShadedMask(eid2);
 
 				// check shading matches				
 				// It should work now except there are errors in spellcross maps itself (sometimes
@@ -1435,13 +1804,13 @@ int Terrain::UpdateSpriteContext()
 				{
 					case 'A':
 						if(nslp == 'A')
-							match = !ref_is_shaded && !neig_is_shaded;
+							match = ref_not_shaded && neig_not_shaded;
 						else if(nslp == 'B' || nslp == 'F' || nslp == 'I' || nslp == 'L')
 							match = ref_is_shaded; // note: this is valid because of fail in spellcross tiles design
 						else if(nslp == 'C' || nslp == 'E' || nslp == 'H' || nslp == 'K')
-							match = !ref_is_shaded && neig_is_shaded;
+							match = ref_not_shaded && neig_is_shaded;
 						else if((nslp == 'D' && eid == 1) || (nslp == 'G' && eid == 2) || (nslp == 'J' && eid == 3) || (nslp == 'M' && eid == 0))
-							match = !ref_is_shaded && neig_is_shaded;
+							match = ref_not_shaded && neig_is_shaded;
 						else
 							match = ref_is_shaded && neig_is_shaded;
 						break;					
@@ -1463,13 +1832,13 @@ int Terrain::UpdateSpriteContext()
 						is_sharp = nslp == 'D' || nslp == 'G' || nslp == 'B' || nslp == 'F' || nslp == 'I';
 					BFIL:
 						if(!can_shade)
-							match = !neig_is_shaded; // not shadeable side: do not allow neighbor shading
+							match = neig_not_shaded; // not shadeable side: do not allow neighbor shading
 						else if(nslp == 'A')
 							match = neig_is_shaded; // note: spellcross fail, allowing neighbor when at least 'A' is shaded
 						else if(is_sharp)
 							match = ref_is_shaded && neig_is_shaded; // sharp edges: both shaded only
 						else
-							match = (neig_is_shaded && ref_is_shaded) || (!neig_is_shaded && !ref_is_shaded);
+							match = (neig_is_shaded && ref_is_shaded) || (neig_not_shaded && ref_not_shaded);
 						break;
 					
 					case 'C':
@@ -1489,13 +1858,13 @@ int Terrain::UpdateSpriteContext()
 						is_sharp = nslp == 'G' || nslp == 'D' || nslp == 'C' || nslp == 'E' || nslp == 'H';
 					CEHK:
 						if(!can_shade)
-							match = !neig_is_shaded; // not shadeable side: do not allow neighbor shading
+							match = neig_not_shaded; // not shadeable side: do not allow neighbor shading
 						else if(nslp == 'A')
-							match = !neig_is_shaded && ref_is_shaded;
+							match = neig_not_shaded && ref_is_shaded;
 						else if(is_sharp)
 							match = ref_is_shaded && neig_is_shaded; // sharp edges: both shaded only
 						else
-							match = !neig_is_shaded && !ref_is_shaded; // all others must not be shaded
+							match = neig_not_shaded && ref_not_shaded; // all others must not be shaded
 						break;
 
 					case 'D':
@@ -1515,13 +1884,13 @@ int Terrain::UpdateSpriteContext()
 						is_sharp = nslp == 'G' || nslp == 'H' || nslp == 'E' || nslp == 'F' || nslp == 'I' || (eid == 0 && nslp == 'A');
 					DGJM:
 						if(!can_shade)
-							match = !neig_is_shaded; // not shadeable side: do not allow neighbor shading
+							match = neig_not_shaded; // not shadeable side: do not allow neighbor shading
 						else if(is_sharp)
 							match = ref_is_shaded && neig_is_shaded; // sharp edges: both shaded only
 						else if(nslp == 'A')
-							match = !neig_is_shaded && ref_is_shaded; // bottom 'A' tile: shading only this tile						
+							match = neig_not_shaded && ref_is_shaded; // bottom 'A' tile: shading only this tile						
 						else
-							match = !neig_is_shaded && !ref_is_shaded; // all others must not be shaded
+							match = neig_not_shaded && ref_not_shaded; // all others must not be shaded
 						break;
 					
 					default:
@@ -1559,15 +1928,23 @@ int Terrain::InitSpriteContextShading()
 			
 			// decode flags
 			uint32_t flags = 0x00;
+			uint32_t mask = 0x00;
 			for(int f = 0; f < 4; f++)
+			{
+				mask |= edge_list[f];
 				if(hex2num(spr->name[3]) & (1<<f))
 					flags |= edge_list[f];
+			}
 			for(int f = 0; f < 4; f++)
+			{
+				mask |= corn_list[f];
 				if(hex2num(spr->name[4]) & (1<<f))
 					flags |= corn_list[f];
+			}
 
 			// assign to context
 			cont->SetShadingFlags(flags);
+			cont->SetShadingMask(mask);
 
 			// also set edge classes as they are all the same
 			if(_strcmpi(this->name,"T11") == 0 || _strcmpi(this->name,"DEVAST") == 0)
@@ -1587,6 +1964,33 @@ int Terrain::InitSpriteContextShading()
 		}
 	}
 	return(0);
+}
+
+// make list of tile glyphs from tile class flags (call before first map rendering)
+int Terrain::UpdateTileGlyphs()
+{
+	for(int sid = 'A'; sid <= 'M'; sid++)
+	{
+		glyphs[sid - 'A'].clear();
+		for(int k = 0; k < sprites.size(); k++)
+		{
+			Sprite *spr = sprites[k];
+			if(spr->isClassGlyph() && spr->GetSlope() == sid)
+				glyphs[sid - 'A'].push_back(spr);
+		}
+	}
+	return(0);
+}
+// try to find sprite glyph matching input sprite class flags
+Sprite *Terrain::GetTileGlyph(Sprite *sprite, uint32_t flags)
+{
+	if(!flags)
+		flags = sprite->GetFlags();
+	vector<Sprite *> list = glyphs[sprite->GetSlope() - 'A'];
+	for(int k = 0; k < list.size(); k++)
+		if(list[k]->GetFlags() == flags)
+			return(list[k]);
+	return(NULL);
 }
 
 
@@ -1722,3 +2126,652 @@ AnimPNM* Terrain::GetPNM(const char* name)
 	return(NULL);
 }
 
+
+
+
+
+
+
+//=============================================================================
+// Spellcross map objects stuff
+//=============================================================================
+// make object
+SpellObject::SpellObject(vector<MapXY> xy,vector<Sprite*> L1_list,vector<Sprite*> L2_list,vector<uint8_t> flag_list,std::wstring glyph_path,uint8_t* palette,std::string desc)
+{
+	sprite_pos.clear();
+	L1_sprites.clear();
+	L2_sprites.clear();
+	flags.clear();
+	description = desc;	
+	last_gamma = 0.0;
+	if(palette)
+		std::memcpy((void*)pal, (void*)palette, 256*3);
+
+
+	// split path to folder and file
+	std::filesystem::path full_path = glyph_path;
+	image_name = wstring2string(full_path.filename());
+	image_path = glyph_path;
+
+	// find reference tile (bottom right)
+	MapXY ref(1<<30, 1<<30);	
+	for(int k = 0; k < xy.size(); k++)
+	{
+		ref.x = min(xy[k].x, ref.x);
+		ref.y = min(xy[k].y, ref.y);
+	}		
+	// ref tile is on even tile
+	bool y_is_even = !(ref.y & 1);
+
+	// store tile list	
+	MapXY ref2(1<<30, 1<<30);
+	for(int k = 0; k < xy.size(); k++)
+	{
+		// relative tile positions
+		MapXY pos;
+		pos.x = xy[k].x - ref.x;
+		pos.y = xy[k].y - ref.y;
+		if(!y_is_even && (xy[k].y&1))
+			pos.x--; // aligning zig-zag tile x-offsets
+		sprite_pos.push_back(pos);
+		ref2.x = min(pos.x, ref2.x);
+		ref2.y = min(pos.y, ref2.y);
+
+		// tile sprite pointers
+		L1_sprites.push_back(L1_list[k]);
+		L2_sprites.push_back(L2_list[k]);
+		flags.push_back(flag_list[k]);
+	}
+	// align from 0,0 (lazy solution)
+	for(int k = 0; k < sprite_pos.size(); k++)
+		sprite_pos[k].x -= ref2.x;
+}
+
+// generate image from object data
+int SpellObject::GenerateImage(std::wstring path, double gamma)
+{
+	if(!sprite_pos.size())
+		return(1);
+
+	// get dimensions for rendering
+	int x_size = 0;
+	int y_size = 0;
+	int x_ref = 1<<30;
+	for(int k = 0; k < sprite_pos.size(); k++)
+	{
+		x_ref = min(sprite_pos[k].x*80 + ((sprite_pos[k].y & 1)?0:40),x_ref);
+		x_size = max(sprite_pos[k].x*80 + ((sprite_pos[k].y & 1)?0:40)+80,x_size);
+		y_size = max(sprite_pos[k].y*24 + 48,y_size);
+	}
+	x_ref = -x_ref;
+	x_size += x_ref;
+
+	// allocate render buffer for indexed image
+	int surf_x = x_size;
+	int surf_y = 0 + y_size + 0;	
+	uint8_t* buf = new uint8_t[surf_x*surf_y];
+	uint8_t* buf_end = &buf[surf_x*surf_y];
+	// render origin
+	int org_x = x_ref;
+	int org_y = 0;
+
+	// make local bitmap buffer
+	wxBitmap bmp(surf_x, surf_y, 32);
+	bmp.UseAlpha(true);
+
+	// clear background
+	std::memset((void*)buf,230,surf_x*surf_y);
+
+	// L1 render:
+	for(int tid = 0;tid < sprite_pos.size(); tid++)
+	{
+		// tile position in surface
+		int sx = sprite_pos[tid].x;
+		int sy = sprite_pos[tid].y;
+		int ref_x = org_x + sx*80 + ((sy&1)?0:40);
+		int ref_y = org_y + sy*24;
+
+		// render tile
+		Sprite* spr = L1_sprites[tid];
+		spr->Render(buf,buf_end,ref_x,ref_y,surf_x);
+	}
+	// L2 render:
+	for(int tid = 0;tid < sprite_pos.size(); tid++)
+	{		
+		Sprite* spr = L2_sprites[tid];
+		if(!spr)
+			continue;
+
+		// tile position in surface
+		int sx = sprite_pos[tid].x;
+		int sy = sprite_pos[tid].y;
+		int ref_x = org_x + sx*80 + ((sy&1)?0:40);
+		int ref_y = org_y + sy*24;
+
+		// apply L1 y-offset
+		Sprite* L1 = L1_sprites[tid];
+		sy += L1->y_ofs;
+
+		// render tile		
+		spr->Render(buf,buf_end,ref_x,ref_y,surf_x);
+	}
+
+	// apply gamma correction to palette:
+	if(gamma != last_gamma)
+	{
+		// store last gamma to prevent recalculatiom in each frame
+		last_gamma = gamma;
+
+		// male local copy of palette	
+		std::memcpy((void*)gamma_pal,(void*)pal,3 * 256);
+
+		// apply gamma correction (this should be maybe optimized out of here?
+		for(int k = 0; k < 256; k++)
+			for(int c = 0; c < 3; c++)
+				gamma_pal[k][c] = (uint8_t)(pow((double)pal[k][c] / 255.0,1.0 / gamma) * 255.0);
+	}
+
+	// render 24bit RGB data to raw bmp buffer
+	typedef wxPixelData<wxBitmap,wxAlphaPixelFormat> PixelData;
+	PixelData data(bmp);
+	PixelData::Iterator p(data);
+	for(int y = 0; y < surf_y; ++y)
+	{
+		uint8_t* scan = p.m_ptr;
+		uint8_t* src = &buf[y*surf_x];
+		for(int x = 0; x < surf_x; x++)
+		{			
+			*scan++ = gamma_pal[*src][2];
+			*scan++ = gamma_pal[*src][1];
+			*scan++ = gamma_pal[*src][0];			
+			*scan++ = (*src != 230)*255;
+			src++;
+		}
+		p.OffsetY(data,1);
+	}
+
+	// loose local buffer
+	delete[] buf;
+
+	// save to file
+	if(!path.empty())
+	{
+		bmp.SaveFile(path, wxBITMAP_TYPE_PNG);
+	}
+
+	return(0);
+}
+// get object description
+std::string SpellObject::GetDescription()
+{
+	return(description);
+}
+// get object glyph path
+std::wstring SpellObject::GetGlyphPath()
+{
+	return(image_path);
+}
+// get object glyph name
+std::string SpellObject::GetGlyphName()
+{
+	return(image_name);
+}
+
+// write object to a file (for saving objects list)
+int SpellObject::WriteToFile(ofstream &fw)
+{
+	// write description string
+	uint32_t desc_len = description.size()+1;
+	fw.write((char*)&desc_len,sizeof(uint32_t));
+	fw.write(description.c_str(),desc_len);
+
+	// write image name string
+	uint32_t name_len = image_name.size()+1;
+	fw.write((char*)&name_len,sizeof(uint32_t));
+	fw.write(image_name.c_str(),name_len);
+
+	// write tiles count
+	uint32_t tile_count = L1_sprites.size();
+	fw.write((char*)&tile_count,sizeof(uint32_t));
+
+	// for each tile:
+	for(int k = 0;k < tile_count; k++)
+	{	
+		// write L1 sprite index
+		uint32_t id1 = L1_sprites[k]->GetIndex();
+		fw.write((char*)&id1,sizeof(uint32_t));
+
+		// write L2 sprite index
+		uint32_t id2 = (L2_sprites[k])?(L2_sprites[k]->GetIndex()):(-1);
+		fw.write((char*)&id2,sizeof(uint32_t));
+
+		// write flags
+		uint8_t flag = flags[k];
+		fw.write((char*)&flag,sizeof(uint8_t));
+
+		// write tile relative position [x,y]
+		uint32_t x_pos = sprite_pos[k].x;
+		uint32_t y_pos = sprite_pos[k].y;
+		fw.write((char*)&x_pos,sizeof(uint32_t));
+		fw.write((char*)&y_pos,sizeof(uint32_t));
+	}
+
+	return(0);
+}
+
+// create object to a file
+SpellObject::SpellObject(ifstream& fr,vector<Sprite*> &sprite_list, std::wstring &glyph_path,uint8_t* palette)
+{
+	sprite_pos.clear();
+	L1_sprites.clear();
+	L2_sprites.clear();
+	description = "";
+	last_gamma = 0.0;
+	if(palette)
+		std::memcpy((void*)pal,(void*)palette,256*3);
+	
+	char *temp;
+	uint32_t len;
+
+	// read description string	
+	fr.read((char*)&len,sizeof(uint32_t));
+	temp = new char[len];
+	fr.read(temp,len);
+	description = string(temp);
+	delete[] temp;
+
+	// read image name string
+	fr.read((char*)&len,sizeof(uint32_t));
+	temp = new char[len];
+	fr.read(temp,len);
+	image_name = string(temp);
+	delete[] temp;
+
+	// make full glyph path
+	image_path = glyph_path + image_name;
+	
+	// read tiles count
+	uint32_t tile_count;
+	fr.read((char*)&tile_count,sizeof(uint32_t));
+	
+	L1_sprites.reserve(tile_count);
+	L2_sprites.reserve(tile_count);
+	flags.reserve(tile_count);
+	sprite_pos.reserve(tile_count);
+	
+	// for each tile:
+	for(int k = 0;k < tile_count; k++)
+	{
+		// read L1 sprite index
+		uint32_t id1;
+		fr.read((char*)&id1,sizeof(uint32_t));
+		if(id1 >= sprite_list.size())
+			return;		
+		L1_sprites.push_back(sprite_list[id1]);
+
+		// read L2 sprite index
+		uint32_t id2;
+		fr.read((char*)&id2,sizeof(uint32_t));
+		if(id2 == 0xFFFFFFFFu)
+			L2_sprites.push_back(NULL);
+		else if(id2 >= sprite_list.size())
+			return;
+		else
+		L2_sprites.push_back(sprite_list[id2]);		
+
+		// read flags
+		uint32_t flag;
+		fr.read((char*)&flag,sizeof(uint8_t));
+		flags.push_back(flag);
+		
+		// read tile relative position [x,y]
+		uint32_t x_pos;
+		uint32_t y_pos;
+		fr.read((char*)&x_pos,sizeof(uint32_t));
+		fr.read((char*)&y_pos,sizeof(uint32_t));
+		MapXY pxy(x_pos, y_pos);
+		sprite_pos.push_back(pxy);
+	}
+}
+
+// load objects from file
+int Terrain::LoadObjects(wstring& path)
+{
+	// leave if empty
+	if(path.empty())
+		return(1);
+
+	// store last path
+	objects_path = path;
+
+	// try to open file
+	ifstream fr(path,ios::in | ios::binary);
+	if(!fr.is_open())
+		return(1);
+
+	// check version
+	const char ver_ref[] = "SpellMapEditObjectsV1.0";
+	char ver[sizeof(ver_ref)];
+	fr.read(ver,sizeof(ver_ref));
+	if(memcmp(ver,ver_ref,sizeof(ver_ref)))
+	{
+		fr.close();
+		return(1);
+	}
+
+	// get terrain name
+	uint32_t terr_len;
+	char terr_name[MAX_STR+1];
+	fr.read((char*)&terr_len,sizeof(uint32_t));
+	if(terr_len > MAX_STR)
+	{
+		fr.close();
+		return(1);
+	}
+	fr.read(terr_name, terr_len);
+	if(std::strcmp(terr_name, name))
+	{
+		// wrong terrain!
+		fr.close();
+		return(1);
+	}
+
+	// get sprites count
+	int spr_count;
+	fr.read((char*)&spr_count,sizeof(uint32_t));
+
+	// read sprite names
+	vector<Sprite*> list;
+	list.reserve(spr_count);
+	for(int k = 0; k < spr_count; k++)
+	{
+		// get tile name
+		char tile_name[9];
+		fr.read(tile_name,sizeof(tile_name));
+
+		// try to find its index in terrain list
+		Sprite *spr = GetSprite(tile_name);
+		if(!spr)
+		{
+			fr.close();
+			return(1);
+		}
+		list.push_back(spr);
+	}
+
+	// get objects count
+	int count;
+	fr.read((char*)&count,sizeof(uint32_t));
+
+	objects.clear();
+	objects.reserve(count);
+
+	// --- for each object:
+	for(int k = 0; k < count;k++)
+	{
+		// read object data
+		wstring glyph_dir = L"data\\objects\\" + char2wstring(name) + L"\\";
+		SpellObject *obj = new SpellObject(fr, list, glyph_dir, (uint8_t*)pal);	
+		objects.push_back(obj);
+	}	
+
+	// close file
+	fr.close();
+	list.clear();
+
+	return(0);
+}
+// store objects list to a file
+int Terrain::SaveObjects(wstring& path)
+{
+	// create file
+	ofstream fw(path,ios::out | ios::binary);
+	if(!fw.is_open())
+		return(1);
+
+	// store last path
+	objects_path = path;
+
+	// store version string
+	const char ver[] = "SpellMapEditObjectsV1.0";
+	fw.write(ver,sizeof(ver));
+
+	// store related terrain name
+	uint32_t terrain_len = std::strlen(name)+1;
+	fw.write((char*)&terrain_len,sizeof(uint32_t));
+	fw.write(name,terrain_len);
+
+	// store sprite count
+	uint32_t spr_count = sprites.size();
+	fw.write((char*)&spr_count,sizeof(uint32_t));
+
+	// store sprite name list, following code will work with indexes corresponding to this list
+	for(int k = 0; k < spr_count;k++)
+		fw.write(sprites[k]->name,sizeof(sprites[k]->name));
+
+	// store objects count
+	uint32_t count = objects.size();
+	fw.write((char*)&count,sizeof(uint32_t));
+
+	// --- for each object:
+	for(int k = 0; k < count;k++)
+	{
+		// write object data
+		objects[k]->WriteToFile(fw);
+	}
+
+	// close file
+	fw.close();
+
+	return(0);
+}
+
+// add object to list of object
+int Terrain::AddObject(vector<MapXY> xy,vector<Sprite*> L1_list,vector<Sprite*> L2_list,vector<uint8_t> flag_list,std::wstring glyph_path,uint8_t* palette,std::string desc)
+{
+	// create object
+	SpellObject *obj = new SpellObject(xy,L1_list,L2_list,flag_list,glyph_path,(uint8_t*)pal,desc);
+
+	// generate glyph
+	obj->GenerateImage(glyph_path);
+
+	// add to list
+	objects.push_back(obj);
+
+	return(0);
+}
+// get objects count
+int Terrain::GetObjectsCount()
+{
+	return(objects.size());
+}
+// get object from list
+SpellObject* Terrain::GetObject(int id)
+{
+	if(id >= objects.size())
+		return(NULL);
+	return(objects[id]);
+}
+// return last objects file path
+wstring& Terrain::GetSpriteObjectsPath()
+{
+	return(objects_path);
+}
+// check if given glyph name is not already in use
+int Terrain::VerifyObjectGlyphName(string name)
+{
+	for(int k = 0; k < objects.size(); k++)
+		if(objects[k]->GetGlyphName().compare(name) == 0)
+			return(1); // fail
+	// ok
+	return(0);
+}
+// suggest object glyph name
+string Terrain::SuggestObjectGlyphName()
+{	
+	int id = 1;
+	while(true)
+	{
+		// make new name
+		char temp[100];
+		sprintf_s(temp,"object_%03d.png",id);
+		
+		// check it
+		if(VerifyObjectGlyphName(temp) == 0)
+			return(string(temp));
+
+		// try another one
+		id++;
+	}
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+SpellToolsGroup::SpellToolsGroup(string& name,string& title)
+{
+	items.clear();
+	this->name = name;
+	this->title = title;
+}
+void SpellToolsGroup::AddItem(string item)
+{
+	items.push_back(item);
+}
+int SpellToolsGroup::GetCount()
+{
+	return(items.size());
+}
+string SpellToolsGroup::GetItem(int id)
+{
+	if(id < items.size())
+		return(items[id]);
+	return("");
+}
+string &SpellToolsGroup::GetClassName()
+{	
+	return(name);
+}
+string& SpellToolsGroup::GetClassTitle()
+{
+	return(title);
+}
+int SpellToolsGroup::GetItemID(const char* item_name)
+{
+	for(int k = 0; k < items.size(); k++)
+		if(items[k].compare(item_name) == 0)
+			return(k);
+	return(-1);
+}
+
+
+
+
+
+
+// Load toolset
+int Terrain::LoadTools(wstring& path)
+{
+	if(path.empty())
+		return(1);
+
+	// load config.ini
+	CSimpleIniA ini;
+	ini.SetUnicode();
+	ini.LoadFile(path.c_str());
+
+	// try to get list of sections (tool classes)
+	std::list<CSimpleIniA::Entry> tool_class_list;
+	ini.GetAllSections(tool_class_list);
+
+	// for each class:
+	for(auto const &cid : tool_class_list)
+	{				
+		// get tools page name
+		string page_name = string(ini.GetValue(cid.pItem, "page_name"));
+		
+		// get tools page title
+		string page_title = string(ini.GetValue(cid.pItem,"page_title"));
+
+		// get list of items
+		std::list<CSimpleIniA::Entry> group_list;
+		ini.GetAllKeys(cid.pItem,group_list);
+
+		SpellToolsGroup* grp = new SpellToolsGroup(page_name, page_title);
+		tools.push_back(grp);
+
+		// for each item of class:
+		for(auto const& gid : group_list)
+		{
+			// for items only:
+			if(wildcmp("item_*",gid.pItem))
+			{
+				// add item to list
+				string item = ini.GetValue(cid.pItem, gid.pItem);
+				grp->AddItem(item);
+			}
+		}
+	}
+
+	return(0);
+}
+// get tool classes count
+int Terrain::GetToolsCount()
+{
+	return(tools.size());
+}
+// get tools class
+SpellToolsGroup* Terrain::GetToolSet(int id)
+{
+	if(id < tools.size())
+		return(tools[id]);
+	return(NULL);
+}
+SpellToolsGroup* Terrain::GetToolSet(string &name)
+{
+	for(auto const &id : tools)
+		if(id->GetClassName().compare(name) == 0)
+			return(id);
+	return(NULL);
+}
+// get tool class id
+int Terrain::GetToolSetID(string& name)
+{
+	return(GetToolSetID(name.c_str()));
+}
+int Terrain::GetToolSetID(const char *name)
+{
+	for(int k = 0; k < tools.size(); k++)
+		if(tools[k]->GetClassName().compare(name) == 0)
+			return(k);
+	return(-1);
+}
+// render tool item glyph image (if available in sprite context)
+wxBitmap* Terrain::RenderToolItemImage(int tool_id,int item_id,double gamma)
+{
+	// find sprite that matches the desired classes and is marked as tool item glyph
+	for(auto const &sid : sprites)
+	{
+		if( sid->GetToolClass() == tool_id + 1 &&
+			sid->GetToolClassGroup() == item_id + 1 &&
+			(sid->GetGlyphFlags() & Sprite::IS_TOOL_ITEM_GLYPH))
+		{
+			// mathing sprite found: render
+			return(sid->Render((uint8_t*)pal, gamma));
+		}
+	}
+	// not found - render blank:	
+	wxBitmap* bmp = new wxBitmap(48,48,32);
+	bmp->UseAlpha(true);
+	return(bmp);
+}

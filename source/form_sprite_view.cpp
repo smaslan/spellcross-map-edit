@@ -22,7 +22,7 @@ FormSprite::FormSprite( wxWindow* parent,SpellData* spell_data,wxWindowID id, co
 	
 	// === AUTO GENERATED STUFF STARTS HERE ===
 	
-	this->SetSizeHints(wxSize(900,-1),wxDefaultSize);
+	this->SetSizeHints(wxSize(1050,600),wxDefaultSize);
 	this->SetBackgroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_BTNFACE));
 
 	mMenu = new wxMenuBar(0);
@@ -52,6 +52,10 @@ FormSprite::FormSprite( wxWindow* parent,SpellData* spell_data,wxWindowID id, co
 	mnuEdit->Append(btnPrev);
 
 	mnuEdit->AppendSeparator();
+
+	wxMenuItem* btnClearContext;
+	btnClearContext = new wxMenuItem(mnuEdit,wxID_BTN_CLR_CONTEXT,wxString(wxT("Clear tile context")),wxEmptyString,wxITEM_NORMAL);
+	mnuEdit->Append(btnClearContext);
 
 	wxMenuItem* btnBuildContext;
 	btnBuildContext = new wxMenuItem(mnuEdit,wxID_EDIT_TILE_CONTEXT_AUTO,wxString(wxT("Update tiles' context")),wxT("Auto generate tile context from edge class data. Not it may take some time!"),wxITEM_NORMAL);
@@ -154,26 +158,35 @@ FormSprite::FormSprite( wxWindow* parent,SpellData* spell_data,wxWindowID id, co
 	cbIsDarkGrass = new wxCheckBox(sbSizer2->GetStaticBox(),wxID_CB_IS_DGRASS,wxT("Dark grass"),wxDefaultPosition,wxDefaultSize,0);
 	sbSizer2->Add(cbIsDarkGrass,0,wxLEFT|wxRIGHT|wxTOP,5);
 
-	cbIsBlood = new wxCheckBox(sbSizer2->GetStaticBox(),wxID_CB_IS_BLOOD,wxT("Blood"),wxDefaultPosition,wxDefaultSize,0);
-	sbSizer2->Add(cbIsBlood,0,wxLEFT|wxRIGHT|wxTOP,5);
+	cbIsSand = new wxCheckBox(sbSizer2->GetStaticBox(),wxID_CB_IS_SAND,wxT("Sand"),wxDefaultPosition,wxDefaultSize,0);
+	sbSizer2->Add(cbIsSand,0,wxLEFT|wxRIGHT|wxTOP,5);
 
 	cbIsMud = new wxCheckBox(sbSizer2->GetStaticBox(),wxID_CB_IS_MUD,wxT("Mud"),wxDefaultPosition,wxDefaultSize,0);
 	sbSizer2->Add(cbIsMud,0,wxLEFT|wxRIGHT|wxTOP,5);
 
+	cbIsAsh = new wxCheckBox(sbSizer2->GetStaticBox(),wxID_CB_IS_ASH,wxT("Ash"),wxDefaultPosition,wxDefaultSize,0);
+	sbSizer2->Add(cbIsAsh,0,wxLEFT|wxRIGHT|wxTOP,5);
+
 	cbIsSwamp = new wxCheckBox(sbSizer2->GetStaticBox(),wxID_CB_IS_SWAMP,wxT("Swamp"),wxDefaultPosition,wxDefaultSize,0);
 	sbSizer2->Add(cbIsSwamp,0,wxLEFT|wxRIGHT|wxTOP,5);
 
-	cbIsAsh = new wxCheckBox(sbSizer2->GetStaticBox(),wxID_CB_IS_ASH,wxT("Ash"),wxDefaultPosition,wxDefaultSize,0);
-	sbSizer2->Add(cbIsAsh,0,wxLEFT|wxRIGHT|wxTOP,5);
+	cbIsBlood = new wxCheckBox(sbSizer2->GetStaticBox(),wxID_CB_IS_BLOOD,wxT("Blood"),wxDefaultPosition,wxDefaultSize,0);
+	sbSizer2->Add(cbIsBlood,0,wxLEFT|wxRIGHT|wxTOP,5);
 
 	cbIsHigh = new wxCheckBox(sbSizer2->GetStaticBox(),wxID_CB_IS_HIGH_LAND,wxT("High land"),wxDefaultPosition,wxDefaultSize,0);
 	sbSizer2->Add(cbIsHigh,0,wxLEFT|wxRIGHT|wxTOP,5);
 
+	cbIsWater = new wxCheckBox(sbSizer2->GetStaticBox(),wxID_CB_IS_WATER,wxT("Water"),wxDefaultPosition,wxDefaultSize,0);
+	sbSizer2->Add(cbIsWater,0,wxLEFT|wxRIGHT|wxTOP,5);
+
+	cbIsRidge = new wxCheckBox(sbSizer2->GetStaticBox(),wxID_CB_IS_RIDGE,wxT("Ridge"),wxDefaultPosition,wxDefaultSize,0);
+	sbSizer2->Add(cbIsRidge,0,wxLEFT|wxRIGHT|wxTOP,5);
+
+	cbIsCliff = new wxCheckBox(sbSizer2->GetStaticBox(),wxID_CB_IS_CLIFF,wxT("Cliff"),wxDefaultPosition,wxDefaultSize,0);
+	sbSizer2->Add(cbIsCliff,0,wxLEFT|wxRIGHT|wxTOP,5);
+
 	cbIsRoad = new wxCheckBox(sbSizer2->GetStaticBox(),wxID_CB_IS_ASH_ROAD,wxT("Asphalt road"),wxDefaultPosition,wxDefaultSize,0);
 	sbSizer2->Add(cbIsRoad,0,wxLEFT|wxRIGHT|wxTOP,5);
-
-	cbIsBrokeAshroad = new wxCheckBox(sbSizer2->GetStaticBox(),wxID_CB_IS_BROKE_ASH_ROAD,wxT("Broken asphalt road"),wxDefaultPosition,wxDefaultSize,0);
-	sbSizer2->Add(cbIsBrokeAshroad,0,wxLEFT|wxRIGHT|wxTOP,5);
 
 	cbIsDirtRoad = new wxCheckBox(sbSizer2->GetStaticBox(),wxID_CB_IS_DIRT_ROAD,wxT("Dirt road"),wxDefaultPosition,wxDefaultSize,0);
 	sbSizer2->Add(cbIsDirtRoad,0,wxLEFT|wxRIGHT|wxTOP,5);
@@ -181,11 +194,8 @@ FormSprite::FormSprite( wxWindow* parent,SpellData* spell_data,wxWindowID id, co
 	cbIsMudPath = new wxCheckBox(sbSizer2->GetStaticBox(),wxID_CB_IS_MUD_PATH,wxT("Mud path"),wxDefaultPosition,wxDefaultSize,0);
 	sbSizer2->Add(cbIsMudPath,0,wxLEFT|wxRIGHT|wxTOP,5);
 
-	cbIsCliff = new wxCheckBox(sbSizer2->GetStaticBox(),wxID_CB_IS_CLIFF,wxT("Cliff"),wxDefaultPosition,wxDefaultSize,0);
-	sbSizer2->Add(cbIsCliff,0,wxLEFT|wxRIGHT|wxTOP,5);
-
-	cbIsWater = new wxCheckBox(sbSizer2->GetStaticBox(),wxID_CB_IS_WATER,wxT("Water"),wxDefaultPosition,wxDefaultSize,0);
-	sbSizer2->Add(cbIsWater,0,wxLEFT|wxRIGHT|wxTOP,5);
+	cbIsWallBase = new wxCheckBox(sbSizer2->GetStaticBox(),wxID_CB_IS_WALL_BASE,wxT("Wall base"),wxDefaultPosition,wxDefaultSize,0);
+	sbSizer2->Add(cbIsWallBase,0,wxLEFT|wxRIGHT|wxTOP,5);
 
 	cbIsWBridge = new wxCheckBox(sbSizer2->GetStaticBox(),wxID_CB_IS_WBRIDGE,wxT("Wooden bridge"),wxDefaultPosition,wxDefaultSize,0);
 	sbSizer2->Add(cbIsWBridge,0,wxLEFT|wxRIGHT|wxTOP,5);
@@ -196,11 +206,35 @@ FormSprite::FormSprite( wxWindow* parent,SpellData* spell_data,wxWindowID id, co
 	cbIsFord = new wxCheckBox(sbSizer2->GetStaticBox(),wxID_CB_IS_FORD,wxT("Ford"),wxDefaultPosition,wxDefaultSize,0);
 	sbSizer2->Add(cbIsFord,0,wxLEFT|wxRIGHT|wxTOP,5);
 
-	cbIsSand = new wxCheckBox(sbSizer2->GetStaticBox(),wxID_CB_IS_SAND,wxT("Sand"),wxDefaultPosition,wxDefaultSize,0);
-	sbSizer2->Add(cbIsSand,0,wxLEFT|wxRIGHT|wxTOP,5);
+	cbIsRidgeBridge = new wxCheckBox(sbSizer2->GetStaticBox(),wxID_CB_IS_RIDGE_BRIDGE,wxT("Ridge bridge"),wxDefaultPosition,wxDefaultSize,0);
+	sbSizer2->Add(cbIsRidgeBridge,0,wxLEFT|wxRIGHT|wxTOP,5);
+
+	cbIsBroken = new wxCheckBox(sbSizer2->GetStaticBox(),wxID_CB_IS_BROKEN,wxT("Broken/damaged"),wxDefaultPosition,wxDefaultSize,0);
+	sbSizer2->Add(cbIsBroken,0,wxLEFT|wxRIGHT|wxTOP,5);
+
+	cbIsShadow = new wxCheckBox(sbSizer2->GetStaticBox(),wxID_CB_IS_SHADOW,wxT("Shadow"),wxDefaultPosition,wxDefaultSize,0);
+	sbSizer2->Add(cbIsShadow,0,wxLEFT|wxRIGHT|wxTOP,5);
+
+	cbIsScar = new wxCheckBox(sbSizer2->GetStaticBox(),wxID_CB_IS_SCAR,wxT("Terrain scar"),wxDefaultPosition,wxDefaultSize,0);
+	sbSizer2->Add(cbIsScar,0,wxLEFT|wxRIGHT|wxTOP,5);
+
+	cbIsObject = new wxCheckBox(sbSizer2->GetStaticBox(),wxID_CB_IS_OBJECT,wxT("Object"),wxDefaultPosition,wxDefaultSize,0);
+	sbSizer2->Add(cbIsObject,0,wxLEFT|wxRIGHT|wxTOP,5);
+
+	m_staticline2 = new wxStaticLine(sbSizer2->GetStaticBox(),wxID_ANY,wxDefaultPosition,wxDefaultSize,wxLI_HORIZONTAL);
+	sbSizer2->Add(m_staticline2,0,wxEXPAND | wxALL,5);
+
+	cbUseAsGlyph = new wxCheckBox(sbSizer2->GetStaticBox(),wxID_CB_USE_AS_GLYPH,wxT("Use as class glyph"),wxDefaultPosition,wxDefaultSize,0);
+	sbSizer2->Add(cbUseAsGlyph,0,wxLEFT|wxRIGHT,5);
+
+	cbFaultCont = new wxCheckBox(sbSizer2->GetStaticBox(),wxID_CB_FAULTY,wxT("Faulty context"),wxDefaultPosition,wxDefaultSize,0);
+	sbSizer2->Add(cbFaultCont,0,wxLEFT|wxRIGHT|wxTOP,5);
 
 
 	bSizer1->Add(sbSizer2,0,wxEXPAND|wxLEFT|wxTOP,5);
+
+	wxBoxSizer* bSizer10;
+	bSizer10 = new wxBoxSizer(wxVERTICAL);
 
 	wxStaticBoxSizer* sbSizer3;
 	sbSizer3 = new wxStaticBoxSizer(new wxStaticBox(this,wxID_ANY,wxT("Tile Params:")),wxVERTICAL);
@@ -249,35 +283,66 @@ FormSprite::FormSprite( wxWindow* parent,SpellData* spell_data,wxWindowID id, co
 	wxGridSizer* gSizer1;
 	gSizer1 = new wxGridSizer(2,4,0,0);
 
-	cbShadeQ1 = new wxCheckBox(sbSizer3->GetStaticBox(),wxID_CB_SHADE_Q1,wxT("Q1"),wxDefaultPosition,wxDefaultSize,0);
+	cbShadeQ1 = new wxCheckBox(sbSizer3->GetStaticBox(),wxID_CB_SHADE_Q1,wxT("Q1"),wxDefaultPosition,wxDefaultSize,wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER);
 	gSizer1->Add(cbShadeQ1,0,wxALL,5);
 
-	cbShadeQ2 = new wxCheckBox(sbSizer3->GetStaticBox(),wxID_CB_SHADE_Q2,wxT("Q2"),wxDefaultPosition,wxDefaultSize,0);
+	cbShadeQ2 = new wxCheckBox(sbSizer3->GetStaticBox(),wxID_CB_SHADE_Q2,wxT("Q2"),wxDefaultPosition,wxDefaultSize,wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER);
 	gSizer1->Add(cbShadeQ2,0,wxALL,5);
 
-	cbShadeQ3 = new wxCheckBox(sbSizer3->GetStaticBox(),wxID_CB_SHADE_Q3,wxT("Q3"),wxDefaultPosition,wxDefaultSize,0);
+	cbShadeQ3 = new wxCheckBox(sbSizer3->GetStaticBox(),wxID_CB_SHADE_Q3,wxT("Q3"),wxDefaultPosition,wxDefaultSize,wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER);
 	gSizer1->Add(cbShadeQ3,0,wxALL,5);
 
-	cbShadeQ4 = new wxCheckBox(sbSizer3->GetStaticBox(),wxID_CB_SHADE_Q4,wxT("Q4"),wxDefaultPosition,wxDefaultSize,0);
+	cbShadeQ4 = new wxCheckBox(sbSizer3->GetStaticBox(),wxID_CB_SHADE_Q4,wxT("Q4"),wxDefaultPosition,wxDefaultSize,wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER);
 	gSizer1->Add(cbShadeQ4,0,wxALL,5);
 
-	cbShadeC1 = new wxCheckBox(sbSizer3->GetStaticBox(),wxID_CB_SHADE_C1,wxT("C1"),wxDefaultPosition,wxDefaultSize,0);
+	cbShadeC1 = new wxCheckBox(sbSizer3->GetStaticBox(),wxID_CB_SHADE_C1,wxT("C1"),wxDefaultPosition,wxDefaultSize,wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER);
 	gSizer1->Add(cbShadeC1,0,wxALL,5);
 
-	cbShadeC2 = new wxCheckBox(sbSizer3->GetStaticBox(),wxID_CB_SHADE_C2,wxT("C2"),wxDefaultPosition,wxDefaultSize,0);
+	cbShadeC2 = new wxCheckBox(sbSizer3->GetStaticBox(),wxID_CB_SHADE_C2,wxT("C2"),wxDefaultPosition,wxDefaultSize,wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER);
 	gSizer1->Add(cbShadeC2,0,wxALL,5);
 
-	cbShadeC3 = new wxCheckBox(sbSizer3->GetStaticBox(),wxID_CB_SHADE_C3,wxT("C3"),wxDefaultPosition,wxDefaultSize,0);
+	cbShadeC3 = new wxCheckBox(sbSizer3->GetStaticBox(),wxID_CB_SHADE_C3,wxT("C3"),wxDefaultPosition,wxDefaultSize,wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER);
 	gSizer1->Add(cbShadeC3,0,wxALL,5);
 
-	cbShadeC4 = new wxCheckBox(sbSizer3->GetStaticBox(),wxID_CB_SHADE_C4,wxT("C4"),wxDefaultPosition,wxDefaultSize,0);
+	cbShadeC4 = new wxCheckBox(sbSizer3->GetStaticBox(),wxID_CB_SHADE_C4,wxT("C4"),wxDefaultPosition,wxDefaultSize,wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER);
 	gSizer1->Add(cbShadeC4,0,wxALL,5);
 
 
 	sbSizer3->Add(gSizer1,0,0,5);
 
 
-	bSizer1->Add(sbSizer3,0,wxEXPAND|wxLEFT|wxTOP,5);
+	bSizer10->Add(sbSizer3,0,wxEXPAND|wxLEFT|wxTOP,5);
+
+	wxStaticBoxSizer* sbSizer6;
+	sbSizer6 = new wxStaticBoxSizer(new wxStaticBox(this,wxID_ANY,wxT("Object/class/tools sorting:")),wxVERTICAL);
+
+	m_staticText13 = new wxStaticText(sbSizer6->GetStaticBox(),wxID_ANY,wxT("Objects class:"),wxDefaultPosition,wxDefaultSize,0);
+	m_staticText13->Wrap(-1);
+	sbSizer6->Add(m_staticText13,0,wxLEFT|wxTOP,5);
+
+	wxArrayString chbToolClassChoices;
+	chbToolClass = new wxChoice(sbSizer6->GetStaticBox(),wxID_CHB_TOOL_CLASS,wxDefaultPosition,wxDefaultSize,chbToolClassChoices,0);
+	chbToolClass->SetSelection(0);
+	sbSizer6->Add(chbToolClass,0,wxEXPAND|wxLEFT|wxRIGHT,5);
+
+	m_staticText14 = new wxStaticText(sbSizer6->GetStaticBox(),wxID_ANY,wxT("Objects group:"),wxDefaultPosition,wxDefaultSize,0);
+	m_staticText14->Wrap(-1);
+	sbSizer6->Add(m_staticText14,0,wxLEFT|wxTOP,5);
+
+	wxArrayString chbToolObjGroupChoices;
+	chbToolObjGroup = new wxChoice(sbSizer6->GetStaticBox(),wxID_CHB_TOOL_OBJ_GROUP,wxDefaultPosition,wxDefaultSize,chbToolObjGroupChoices,0);
+	chbToolObjGroup->SetSelection(0);
+	sbSizer6->Add(chbToolObjGroup,0,wxEXPAND|wxLEFT|wxRIGHT,5);
+
+	cbToolGlyph = new wxCheckBox(sbSizer6->GetStaticBox(),wxID_CB_TOOL_GLYPH,wxT("Use as tool glyph"),wxDefaultPosition,wxDefaultSize,0);
+	cbToolGlyph->SetValue(true);
+	sbSizer6->Add(cbToolGlyph,0,wxALL,5);
+
+
+	bSizer10->Add(sbSizer6,1,wxEXPAND|wxLEFT|wxTOP,5);
+
+
+	bSizer1->Add(bSizer10,0,wxEXPAND,5);
 
 
 	this->SetSizer(bSizer1);
@@ -311,11 +376,19 @@ FormSprite::FormSprite( wxWindow* parent,SpellData* spell_data,wxWindowID id, co
 		chc[k]->Select(0);
 	}
 
+	// fill in special class selector
+	/*Sprite tspr;
+	for(int k = 0; k < tspr.GetSpecClassCount(); k++)
+		chbSpecClass->Append(tspr.GetSpecClassName(k));*/
+
+	// fill tools classes
+	FillToolsClasses();
 
 	// bind events
 	Bind(wxEVT_MENU,&FormSprite::OnSelectSpriteBtn,this,wxID_BTN_NEXT);
 	Bind(wxEVT_MENU,&FormSprite::OnSelectSpriteBtn,this,wxID_BTN_PREV);
 	Bind(wxEVT_MENU,&FormSprite::OnClose,this,wxID_BTN_CLOSE);
+	Bind(wxEVT_MENU,&FormSprite::OnClearContext,this,wxID_BTN_CLR_CONTEXT);
 	Bind(wxEVT_MENU,&FormSprite::OnUpdateContext,this,wxID_EDIT_TILE_CONTEXT_AUTO);	
 	Bind(wxEVT_MENU,&FormSprite::OnAutoShadeFlags,this,wxID_BTN_AUTO_SHADING);
 	Bind(wxEVT_MENU,&FormSprite::OnSaveTileContext,this,wxID_BTN_SAVE_CONTEXT);
@@ -337,7 +410,7 @@ FormSprite::FormSprite( wxWindow* parent,SpellData* spell_data,wxWindowID id, co
 	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormSprite::OnFlagsChange,this,wxID_CB_IS_ASH);
 	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormSprite::OnFlagsChange,this,wxID_CB_IS_HIGH_LAND);
 	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormSprite::OnFlagsChange,this,wxID_CB_IS_ASH_ROAD);
-	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormSprite::OnFlagsChange,this,wxID_CB_IS_BROKE_ASH_ROAD);
+	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormSprite::OnFlagsChange,this,wxID_CB_IS_BROKEN);
 	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormSprite::OnFlagsChange,this,wxID_CB_IS_DIRT_ROAD);
 	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormSprite::OnFlagsChange,this,wxID_CB_IS_MUD_PATH);
 	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormSprite::OnFlagsChange,this,wxID_CB_IS_CLIFF);
@@ -346,6 +419,17 @@ FormSprite::FormSprite( wxWindow* parent,SpellData* spell_data,wxWindowID id, co
 	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormSprite::OnFlagsChange,this,wxID_CB_IS_BRIDGE);
 	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormSprite::OnFlagsChange,this,wxID_CB_IS_FORD);
 	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormSprite::OnFlagsChange,this,wxID_CB_IS_SAND);
+	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormSprite::OnFlagsChange,this,wxID_CB_IS_SHADOW);
+	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormSprite::OnFlagsChange,this,wxID_CB_IS_RIDGE);
+	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormSprite::OnFlagsChange,this,wxID_CB_IS_RIDGE_BRIDGE);
+	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormSprite::OnFlagsChange,this,wxID_CB_IS_WALL_BASE);
+	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormSprite::OnFlagsChange,this,wxID_CB_IS_OBJECT);
+	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormSprite::OnFlagsChange,this,wxID_CB_IS_SCAR);
+	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormSprite::OnFlagsChange,this,wxID_CB_TOOL_GLYPH);
+	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormSprite::OnFlagsChange,this,wxID_CB_USE_AS_GLYPH);
+	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormSprite::OnFlagsChange,this,wxID_CB_FAULTY);
+
+	//Bind(wxEVT_COMMAND_CHOICE_SELECTED,&FormSprite::OnSpecClassChange,this,wxID_CHB_SPEC_CLASS);
 
 	Bind(wxEVT_COMMAND_CHOICE_SELECTED,&FormSprite::OnEdgeClassChange,this,wxID_CHB_Q1_CLASS);
 	Bind(wxEVT_COMMAND_CHOICE_SELECTED,&FormSprite::OnEdgeClassChange,this,wxID_CHB_Q2_CLASS);
@@ -360,6 +444,11 @@ FormSprite::FormSprite( wxWindow* parent,SpellData* spell_data,wxWindowID id, co
 	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormSprite::OnEdgeShadeChange,this,wxID_CB_SHADE_C2);
 	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormSprite::OnEdgeShadeChange,this,wxID_CB_SHADE_C3);
 	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormSprite::OnEdgeShadeChange,this,wxID_CB_SHADE_C4);
+
+
+	Bind(wxEVT_COMMAND_CHOICE_SELECTED,&FormSprite::OnToolClassChange,this,wxID_CHB_TOOL_CLASS);
+	Bind(wxEVT_COMMAND_CHOICE_SELECTED,&FormSprite::OnToolClassItemChange,this,wxID_CHB_TOOL_OBJ_GROUP);
+	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormSprite::OnFlagsChange,this,wxID_CB_TOOL_GLYPH);
 	
 
 	// default 2x zoom
@@ -382,18 +471,152 @@ FormSprite::~FormSprite()
 // close button
 void FormSprite::OnClose(wxCommandEvent& event)
 {
+	// update list of tile to be used as class type glyphs
+	Terrain* terr = FindTerrain();
+	terr->UpdateTileGlyphs();
+
 	Close();
 }
 
 
+
+// fills tool class menu
+void FormSprite::FillToolsClasses()
+{
+	// get this terrain
+	Terrain* terr = FindTerrain();
+
+	// add neutral item
+	chbToolClass->Clear();
+	chbToolClass->Append("None");
+	chbToolClass->Select(0);
+	
+	// make list of existing classes
+	for(int k = 0; k < terr->GetToolsCount(); k++)
+	{
+		SpellToolsGroup *grp = terr->GetToolSet(k);
+		chbToolClass->Append(grp->GetClassName());
+	}
+}
+
+// update class selectosr view
+void FormSprite::UpdateToolClassesView()
+{
+	// get this terrain
+	Terrain* terr = FindTerrain();
+
+	if(lboxSprites->GetCount() && lboxSprites->GetSelection() >= 0)
+	{
+		int sel = lboxSprites->GetSelection();
+		
+		// select tool class
+		int class_id = terr->sprites[sel]->GetToolClass();
+		chbToolClass->Select(class_id);
+
+		FillToolItemsList();
+	}	
+}
+
+// fill tool class items menu
+void FormSprite::FillToolItemsList()
+{
+	// get this terrain
+	Terrain* terr = FindTerrain();
+
+	// add neutral item
+	chbToolObjGroup->Clear();
+	chbToolObjGroup->Append("None");
+	chbToolObjGroup->Select(0);
+
+	if(lboxSprites->GetCount() && lboxSprites->GetSelection() >= 0)
+	{
+		int sel = lboxSprites->GetSelection();
+
+		int class_id = terr->sprites[sel]->GetToolClass();
+		if(class_id)
+		{
+			// make list of existing classes
+			SpellToolsGroup *grp = terr->GetToolSet(class_id - 1);
+
+			// fill the list
+			for(int k = 0; k < grp->GetCount(); k++)
+				chbToolObjGroup->Append(grp->GetItem(k));
+
+			int item_id = terr->sprites[sel]->GetToolClassGroup();
+			chbToolObjGroup->Select(item_id);
+		}
+
+	}
+}
+// on change tool class selection
+void FormSprite::OnToolClassChange(wxCommandEvent& event)
+{
+	if(lboxSprites->GetCount() && lboxSprites->GetSelection() >= 0)
+	{
+		int sel = lboxSprites->GetSelection();
+
+		// get this terrain
+		Terrain* terr = FindTerrain();
+
+		// new tool class for sprite
+		int class_id = chbToolClass->GetSelection();
+		terr->sprites[sel]->SetToolClass(class_id);
+		
+		// clear tool class item id
+		terr->sprites[sel]->SetToolClassGroup(0);
+
+		// refresh selectors
+		UpdateToolClassesView();
+	}
+} 
+// on change tool class item selection
+void FormSprite::OnToolClassItemChange(wxCommandEvent& event)
+{
+	if(lboxSprites->GetCount() && lboxSprites->GetSelection() >= 0)
+	{
+		int sel = lboxSprites->GetSelection();
+
+		// get this terrain
+		Terrain* terr = FindTerrain();
+
+		// new tool class for sprite
+		int class_id = chbToolClass->GetSelection();
+		if(class_id)
+		{
+			// update tool class item selection
+			int item_id = chbToolObjGroup->GetSelection();
+			terr->sprites[sel]->SetToolClassGroup(item_id);
+		}
+		else
+			terr->sprites[sel]->SetToolClassGroup(0); // invalidate item id if no tool class selected (should not happen)
+
+		// refresh selectors
+		UpdateToolClassesView();
+	}
+}
+
+
+// clear tiles context
+void FormSprite::OnClearContext(wxCommandEvent& event)
+{
+	// get this terrain
+	Terrain* terr = FindTerrain();
+	// clear all tiles context
+	terr->ClearSpriteContext();
+	Refresh();
+}
 // update tiles' context from edge class data
 void FormSprite::OnUpdateContext(wxCommandEvent& event)
 {
 	// get this terrain
 	Terrain* terr = FindTerrain();
 	// build context from edge class data
-	terr->UpdateSpriteContext();
+	terr->UpdateSpriteContext(bind(&FormSprite::OnUpdateContextCb,this, placeholders::_1));
 	Refresh();
+}
+void FormSprite::OnUpdateContextCb(string status)
+{
+	SetStatusText(status);
 }
 // auto set edge shading flags
 void FormSprite::OnAutoShadeFlags(wxCommandEvent& event)
@@ -443,14 +666,28 @@ void FormSprite::OnEdgeShadeChange(wxCommandEvent& event)
 		Terrain* terr = FindTerrain();
 
 		// update flags
+		uint32_t mask = terr->sprites[lboxSprites->GetSelection()]->GetShadingMask();
+		uint32_t flag = terr->sprites[lboxSprites->GetSelection()]->GetShadingFlags();
 		for(int k = 0; k < 8;k++)
 		{
 			wxCheckBox* cb = (wxCheckBox*)FindItem(list[k]);
-			if(cb->IsChecked())
-				terr->sprites[lboxSprites->GetSelection()]->OrShadingFlags(flags[k]);
+			if(cb->Get3StateValue() == wxCHK_CHECKED)
+			{
+				flag |= flags[k];
+				mask |= flags[k];
+			}
+			else if(cb->Get3StateValue() == wxCHK_UNCHECKED)
+			{
+				flag &= ~flags[k];
+				mask |= flags[k];
+			}
 			else
-				terr->sprites[lboxSprites->GetSelection()]->ClrShadingFlags(flags[k]);
+			{
+				mask &= ~flags[k];
+			}
 		}
+		terr->sprites[lboxSprites->GetSelection()]->SetShadingFlags(flag & 0xFF);
+		terr->sprites[lboxSprites->GetSelection()]->SetShadingMask(mask & 0xFF);
 	}	
 }
 void FormSprite::SetShadingFlags()
@@ -467,10 +704,17 @@ void FormSprite::SetShadingFlags()
 		// get this terrain
 		Terrain* terr = FindTerrain();
 		// update checkboxes
+		uint32_t mask = terr->sprites[lboxSprites->GetSelection()]->GetShadingMask();
+		uint32_t flag = terr->sprites[lboxSprites->GetSelection()]->GetShadingFlags();
 		for(int k = 0; k < 8;k++)
 		{
-			wxCheckBox* cb = (wxCheckBox*)FindItem(list[k]);
-			cb->SetValue(!!(terr->sprites[lboxSprites->GetSelection()]->GetShadingFlags() & flags[k]));
+			wxCheckBox* cb = (wxCheckBox*)FindItem(list[k]);			
+			if(!(mask & flags[k]))
+				cb->Set3StateValue(wxCHK_UNDETERMINED);
+			else if(flag & flags[k])
+				cb->Set3StateValue(wxCHK_CHECKED);
+			else
+				cb->Set3StateValue(wxCHK_UNCHECKED);
 		}
 	}
 }
@@ -522,7 +766,7 @@ void FormSprite::OnFlagsChange(wxCommandEvent& event)
 		{wxID_CB_IS_ASH, Sprite::IS_ASH},
 		{wxID_CB_IS_HIGH_LAND, Sprite::IS_HIGHLAND},
 		{wxID_CB_IS_ASH_ROAD, Sprite::IS_ROAD},
-		{wxID_CB_IS_BROKE_ASH_ROAD, Sprite::IS_BROKE_ROAD},
+		{wxID_CB_IS_BROKEN, Sprite::IS_BROKEN},
 		{wxID_CB_IS_DIRT_ROAD, Sprite::IS_DIRT_ROAD},
 		{wxID_CB_IS_MUD_PATH, Sprite::IS_MUD_PATH},
 		{wxID_CB_IS_CLIFF, Sprite::IS_CLIFF},
@@ -531,6 +775,18 @@ void FormSprite::OnFlagsChange(wxCommandEvent& event)
 		{wxID_CB_IS_BRIDGE, Sprite::IS_BRIDGE},
 		{wxID_CB_IS_FORD, Sprite::IS_FORD},
 		{wxID_CB_IS_SAND, Sprite::IS_SAND},
+		{wxID_CB_IS_SHADOW, Sprite::IS_SHADOW},
+		{wxID_CB_IS_RIDGE, Sprite::IS_RIDGE},
+		{wxID_CB_IS_RIDGE_BRIDGE, Sprite::IS_RIDGE_BRIDGE},
+		{wxID_CB_IS_WALL_BASE, Sprite::IS_WALL_BASE},
+		{wxID_CB_IS_OBJECT, Sprite::IS_OBJECT},
+		{wxID_CB_IS_SCAR, Sprite::IS_SCAR},
+		{0,0}
+	};
+	const uint32_t list2[][2] ={
+		{wxID_CB_USE_AS_GLYPH, Sprite::IS_GLYPH},
+		{wxID_CB_TOOL_GLYPH, Sprite::IS_TOOL_ITEM_GLYPH},
+		{wxID_CB_FAULTY, Sprite::IS_FAULTY},
 		{0,0}
 	};
 
@@ -550,9 +806,20 @@ void FormSprite::OnFlagsChange(wxCommandEvent& event)
 				flags &= ~list[flag_id][1];
 			flag_id++;
 		}
-
-		// update flags
 		terr->sprites[lboxSprites->GetSelection()]->SetFlags(flags);
+
+		// build special flags from checkbox states
+		flags = terr->sprites[lboxSprites->GetSelection()]->GetGlyphFlags();
+		flag_id = 0;
+		while(list2[flag_id][0])
+		{
+			if(cbid == list2[flag_id][0] && check)
+				flags |= list2[flag_id][1];
+			else if(cbid == list2[flag_id][0] && !check)
+				flags &= ~list2[flag_id][1];
+			flag_id++;
+		}
+		terr->sprites[lboxSprites->GetSelection()]->SetGlyphFlags(flags);
 	}	
 }
 // show tile flags
@@ -570,7 +837,7 @@ void FormSprite::SetFlags()
 		{cbIsAsh, Sprite::IS_ASH},
 		{cbIsHigh, Sprite::IS_HIGHLAND},
 		{cbIsRoad, Sprite::IS_ROAD},
-		{cbIsBrokeAshroad, Sprite::IS_BROKE_ROAD},
+		{cbIsBroken, Sprite::IS_BROKEN},
 		{cbIsDirtRoad, Sprite::IS_DIRT_ROAD},
 		{cbIsMudPath, Sprite::IS_MUD_PATH},
 		{cbIsCliff, Sprite::IS_CLIFF},
@@ -579,6 +846,21 @@ void FormSprite::SetFlags()
 		{cbIsBridge, Sprite::IS_BRIDGE},
 		{cbIsFord, Sprite::IS_FORD},
 		{cbIsSand, Sprite::IS_SAND},
+		{cbIsShadow, Sprite::IS_SHADOW},
+		{cbIsRidge, Sprite::IS_RIDGE},
+		{cbIsRidgeBridge, Sprite::IS_RIDGE_BRIDGE},
+		{cbIsWallBase, Sprite::IS_WALL_BASE},
+		{cbIsObject, Sprite::IS_OBJECT},
+		{cbIsScar, Sprite::IS_SCAR},
+		{NULL,0}
+	};
+	const struct {
+		wxCheckBox* cb;
+		uint32_t flag;
+	} list2[] ={
+		{cbUseAsGlyph, Sprite::IS_GLYPH},
+		{cbToolGlyph, Sprite::IS_TOOL_ITEM_GLYPH},
+		{cbFaultCont, Sprite::IS_FAULTY},
 		{NULL,0}
 	};
 
@@ -588,18 +870,43 @@ void FormSprite::SetFlags()
 		// get this terrain
 		Terrain* terr = FindTerrain();
 
-		// get this tile flags
-		flags = terr->sprites[lboxSprites->GetSelection()]->GetFlags();
-
 		// set particular checkboxes
+		flags = terr->sprites[lboxSprites->GetSelection()]->GetFlags();
 		int flag_id = 0;
 		while(list[flag_id].cb)
 		{
 			list[flag_id].cb->SetValue(flags & list[flag_id].flag);
 			flag_id++;
 		}
+
+		// set special flags
+		flags = terr->sprites[lboxSprites->GetSelection()]->GetGlyphFlags();
+		flag_id = 0;
+		while(list2[flag_id].cb)
+		{
+			list2[flag_id].cb->SetValue(flags & list2[flag_id].flag);
+			flag_id++;
+		}
 	}
 }
+// update tile special class
+/*void FormSprite::OnSpecClassChange(wxCommandEvent& event)
+{
+	if(lboxSprites->GetCount() && lboxSprites->GetSelection() >= 0)
+	{
+		// update 
+		Terrain* terr = FindTerrain();		
+		terr->sprites[lboxSprites->GetSelection()]->SetSpecClass(chbSpecClass->GetSelection());
+	}
+}
+void FormSprite::SetSpecClasses()
+{
+	if(lboxSprites->GetCount() && lboxSprites->GetSelection() >= 0)
+	{
+		Terrain* terr = FindTerrain();
+		chbSpecClass->SetSelection(terr->sprites[lboxSprites->GetSelection()]->GetSpecClass());
+	}
+}*/
 
 
 // change zoom
@@ -678,6 +985,7 @@ void FormSprite::OnSelectSprite(wxCommandEvent& event)
 	SetFlags();
 	SetEdgeClasses();
 	SetShadingFlags();
+	UpdateToolClassesView();
 	canvas->Refresh();
 }
 // select sprite by shortcuts

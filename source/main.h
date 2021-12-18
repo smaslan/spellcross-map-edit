@@ -4,41 +4,40 @@
 #include "simpleini.h"
 #include "spellcross.h"
 #include "map.h"
+#include "form_objects.h"
+
+#include <wx/ribbon/buttonbar.h>
+#include <wx/ribbon/panel.h>
+#include <wx/ribbon/page.h>
+#include <wx/ribbon/control.h>
+#include <wx/ribbon/art.h>
+#include <wx/ribbon/bar.h>
+
 
 // draw canvas for map
 class mapCanvas : public wxPanel
 {
+private:
     wxBitmap m_buffer;
     SpellMap* spell_map;
     TScroll* scroll;
     wxFrame *parent;
+    SpellTool *spell_tool;
 
 public:
     mapCanvas(wxFrame* parent, SpellMap* spell_map,TScroll* scroll);
+    void SetToolRef(SpellTool* spell_tool);
 
     void OnPaint(wxPaintEvent& event);
-    //void OnResize(wxSizeEvent& event);
-
     void OnMouseDown(wxMouseEvent& event);
     void OnMouseUp(wxMouseEvent& event);
     void OnMouseMove(wxMouseEvent& event);
     void OnMouseLeave(wxMouseEvent& event);
+    void OnMouseEnter(wxMouseEvent& event);
     void OnMouseWheel(wxMouseEvent& event);
     void OnKeyDown(wxKeyEvent& event);
-
-    // some useful events
-    /*
-     void mouseMoved(wxMouseEvent& event);
-     void mouseDown(wxMouseEvent& event);
-     void mouseWheelMoved(wxMouseEvent& event);
-     void mouseReleased(wxMouseEvent& event);
-     void rightClick(wxMouseEvent& event);
-     void mouseLeftWindow(wxMouseEvent& event);
-     void keyPressed(wxKeyEvent& event);
-     void keyReleased(wxKeyEvent& event);
-     */
-
-     //DECLARE_EVENT_TABLE()
+    void OnLMouseDown(wxMouseEvent& event); 
+    
 };
 
 
@@ -60,11 +59,12 @@ public:
 class MyFrame : public wxFrame
 {
 public:
-    MyFrame(SpellMap* map,SpellData* spelldata);
+    MyFrame(SpellMap* map,SpellData* spelldata);     
 
 private:
     void OnViewLayer(wxCommandEvent& event);
     void OnOpenMap(wxCommandEvent& event);
+    void OnNewMap(wxCommandEvent& event);
     void OnExit(wxCommandEvent& event);
     void OnAbout(wxCommandEvent& event);
 
@@ -75,9 +75,23 @@ private:
 
     void OnSetGamma(wxCommandEvent& event);
     void OnViewSprites(wxCommandEvent& event);
+    void OnViewObjects(wxCommandEvent& event);
+    void OnViewObjectsClose(wxWindowDestroyEvent& ev);
     void OnUpdateTileContext(wxCommandEvent& event);
+    void OnUpdateTileContextMaps(wxCommandEvent& event);
+    void OnUpdateTileContextMapsCallback(std::string info);
     void OnSelectAll(wxCommandEvent& event);
     void OnDeselectAll(wxCommandEvent& event);
+    void OnCreateNewObject(wxCommandEvent& event);
+
+    void OnToolBtnClick(wxRibbonButtonBarEvent& event);
+    void OnToolPageClick(wxRibbonBarEvent& event);
+    SpellTool GetToolSelection();
+
+    mapCanvas* canvas;
+    
+    wxRibbonBar* ribbonBar;
+    
 
     /*void OnMouseDown(wxMouseEvent& event);
     void OnMouseUp(wxMouseEvent& event);
@@ -87,8 +101,22 @@ private:
     SpellMap* spell_map;
     SpellData* spell_data;
 
+    SpellTool spell_tool;
+
     wxTimer m_timer;
     TScroll scroll;
+
+    FormObjects* form_objects;
+
+    enum
+    {
+        ID_MAIN_WIN = 2000,
+        ID_OBJECTS_WIN,
+        ID_SPRITES_WIN
+    };
+
+    static constexpr int ID_TOOL_BASE = 10000;
+    static constexpr int ID_TOOL_CLASS_STEP = 100;
 };
 
 
@@ -107,19 +135,23 @@ private:
 // GUI elements
 enum
 {
-    ID_OpenMap = 101,
-    ID_ViewTer = 201,
-    ID_ViewObj = 202,
-    ID_ViewAnm = 203,
-    ID_ViewPnm = 204,
-    ID_ViewUnt = 205,
-    ID_ViewStTa = 206,
-    ID_SetGamma = 207,
-    ID_ViewSprites = 301,
-    ID_UpdateSprContext = 302,
-    ID_SaveSprContext = 303,
-    ID_SelectAll = 401,
-    ID_DeselectAll = 402
+    ID_OpenMap = 100,
+    ID_NewMap,
+    ID_ViewTer,
+    ID_ViewObj,
+    ID_ViewAnm,
+    ID_ViewPnm,
+    ID_ViewUnt,
+    ID_ViewStTa,
+    ID_SetGamma,
+    ID_ViewSprites,
+    ID_UpdateSprContext,
+    ID_SaveSprContext,
+    ID_ViewObjects,
+    ID_SelectAll,
+    ID_DeselectAll,
+    ID_CreateNewObject,
+    ID_UpdateSprContextMaps
 };
 
 

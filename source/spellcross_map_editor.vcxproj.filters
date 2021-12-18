@@ -45,6 +45,12 @@
     <ClCompile Include="form_sprite_view.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="form_objects.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="form_new_object.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="fs_archive.h">
@@ -78,6 +84,15 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="form_sprite_view.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="form_objects.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="map_types.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="form_new_object.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

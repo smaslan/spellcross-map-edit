@@ -56,8 +56,11 @@ class FormSprite : public wxFrame
 		void OnFlagsChange(wxCommandEvent& event);
 		void OnEdgeClassChange(wxCommandEvent& event);
 		void OnEdgeShadeChange(wxCommandEvent& event);
+		//void OnSpecClassChange(wxCommandEvent& event);
 
+		void OnClearContext(wxCommandEvent& event);
 		void OnUpdateContext(wxCommandEvent& event);
+		void OnUpdateContextCb(string status);
 		void OnAutoShadeFlags(wxCommandEvent& event);
 		void OnSaveTileContext(wxCommandEvent& event);
 
@@ -66,7 +69,14 @@ class FormSprite : public wxFrame
 		void SetFlags();
 		void SetEdgeClasses();
 		void SetShadingFlags();
+		//void SetSpecClasses();
 		Terrain* FindTerrain();
+
+		void FillToolsClasses();
+		void FillToolItemsList();
+		void UpdateToolClassesView();
+		void OnToolClassChange(wxCommandEvent& event);
+		void OnToolClassItemChange(wxCommandEvent& event);
 
 
 		// tile edge classes
@@ -94,6 +104,7 @@ class FormSprite : public wxFrame
 			wxID_BTN_CLOSE = 1000,
 			wxID_BTN_NEXT,
 			wxID_BTN_PREV,
+			wxID_BTN_CLR_CONTEXT,
 			wxID_EDIT_TILE_CONTEXT_AUTO,
 			wxID_BTN_AUTO_SHADING,
 			wxID_BTN_SAVE_CONTEXT,
@@ -104,21 +115,29 @@ class FormSprite : public wxFrame
 			wxID_CH_SIDE,
 			wxID_CB_IS_GRASS,
 			wxID_CB_IS_DGRASS,
-			wxID_CB_IS_BLOOD,
+			wxID_CB_IS_SAND,
 			wxID_CB_IS_MUD,
-			wxID_CB_IS_SWAMP,
 			wxID_CB_IS_ASH,
+			wxID_CB_IS_SWAMP,
+			wxID_CB_IS_BLOOD,
 			wxID_CB_IS_HIGH_LAND,
+			wxID_CB_IS_WATER,
+			wxID_CB_IS_RIDGE,
+			wxID_CB_IS_CLIFF,
 			wxID_CB_IS_ASH_ROAD,
-			wxID_CB_IS_BROKE_ASH_ROAD,
 			wxID_CB_IS_DIRT_ROAD,
 			wxID_CB_IS_MUD_PATH,
-			wxID_CB_IS_CLIFF,
-			wxID_CB_IS_WATER,
+			wxID_CB_IS_WALL_BASE,
 			wxID_CB_IS_WBRIDGE,
 			wxID_CB_IS_BRIDGE,
 			wxID_CB_IS_FORD,
-			wxID_CB_IS_SAND,
+			wxID_CB_IS_RIDGE_BRIDGE,
+			wxID_CB_IS_BROKEN,
+			wxID_CB_IS_SHADOW,
+			wxID_CB_IS_SCAR,
+			wxID_CB_IS_OBJECT,
+			wxID_CB_USE_AS_GLYPH,
+			wxID_CB_FAULTY,
 			wxID_CHB_Q1_CLASS,
 			wxID_CHB_Q2_CLASS,
 			wxID_CHB_Q3_CLASS,
@@ -130,7 +149,10 @@ class FormSprite : public wxFrame
 			wxID_CB_SHADE_C1,
 			wxID_CB_SHADE_C2,
 			wxID_CB_SHADE_C3,
-			wxID_CB_SHADE_C4
+			wxID_CB_SHADE_C4,
+			wxID_CHB_TOOL_CLASS,
+			wxID_CHB_TOOL_OBJ_GROUP,
+			wxID_CB_TOOL_GLYPH
 		};
 
 		wxMenuBar* mMenu;
@@ -150,21 +172,30 @@ class FormSprite : public wxFrame
 		wxChoice* chbSide;
 		wxCheckBox* cbIsGrass;
 		wxCheckBox* cbIsDarkGrass;
-		wxCheckBox* cbIsBlood;
+		wxCheckBox* cbIsSand;
 		wxCheckBox* cbIsMud;
-		wxCheckBox* cbIsSwamp;
 		wxCheckBox* cbIsAsh;
+		wxCheckBox* cbIsSwamp;
+		wxCheckBox* cbIsBlood;
 		wxCheckBox* cbIsHigh;
+		wxCheckBox* cbIsWater;
+		wxCheckBox* cbIsRidge;
+		wxCheckBox* cbIsCliff;
 		wxCheckBox* cbIsRoad;
-		wxCheckBox* cbIsBrokeAshroad;
 		wxCheckBox* cbIsDirtRoad;
 		wxCheckBox* cbIsMudPath;
-		wxCheckBox* cbIsCliff;
-		wxCheckBox* cbIsWater;
+		wxCheckBox* cbIsWallBase;
 		wxCheckBox* cbIsWBridge;
 		wxCheckBox* cbIsBridge;
 		wxCheckBox* cbIsFord;
-		wxCheckBox* cbIsSand;
+		wxCheckBox* cbIsRidgeBridge;
+		wxCheckBox* cbIsBroken;
+		wxCheckBox* cbIsShadow;
+		wxCheckBox* cbIsScar;
+		wxCheckBox* cbIsObject;
+		wxStaticLine* m_staticline2;
+		wxCheckBox* cbUseAsGlyph;
+		wxCheckBox* cbFaultCont;
 		wxStaticText* m_staticText5;
 		wxChoice* chbQ1class;
 		wxStaticText* m_staticText6;
@@ -182,6 +213,11 @@ class FormSprite : public wxFrame
 		wxCheckBox* cbShadeC2;
 		wxCheckBox* cbShadeC3;
 		wxCheckBox* cbShadeC4;
+		wxStaticText* m_staticText13;
+		wxChoice* chbToolClass;
+		wxStaticText* m_staticText14;
+		wxChoice* chbToolObjGroup;
+		wxCheckBox* cbToolGlyph;
 		wxStatusBar* statBar;
 
 	public:

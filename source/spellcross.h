@@ -78,13 +78,16 @@ public:
 	FSUarchive *units_fsu;
 	// units
 	SpellUnits* units;
+	// last path
+	wstring spell_data_root;
 
 	SpellData(wstring &data_path);
 	~SpellData();
 	int LoadSpecialLand(wstring &path);
-	Terrain* GetTerrain(char* name);
+	Terrain* GetTerrain(const char* name);
 	Terrain* GetTerrain(int index);
 	int GetTerrainCount();
+	int BuildSpriteContextOfMaps(wstring folder,string terrain_name,std::function<void(std::string)> status_cb);
 
 };
 
