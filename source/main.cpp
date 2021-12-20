@@ -228,9 +228,21 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
 
 
     // make and attach render canvas
-    canvas = new mapCanvas(this,spell_map, &scroll);
-    canvas->SetToolRef(&spell_tool);
+    canvas = new wxPanel(this,wxID_ANY,wxDefaultPosition,wxDefaultSize,wxTAB_TRAVERSAL);
     sizer->Add(canvas,1,wxEXPAND|wxALL,1);
+
+    canvas->Bind(wxEVT_PAINT,&MyFrame::OnPaintCanvas,this);
+    canvas->Bind(wxEVT_RIGHT_DOWN,&MyFrame::OnCanvasMouseDown,this);
+    canvas->Bind(wxEVT_RIGHT_UP,&MyFrame::OnCanvasMouseUp,this);
+    canvas->Bind(wxEVT_MOTION,&MyFrame::OnCanvasMouseMove,this);
+    canvas->Bind(wxEVT_LEAVE_WINDOW,&MyFrame::OnCanvasMouseLeave,this);
+    canvas->Bind(wxEVT_ENTER_WINDOW,&MyFrame::OnCanvasMouseEnter,this);
+    canvas->Bind(wxEVT_MOUSEWHEEL,&MyFrame::OnCanvasMouseWheel,this);
+    canvas->Bind(wxEVT_KEY_DOWN,&MyFrame::OnCanvasKeyDown,this);
+    canvas->Bind(wxEVT_LEFT_DOWN,&MyFrame::OnCanvasLMouseDown,this);
+
+
+
 
     this->SetSizer(sizer);    
     this->SetAutoLayout(true);
@@ -261,41 +273,30 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     Bind(wxEVT_MENU,&MyFrame::OnCreateNewObject,this,ID_CreateNewObject);
     
 }
-
-
-mapCanvas::mapCanvas(wxFrame* parent,SpellMap* spell_map,TScroll* scroll) : wxPanel(parent)
+// on form close
+void MyFrame::OnExit(wxCommandEvent& event)
 {
-    this->spell_map = spell_map;
-    this->scroll = scroll;
-    this->m_buffer = m_buffer;
-    this->parent = parent;
-
-    Bind(wxEVT_PAINT,&mapCanvas::OnPaint,this);
-    //Bind(wxEVT_SIZING,&myCanvas::OnResize,this);
-
-    Bind(wxEVT_RIGHT_DOWN,&mapCanvas::OnMouseDown,this);
-    Bind(wxEVT_RIGHT_UP,&mapCanvas::OnMouseUp,this);
-    Bind(wxEVT_MOTION,&mapCanvas::OnMouseMove,this);
-    Bind(wxEVT_LEAVE_WINDOW,&mapCanvas::OnMouseLeave,this);
-    Bind(wxEVT_ENTER_WINDOW,&mapCanvas::OnMouseEnter,this);
-    Bind(wxEVT_MOUSEWHEEL,&mapCanvas::OnMouseWheel,this);    
-    Bind(wxEVT_KEY_DOWN,&mapCanvas::OnKeyDown,this);
-    
-    Bind(wxEVT_LEFT_DOWN,&mapCanvas::OnLMouseDown,this);
+    Close(true);
 }
-// get pointer to render buffer (bitmap)
-wxBitmap* mapCanvas::GetRednerBuffer()
+// about message
+void MyFrame::OnAbout(wxCommandEvent& event)
 {
-    return(&m_buffer);
+    wxMessageBox("Experimental Spellcross map editor, V1.0\n(c) Stanislav Maslan, s.maslan@seznam.cz","About Spellcross Map Editor",wxOK | wxICON_INFORMATION);
 }
-// set pointer to editing tool
-void mapCanvas::SetToolRef(SpellTool* spell_tool)
+// callback function to write status messages from within the spellcross routines:
+// usage: make and pass callback pointer using: bind(&MyFrame::StatusStringCallback,this,placeholders::_1)
+// spellcross function example:
+// void whatever_function(std::function<void(std::string)> status_cb)
+// {
+//   status_cb("Some message");
+// }
+void MyFrame::StatusStringCallback(std::string info)
 {
-    this->spell_tool = spell_tool;
+    SetStatusText(info,7);
 }
 
 
-
+// map animation periodic refresh tick
 void MyFrame::OnTimer(wxTimerEvent& event)
 {
     if(spell_map->Tick())
@@ -303,33 +304,30 @@ void MyFrame::OnTimer(wxTimerEvent& event)
         canvas->Refresh();
     }
 }
+// on main panel resizing
 void MyFrame::OnResize(wxSizeEvent& event)
 {
     Refresh();
 }
 
-void mapCanvas::OnPaint(wxPaintEvent& event)
+
+// render canvas repaint event
+void MyFrame::OnPaintCanvas(wxPaintEvent& event)
 {
     // make buffer
     if(!m_buffer.IsOk() || m_buffer.GetSize() != GetClientSize())
         m_buffer = wxBitmap(GetClientSize(),24);
 
     // render map
-    wxPaintDC pdc(this);
-    spell_map->Render(m_buffer,scroll);
+    wxPaintDC pdc(canvas);
+    spell_map->Render(m_buffer,&scroll);
     pdc.DrawBitmap(m_buffer,wxPoint(0,0));
 
     event.Skip();
 }
 
-void MyFrame::OnExit(wxCommandEvent& event)
-{
-    Close(true);
-}
-void MyFrame::OnAbout(wxCommandEvent& event)
-{
-    wxMessageBox("Experimental Spellcross map editor, V0.0\n(c) Stanislav Maslan, s.maslan@seznam.cz", "About Dpellcross Map Editor", wxOK | wxICON_INFORMATION);
-}
+
+// on change of map layer view
 void MyFrame::OnViewLayer(wxCommandEvent& event)
 {
     bool wL1 = GetMenuBar()->FindItem(ID_ViewTer)->IsChecked();
@@ -341,6 +339,8 @@ void MyFrame::OnViewLayer(wxCommandEvent& event)
     spell_map->SetRender(wL1,wL2,wL3,wL4,wSS,wL5);
     Refresh();
 }
+
+// open new map
 void MyFrame::OnOpenMap(wxCommandEvent& event)
 {
     // split path to folder and file
@@ -363,6 +363,7 @@ void MyFrame::OnOpenMap(wxCommandEvent& event)
     // reset scroller
     scroll.Reset();  
 }
+
 // create new map
 void MyFrame::OnNewMap(wxCommandEvent& event)
 {
@@ -381,17 +382,23 @@ void MyFrame::OnSetGamma(wxCommandEvent& event)
     FormGamma *gamma_form = new FormGamma(this, spell_map);
     gamma_form->Show(true);
 }
+
 // open sprite viewer
 void MyFrame::OnViewSprites(wxCommandEvent& event)
 {
-    FormSprite *form = new FormSprite(this, spell_data);
-    form->Show();
+    if(!FindWindowById(ID_SPRITES_WIN))
+    {
+        FormSprite *form = new FormSprite(this, spell_data);
+        form->Show();
+    }
 }
+
 // update tiles context from map selection
 void MyFrame::OnUpdateTileContext(wxCommandEvent& event)
 {
     spell_map->BuildSpriteContext();
 }
+
 // update tiles context from all maps
 void MyFrame::OnUpdateTileContextMaps(wxCommandEvent& event)
 {   
@@ -406,10 +413,6 @@ void MyFrame::OnUpdateTileContextMaps(wxCommandEvent& event)
     
     // load map context (###todo: add terrain type selector?)
     spell_data->BuildSpriteContextOfMaps(path, "T11", bind(&MyFrame::StatusStringCallback,this,placeholders::_1));
-}
-void MyFrame::StatusStringCallback(std::string info)
-{
-    SetStatusText(info,7);
 }
 
 // open objects viewer
@@ -428,10 +431,9 @@ void MyFrame::OnViewObjectsClose(wxWindowDestroyEvent& ev)
     // todo: somehow destroy child???
     ev.Skip();
 }
-// open create new object
+// create new object
 void MyFrame::OnCreateNewObject(wxCommandEvent& event)
 {
-
     FormNewObject* form = new FormNewObject(this,spell_map->terrain);
     if(form->ShowModal() == wxID_OK)
     {
@@ -463,48 +465,47 @@ void MyFrame::OnCreateNewObject(wxCommandEvent& event)
 
 
 // --- scrolling control ---
-void mapCanvas::OnMouseDown(wxMouseEvent& event)
+void MyFrame::OnCanvasMouseDown(wxMouseEvent& event)
 {    
-    scroll->SetRef(event.GetX(), event.GetY());
+    scroll.SetRef(event.GetX(), event.GetY());
 }
-void mapCanvas::OnMouseEnter(wxMouseEvent& event)
+void MyFrame::OnCanvasMouseEnter(wxMouseEvent& event)
 {
-    this->SetFocus();
+    canvas->SetFocus();
 }
-void mapCanvas::OnMouseLeave(wxMouseEvent& event)
+void MyFrame::OnCanvasMouseLeave(wxMouseEvent& event)
 {
-    scroll->Idle();
+    scroll.Idle();
 }
-void mapCanvas::OnMouseUp(wxMouseEvent& event)
+void MyFrame::OnCanvasMouseUp(wxMouseEvent& event)
 {
-    scroll->Idle();
+    scroll.Idle();
 }
-void mapCanvas::OnMouseMove(wxMouseEvent& event)
+void MyFrame::OnCanvasMouseMove(wxMouseEvent& event)
 {
-    scroll->Move(event.GetX(), event.GetY());
+    scroll.Move(event.GetX(), event.GetY());
     
     // update map selection
-    //SpellMap* map = (*spell_map);
-    MapXY mxy = spell_map->GetSelection(m_buffer,scroll);
-    int elev = spell_map->GetElevation(m_buffer,scroll);
-    parent->SetStatusText(wxString::Format(wxT("x=%d"),mxy.x),0);
-    parent->SetStatusText(wxString::Format(wxT("y=%d"),mxy.y),1);    
-    parent->SetStatusText(wxString::Format(wxT("z=%d"),elev),2);
-    parent->SetStatusText(wxString::Format(wxT("xy=%d"),spell_map->ConvXY(mxy)),3);
-    parent->SetStatusText(wxString::Format(wxT("L1: %s"),spell_map->GetL1tileName(m_buffer,scroll)),4);
-    parent->SetStatusText(wxString::Format(wxT("L2: %s"),spell_map->GetL2tileName(m_buffer,scroll)),5);
+    MapXY mxy = spell_map->GetSelection(m_buffer,&scroll);
+    int elev = spell_map->GetElevation(m_buffer,&scroll);
+    SetStatusText(wxString::Format(wxT("x=%d"),mxy.x),0);
+    SetStatusText(wxString::Format(wxT("y=%d"),mxy.y),1);    
+    SetStatusText(wxString::Format(wxT("z=%d"),elev),2);
+    SetStatusText(wxString::Format(wxT("xy=%d"),spell_map->ConvXY(mxy)),3);
+    SetStatusText(wxString::Format(wxT("L1: %s"),spell_map->GetL1tileName(m_buffer,&scroll)),4);
+    SetStatusText(wxString::Format(wxT("L2: %s"),spell_map->GetL2tileName(m_buffer,&scroll)),5);
     //int height, flags, code;
-    auto [flags,height,code] = spell_map->GetTileFlags(m_buffer,scroll);
-    parent->SetStatusText(wxString::Format(wxT("(0x%02X)"),code),6);
+    auto [flags,height,code] = spell_map->GetTileFlags(m_buffer,&scroll);
+    SetStatusText(wxString::Format(wxT("(0x%02X)"),code),6);
     
-    Refresh();
+    canvas->Refresh();
 }
-void mapCanvas::OnMouseWheel(wxMouseEvent& event)
+void MyFrame::OnCanvasMouseWheel(wxMouseEvent& event)
 {
-    scroll->ResizeSelection(event.GetWheelRotation()/event.GetWheelDelta());
-    Refresh();
+    scroll.ResizeSelection(event.GetWheelRotation()/event.GetWheelDelta());
+    canvas->Refresh();
 }
-void mapCanvas::OnKeyDown(wxKeyEvent& event)
+void MyFrame::OnCanvasKeyDown(wxKeyEvent& event)
 {
     if(event.ControlDown())
     {
@@ -520,7 +521,7 @@ void mapCanvas::OnKeyDown(wxKeyEvent& event)
             step--;
         if(step != 0)
         {
-            spell_map->EditElev(m_buffer, scroll, step);
+            spell_map->EditElev(m_buffer, &scroll, step);
             Refresh();
         }
 
@@ -528,13 +529,13 @@ void mapCanvas::OnKeyDown(wxKeyEvent& event)
         if(key == '=' || key == '+')
         {
             // add selection
-            auto list = spell_map->GetSelections(m_buffer, scroll);
+            auto list = spell_map->GetSelections(m_buffer, &scroll);
             spell_map->SelectTiles(list, SpellMap::SELECT_ADD);
         }
         else if(key == '-')
         {
             // clear selection
-            auto list = spell_map->GetSelections(m_buffer,scroll);
+            auto list = spell_map->GetSelections(m_buffer, &scroll);
             spell_map->SelectTiles(list,SpellMap::SELECT_CLEAR);
         }
     }    
@@ -551,14 +552,11 @@ void MyFrame::OnDeselectAll(wxCommandEvent& event)
 // invalidate map region (retexturing)
 void MyFrame::OnInvalidateSelection(wxCommandEvent& event)
 {
-    // pointer to canvas surface buffer
-    wxBitmap *buffer = canvas->GetRednerBuffer();
-    
     // get selected area (preference of persistent selection over cursor)
     std::vector<MapXY> list;    
     list = spell_map->GetPersistSelections();
     if(list.empty())
-        list = spell_map->GetSelections(*buffer,&scroll);
+        list = spell_map->GetSelections(m_buffer,&scroll);
 
     // invalidate region    
     spell_map->IvalidateTiles(list, bind(&MyFrame::StatusStringCallback,this,placeholders::_1));
@@ -566,17 +564,18 @@ void MyFrame::OnInvalidateSelection(wxCommandEvent& event)
 
 
 // tool edit click
-void mapCanvas::OnLMouseDown(wxMouseEvent& event)
+void MyFrame::OnCanvasLMouseDown(wxMouseEvent& event)
 {
     // get selection
-    auto xy_list = spell_map->GetSelections(m_buffer, scroll);
+    auto xy_list = spell_map->GetSelections(m_buffer, &scroll);
 
-    if(spell_tool->isActive() && xy_list.size() && xy_list[0].IsSelected())
+    if(spell_tool.isActive() && xy_list.size() && xy_list[0].IsSelected())
     {
         // something selected: edit map class        
-        spell_map->EditClass(xy_list, spell_tool, bind(&MyFrame::StatusStringCallback,(MyFrame*)this->parent,placeholders::_1));
+        spell_map->EditClass(xy_list, &spell_tool, bind(&MyFrame::StatusStringCallback,this,placeholders::_1));
     }
 }
+
 // tool selected
 void MyFrame::OnToolBtnClick(wxRibbonButtonBarEvent& event)
 {

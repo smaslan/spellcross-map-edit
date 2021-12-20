@@ -14,34 +14,6 @@
 #include <wx/ribbon/bar.h>
 
 
-// draw canvas for map
-class mapCanvas : public wxPanel
-{
-private:   
-    SpellMap* spell_map;
-    TScroll* scroll;
-    wxBitmap m_buffer;
-    wxFrame *parent;
-    SpellTool *spell_tool;
-
-public:
-    mapCanvas(wxFrame* parent, SpellMap* spell_map,TScroll* scroll);
-    void SetToolRef(SpellTool* spell_tool);
-
-    void OnPaint(wxPaintEvent& event);
-    void OnMouseDown(wxMouseEvent& event);
-    void OnMouseUp(wxMouseEvent& event);
-    void OnMouseMove(wxMouseEvent& event);
-    void OnMouseLeave(wxMouseEvent& event);
-    void OnMouseEnter(wxMouseEvent& event);
-    void OnMouseWheel(wxMouseEvent& event);
-    void OnKeyDown(wxKeyEvent& event);
-    void OnLMouseDown(wxMouseEvent& event); 
-
-    wxBitmap *GetRednerBuffer();
-    
-};
-
 
 // main
 class MyApp : public wxApp
@@ -91,23 +63,30 @@ private:
     void OnToolPageClick(wxRibbonBarEvent& event);
     SpellTool GetToolSelection();
 
-    
+    // canvas stuff:
+    void OnPaintCanvas(wxPaintEvent& event);
+    void OnCanvasMouseDown(wxMouseEvent& event);
+    void OnCanvasMouseUp(wxMouseEvent& event);
+    void OnCanvasMouseMove(wxMouseEvent& event);
+    void OnCanvasMouseLeave(wxMouseEvent& event);
+    void OnCanvasMouseEnter(wxMouseEvent& event);
+    void OnCanvasMouseWheel(wxMouseEvent& event);
+    void OnCanvasKeyDown(wxKeyEvent& event);
+    void OnCanvasLMouseDown(wxMouseEvent& event);
+    wxBitmap m_buffer;
 
-    mapCanvas* canvas;
+
+    wxPanel* canvas;
     
     wxRibbonBar* ribbonBar;
     
-
-    /*void OnMouseDown(wxMouseEvent& event);
-    void OnMouseUp(wxMouseEvent& event);
-    void OnMouseMove(wxMouseEvent& event);
-    void OnMouseLeave(wxMouseEvent& event);*/
 
     SpellMap* spell_map;
     SpellData* spell_data;
 
     SpellTool spell_tool;
 
+    
     wxTimer m_timer;
     TScroll scroll;
 
