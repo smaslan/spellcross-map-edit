@@ -1010,15 +1010,30 @@ int SpellMap::RenderPrepare(wxBitmap& bmp, TScroll* scroll)
 	surf_x = bmp.GetWidth();
 	surf_y = bmp.GetHeight();
 
-	// allocate maximum indexed image memory for entire map
-	pic_x_size = max((x_size) * 80 + 40, surf_x);
-	pic_y_size = max(MSYOFS + 60 + 47 + (y_size) * 24 + MSYOFS, surf_y);
+	// reinit of surface changed (this is only needed when map is smaller than screen)
+	if(pic && (surf_x != last_surf_x || surf_y != last_surf_y))
+	{
+		delete[] pic;	
+		pic = NULL;
+	}
+
+	// remember last surface size
+	last_surf_x = surf_x;
+	last_surf_y = surf_y;
+	
+	// allocate maximum indexed image memory for entire map	
 	if(!pic)
-		pic = new uint8_t[pic_x_size * pic_y_size];
+	{
+		// new render buffer size
+		pic_x_size = max((x_size) * 80 + 40,surf_x);
+		pic_y_size = max(MSYOFS + 60 + 47 + (y_size) * 24 + MSYOFS,surf_y);
+		// allocate it
+		pic = new uint8_t[pic_x_size * pic_y_size];		
+		// buffer end for range checking
+		pic_end = &pic[pic_x_size * pic_y_size];
+	}
 	if(!pic)
-		return(1);
-	// buffer end for range checking
-	pic_end = &pic[pic_x_size * pic_y_size];
+		return(1);	
 
 	// limit scroller to valid range
 	scroll->CheckScroll(pic_x_size - surf_x, pic_y_size - surf_y);
@@ -2513,8 +2528,11 @@ MapXY SpellMap::GetNeighborTile(int x, int y, int quad)
 }
 
 // this routine tries to fix textures of modified tiles
-int SpellMap::ReTexture(uint8_t *modz)
+int SpellMap::ReTexture(uint8_t *modz,std::function<void(std::string)> status_cb)
 {	
+
+	if(status_cb)
+		status_cb("Texturing...");
 
 	// make list of modified tiles (zig-zag order)
 	vector<MapXY> tlist;
@@ -2720,11 +2738,19 @@ int SpellMap::ReTexture(uint8_t *modz)
 		if(level < 0)
 		{
 			// search failed:
+
+			if(status_cb)
+				status_cb("Texturing ... failed!");
+
 			break;
 		}
 		if(level >= tlist.size())
 		{
 			// texturing done with success:
+
+			if(status_cb)
+				status_cb("Texturing ... done!");
+
 			break;
 		}
 	}
@@ -2732,12 +2758,14 @@ int SpellMap::ReTexture(uint8_t *modz)
 	delete[] cand;
 	delete[] cand2;
 
+	
+
 	return(0);
 }
 
 
 // invalidate region of map (retexture)
-int SpellMap::IvalidateTiles(vector<MapXY> tiles)
+int SpellMap::IvalidateTiles(vector<MapXY> tiles,std::function<void(std::string)> status_cb)
 {
 	int i,j;
 
@@ -2766,7 +2794,7 @@ int SpellMap::IvalidateTiles(vector<MapXY> tiles)
 	}
 	
 	// apply textures
-	ReTexture(flag);
+	ReTexture(flag,status_cb);
 
 	// loose memory
 	delete[] flag;
@@ -2883,11 +2911,16 @@ int SpellMap::BuildSpriteContext()
 
 
 // Edit map class
-int SpellMap::EditClass(vector<MapXY>& selection, SpellTool *tool)
+int SpellMap::EditClass(vector<MapXY>& selection, SpellTool *tool, std::function<void(std::string)> status_cb)
 {
 	// leave if map not loaded
 	if(!IsLoaded())
 		return(1);
+
+
+	if(status_cb)
+		status_cb("Changing terrain class...");
+
 
 	// update map L1 flags
 	SyncL1flags();
@@ -2914,18 +2947,40 @@ int SpellMap::EditClass(vector<MapXY>& selection, SpellTool *tool)
 	if(!tspr)
 		return(1);
 	
-	uint32_t tool_flags = tspr->GetFlags();
-
-
-	uint32_t terr_base = (Sprite::CLASS_DARK_GRASS | Sprite::IS_SAND | Sprite::IS_MUD | Sprite::IS_SWAPM | Sprite::IS_BLOOD | Sprite::IS_WATER);
-	uint32_t mask_others = terr_base & ~tool_flags;
+	
+	// make modified flags array
+	uint8_t *modz = new uint8_t[x_size*y_size];
+	std::memset((void*)modz, 0,x_size*y_size);
 
 	
-	for(auto &tsel : selection)
+	typedef struct{
+		MapXY pos;
+		uint32_t flags;
+	}Task;
+	vector<Task> task_list;
+
+	// make initial list of tasks to do
+	for(auto& tsel : selection)
 	{
-		if(tsel.IsSelected())
+		Task task = {tsel, tspr->GetFlags()};
+		task_list.push_back(task);
+	}
+		
+	for(int tid = 0; tid < task_list.size(); tid++)
+	{
+		Task task = task_list[tid];
+
+		uint32_t tool_flags = task.flags;
+
+		uint32_t terr_base = (Sprite::CLASS_DARK_GRASS | Sprite::IS_SAND | Sprite::IS_MUD | Sprite::IS_SWAPM | Sprite::IS_BLOOD | Sprite::IS_WATER);
+		uint32_t mask_others = terr_base & ~tool_flags;		
+		
+		if(task.pos.IsSelected())
 		{
-			int pxy = ConvXY(tsel);
+			int pxy = ConvXY(task.pos);
+
+			if(modz[pxy])
+				continue;
 
 			auto flag = L1_flags[pxy];
 						
@@ -2958,14 +3013,93 @@ int SpellMap::EditClass(vector<MapXY>& selection, SpellTool *tool)
 			
 			//L1[pxy] = tspr;
 			L1_flags[pxy] = flag;
-
 			L1[pxy] = terrain->GetTileGlyph(tspr, flag);
 			if(!L1[pxy])
 				L1[pxy] = terrain->GetSprite("START");
 
+			// tile definitive
+			modz[pxy] = 1;
+
+
+			
+			// --- fix neighbors
+
+			
+			uint32_t ref_flags = flag;
+
+			// for all 8 neighbors check:
+			for(int nid = 0; nid<8; nid++)
+			{
+				// neighbor tile agnle (45, 135, 225, 315, 0, 90, 180, 270)
+				int n_angle = (nid&3)*2 + !(nid>>2);
+				MapXY n_pos = GetTileNeihgborXY(task.pos, n_angle);
+				if(!n_pos.IsSelected())
+					continue;
+				int nxy = ConvXY(n_pos);
+
+				// skip if already assigned
+				if(modz[nxy])
+					continue;
+
+				uint32_t n_flags = L1_flags[ConvXY(n_pos)];
+				uint32_t new_flags = n_flags;
+
+				if(!(ref_flags & Sprite::IS_GRASS))
+				{
+					// ref tile is single class: need to make transition to neighbors
+					
+					if((ref_flags & terr_base) != (n_flags & terr_base))
+					{
+						new_flags = ref_flags & terr_base;
+						Task task = {n_pos, new_flags};
+						task_list.push_back(task);
+					}
+				}
+				else if((n_flags & terr_base) != (ref_flags & terr_base) && !(n_flags & Sprite::IS_GRASS))
+				{
+					// neighbor is single class, but different than desired: base
+
+					new_flags = Sprite::IS_GRASS;
+
+					Task task = {n_pos, new_flags};
+					task_list.push_back(task);
+				}
+
+			}
+
 		}
 
 	}
+
+
+	// expand modified area by 1 (possibly not enough for many terrains?)
+	for(int y = 0; y < y_size; y++)
+	{
+		for(int x = 0; x < x_size; x++)
+		{
+			for(int nid = 0; nid<8; nid++)
+			{
+				MapXY n_pos = GetTileNeihgborXY(x,y,nid);
+				int nxy = ConvXY(n_pos);
+
+				if(!n_pos.IsSelected())
+					continue;
+
+				if(modz[ConvXY(x,y)] != 1)
+					continue;
+
+				if(modz[nxy] != 0)
+					continue;
+				
+				modz[nxy] = 2;
+			}
+		}
+	}	
+
+	// try retexture
+	ReTexture(modz, status_cb);
+
+	delete[] modz;
 
 	return(0);
 }

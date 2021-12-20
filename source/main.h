@@ -17,10 +17,10 @@
 // draw canvas for map
 class mapCanvas : public wxPanel
 {
-private:
-    wxBitmap m_buffer;
+private:   
     SpellMap* spell_map;
     TScroll* scroll;
+    wxBitmap m_buffer;
     wxFrame *parent;
     SpellTool *spell_tool;
 
@@ -37,6 +37,8 @@ public:
     void OnMouseWheel(wxMouseEvent& event);
     void OnKeyDown(wxKeyEvent& event);
     void OnLMouseDown(wxMouseEvent& event); 
+
+    wxBitmap *GetRednerBuffer();
     
 };
 
@@ -59,7 +61,8 @@ public:
 class MyFrame : public wxFrame
 {
 public:
-    MyFrame(SpellMap* map,SpellData* spelldata);     
+    MyFrame(SpellMap* map,SpellData* spelldata);      
+    void StatusStringCallback(std::string info);
 
 private:
     void OnViewLayer(wxCommandEvent& event);
@@ -78,15 +81,17 @@ private:
     void OnViewObjects(wxCommandEvent& event);
     void OnViewObjectsClose(wxWindowDestroyEvent& ev);
     void OnUpdateTileContext(wxCommandEvent& event);
-    void OnUpdateTileContextMaps(wxCommandEvent& event);
-    void OnUpdateTileContextMapsCallback(std::string info);
+    void OnUpdateTileContextMaps(wxCommandEvent& event);    
     void OnSelectAll(wxCommandEvent& event);
     void OnDeselectAll(wxCommandEvent& event);
+    void OnInvalidateSelection(wxCommandEvent& event);
     void OnCreateNewObject(wxCommandEvent& event);
 
     void OnToolBtnClick(wxRibbonButtonBarEvent& event);
     void OnToolPageClick(wxRibbonBarEvent& event);
     SpellTool GetToolSelection();
+
+    
 
     mapCanvas* canvas;
     
@@ -150,6 +155,7 @@ enum
     ID_ViewObjects,
     ID_SelectAll,
     ID_DeselectAll,
+    ID_InvalidateSel,
     ID_CreateNewObject,
     ID_UpdateSprContextMaps
 };

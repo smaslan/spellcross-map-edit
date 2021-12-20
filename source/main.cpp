@@ -146,6 +146,8 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     menuEdit->Append(ID_SelectAll,"Select all tiles\tCtrl+A","",wxITEM_NORMAL);
     menuEdit->Append(ID_DeselectAll,"Deselect all tiles\tCtrl+Shift+A","",wxITEM_NORMAL);
     menuEdit->Append(wxID_ANY,"","",wxITEM_SEPARATOR);
+    menuEdit->Append(ID_InvalidateSel,"Invalidate selection\tCtrl+I","",wxITEM_NORMAL);
+    menuEdit->Append(wxID_ANY,"","",wxITEM_SEPARATOR);
     menuEdit->Append(ID_CreateNewObject,"Create new object\tCtrl+Shift+O","",wxITEM_NORMAL);
 
     
@@ -226,7 +228,7 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
 
 
     // make and attach render canvas
-    canvas = new mapCanvas(this,spell_map,&scroll);
+    canvas = new mapCanvas(this,spell_map, &scroll);
     canvas->SetToolRef(&spell_tool);
     sizer->Add(canvas,1,wxEXPAND|wxALL,1);
 
@@ -255,15 +257,17 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
 
     Bind(wxEVT_MENU,&MyFrame::OnSelectAll,this,ID_SelectAll);
     Bind(wxEVT_MENU,&MyFrame::OnDeselectAll,this,ID_DeselectAll);
+    Bind(wxEVT_MENU,&MyFrame::OnInvalidateSelection,this,ID_InvalidateSel);
     Bind(wxEVT_MENU,&MyFrame::OnCreateNewObject,this,ID_CreateNewObject);
     
 }
 
 
-mapCanvas::mapCanvas(wxFrame* parent,SpellMap* spell_map,TScroll* scroll) :wxPanel(parent)
+mapCanvas::mapCanvas(wxFrame* parent,SpellMap* spell_map,TScroll* scroll) : wxPanel(parent)
 {
     this->spell_map = spell_map;
     this->scroll = scroll;
+    this->m_buffer = m_buffer;
     this->parent = parent;
 
     Bind(wxEVT_PAINT,&mapCanvas::OnPaint,this);
@@ -278,6 +282,11 @@ mapCanvas::mapCanvas(wxFrame* parent,SpellMap* spell_map,TScroll* scroll) :wxPan
     Bind(wxEVT_KEY_DOWN,&mapCanvas::OnKeyDown,this);
     
     Bind(wxEVT_LEFT_DOWN,&mapCanvas::OnLMouseDown,this);
+}
+// get pointer to render buffer (bitmap)
+wxBitmap* mapCanvas::GetRednerBuffer()
+{
+    return(&m_buffer);
 }
 // set pointer to editing tool
 void mapCanvas::SetToolRef(SpellTool* spell_tool)
@@ -302,10 +311,8 @@ void MyFrame::OnResize(wxSizeEvent& event)
 void mapCanvas::OnPaint(wxPaintEvent& event)
 {
     // make buffer
-    int x_size = GetClientSize().x;
-    int y_size = GetClientSize().y;
     if(!m_buffer.IsOk() || m_buffer.GetSize() != GetClientSize())
-        m_buffer = wxBitmap(x_size,y_size,24);
+        m_buffer = wxBitmap(GetClientSize(),24);
 
     // render map
     wxPaintDC pdc(this);
@@ -398,9 +405,9 @@ void MyFrame::OnUpdateTileContextMaps(wxCommandEvent& event)
     wstring path = wstring(fd.GetPath().ToStdWstring());
     
     // load map context (###todo: add terrain type selector?)
-    spell_data->BuildSpriteContextOfMaps(path, "T11", bind(&MyFrame::OnUpdateTileContextMapsCallback,this,placeholders::_1));
+    spell_data->BuildSpriteContextOfMaps(path, "T11", bind(&MyFrame::StatusStringCallback,this,placeholders::_1));
 }
-void MyFrame::OnUpdateTileContextMapsCallback(std::string info)
+void MyFrame::StatusStringCallback(std::string info)
 {
     SetStatusText(info,7);
 }
@@ -530,12 +537,6 @@ void mapCanvas::OnKeyDown(wxKeyEvent& event)
             auto list = spell_map->GetSelections(m_buffer,scroll);
             spell_map->SelectTiles(list,SpellMap::SELECT_CLEAR);
         }
-        else if(key == 'I')
-        {
-            // invalidate region
-            auto list = spell_map->GetSelections(m_buffer,scroll);
-            spell_map->IvalidateTiles(list);
-        }        
     }    
 }
 // select all tiles
@@ -547,7 +548,21 @@ void MyFrame::OnDeselectAll(wxCommandEvent& event)
 {
     spell_map->SelectTiles(SpellMap::SELECT_CLEAR);
 }
+// invalidate map region (retexturing)
+void MyFrame::OnInvalidateSelection(wxCommandEvent& event)
+{
+    // pointer to canvas surface buffer
+    wxBitmap *buffer = canvas->GetRednerBuffer();
+    
+    // get selected area (preference of persistent selection over cursor)
+    std::vector<MapXY> list;    
+    list = spell_map->GetPersistSelections();
+    if(list.empty())
+        list = spell_map->GetSelections(*buffer,&scroll);
 
+    // invalidate region    
+    spell_map->IvalidateTiles(list, bind(&MyFrame::StatusStringCallback,this,placeholders::_1));
+}
 
 
 // tool edit click
@@ -558,8 +573,8 @@ void mapCanvas::OnLMouseDown(wxMouseEvent& event)
 
     if(spell_tool->isActive() && xy_list.size() && xy_list[0].IsSelected())
     {
-        // something selected: edit map class
-        spell_map->EditClass(xy_list, spell_tool);
+        // something selected: edit map class        
+        spell_map->EditClass(xy_list, spell_tool, bind(&MyFrame::StatusStringCallback,(MyFrame*)this->parent,placeholders::_1));
     }
 }
 // tool selected

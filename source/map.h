@@ -275,7 +275,7 @@ class SpellMap
 		vector<MapXY> GetPersistSelections();
 		void SelectTiles(vector<MapXY> tiles,int mode);
 		void SelectTiles(int mode);
-		int IvalidateTiles(vector<MapXY> tiles);
+		int IvalidateTiles(vector<MapXY> tiles,std::function<void(std::string)> status_cb=NULL);
 		int RenderPrepare(wxBitmap& bmp, TScroll* scroll);
 		int Render(wxBitmap &bmp, TScroll* scroll);
 
@@ -294,10 +294,10 @@ class SpellMap
 		tuple<int,int,int> GetTileFlags(wxBitmap& bmp,TScroll* scroll);
 
 		int EditElev(wxBitmap& bmp,TScroll* scroll,int step);
-		int ReTexture(uint8_t* modz);
+		int ReTexture(uint8_t* modz,std::function<void(std::string)> status_cb=NULL);
 		void SyncL1flags();
 
-		int EditClass(vector<MapXY>& selection,SpellTool* tool);
+		int EditClass(vector<MapXY>& selection,SpellTool* tool,std::function<void(std::string)> status_cb=NULL);
 
 		MapXY GetNeighborTile(int x,int y,int quad);
 		MapXY GetNeighborTile(MapXY xy,int quad);
