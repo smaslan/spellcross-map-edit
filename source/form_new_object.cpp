@@ -50,7 +50,7 @@ FormNewObject::FormNewObject(wxWindow* parent,Terrain* terrain,wxWindowID id,con
 	// default object name
 	txtDescription->SetValue("New object");
 	// suggest unique glyph name
-	txtGlyphName->SetValue(terrain->SuggestObjectGlyphName());
+	txtGlyphName->SetValue("not used anymore");
 
 	Bind(wxEVT_COMMAND_BUTTON_CLICKED,&FormNewObject::OnClose,this,wxID_BTN_OK);
 }

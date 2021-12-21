@@ -639,8 +639,7 @@ void FormSprite::OnSaveTileContext(wxCommandEvent& event)
 	wstring name = last_path.filename();
 
 	// show save dialog
-	wxFileDialog saveFileDialog(this,_("Save Spellcross Tile Context File"),dir,name,"Tile context file (*.con)|*.con",
-		wxFD_SAVE);
+	wxFileDialog saveFileDialog(this,_("Save Spellcross terrain context file"),dir,name,"Context file (*.con)|*.con",wxFD_SAVE);
 	if(saveFileDialog.ShowModal() == wxID_CANCEL)
 		return;
 	wstring path = wstring(saveFileDialog.GetPath().ToStdWstring());

@@ -85,6 +85,7 @@ class Sprite
 		int GetContextCount(int quadrant, char tile);
 		Sprite* GetContext(int quadrant,char tile,int index);
 		Sprite* GetContext(int quadrant,int index);
+		void RemoveContext(int quadrant,char tile,vector<int> &list);
 		int CheckContext(int quadrant,Sprite *sprite);
 		int ClearContext(int quadrant);
 		uint32_t SetFlags(uint32_t new_flags);
@@ -254,24 +255,25 @@ private:
 	vector<Sprite*> L1_sprites;
 	vector<Sprite*> L2_sprites;
 	vector<uint8_t> flags;
-	// path to image to be displayed as a glyph in object menu	
-	std::string image_name;
-	std::wstring image_path;
+	// bitmap data
+	int surf_x;
+	int surf_y;
+	uint8_t* pic;
+	uint8_t* pic_end;
 
 	double last_gamma;
 	uint8_t pal[256][3];
 	uint8_t gamma_pal[256][3];
 
+	int RenderObjectGlyph();
+
 public:
-	SpellObject(ifstream& fr,vector<Sprite*>& sprite_list,std::wstring& glyph_path,uint8_t* palette = NULL);
-	SpellObject(vector<MapXY> xy, vector<Sprite*> L1_list,vector<Sprite*> L2_list, vector<uint8_t> flag_list, std::wstring glyph_path, uint8_t *palette = NULL, std::string desc = "");
-	//~SpellObject();
-	int GenerateImage(std::wstring path,double gamma=1.30);
-	int WriteToFile(ofstream& fw);
-	
+	SpellObject(ifstream& fr,vector<Sprite*>& sprite_list,uint8_t* palette = NULL);
+	SpellObject(vector<MapXY> xy, vector<Sprite*> L1_list,vector<Sprite*> L2_list, vector<uint8_t> flag_list, uint8_t *palette = NULL, std::string desc = "");
+	~SpellObject();
+	int RenderPreview(wxBitmap& bmp,double gamma=1.30);
+	int WriteToFile(ofstream& fw);	
 	std::string GetDescription();
-	std::wstring GetGlyphPath();
-	std::string GetGlyphName();
 };
 
 
@@ -300,8 +302,6 @@ private:
 	uint8_t gamma_pal[256][3];
 	// sprite context file path
 	wstring context_path;
-	// objects list file path
-	wstring objects_path;	
 	// list of generic tile glyph pointers
 	vector<Sprite *> glyphs[13];
 
@@ -359,14 +359,11 @@ public:
 
 	int RenderPreview(wxBitmap& bmp,int count,int* data,int flags,double gamma);
 		
-	int LoadObjects(wstring &path);
-	int SaveObjects(wstring &path);
-	int AddObject(vector<MapXY> xy,vector<Sprite*> L1_list,vector<Sprite*> L2_list,vector<uint8_t> flag_list,std::wstring glyph_path,uint8_t* palette,std::string desc);
+	//int LoadObjects(wstring &path);
+	//int SaveObjects(wstring &path);
+	int AddObject(vector<MapXY> xy,vector<Sprite*> L1_list,vector<Sprite*> L2_list,vector<uint8_t> flag_list,uint8_t* palette,std::string desc);
 	int GetObjectsCount();
 	SpellObject *GetObject(int id);
-	wstring& GetSpriteObjectsPath();
-	int VerifyObjectGlyphName(string name);
-	string SuggestObjectGlyphName();
 
 	int LoadTools(wstring &path);
 	int GetToolsCount();

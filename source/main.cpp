@@ -60,8 +60,8 @@ bool MyApp::OnInit()
         terr->InitSpriteContext(cont_path);
         
         // try to load objects list
-        wstring obj_path = char2wstring(ini.GetValue(sec_name.c_str(),"objects_path",""));
-        terr->LoadObjects(obj_path);        
+        /*wstring obj_path = char2wstring(ini.GetValue(sec_name.c_str(),"objects_path",""));
+        terr->LoadObjects(obj_path);*/
     }
 
 
@@ -447,11 +447,9 @@ void MyFrame::OnCreateNewObject(wxCommandEvent& event)
 
         // get object descriptions
         std::string description = form->GetDescription();
-        std::string glyph_name = form->GetGlyphName();
-        std::filesystem::path full_path = "data\\objects\\" + string(spell_map->terrain->name) + "\\" + glyph_name;
         
         // add object to list
-        spell_map->terrain->AddObject(xy_list, L1_spr_list, L2_spr_list, flag_list, full_path, (uint8_t*)spell_map->terrain->pal, description);
+        spell_map->terrain->AddObject(xy_list, L1_spr_list, L2_spr_list, flag_list, (uint8_t*)spell_map->terrain->pal, description);
                 
         // clear selection
         spell_map->SelectTiles(SpellMap::SELECT_CLEAR);

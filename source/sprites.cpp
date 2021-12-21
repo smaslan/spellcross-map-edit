@@ -944,6 +944,18 @@ Sprite* Sprite::GetContext(int quadrant,int index)
 	}
 	return(NULL);
 }
+// remove list of context entries
+void Sprite::RemoveContext(int quadrant,char tile,vector<int>& list)
+{
+	if(quadrant < 0 || quadrant > 4 || tile < 'A' || tile > 'M')
+		return;
+
+	// quite ineffective remover
+	std::sort(list.begin(), list.end());
+	for(int k = list.size()-1; k >= 0; k--)
+		quad[quadrant][tile-'A'].erase(quad[quadrant][tile-'A'].begin() + list[k]);
+}
+
 // check context match with given sprite
 int Sprite::CheckContext(int quadrant,Sprite* sprite)
 {
@@ -1401,8 +1413,6 @@ int Terrain::InitSpriteContext(wstring &path)
 
 	
 	// --- tool clasification:	
-	vector<vector<int>> tool_list;
-	vector<int> tool_ids;
 
 	// read tool classes count
 	uint32_t tool_count;
@@ -1412,19 +1422,25 @@ int Terrain::InitSpriteContext(wstring &path)
 	{
 		// get class name
 		uint16_t len;
+		char *temp;
 		fr.read((char*)&len, sizeof(uint16_t));		
-		char *name = new char[len];
-		fr.read(name,len);
-		
-		// try to get this class ID in currently loaded class list (may differ if one or other was modified!)
-		int class_id = GetToolSetID(name);
-		SpellToolsGroup *tool = NULL;
-		if(class_id >= 0)
-			tool = tools[class_id];
+		temp = new char[len];
+		fr.read(temp,len);
+		std::string name(temp);
+		delete[] temp;
 
-		delete[] name;
-		
-		// read tool items count
+		// get class title
+		fr.read((char*)&len,sizeof(uint16_t));
+		temp = new char[len];
+		fr.read(temp,len);
+		std::string title(temp);
+		delete[] temp;
+
+		// make tool class
+		SpellToolsGroup* grp = new SpellToolsGroup(name,title);
+		tools.push_back(grp);
+						
+		// read tool items count in class
 		uint32_t items_count;
 		fr.read((char*)&items_count,sizeof(uint32_t));		
 
@@ -1433,27 +1449,17 @@ int Terrain::InitSpriteContext(wstring &path)
 		for(int k = 0; k < items_count; k++)
 		{
 			// read item name
-			uint16_t len;
 			fr.read((char*)&len,sizeof(uint16_t));
-			char* name = new char[len];
-			fr.read(name,len);
+			temp = new char[len];
+			fr.read(temp,len);
+			std::string tool_name(temp);
+			delete[] temp;
 
-			int item_id = -1;
-			if(tool)
-			{
-				// try get item id inside tool class
-				item_id = tool->GetItemID(name);				
-			}
-			
-			// add item ID to list (0 for not found)
-			list.push_back(item_id);
+			// add tool to class list
+			grp->AddItem(tool_name);
 
-			delete[] name;
 		}
 		
-		// store items list to tools list
-		tool_ids.push_back(class_id);
-		tool_list.push_back(list);
 	}
 
 
@@ -1462,7 +1468,11 @@ int Terrain::InitSpriteContext(wstring &path)
 	fr.read((char*)&count, sizeof(uint32_t));
 
 	// read tile names
-	int *list = new int[count];
+	//int *list = new int[count];
+	vector<int> list;
+	list.reserve(count);
+	vector<Sprite*> spr_list;
+	spr_list.reserve(count);
 	for(int k = 0; k < count; k++)
 	{
 		// get tile name
@@ -1470,7 +1480,9 @@ int Terrain::InitSpriteContext(wstring &path)
 		fr.read(tile_name, sizeof(tile_name));
 		
 		// try to find its index in terrain list
-		list[k] = GetSpriteID(tile_name);
+		Sprite *spr = GetSprite(tile_name);
+		spr_list.push_back(spr);
+		list.push_back(spr->GetIndex());
 	}
 
 	// for each tile in the list:
@@ -1543,49 +1555,44 @@ int Terrain::InitSpriteContext(wstring &path)
 		uint32_t tool_class_item;
 		fr.read((char*)&tool_class_item,sizeof(uint32_t));
 		
-		// try assign tool classes
-		if(tool_class)
-		{
-			// non empty class:
-			int class_id = tool_ids[tool_class-1];
-			if(class_id >= 0)
-			{		
-				if(tool_class_item)
-				{
-					// non empty item:
-					int item_id = tool_list[tool_class-1][tool_class_item - 1];
-					if(item_id >= 0)
-					{
-						// some item found
-						tool_class_item = item_id + 1;
-					}
-					else
-					{
-						// item not found: discard
-						tool_class_item = 0;
-					}
-				}
-
-				// class found
-				tool_class = class_id + 1;
-			}
-			else
-			{
-				// class not found in currently loaded tool set: discard classes
-				tool_class = 0;
-				tool_class_item = 0;
-			}
-		}
-		else
-		{
-			// class empty
-			tool_class_item = 0;
-		}			
+		// set class data
 		sprites[list[k]]->SetToolClass(tool_class);
 		sprites[list[k]]->SetToolClassGroup(tool_class_item);
 	}
 
-	delete[] list;
+
+	// get terrain name
+	/*uint32_t terr_len;
+	char terr_name[MAX_STR+1];
+	fr.read((char*)&terr_len,sizeof(uint32_t));
+	if(terr_len > MAX_STR)
+	{
+		fr.close();
+		return(1);
+	}
+	fr.read(terr_name,terr_len);
+	if(std::strcmp(terr_name,name))
+	{
+		// wrong terrain!
+		fr.close();
+		return(1);
+	}*/
+
+	// get objects count
+	int obj_count;
+	fr.read((char*)&obj_count,sizeof(uint32_t));
+
+	// clear object list
+	objects.clear();
+	objects.reserve(obj_count);
+
+	// --- for each object:
+	for(int k = 0; k < obj_count;k++)
+	{
+		// read object data
+		SpellObject* obj = new SpellObject(fr,spr_list,(uint8_t*)pal);
+		objects.push_back(obj);
+	}
 
 	// close context file
 	fr.close();
@@ -1628,6 +1635,12 @@ int Terrain::SaveSpriteContext(wstring& path)
 		uint16_t len = name.size() + 1;
 		fw.write((char*)&len, sizeof(uint16_t));
 		fw.write(name.c_str(), len);
+
+		// store tool set name
+		string title = tool->GetClassTitle();
+		len = title.size() + 1;
+		fw.write((char*)&len,sizeof(uint16_t));
+		fw.write(title.c_str(),len);
 		
 		// store class items count
 		uint32_t items_count = tool->GetCount();
@@ -1706,6 +1719,19 @@ int Terrain::SaveSpriteContext(wstring& path)
 		fw.write((char*)&tool_class_item,sizeof(uint32_t));				
 	}
 
+
+	// store objects count
+	uint32_t obj_count = objects.size();
+	fw.write((char*)&obj_count,sizeof(uint32_t));
+
+	// for each object:
+	for(auto const & obj : objects)
+	{
+		// write object data
+		obj->WriteToFile(fw);
+	}
+
+
 	// close file
 	fw.close();
 
@@ -1730,10 +1756,8 @@ void Terrain::ClearSpriteContext()
 int Terrain::UpdateSpriteContext(std::function<void(std::string)> status_cb)
 {
 	// for each sprite:
-	for(int k = 0; k < sprites.size(); k++)
-	{
-		Sprite *ref = sprites[k];
-		
+	for(auto const & ref : sprites)
+	{	
 		// debug
 		/*if(ref->name[0] != 'P' && ref->name[1] != 'L')
 			continue;
@@ -1742,15 +1766,14 @@ int Terrain::UpdateSpriteContext(std::function<void(std::string)> status_cb)
 		ref->ClearContext(2);
 		ref->ClearContext(3);*/
 
-		string status = string_format("Processing sprite #%d: %s", k+1, ref->name);
+		string status = string_format("Processing sprite #%d: %s", ref->GetIndex(), ref->name);
 		if(status_cb)
 			status_cb(status);
 		
 		// check possible neighbors:
-		for(int sid = 0; sid < sprites.size(); sid++)
+		for(auto const & neig: sprites)
 		{
-			Sprite *neig = sprites[sid];
-
+						
 			/*if(neig->name[0] != 'P' && neig->name[1] != 'L')
 				continue;*/
 
@@ -1904,6 +1927,54 @@ int Terrain::UpdateSpriteContext(std::function<void(std::string)> status_cb)
 			}
 		}
 	}
+
+	// remove context data that are not allowed (e.g. two parallel roads or so)
+	// for each sprite:
+	for(auto const& ref : sprites)
+	{						
+		string status = string_format("Removing context for sprite #%d: %s",ref->GetIndex(),ref->name);
+		if(status_cb)
+			status_cb(status);
+
+		/*if(strcmp(ref->name, "CGA0_120") == 0)
+			status_cb("test");*/
+
+
+		uint32_t road_mask = Sprite::IS_ROAD | Sprite::IS_DIRT_ROAD | Sprite::IS_MUD_PATH;
+		if(ref->GetFlags() & road_mask)
+		{
+			uint32_t road_type = ref->GetFlags() & road_mask;
+
+			for(int qid = 0; qid < 4; qid++)
+			{
+				// matching neighbor edge
+				int qid180 = (qid + 2) & 3;
+				
+				// to remove list
+				vector<int> rem;
+				rem.clear();
+
+				// mark invalids
+				bool ref_edge_generic = ref->GetEdgeClass(qid) == Sprite::CLASS_GENERIC;
+				for(int k = 0; k < ref->GetContextCount(qid, 'A'); k++)
+				{
+					Sprite *cont = ref->GetContext(qid, 'A', k);
+
+					if(!(cont->GetFlags() & road_type))
+						continue;
+										
+					bool cont_edge_generic = cont->GetEdgeClass(qid180) == Sprite::CLASS_GENERIC;
+					if(!ref_edge_generic && !cont_edge_generic)
+						rem.push_back(k);
+				}
+
+				// remove list of invalids
+				ref->RemoveContext(qid, 'A', rem);								
+			}
+		}
+	}
+
+
 	return(0);
 }
 // auto set edge/corner shading flags from known sprite types (PLx*)
@@ -2136,7 +2207,7 @@ AnimPNM* Terrain::GetPNM(const char* name)
 // Spellcross map objects stuff
 //=============================================================================
 // make object
-SpellObject::SpellObject(vector<MapXY> xy,vector<Sprite*> L1_list,vector<Sprite*> L2_list,vector<uint8_t> flag_list,std::wstring glyph_path,uint8_t* palette,std::string desc)
+SpellObject::SpellObject(vector<MapXY> xy,vector<Sprite*> L1_list,vector<Sprite*> L2_list,vector<uint8_t> flag_list,uint8_t* palette,std::string desc)
 {
 	sprite_pos.clear();
 	L1_sprites.clear();
@@ -2146,12 +2217,9 @@ SpellObject::SpellObject(vector<MapXY> xy,vector<Sprite*> L1_list,vector<Sprite*
 	last_gamma = 0.0;
 	if(palette)
 		std::memcpy((void*)pal, (void*)palette, 256*3);
-
-
-	// split path to folder and file
-	std::filesystem::path full_path = glyph_path;
-	image_name = wstring2string(full_path.filename());
-	image_path = glyph_path;
+	pic = NULL;
+	surf_x = 0;
+	surf_y = 0;
 
 	// find reference tile (bottom right)
 	MapXY ref(1<<30, 1<<30);	
@@ -2185,10 +2253,19 @@ SpellObject::SpellObject(vector<MapXY> xy,vector<Sprite*> L1_list,vector<Sprite*
 	// align from 0,0 (lazy solution)
 	for(int k = 0; k < sprite_pos.size(); k++)
 		sprite_pos[k].x -= ref2.x;
+
+	// render object glyph to internal buffer
+	RenderObjectGlyph();
+}
+// clear objectg stuff
+SpellObject::~SpellObject()
+{
+	if(pic)
+		delete[] pic;
 }
 
-// generate image from object data
-int SpellObject::GenerateImage(std::wstring path, double gamma)
+// render glyph to internal indexed buffer
+int SpellObject::RenderObjectGlyph()
 {
 	if(!sprite_pos.size())
 		return(1);
@@ -2204,23 +2281,23 @@ int SpellObject::GenerateImage(std::wstring path, double gamma)
 		y_size = max(sprite_pos[k].y*24 + 48,y_size);
 	}
 	x_ref = -x_ref;
-	x_size += x_ref;
+	x_size += x_ref;	
 
 	// allocate render buffer for indexed image
-	int surf_x = x_size;
-	int surf_y = 0 + y_size + 0;	
-	uint8_t* buf = new uint8_t[surf_x*surf_y];
-	uint8_t* buf_end = &buf[surf_x*surf_y];
+	surf_x = x_size;
+	surf_y = 0 + y_size + 0;		
 	// render origin
 	int org_x = x_ref;
 	int org_y = 0;
 
-	// make local bitmap buffer
-	wxBitmap bmp(surf_x, surf_y, 32);
-	bmp.UseAlpha(true);
+	// (re)allocate image buffer
+	if(pic)
+		delete[] pic;
+	pic = new uint8_t[surf_x*surf_y];
+	pic_end = &pic[surf_x*surf_y];
 
 	// clear background
-	std::memset((void*)buf,230,surf_x*surf_y);
+	std::memset((void*)pic,230,surf_x*surf_y);
 
 	// L1 render:
 	for(int tid = 0;tid < sprite_pos.size(); tid++)
@@ -2233,7 +2310,7 @@ int SpellObject::GenerateImage(std::wstring path, double gamma)
 
 		// render tile
 		Sprite* spr = L1_sprites[tid];
-		spr->Render(buf,buf_end,ref_x,ref_y,surf_x);
+		spr->Render(pic,pic_end,ref_x,ref_y,surf_x);
 	}
 	// L2 render:
 	for(int tid = 0;tid < sprite_pos.size(); tid++)
@@ -2253,9 +2330,18 @@ int SpellObject::GenerateImage(std::wstring path, double gamma)
 		sy += L1->y_ofs;
 
 		// render tile		
-		spr->Render(buf,buf_end,ref_x,ref_y,surf_x);
+		spr->Render(pic,pic_end,ref_x,ref_y,surf_x);
 	}
 
+	return(0);
+}
+
+// render preview to widgets bitmap
+int SpellObject::RenderPreview(wxBitmap &bmp,double gamma)
+{
+	if(!pic)
+		return(1);
+	
 	// apply gamma correction to palette:
 	if(gamma != last_gamma)
 	{
@@ -2271,50 +2357,89 @@ int SpellObject::GenerateImage(std::wstring path, double gamma)
 				gamma_pal[k][c] = (uint8_t)(pow((double)pal[k][c] / 255.0,1.0 / gamma) * 255.0);
 	}
 
-	// render 24bit RGB data to raw bmp buffer
-	typedef wxPixelData<wxBitmap,wxAlphaPixelFormat> PixelData;
-	PixelData data(bmp);
-	PixelData::Iterator p(data);
-	for(int y = 0; y < surf_y; ++y)
+	// setp bitmap
+	//wxBitmap bmp(surf_x,surf_y,32);
+
+	int bmp_xsz = bmp.GetWidth();
+	int bmp_ysz = bmp.GetHeight();
+	int x_ofs = (surf_x - bmp_xsz)/2;
+	int y_ofs = (surf_y - bmp_ysz)/2;
+
+	if(bmp.HasAlpha() && bmp.GetDepth() == 32)
 	{
-		uint8_t* scan = p.m_ptr;
-		uint8_t* src = &buf[y*surf_x];
-		for(int x = 0; x < surf_x; x++)
-		{			
-			*scan++ = gamma_pal[*src][2];
-			*scan++ = gamma_pal[*src][1];
-			*scan++ = gamma_pal[*src][0];			
-			*scan++ = (*src != 230)*255;
-			src++;
+		// render 32bit RGBA data to raw bmp buffer
+		typedef wxPixelData<wxBitmap,wxAlphaPixelFormat> PixelData;
+		PixelData data(bmp);
+		PixelData::Iterator p(data);
+		for(int y = 0; y < bmp_ysz; ++y)
+		{
+			uint8_t* scan = p.m_ptr;
+			uint8_t* src = &pic[(y + y_ofs)*surf_x + x_ofs];			
+			for(int x = 0; x < bmp_xsz; x++)
+			{
+				if((x + x_ofs) < 0 || (x + x_ofs) >= surf_x || (y + y_ofs) < 0 || (y + y_ofs) >= surf_y)
+				{
+					// invalid source area: render blank
+					*scan++ = 0;
+					*scan++ = 0;
+					*scan++ = 0;
+					*scan++ = 0; // alpha channel
+				}
+				else
+				{
+					// visible area
+					*scan++ = gamma_pal[*src][2];
+					*scan++ = gamma_pal[*src][1];
+					*scan++ = gamma_pal[*src][0];
+					*scan++ = (*src != 230)*255; // alpha channel
+				}
+				src++;
+			}
+			p.OffsetY(data,1);
 		}
-		p.OffsetY(data,1);
 	}
-
-	// loose local buffer
-	delete[] buf;
-
-	// save to file
-	if(!path.empty())
+	else if(!bmp.HasAlpha() && bmp.GetDepth() == 24)
 	{
-		bmp.SaveFile(path, wxBITMAP_TYPE_PNG);
+		// render 24bit RGB data to raw bmp buffer
+		/*typedef wxPixelData<wxBitmap,wxPixelFormat<unsigned char,24,wxNativePixelFormat::RED,wxNativePixelFormat::GREEN,wxNativePixelFormat::BLUE>> PixelData;
+		PixelData data(bmp);
+		PixelData::Iterator p(data);*/
+		wxNativePixelData data(bmp);
+		wxNativePixelData::Iterator p(data);
+		for(int y = 0; y < bmp_ysz; ++y)
+		{
+			uint8_t* scan = p.m_ptr;
+			uint8_t* src = &pic[(y + y_ofs)*surf_x + x_ofs];
+			for(int x = 0; x < bmp_xsz; x++)
+			{
+				if((x + x_ofs) < 0 || (x + x_ofs) >= surf_x || (y + y_ofs) < 0 || (y + y_ofs) >= surf_y)
+				{
+					// invalid source area: render blank
+					*scan++ = gamma_pal[230][2];
+					*scan++ = gamma_pal[230][1];
+					*scan++ = gamma_pal[230][0];
+				}
+				else
+				{
+					// visible area
+					*scan++ = gamma_pal[*src][2];
+					*scan++ = gamma_pal[*src][1];
+					*scan++ = gamma_pal[*src][0];
+				}
+				src++;
+			}
+			p.OffsetY(data,1);
+		}
 	}
+
 
 	return(0);
 }
+
 // get object description
 std::string SpellObject::GetDescription()
 {
 	return(description);
-}
-// get object glyph path
-std::wstring SpellObject::GetGlyphPath()
-{
-	return(image_path);
-}
-// get object glyph name
-std::string SpellObject::GetGlyphName()
-{
-	return(image_name);
 }
 
 // write object to a file (for saving objects list)
@@ -2324,11 +2449,6 @@ int SpellObject::WriteToFile(ofstream &fw)
 	uint32_t desc_len = description.size()+1;
 	fw.write((char*)&desc_len,sizeof(uint32_t));
 	fw.write(description.c_str(),desc_len);
-
-	// write image name string
-	uint32_t name_len = image_name.size()+1;
-	fw.write((char*)&name_len,sizeof(uint32_t));
-	fw.write(image_name.c_str(),name_len);
 
 	// write tiles count
 	uint32_t tile_count = L1_sprites.size();
@@ -2356,11 +2476,30 @@ int SpellObject::WriteToFile(ofstream &fw)
 		fw.write((char*)&y_pos,sizeof(uint32_t));
 	}
 
+	// --- write image glyph data
+	if(!pic)
+	{
+		// render glyph if not done yet
+		RenderObjectGlyph();
+	}
+
+	// write pic size
+	uint32_t pic_x = surf_x;
+	fw.write((char*)&pic_x,sizeof(uint32_t));
+	uint32_t pic_y = surf_y;
+	fw.write((char*)&pic_y,sizeof(uint32_t));
+
+	// write palette
+	fw.write((char*)pal,3*256);
+
+	// write image data
+	fw.write((char*)pic,surf_x*surf_y);
+
 	return(0);
 }
 
 // create object to a file
-SpellObject::SpellObject(ifstream& fr,vector<Sprite*> &sprite_list, std::wstring &glyph_path,uint8_t* palette)
+SpellObject::SpellObject(ifstream& fr,vector<Sprite*> &sprite_list, uint8_t* palette)
 {
 	sprite_pos.clear();
 	L1_sprites.clear();
@@ -2369,7 +2508,10 @@ SpellObject::SpellObject(ifstream& fr,vector<Sprite*> &sprite_list, std::wstring
 	last_gamma = 0.0;
 	if(palette)
 		std::memcpy((void*)pal,(void*)palette,256*3);
-	
+	pic = NULL;
+	surf_x = 0;
+	surf_y = 0;
+
 	char *temp;
 	uint32_t len;
 
@@ -2379,16 +2521,6 @@ SpellObject::SpellObject(ifstream& fr,vector<Sprite*> &sprite_list, std::wstring
 	fr.read(temp,len);
 	description = string(temp);
 	delete[] temp;
-
-	// read image name string
-	fr.read((char*)&len,sizeof(uint32_t));
-	temp = new char[len];
-	fr.read(temp,len);
-	image_name = string(temp);
-	delete[] temp;
-
-	// make full glyph path
-	image_path = glyph_path + image_name;
 	
 	// read tiles count
 	uint32_t tile_count;
@@ -2432,10 +2564,27 @@ SpellObject::SpellObject(ifstream& fr,vector<Sprite*> &sprite_list, std::wstring
 		MapXY pxy(x_pos, y_pos);
 		sprite_pos.push_back(pxy);
 	}
+
+	// read pic size
+	uint32_t pic_x;
+	fr.read((char*)&pic_x,sizeof(uint32_t));
+	surf_x = pic_x;
+	uint32_t pic_y;
+	fr.read((char*)&pic_y,sizeof(uint32_t));
+	surf_y = pic_y;
+
+	// read palette
+	fr.read((char*)pal,3*256);
+
+	// read image data
+	pic = new uint8_t[pic_x*pic_y];
+	pic_end = &pic[pic_x*pic_y];
+	fr.read((char*)pic,surf_x*surf_y);
+
 }
 
 // load objects from file
-int Terrain::LoadObjects(wstring& path)
+/*int Terrain::LoadObjects(wstring& path)
 {
 	// leave if empty
 	if(path.empty())
@@ -2520,9 +2669,9 @@ int Terrain::LoadObjects(wstring& path)
 	list.clear();
 
 	return(0);
-}
+}*/
 // store objects list to a file
-int Terrain::SaveObjects(wstring& path)
+/*int Terrain::SaveObjects(wstring& path)
 {
 	// create file
 	ofstream fw(path,ios::out | ios::binary);
@@ -2549,6 +2698,37 @@ int Terrain::SaveObjects(wstring& path)
 	for(int k = 0; k < spr_count;k++)
 		fw.write(sprites[k]->name,sizeof(sprites[k]->name));
 
+	// --- tool clasification:
+	// store tool classes count
+	uint32_t tool_count = GetToolsCount();
+	fw.write((char*)&tool_count,sizeof(uint32_t));
+	// for each tool list:
+	for(int tid = 0; tid < tool_count; tid++)
+	{
+		// get tool set
+		SpellToolsGroup* tool = GetToolSet(tid);
+
+		// store tool set name
+		string name = tool->GetClassName();
+		uint16_t len = name.size() + 1;
+		fw.write((char*)&len,sizeof(uint16_t));
+		fw.write(name.c_str(),len);
+
+		// store class items count
+		uint32_t items_count = tool->GetCount();
+		fw.write((char*)&items_count,sizeof(uint32_t));
+
+		// store class item names:
+		for(int k = 0; k < items_count; k++)
+		{
+			// store item name
+			string name = tool->GetItem(k);
+			uint16_t len = name.size() + 1;
+			fw.write((char*)&len,sizeof(uint16_t));
+			fw.write(name.c_str(),len);
+		}
+	}
+
 	// store objects count
 	uint32_t count = objects.size();
 	fw.write((char*)&count,sizeof(uint32_t));
@@ -2564,16 +2744,16 @@ int Terrain::SaveObjects(wstring& path)
 	fw.close();
 
 	return(0);
-}
+}*/
 
 // add object to list of object
-int Terrain::AddObject(vector<MapXY> xy,vector<Sprite*> L1_list,vector<Sprite*> L2_list,vector<uint8_t> flag_list,std::wstring glyph_path,uint8_t* palette,std::string desc)
+int Terrain::AddObject(vector<MapXY> xy,vector<Sprite*> L1_list,vector<Sprite*> L2_list,vector<uint8_t> flag_list,uint8_t* palette,std::string desc)
 {
 	// create object
-	SpellObject *obj = new SpellObject(xy,L1_list,L2_list,flag_list,glyph_path,(uint8_t*)pal,desc);
+	SpellObject *obj = new SpellObject(xy,L1_list,L2_list,flag_list,(uint8_t*)pal,desc);
 
 	// generate glyph
-	obj->GenerateImage(glyph_path);
+	//obj->GenerateImage(glyph_path);
 
 	// add to list
 	objects.push_back(obj);
@@ -2591,38 +2771,6 @@ SpellObject* Terrain::GetObject(int id)
 	if(id >= objects.size())
 		return(NULL);
 	return(objects[id]);
-}
-// return last objects file path
-wstring& Terrain::GetSpriteObjectsPath()
-{
-	return(objects_path);
-}
-// check if given glyph name is not already in use
-int Terrain::VerifyObjectGlyphName(string name)
-{
-	for(int k = 0; k < objects.size(); k++)
-		if(objects[k]->GetGlyphName().compare(name) == 0)
-			return(1); // fail
-	// ok
-	return(0);
-}
-// suggest object glyph name
-string Terrain::SuggestObjectGlyphName()
-{	
-	int id = 1;
-	while(true)
-	{
-		// make new name
-		char temp[100];
-		sprintf_s(temp,"object_%03d.png",id);
-		
-		// check it
-		if(VerifyObjectGlyphName(temp) == 0)
-			return(string(temp));
-
-		// try another one
-		id++;
-	}
 }
 
 
@@ -2682,7 +2830,7 @@ int SpellToolsGroup::GetItemID(const char* item_name)
 // Load toolset
 int Terrain::LoadTools(wstring& path)
 {
-	if(path.empty())
+	/*if(path.empty())
 		return(1);
 
 	// load config.ini
@@ -2721,7 +2869,7 @@ int Terrain::LoadTools(wstring& path)
 				grp->AddItem(item);
 			}
 		}
-	}
+	}*/
 
 	return(0);
 }
