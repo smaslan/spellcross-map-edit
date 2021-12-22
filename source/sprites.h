@@ -260,6 +260,9 @@ private:
 	int surf_y;
 	uint8_t* pic;
 	uint8_t* pic_end;
+	// tool classes 
+	uint32_t tool_class;
+	uint32_t tool_group;
 
 	double last_gamma;
 	uint8_t pal[256][3];
@@ -274,6 +277,11 @@ public:
 	int RenderPreview(wxBitmap& bmp,double gamma=1.30);
 	int WriteToFile(ofstream& fw);	
 	std::string GetDescription();
+
+	void SetToolClass(int id);
+	void SetToolClassGroup(int id);
+	int GetToolClass();
+	int GetToolClassGroup();
 };
 
 
@@ -359,13 +367,10 @@ public:
 
 	int RenderPreview(wxBitmap& bmp,int count,int* data,int flags,double gamma);
 		
-	//int LoadObjects(wstring &path);
-	//int SaveObjects(wstring &path);
 	int AddObject(vector<MapXY> xy,vector<Sprite*> L1_list,vector<Sprite*> L2_list,vector<uint8_t> flag_list,uint8_t* palette,std::string desc);
 	int GetObjectsCount();
 	SpellObject *GetObject(int id);
 
-	int LoadTools(wstring &path);
 	int GetToolsCount();
 	SpellToolsGroup *GetToolSet(int id);
 	SpellToolsGroup *GetToolSet(string& name);

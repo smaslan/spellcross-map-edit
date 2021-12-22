@@ -499,7 +499,7 @@ void FormSprite::FillToolsClasses()
 	}
 }
 
-// update class selectosr view
+// update class selectors view
 void FormSprite::UpdateToolClassesView()
 {
 	// get this terrain
@@ -548,6 +548,7 @@ void FormSprite::FillToolItemsList()
 
 	}
 }
+
 // on change tool class selection
 void FormSprite::OnToolClassChange(wxCommandEvent& event)
 {

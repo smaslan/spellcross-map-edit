@@ -2220,6 +2220,8 @@ SpellObject::SpellObject(vector<MapXY> xy,vector<Sprite*> L1_list,vector<Sprite*
 	pic = NULL;
 	surf_x = 0;
 	surf_y = 0;
+	tool_class = 0;
+	tool_group = 0;
 
 	// find reference tile (bottom right)
 	MapXY ref(1<<30, 1<<30);	
@@ -2450,6 +2452,15 @@ int SpellObject::WriteToFile(ofstream &fw)
 	fw.write((char*)&desc_len,sizeof(uint32_t));
 	fw.write(description.c_str(),desc_len);
 
+	// store tool class
+	uint32_t tool_class = this->tool_class;
+	fw.write((char*)&tool_class,sizeof(uint32_t));
+
+	// store tool class item
+	uint32_t tool_class_item = this->tool_group;
+	fw.write((char*)&tool_class_item,sizeof(uint32_t));
+
+
 	// write tiles count
 	uint32_t tile_count = L1_sprites.size();
 	fw.write((char*)&tile_count,sizeof(uint32_t));
@@ -2511,6 +2522,8 @@ SpellObject::SpellObject(ifstream& fr,vector<Sprite*> &sprite_list, uint8_t* pal
 	pic = NULL;
 	surf_x = 0;
 	surf_y = 0;
+	tool_class = 0;
+	tool_group = 0;
 
 	char *temp;
 	uint32_t len;
@@ -2521,6 +2534,16 @@ SpellObject::SpellObject(ifstream& fr,vector<Sprite*> &sprite_list, uint8_t* pal
 	fr.read(temp,len);
 	description = string(temp);
 	delete[] temp;
+
+	// load tools class id
+	uint32_t tool_class;
+	fr.read((char*)&tool_class,sizeof(uint32_t));
+	this->tool_class = tool_class;
+
+	// load tools class item id
+	uint32_t tool_class_item;
+	fr.read((char*)&tool_class_item,sizeof(uint32_t));
+	this->tool_group = tool_class_item;
 	
 	// read tiles count
 	uint32_t tile_count;
@@ -2583,168 +2606,6 @@ SpellObject::SpellObject(ifstream& fr,vector<Sprite*> &sprite_list, uint8_t* pal
 
 }
 
-// load objects from file
-/*int Terrain::LoadObjects(wstring& path)
-{
-	// leave if empty
-	if(path.empty())
-		return(1);
-
-	// store last path
-	objects_path = path;
-
-	// try to open file
-	ifstream fr(path,ios::in | ios::binary);
-	if(!fr.is_open())
-		return(1);
-
-	// check version
-	const char ver_ref[] = "SpellMapEditObjectsV1.0";
-	char ver[sizeof(ver_ref)];
-	fr.read(ver,sizeof(ver_ref));
-	if(memcmp(ver,ver_ref,sizeof(ver_ref)))
-	{
-		fr.close();
-		return(1);
-	}
-
-	// get terrain name
-	uint32_t terr_len;
-	char terr_name[MAX_STR+1];
-	fr.read((char*)&terr_len,sizeof(uint32_t));
-	if(terr_len > MAX_STR)
-	{
-		fr.close();
-		return(1);
-	}
-	fr.read(terr_name, terr_len);
-	if(std::strcmp(terr_name, name))
-	{
-		// wrong terrain!
-		fr.close();
-		return(1);
-	}
-
-	// get sprites count
-	int spr_count;
-	fr.read((char*)&spr_count,sizeof(uint32_t));
-
-	// read sprite names
-	vector<Sprite*> list;
-	list.reserve(spr_count);
-	for(int k = 0; k < spr_count; k++)
-	{
-		// get tile name
-		char tile_name[9];
-		fr.read(tile_name,sizeof(tile_name));
-
-		// try to find its index in terrain list
-		Sprite *spr = GetSprite(tile_name);
-		if(!spr)
-		{
-			fr.close();
-			return(1);
-		}
-		list.push_back(spr);
-	}
-
-	// get objects count
-	int count;
-	fr.read((char*)&count,sizeof(uint32_t));
-
-	objects.clear();
-	objects.reserve(count);
-
-	// --- for each object:
-	for(int k = 0; k < count;k++)
-	{
-		// read object data
-		wstring glyph_dir = L"data\\objects\\" + char2wstring(name) + L"\\";
-		SpellObject *obj = new SpellObject(fr, list, glyph_dir, (uint8_t*)pal);	
-		objects.push_back(obj);
-	}	
-
-	// close file
-	fr.close();
-	list.clear();
-
-	return(0);
-}*/
-// store objects list to a file
-/*int Terrain::SaveObjects(wstring& path)
-{
-	// create file
-	ofstream fw(path,ios::out | ios::binary);
-	if(!fw.is_open())
-		return(1);
-
-	// store last path
-	objects_path = path;
-
-	// store version string
-	const char ver[] = "SpellMapEditObjectsV1.0";
-	fw.write(ver,sizeof(ver));
-
-	// store related terrain name
-	uint32_t terrain_len = std::strlen(name)+1;
-	fw.write((char*)&terrain_len,sizeof(uint32_t));
-	fw.write(name,terrain_len);
-
-	// store sprite count
-	uint32_t spr_count = sprites.size();
-	fw.write((char*)&spr_count,sizeof(uint32_t));
-
-	// store sprite name list, following code will work with indexes corresponding to this list
-	for(int k = 0; k < spr_count;k++)
-		fw.write(sprites[k]->name,sizeof(sprites[k]->name));
-
-	// --- tool clasification:
-	// store tool classes count
-	uint32_t tool_count = GetToolsCount();
-	fw.write((char*)&tool_count,sizeof(uint32_t));
-	// for each tool list:
-	for(int tid = 0; tid < tool_count; tid++)
-	{
-		// get tool set
-		SpellToolsGroup* tool = GetToolSet(tid);
-
-		// store tool set name
-		string name = tool->GetClassName();
-		uint16_t len = name.size() + 1;
-		fw.write((char*)&len,sizeof(uint16_t));
-		fw.write(name.c_str(),len);
-
-		// store class items count
-		uint32_t items_count = tool->GetCount();
-		fw.write((char*)&items_count,sizeof(uint32_t));
-
-		// store class item names:
-		for(int k = 0; k < items_count; k++)
-		{
-			// store item name
-			string name = tool->GetItem(k);
-			uint16_t len = name.size() + 1;
-			fw.write((char*)&len,sizeof(uint16_t));
-			fw.write(name.c_str(),len);
-		}
-	}
-
-	// store objects count
-	uint32_t count = objects.size();
-	fw.write((char*)&count,sizeof(uint32_t));
-
-	// --- for each object:
-	for(int k = 0; k < count;k++)
-	{
-		// write object data
-		objects[k]->WriteToFile(fw);
-	}
-
-	// close file
-	fw.close();
-
-	return(0);
-}*/
 
 // add object to list of object
 int Terrain::AddObject(vector<MapXY> xy,vector<Sprite*> L1_list,vector<Sprite*> L2_list,vector<uint8_t> flag_list,uint8_t* palette,std::string desc)
@@ -2772,7 +2633,23 @@ SpellObject* Terrain::GetObject(int id)
 		return(NULL);
 	return(objects[id]);
 }
-
+// tools class/group clasification
+void SpellObject::SetToolClass(int id)
+{
+	tool_class = id;
+}
+void SpellObject::SetToolClassGroup(int id)
+{
+	tool_group = id;
+}
+int SpellObject::GetToolClass()
+{
+	return(tool_class);
+}
+int SpellObject::GetToolClassGroup()
+{
+	return(tool_group);
+}
 
 
 
@@ -2826,53 +2703,6 @@ int SpellToolsGroup::GetItemID(const char* item_name)
 
 
 
-
-// Load toolset
-int Terrain::LoadTools(wstring& path)
-{
-	/*if(path.empty())
-		return(1);
-
-	// load config.ini
-	CSimpleIniA ini;
-	ini.SetUnicode();
-	ini.LoadFile(path.c_str());
-
-	// try to get list of sections (tool classes)
-	std::list<CSimpleIniA::Entry> tool_class_list;
-	ini.GetAllSections(tool_class_list);
-
-	// for each class:
-	for(auto const &cid : tool_class_list)
-	{				
-		// get tools page name
-		string page_name = string(ini.GetValue(cid.pItem, "page_name"));
-		
-		// get tools page title
-		string page_title = string(ini.GetValue(cid.pItem,"page_title"));
-
-		// get list of items
-		std::list<CSimpleIniA::Entry> group_list;
-		ini.GetAllKeys(cid.pItem,group_list);
-
-		SpellToolsGroup* grp = new SpellToolsGroup(page_name, page_title);
-		tools.push_back(grp);
-
-		// for each item of class:
-		for(auto const& gid : group_list)
-		{
-			// for items only:
-			if(wildcmp("item_*",gid.pItem))
-			{
-				// add item to list
-				string item = ini.GetValue(cid.pItem, gid.pItem);
-				grp->AddItem(item);
-			}
-		}
-	}*/
-
-	return(0);
-}
 // get tool classes count
 int Terrain::GetToolsCount()
 {

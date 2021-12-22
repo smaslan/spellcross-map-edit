@@ -40,14 +40,11 @@ class FormNewObject : public wxDialog
 		enum
 		{
 			wxID_TXT_DESC = 1000,
-			wxID_TXT_GLYPH,
 			wxID_BTN_OK
 		};
 
 		wxStaticText* m_staticText11;
 		wxTextCtrl* txtDescription;
-		wxStaticText* m_staticText12;
-		wxTextCtrl* txtGlyphName;
 		wxStaticLine* m_staticline4;
 		wxButton* btnOk;
 
@@ -63,6 +60,4 @@ class FormNewObject : public wxDialog
 		void OnClose(wxCommandEvent& event);
 
 		std::string GetDescription();
-		std::string GetGlyphName();
-
 };

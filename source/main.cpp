@@ -50,18 +50,10 @@ bool MyApp::OnInit()
         Terrain *terr = spell_data->GetTerrain(k);
         // make INI section
         string sec_name = "TERRAIN::" + string(terr->name);
-
-        // try load tool palette (must be loaded before context and objects!)
-        wstring tool_path = char2wstring(ini.GetValue(sec_name.c_str(),"tools_path",""));
-        terr->LoadTools(tool_path);
         
         // try to load context
         wstring cont_path = char2wstring(ini.GetValue(sec_name.c_str(), "context_path", ""));        
-        terr->InitSpriteContext(cont_path);
-        
-        // try to load objects list
-        /*wstring obj_path = char2wstring(ini.GetValue(sec_name.c_str(),"objects_path",""));
-        terr->LoadObjects(obj_path);*/
+        terr->InitSpriteContext(cont_path);        
     }
 
 

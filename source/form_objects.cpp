@@ -20,7 +20,7 @@ FormObjects::FormObjects( wxWindow* parent,SpellData* spell_data,wxWindowID id, 
 
 	// === AUTO GENERATED START ===
 	
-	this->SetSizeHints(wxSize(1000,600),wxDefaultSize);
+	this->SetSizeHints(wxSize(800,400),wxDefaultSize);
 	//this->SetForegroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOW));
 	this->SetBackgroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_MENU));
 
@@ -58,7 +58,7 @@ FormObjects::FormObjects( wxWindow* parent,SpellData* spell_data,wxWindowID id, 
 	m_staticline8 = new wxStaticLine(this,wxID_ANY,wxDefaultPosition,wxDefaultSize,wxLI_HORIZONTAL);
 	szrView->Add(m_staticline8,0,wxEXPAND|wxTOP|wxRIGHT|wxLEFT,5);
 
-	m_staticText19 = new wxStaticText(this,wxID_ANY,wxT("Object name (keep it short):"),wxDefaultPosition,wxDefaultSize,0);
+	m_staticText19 = new wxStaticText(this,wxID_ANY,wxT("Object name (keep it short, press Enter to confirm):"),wxDefaultPosition,wxDefaultSize,0);
 	m_staticText19->Wrap(-1);
 	szrView->Add(m_staticText19,0,wxTOP|wxRIGHT|wxLEFT,5);
 
@@ -135,6 +135,12 @@ FormObjects::FormObjects( wxWindow* parent,SpellData* spell_data,wxWindowID id, 
 	btnPrev = new wxMenuItem(mnuEdit,wxID_MM_PREV,wxString(wxT("Previous item")) + wxT('\t') + wxT("Ctrl+["),wxEmptyString,wxITEM_NORMAL);
 	mnuEdit->Append(btnPrev);
 
+	mnuEdit->AppendSeparator();
+
+	wxMenuItem* btnRemove;
+	btnRemove = new wxMenuItem(mnuEdit,wxID_ANY,wxString(wxT("Delete object")) + wxT('\t') + wxT("Shift+Delete"),wxEmptyString,wxITEM_NORMAL);
+	mnuEdit->Append(btnRemove);
+
 	m_menubar2->Append(mnuEdit,wxT("Edit"));
 
 	this->SetMenuBar(m_menubar2);
@@ -167,6 +173,12 @@ FormObjects::FormObjects( wxWindow* parent,SpellData* spell_data,wxWindowID id, 
 	canvas->SetDoubleBuffered(true);
 	canvas->Bind(wxEVT_PAINT,&FormObjects::OnPaintCanvas,this);
 
+	// object tool classes stuff:	
+	FillToolsClasses();
+	// 
+	Bind(wxEVT_COMMAND_CHOICE_SELECTED,&FormObjects::OnToolClassChange,this,wxID_CHB_CLASS);
+	Bind(wxEVT_COMMAND_CHOICE_SELECTED,&FormObjects::OnToolClassItemChange,this,wxID_CHB_GROUP);
+
 
 	// default map
 	SetMap(NULL);
@@ -176,12 +188,7 @@ FormObjects::~FormObjects()
 {
 }
 
-// on change object
-void FormObjects::OnSelectObject(wxCommandEvent& event)
-{
-	canvas->Refresh();
-}
-
+// set current map poitner
 void FormObjects::SetMap(SpellMap* map)
 {
 	spell_map = map;
@@ -213,6 +220,17 @@ Terrain* FormObjects::FindTerrain()
 	}
 	return(NULL);
 }
+
+
+
+
+// on change object selection
+void FormObjects::OnSelectObject(wxCommandEvent& event)
+{
+	UpdateToolClassesView();
+	canvas->Refresh();
+}
+
 
 
 
@@ -316,4 +334,129 @@ void FormObjects::OnPaintCanvas(wxPaintEvent& event)
 	// blit to screen
 	wxPaintDC pdc(canvas);
 	pdc.DrawBitmap(bmp,wxPoint(0,0));
+}
+
+
+
+
+
+// fills tool class menu
+void FormObjects::FillToolsClasses()
+{
+	// get this terrain
+	Terrain* terr = FindTerrain();
+
+	// add neutral item
+	chbObjectClass->Clear();
+	chbObjectClass->Append("None");
+	chbObjectClass->Select(0);
+
+	// make list of existing classes
+	for(int k = 0; k < terr->GetToolsCount(); k++)
+	{
+		SpellToolsGroup* grp = terr->GetToolSet(k);
+		chbObjectClass->Append(grp->GetClassName());
+	}
+}
+
+// fill tool class items menu
+void FormObjects::FillToolItemsList()
+{
+	// get this terrain
+	Terrain* terr = FindTerrain();
+
+	// add neutral item
+	chbObjectsGroup->Clear();
+	chbObjectsGroup->Append("None");
+	chbObjectsGroup->Select(0);
+
+	if(lbObjects->GetCount() && lbObjects->GetSelection() >= 0)
+	{
+		int sel = lbObjects->GetSelection();
+		auto obj = terr->GetObject(sel);
+
+		int class_id = obj->GetToolClass();
+		if(class_id)
+		{
+			// make list of existing classes
+			SpellToolsGroup* grp = terr->GetToolSet(class_id - 1);
+
+			// fill the list
+			for(int k = 0; k < grp->GetCount(); k++)
+				chbObjectsGroup->Append(grp->GetItem(k));
+
+			int item_id = obj->GetToolClassGroup();
+			chbObjectsGroup->Select(item_id);
+		}
+
+	}
+}
+
+// update class selectors view
+void FormObjects::UpdateToolClassesView()
+{
+	// get this terrain
+	Terrain* terr = FindTerrain();
+
+	if(lbObjects->GetCount() && lbObjects->GetSelection() >= 0)
+	{
+		int sel = lbObjects->GetSelection();
+		auto obj = terr->GetObject(sel);
+
+		// select tool class
+		int class_id = obj->GetToolClass();
+		chbObjectClass->Select(class_id);
+
+		FillToolItemsList();
+	}
+}
+
+
+// on change tool class selection
+void FormObjects::OnToolClassChange(wxCommandEvent& event)
+{
+	// get this terrain
+	Terrain* terr = FindTerrain();
+
+	if(lbObjects->GetCount() && lbObjects->GetSelection() >= 0)
+	{
+		int sel = lbObjects->GetSelection();
+		auto obj = terr->GetObject(sel);
+
+		// new tool class for sprite
+		int class_id = chbObjectClass->GetSelection();
+		obj->SetToolClass(class_id);
+
+		// clear tool class item id
+		obj->SetToolClassGroup(0);
+
+		// refresh selectors
+		UpdateToolClassesView();
+	}
+}
+// on change tool class item selection
+void FormObjects::OnToolClassItemChange(wxCommandEvent& event)
+{
+	// get this terrain
+	Terrain* terr = FindTerrain();
+
+	if(lbObjects->GetCount() && lbObjects->GetSelection() >= 0)
+	{
+		int sel = lbObjects->GetSelection();
+		auto obj = terr->GetObject(sel);
+
+		// new tool class for sprite
+		int class_id = chbObjectClass->GetSelection();
+		if(class_id)
+		{
+			// update tool class item selection
+			int item_id = chbObjectsGroup->GetSelection();
+			obj->SetToolClassGroup(item_id);
+		}
+		else
+			obj->SetToolClassGroup(0); // invalidate item id if no tool class selected (should not happen)
+
+		// refresh selectors
+		UpdateToolClassesView();
+	}
 }

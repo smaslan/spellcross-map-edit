@@ -53,8 +53,13 @@ class FormObjects : public wxFrame
 		void OnSelectObject(wxCommandEvent& event);
 		void OnSelectObjectBtn(wxCommandEvent& event);
 		void OnChangeGamma(wxCommandEvent& event);
-
 		void OnPaintCanvas(wxPaintEvent& event);
+
+		void FillToolsClasses();
+		void UpdateToolClassesView();
+		void FillToolItemsList();
+		void OnToolClassChange(wxCommandEvent& event);
+		void OnToolClassItemChange(wxCommandEvent& event);
 		
 
 		Terrain* FindTerrain();
