@@ -457,7 +457,7 @@ FormSprite::FormSprite( wxWindow* parent,SpellData* spell_data,wxWindowID id, co
 	slideGamma->SetValue(1500);
 
 	// stops flickering
-	this->SetDoubleBuffered(1);
+	canvas->SetDoubleBuffered(1);
 
 	// select terrain
 	SelectTerrain();
@@ -1071,12 +1071,16 @@ void FormSprite::SelectQuad()
 	Sprite* cont = terr->sprites[refid];
 
 	// fill list of context sprites
-	lboxNeighbor->Clear();
+	vector<wxString> list;
 	for(int sid = 0;sid < cont->GetContextCount(quid); sid++)
 	{
 		Sprite* spr = cont->GetContext(quid,sid);
-		lboxNeighbor->Append(wxString(spr->name));
+		list.push_back(wxString(spr->name));
 	}
+	lboxNeighbor->Freeze();
+	lboxNeighbor->Clear();
+	lboxNeighbor->Append(list);
+	lboxNeighbor->Thaw();
 	if(cont->GetContextCount(quid))
 		lboxNeighbor->Select(0);
 }

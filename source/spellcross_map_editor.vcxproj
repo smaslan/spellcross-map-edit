@@ -22,6 +22,7 @@
     <ClCompile Include="form_new_object.cpp" />
     <ClCompile Include="form_objects.cpp" />
     <ClCompile Include="form_sprite_view.cpp" />
+    <ClCompile Include="form_tools.cpp" />
     <ClCompile Include="fsu_archive.cpp" />
     <ClCompile Include="fs_archive.cpp" />
     <ClCompile Include="LZ_spell.cpp" />
@@ -36,6 +37,7 @@
     <ClInclude Include="form_new_object.h" />
     <ClInclude Include="form_objects.h" />
     <ClInclude Include="form_sprite_view.h" />
+    <ClInclude Include="form_tools.h" />
     <ClInclude Include="fsu_archive.h" />
     <ClInclude Include="fs_archive.h" />
     <ClInclude Include="map_types.h" />
@@ -146,7 +148,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_WINDOWS;WXUSINGDLL;wxMSVC_VERSION_AUTO;_CRT_SECURE_NO_WARNINGS;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(wxwin)V3.1.5\include\msvc;$(wxwin)V3.1.5\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(wxwin)V3.1.5\include;$(wxwin)V3.1.5\include\msvc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>

@@ -293,11 +293,16 @@ private:
 	string title;
 public:
 	SpellToolsGroup(string &name, string &title);
-	void AddItem(string item);
+	int AddItem(string item, int position=-1);
+	int RenameItem(string item, int position);
+	int RemoveItem(int position);
+	int MoveItem(int posa, int posb);
 	int GetCount();
 	string GetItem(int id);
 	string& GetClassName();
 	string& GetClassTitle();
+	void SetClassName(string name);
+	void SetClassTitle(string name);
 	int GetItemID(const char *item_name);
 };
 
@@ -374,9 +379,12 @@ public:
 	int GetToolsCount();
 	SpellToolsGroup *GetToolSet(int id);
 	SpellToolsGroup *GetToolSet(string& name);
+	int AddToolSet(string name, string title, int position=-1);
+	int RemoveToolSet(int position);
+	int MoveToolSet(int posa, int posb);
 	int GetToolSetID(string& name);
 	int GetToolSetID(const char *name);
-	wxBitmap* RenderToolItemImage(int tool_id, int item_id, double gamma);
+	wxBitmap* RenderToolSetItemImage(int tool_id, int item_id, double gamma);
 	
 	
 

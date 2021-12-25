@@ -2669,9 +2669,38 @@ SpellToolsGroup::SpellToolsGroup(string& name,string& title)
 	this->name = name;
 	this->title = title;
 }
-void SpellToolsGroup::AddItem(string item)
+int SpellToolsGroup::AddItem(string item, int position)
 {
-	items.push_back(item);
+	if (position < 0)
+		items.push_back(item);
+	else if (position >= 0 && position < items.size())
+		items.insert(items.begin() + position, item);
+	else
+		return(1);
+	return(0);
+}
+int SpellToolsGroup::RenameItem(string item, int position)
+{
+	if (position < 0 || position >= items.size())
+		return(1);
+	items[position] = item;
+	return(0);
+}
+int SpellToolsGroup::RemoveItem(int position)
+{
+	if (position < 0 || position >= items.size())
+		return(1);
+	items.erase(items.begin() + position);
+	return(0);
+}
+int SpellToolsGroup::MoveItem(int posa, int posb)
+{
+	if(posa < 0 || posa >= items.size() || posb < 0 || posb >= items.size())
+		return(1);
+	auto temp = items[posa];
+	items[posa] = items[posb];
+	items[posb] = temp;
+	return(0);
 }
 int SpellToolsGroup::GetCount()
 {
@@ -2691,6 +2720,14 @@ string& SpellToolsGroup::GetClassTitle()
 {
 	return(title);
 }
+void SpellToolsGroup::SetClassName(string name)
+{
+	this->name = name;
+}
+void SpellToolsGroup::SetClassTitle(string title)
+{
+	this->title = title;
+}
 int SpellToolsGroup::GetItemID(const char* item_name)
 {
 	for(int k = 0; k < items.size(); k++)
@@ -2707,6 +2744,64 @@ int SpellToolsGroup::GetItemID(const char* item_name)
 int Terrain::GetToolsCount()
 {
 	return(tools.size());
+}
+// add new tool
+int Terrain::AddToolSet(string name, string title, int position)
+{
+	SpellToolsGroup *toolset = new SpellToolsGroup(name, title);
+	
+	if (position < 0)
+		tools.push_back(toolset);
+	else if (position >= 0 && position < tools.size())
+		tools.insert(tools.begin() + position, toolset);
+	else
+		return(1);
+
+	for (auto const& spr : sprites)
+	{
+		auto tid = spr->GetToolClass();
+		if (tid > position)
+			spr->SetToolClass(tid + 1);
+	}
+
+	return(0);
+}
+// remove tool
+int Terrain::RemoveToolSet(int position)
+{
+	if (position < 0 || position >= tools.size())
+		return(1);
+	delete tools[position];
+	tools.erase(tools.begin() + position);
+	for (auto const& spr : sprites)
+	{
+		if (spr->GetToolClass() == position + 1)
+			spr->SetToolClass(0);
+		if (spr->GetToolClass() > position)
+			spr->SetToolClass(spr->GetToolClass() - 1);
+	}
+	return(0);
+}
+// move tool from to position
+int Terrain::MoveToolSet(int posa, int posb)
+{
+	if (posa < 0 || posa >= tools.size() || posb < 0 || posb >= tools.size())
+		return(1);
+	
+	auto temp = tools[posa];
+	tools[posa] = tools[posb];
+	tools[posb] = temp;
+
+	for (auto const& spr : sprites)
+	{
+		auto tid = spr->GetToolClass();
+		if (tid == posa + 1)
+			spr->SetToolClass(posb + 1);
+		else if(tid == posb + 1)
+			spr->SetToolClass(posa + 1);
+	}
+
+	return(0);
 }
 // get tools class
 SpellToolsGroup* Terrain::GetToolSet(int id)
@@ -2735,7 +2830,7 @@ int Terrain::GetToolSetID(const char *name)
 	return(-1);
 }
 // render tool item glyph image (if available in sprite context)
-wxBitmap* Terrain::RenderToolItemImage(int tool_id,int item_id,double gamma)
+wxBitmap* Terrain::RenderToolSetItemImage(int tool_id,int item_id,double gamma)
 {
 	// find sprite that matches the desired classes and is marked as tool item glyph
 	for(auto const &sid : sprites)

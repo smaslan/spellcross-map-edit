@@ -197,9 +197,7 @@ void FormObjects::SetMap(SpellMap* map)
 		Terrain* terr = spell_data->GetTerrain(k);
 		wxString lab = terr->name;
 		if(map && std::strcmp(map->terrain->name,spell_data->GetTerrain(k)->name) == 0)
-		{
 			lab = lab + " (active)";
-		}
 		mnuTerr->SetLabel(TERR_ID0 + k,lab);
 	}
 

@@ -51,6 +51,9 @@
     <ClCompile Include="form_new_object.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="form_tools.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="fs_archive.h">
@@ -93,6 +96,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="form_new_object.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="form_tools.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

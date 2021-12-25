@@ -5,6 +5,7 @@
 #include "spellcross.h"
 #include "map.h"
 #include "form_objects.h"
+#include "form_tools.h"
 
 #include <wx/ribbon/buttonbar.h>
 #include <wx/ribbon/panel.h>
@@ -43,12 +44,16 @@ private:
     void OnExit(wxCommandEvent& event);
     void OnAbout(wxCommandEvent& event);
 
+    void OnClose(wxCloseEvent& ev);
+
     void OnPaint(wxPaintEvent& event);
     void OnResize(wxSizeEvent& event);
 
     void OnTimer(wxTimerEvent& event);
 
     void OnSetGamma(wxCommandEvent& event);
+    void OnViewTools(wxCommandEvent& event);
+    void OnViewToolsClose(wxWindowDestroyEvent& ev);
     void OnViewSprites(wxCommandEvent& event);
     void OnViewObjects(wxCommandEvent& event);
     void OnViewObjectsClose(wxWindowDestroyEvent& ev);
@@ -62,6 +67,7 @@ private:
     void OnToolBtnClick(wxRibbonButtonBarEvent& event);
     void OnToolPageClick(wxRibbonBarEvent& event);
     SpellTool GetToolSelection();
+    void LoadToolsetRibbon(Terrain* terr = NULL);
 
     // canvas stuff:
     void OnPaintCanvas(wxPaintEvent& event);
@@ -78,7 +84,8 @@ private:
 
     wxPanel* canvas;
     
-    wxRibbonBar* ribbonBar;
+    wxBoxSizer* sizer;
+    wxRibbonBar* ribbonBar = NULL;
     
 
     SpellMap* spell_map;
@@ -91,12 +98,14 @@ private:
     TScroll scroll;
 
     FormObjects* form_objects;
+    FormTools* form_tools;
 
     enum
     {
         ID_MAIN_WIN = 2000,
         ID_OBJECTS_WIN,
-        ID_SPRITES_WIN
+        ID_SPRITES_WIN,
+        ID_TOOLS_WIN
     };
 
     static constexpr int ID_TOOL_BASE = 10000;
@@ -132,6 +141,7 @@ enum
     ID_UpdateSprContext,
     ID_SaveSprContext,
     ID_ViewObjects,
+    ID_ViewTools,
     ID_SelectAll,
     ID_DeselectAll,
     ID_InvalidateSel,
