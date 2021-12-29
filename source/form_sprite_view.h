@@ -42,8 +42,9 @@ class FormSprite : public wxFrame
 {
 	private:
 		SpellData *spell_data;
-			
-		void OnClose(wxCommandEvent& event);
+
+		void OnClose(wxCloseEvent& ev);
+		void OnCloseClick(wxCommandEvent& event);
 		void OnTerrainChange(wxCommandEvent& event);
 		void OnSelectSprite(wxCommandEvent& event);
 		void OnSelectSpriteBtn(wxCommandEvent& event);

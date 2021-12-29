@@ -6,6 +6,7 @@
 #include "map.h"
 #include "form_objects.h"
 #include "form_tools.h"
+#include "form_sprite_view.h"
 
 #include <wx/ribbon/buttonbar.h>
 #include <wx/ribbon/panel.h>
@@ -53,10 +54,10 @@ private:
 
     void OnSetGamma(wxCommandEvent& event);
     void OnViewTools(wxCommandEvent& event);
-    void OnViewToolsClose(wxWindowDestroyEvent& ev);
+    //void OnViewToolsClose(wxWindowDestroyEvent& ev);
     void OnViewSprites(wxCommandEvent& event);
     void OnViewObjects(wxCommandEvent& event);
-    void OnViewObjectsClose(wxWindowDestroyEvent& ev);
+    //void OnViewObjectsClose(wxWindowDestroyEvent& ev);
     void OnUpdateTileContext(wxCommandEvent& event);
     void OnUpdateTileContextMaps(wxCommandEvent& event);    
     void OnSelectAll(wxCommandEvent& event);
@@ -97,6 +98,7 @@ private:
     wxTimer m_timer;
     TScroll scroll;
 
+    FormSprite* form_sprites;
     FormObjects* form_objects;
     FormTools* form_tools;
 

@@ -181,16 +181,16 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     sizer = new wxBoxSizer(wxVERTICAL); 
     this->SetSizeHints(wxDefaultSize,wxDefaultSize);
 
+    // toolset ribbon
     //ribbonBar = new wxRibbonBar(this,wxID_ANY,wxDefaultPosition,wxDefaultSize,wxRIBBON_BAR_DEFAULT_STYLE);
     //ribbonBar->SetArtProvider(new wxRibbonDefaultArtProvider);
+    ribbonBar = NULL;
     LoadToolsetRibbon();
     //sizer->Add(ribbonBar,0,wxALL|wxEXPAND,2);
     
 
     Bind(wxEVT_RIBBONBUTTONBAR_CLICKED,&MyFrame::OnToolBtnClick,this);
     Bind(wxEVT_RIBBONBAR_PAGE_CHANGED,&MyFrame::OnToolPageClick,this);
-
-
 
     // make and attach render canvas
     canvas = new wxPanel(this,wxID_ANY,wxDefaultPosition,wxDefaultSize,wxTAB_TRAVERSAL);
@@ -268,7 +268,16 @@ void MyFrame::OnClose(wxCloseEvent& ev)
     if (ev.GetId() == ID_TOOLS_WIN)
     {
         form_tools->Destroy();
-        //SetStatusText("Tool panel close", 7);
+        LoadToolsetRibbon();
+    }
+    else if (ev.GetId() == ID_OBJECTS_WIN)
+    {
+        form_objects->Destroy();
+        LoadToolsetRibbon();
+    }
+    else if (ev.GetId() == ID_SPRITES_WIN)
+    {
+        form_sprites->Destroy();
         LoadToolsetRibbon();
     }
     else
@@ -340,7 +349,9 @@ void MyFrame::OnOpenMap(wxCommandEvent& event)
     spell_map->SetGamma(1.30);
     OnViewLayer(event);
     // reset scroller
-    scroll.Reset();  
+    scroll.Reset();
+    // reload toolset ribbon
+    LoadToolsetRibbon();
 }
 
 // create new map
@@ -367,8 +378,8 @@ void MyFrame::OnViewSprites(wxCommandEvent& event)
 {
     if(!FindWindowById(ID_SPRITES_WIN))
     {
-        FormSprite *form = new FormSprite(this, spell_data);
-        form->Show();
+        form_sprites = new FormSprite(this, spell_data, ID_SPRITES_WIN);
+        form_sprites->Show();
     }
 }
 
@@ -406,13 +417,6 @@ void MyFrame::OnViewTools(wxCommandEvent& event)
         form_tools->Show();
     }
 }
-void MyFrame::OnViewToolsClose(wxWindowDestroyEvent& ev)
-{
-    // todo: somehow destroy child???
-    //form_tools->Destroy();
-    ev.Skip();
-    //LoadToolsetRibbon();
-}
 
 // open objects viewer
 void MyFrame::OnViewObjects(wxCommandEvent& event)
@@ -420,15 +424,10 @@ void MyFrame::OnViewObjects(wxCommandEvent& event)
     if(!FindWindowById(ID_OBJECTS_WIN))
     {
         form_objects = new FormObjects(this,spell_data,ID_OBJECTS_WIN);
-        form_objects->Connect(wxID_ANY,wxEVT_DESTROY,(wxObjectEventFunction)&MyFrame::OnViewObjectsClose);
+        //form_objects->Connect(wxID_ANY,wxEVT_DESTROY,(wxObjectEventFunction)&MyFrame::OnViewObjectsClose);
         form_objects->SetMap(spell_map);
         form_objects->Show();
     }
-}
-void MyFrame::OnViewObjectsClose(wxWindowDestroyEvent& ev)
-{
-    // todo: somehow destroy child???
-    ev.Skip();
 }
 // create new object
 void MyFrame::OnCreateNewObject(wxCommandEvent& event)
@@ -591,7 +590,7 @@ void MyFrame::OnToolBtnClick(wxRibbonButtonBarEvent& event)
     // very schmutzig way to deselect all other tool buttons
     for(int tid = 0; tid < spell_map->terrain->GetToolsCount(); tid++)
     {        
-        for(int iid = 0; iid < spell_map->terrain->GetToolSet(tid)->GetCount(); iid++)
+        for(int iid = 0; iid < spell_map->terrain->GetToolSetItemsCount(tid); iid++)
         {
             int btn_id = ID_TOOL_BASE + tid*ID_TOOL_CLASS_STEP + iid;            
             wxRibbonPage *page = ribbonBar->GetPage(tid);
@@ -620,7 +619,7 @@ void MyFrame::OnToolPageClick(wxRibbonBarEvent& event)
     // very schmutzig way to deselect all other tool buttons
     for(int tid = 0; tid < spell_map->terrain->GetToolsCount(); tid++)
     {
-        for(int iid = 0; iid < spell_map->terrain->GetToolSet(tid)->GetCount(); iid++)
+        for(int iid = 0; iid < spell_map->terrain->GetToolSetItemsCount(tid); iid++)
         {
             int btn_id = ID_TOOL_BASE + tid*ID_TOOL_CLASS_STEP + iid;
             wxRibbonPage* page = ribbonBar->GetPage(tid);
@@ -636,32 +635,12 @@ void MyFrame::OnToolPageClick(wxRibbonBarEvent& event)
 // fill toolset ribbon
 void MyFrame::LoadToolsetRibbon(Terrain *terr)
 {    
+    // clear old ribbon
     if (ribbonBar)
         ribbonBar->Destroy();
-    ribbonBar = NULL;
+    ribbonBar = new wxRibbonBar(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxRIBBON_BAR_DEFAULT_STYLE);
+    ribbonBar->SetArtProvider(new wxRibbonDefaultArtProvider);
     
-    ribbonBar = new wxRibbonBar(this,wxID_ANY,wxDefaultPosition,wxDefaultSize,wxRIBBON_BAR_DEFAULT_STYLE);
-    //ribbonBar->SetArtProvider(new wxRibbonDefaultArtProvider);
-    //LoadToolsetRibbon();
-    
-    // clear old stuff (I hope it deallocates children)
-    /*for (int tid = 0; tid < ribbonBar->GetPageCount(); tid++)
-    {
-        wxRibbonPage* page = ribbonBar->GetPage(tid);
-        ribbonBar->DeletePage(tid);
-        ribbonBar->Realize();
-        auto wlist = page->GetChildren();
-        wxRibbonPanel* panel = (wxRibbonPanel*)wlist[0];
-        auto clist = panel->GetChildren();
-        wxRibbonButtonBar* btns = (wxRibbonButtonBar*)clist[0];
-        //btns->ToggleButton(ID_TOOL_BASE, false);
-        btns->Destroy();
-        panel->DestroyChildren();
-        page->DestroyChildren();
-    }
-    ribbonBar->ClearPages();
-    ribbonBar->Realize();*/
-
     if (!terr && spell_map)
         terr = spell_map->terrain;
     if (terr)
@@ -669,31 +648,88 @@ void MyFrame::LoadToolsetRibbon(Terrain *terr)
         // for each toolset:
         for (int tool_id = 0; tool_id < terr->GetToolsCount(); tool_id++)
         {
-            SpellToolsGroup* toolset = terr->GetToolSet(tool_id);
-            string toolset_name = toolset->GetClassName();
-            string toolset_title = toolset->GetClassTitle();
+            string toolset_name = terr->GetToolSetName(tool_id);
+            string toolset_title = terr->GetToolSetTitle(tool_id);
 
             // for each tool in toolset:
             wxRibbonPage* ribPage = new wxRibbonPage(ribbonBar, wxID_ANY, toolset_name, wxNullBitmap, 0);
             wxRibbonPanel* ribPanel = new wxRibbonPanel(ribPage, wxID_ANY, toolset_title, wxNullBitmap, wxDefaultPosition, wxDefaultSize, wxRIBBON_PANEL_DEFAULT_STYLE | wxRIBBON_PANEL_NO_AUTO_MINIMISE | wxRIBBON_PANEL_FLEXIBLE);
             wxRibbonButtonBar* ribBtns = new wxRibbonButtonBar(ribPanel, wxID_ANY, wxDefaultPosition, wxDefaultSize, 0);
-            for (int item_id = 0; item_id < toolset->GetCount(); item_id++)
+            
+            // obtain all tools (glyphs) parameters
+            vector<std::string> titles;
+            vector<int> index;
+            vector<std::tuple<int, int>> size;
+            vector<SpellObject*> objects;
+            int item_id = 0;
+            for (; item_id < terr->GetToolSetItemsCount(tool_id); item_id++)
             {
-                // render glyph
-                wxBitmap* bmp = terr->RenderToolSetItemImage(tool_id, item_id, 1.30);
-                // add tool item
-                string item_name = toolset->GetItem(item_id);
-                ribBtns->AddButton(ID_TOOL_BASE + tool_id * ID_TOOL_CLASS_STEP + item_id, item_name, *bmp, wxEmptyString, wxRIBBON_BUTTON_TOGGLE);
+                titles.push_back(terr->GetToolSetItem(tool_id, item_id));
+                index.push_back(ID_TOOL_BASE + tool_id * ID_TOOL_CLASS_STEP + item_id);
+                size.push_back(terr->GetToolSetItemImageSize(tool_id, item_id));
+                objects.push_back(NULL);
+            }
+            for (auto const& obj : terr->GetObjects())
+            {
+                if (obj->GetToolClass() != tool_id + 1)
+                    continue;
+                if (obj->GetToolClassGroup() != 0)
+                    continue;
+                titles.push_back(obj->GetDescription());
+                index.push_back(ID_TOOL_BASE + tool_id * ID_TOOL_CLASS_STEP + item_id);
+                size.push_back(obj->GetGlyphSize());
+                objects.push_back(obj);
+                item_id++;
+            }
+            // get mean aspect ratio
+            double aspect = 0;
+            int x_max = 0;
+            int y_max = 0;
+            for (int k = 0; k < size.size(); k++)
+            {
+                auto [x, y] = size[k];
+                if (!objects[k])
+                {
+                    x_max = max(x_max, x);
+                    y_max = max(y_max, y);
+                }
+                aspect += (double)x / (double)y;
+            }
+            aspect *= (1.0 / size.size());
+            
+            // glyph size
+            int x_size = -1;
+            int y_size = -1;
+            if (terr->GetToolSetGlyphScalingMode(tool_id) == SpellToolsGroup::SCALE_MEAN)
+            {
+                auto [x,y] = terr->GetToolSetGlyphScaling(tool_id);
+                x_size = x;
+                y_size = (int)((double)x_size / aspect);
+            }
+            else
+            {
+                x_size = x_max;
+                y_size = y_max;
+            }
+            // build buttons:
+            for (int k = 0; k < size.size(); k++)
+            {
+                wxBitmap *bmp=NULL;
+                if (objects[k])
+                    bmp = objects[k]->RenderPreview(1.30, x_size, y_size);
+                else
+                    bmp = terr->RenderToolSetItemImage(tool_id, k, 1.30, x_size, y_size);
+                ribBtns->AddButton(index[k], titles[k], *bmp, wxEmptyString, wxRIBBON_BUTTON_TOGGLE);
                 delete bmp;
             }
+
             ribBtns->Realize();
         }
     }
 
     // update ribbon with new stuff
     ribbonBar->Realize();
-
-    sizer->Insert(0, ribbonBar, 0, wxALL | wxEXPAND, 2);
+    sizer->Insert(0,ribbonBar, 0, wxALL | wxEXPAND, 2);
     sizer->Layout();
 }
 

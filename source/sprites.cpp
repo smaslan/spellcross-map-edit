@@ -278,16 +278,41 @@ void Sprite::Render(uint8_t* buffer, uint8_t* buf_end, int buf_x, int buf_y, int
 }
 
 // render sprite to EMPTY bitmap (it will set its format and size)
-wxBitmap *Sprite::Render(uint8_t *pal, double gamma)
+wxBitmap *Sprite::Render(uint8_t *pal, double gamma, int bmp_x_size, int bmp_y_size, bool no_zoom)
 {
+	int tmp_x;
+	int tmp_y;
+	if (bmp_x_size >= 0 && bmp_y_size >= 0)
+	{
+		// resampling active
+		double bmp_aspect = (double)bmp_x_size / bmp_y_size;
+		double glyph_aspect = (double)x_size / y_size;
+		if (bmp_aspect >= glyph_aspect)
+		{
+			tmp_x = (int)((double)y_size * bmp_aspect);
+			tmp_y = y_size;
+		}
+		else
+		{
+			tmp_x = x_size;
+			tmp_y = (int)((double)x_size / bmp_aspect);
+		}
+	}
+	else
+	{
+		// 1:1 render
+		tmp_x = x_size;
+		tmp_y = y_size;
+	}
+	
 	// allocate render buffer for indexed image
-	int surf_x = x_size;
-	int surf_y = 0 + y_size + 0;
+	int surf_x = tmp_x;
+	int surf_y = 0 + tmp_y + 0;
 	uint8_t* buf = new uint8_t[surf_x*surf_y];
 	uint8_t* buf_end = &buf[surf_x*surf_y];
 	// render origin
-	int org_x = 0;
-	int org_y = 0;
+	int org_x = (tmp_x - x_size)/2;
+	int org_y = (tmp_y - y_size)/2;
 
 	// make local bitmap buffer
 	wxBitmap *bmp = new wxBitmap(surf_x,surf_y,32);
@@ -297,7 +322,7 @@ wxBitmap *Sprite::Render(uint8_t *pal, double gamma)
 	std::memset((void*)buf,230,surf_x*surf_y);
 
 	// render tile aligned to left
-	this->Render(buf, buf_end, -this->x_ofs,-this->y_ofs, surf_x);
+	this->Render(buf, buf_end, org_x -this->x_ofs,org_y-this->y_ofs, surf_x);
 	
 	// apply gamma correction to palette:		
 	// male local copy of palette	
@@ -331,6 +356,15 @@ wxBitmap *Sprite::Render(uint8_t *pal, double gamma)
 
 	// loose local buffer
 	delete[] buf;
+
+	bool scale = (bmp_x_size < tmp_x || bmp_y_size < tmp_y) || !no_zoom;
+	if (bmp_x_size >= 0 && bmp_y_size >= 0 && scale)
+	{
+		wxImage img = bmp->ConvertToImage();
+		delete bmp;
+		img.Rescale(bmp_x_size, bmp_y_size, wxIMAGE_QUALITY_HIGH);
+		bmp = new wxBitmap(img);
+	}
 
 	return(bmp);
 
@@ -1437,9 +1471,18 @@ int Terrain::InitSpriteContext(wstring &path)
 		delete[] temp;
 
 		// make tool class
-		SpellToolsGroup* grp = new SpellToolsGroup(name,title);
-		tools.push_back(grp);
-						
+		//SpellToolsGroup* grp = new SpellToolsGroup(name,title);
+		//tools.push_back(grp);
+		AddToolSet(name, title);
+		uint32_t glyph_mode;
+		fr.read((char*)&glyph_mode, sizeof(uint32_t));
+		uint32_t glyph_w;
+		uint32_t glyph_h;
+		fr.read((char*)&glyph_w, sizeof(uint32_t));
+		fr.read((char*)&glyph_h, sizeof(uint32_t));
+		SetToolSetGlyphScalingMode(tid,glyph_mode);
+		SetToolSetGlyphScaling(tid, glyph_w, glyph_h);
+
 		// read tool items count in class
 		uint32_t items_count;
 		fr.read((char*)&items_count,sizeof(uint32_t));		
@@ -1456,8 +1499,8 @@ int Terrain::InitSpriteContext(wstring &path)
 			delete[] temp;
 
 			// add tool to class list
-			grp->AddItem(tool_name);
-
+			AddToolSetItem(tid,tool_name);
+			//grp->AddItem(tool_name);
 		}
 		
 	}
@@ -1628,29 +1671,38 @@ int Terrain::SaveSpriteContext(wstring& path)
 	for(int tid = 0; tid < tool_count; tid++)
 	{
 		// get tool set
-		SpellToolsGroup *tool = GetToolSet(tid);
+		//SpellToolsGroup *tool = GetToolSet(tid);
 		
 		// store tool set name
-		string name = tool->GetClassName();
+		string name = GetToolSetName(tid);
 		uint16_t len = name.size() + 1;
 		fw.write((char*)&len, sizeof(uint16_t));
 		fw.write(name.c_str(), len);
 
-		// store tool set name
-		string title = tool->GetClassTitle();
+		// store tool set title
+		string title = GetToolSetTitle(tid);
 		len = title.size() + 1;
 		fw.write((char*)&len,sizeof(uint16_t));
 		fw.write(title.c_str(),len);
 		
+		// store glyph formatting
+		uint32_t glyph_mode = GetToolSetGlyphScalingMode(tid);
+		auto [ww, hh] = GetToolSetGlyphScaling(tid);
+		uint32_t glyph_w = ww;
+		uint32_t glyph_h = hh;
+		fw.write((char*)&glyph_mode, sizeof(uint32_t));
+		fw.write((char*)&glyph_w, sizeof(uint32_t));
+		fw.write((char*)&glyph_h, sizeof(uint32_t));
+
 		// store class items count
-		uint32_t items_count = tool->GetCount();
+		uint32_t items_count = GetToolSetItemsCount(tid);
 		fw.write((char*)&items_count,sizeof(uint32_t));
 
 		// store class item names:
 		for(int k = 0; k < items_count; k++)
 		{
 			// store item name
-			string name = tool->GetItem(k);
+			string name = GetToolSetItem(tid, k);
 			uint16_t len = name.size() + 1;
 			fw.write((char*)&len,sizeof(uint16_t));
 			fw.write(name.c_str(),len);
@@ -2337,8 +2389,53 @@ int SpellObject::RenderObjectGlyph()
 
 	return(0);
 }
-
-// render preview to widgets bitmap
+// get glyph dimensiones
+tuple<int, int> SpellObject::GetGlyphSize()
+{
+	return tuple(surf_x, surf_y);
+}
+// render preview to widgets bitmap (do not forget to deallocate!)
+wxBitmap* SpellObject::RenderPreview(double gamma, int x_size, int y_size, bool no_zoom)
+{
+	int tmp_x;
+	int tmp_y;
+	if (x_size >= 0 && y_size >= 0)
+	{
+		// resampling active
+		double bmp_aspect = (double)x_size / y_size;
+		double glyph_aspect = (double)surf_x / surf_y;
+		if (bmp_aspect >= glyph_aspect)
+		{
+			tmp_x = (int)((double)surf_y * bmp_aspect);
+			tmp_y = surf_y;
+		}
+		else
+		{
+			tmp_x = surf_x;
+			tmp_y = (int)((double)surf_x / bmp_aspect);
+		}
+	}
+	else
+	{
+		// 1:1 render
+		tmp_x = surf_x;
+		tmp_y = surf_y;	
+	}
+	
+	wxBitmap* bmp = new wxBitmap(tmp_x, tmp_y, 32);	
+	bmp->UseAlpha(true);
+	RenderPreview(*bmp, gamma);	
+	
+	bool scale = (x_size < tmp_x || y_size < tmp_y) || !no_zoom;
+	if (x_size >= 0 && y_size >= 0 && scale)
+	{
+		wxImage img = bmp->ConvertToImage();
+		delete bmp;
+		img.Rescale(x_size, y_size, wxIMAGE_QUALITY_HIGH);
+		bmp = new wxBitmap(img);
+	}
+	return(bmp);
+}
 int SpellObject::RenderPreview(wxBitmap &bmp,double gamma)
 {
 	if(!pic)
@@ -2442,6 +2539,10 @@ int SpellObject::RenderPreview(wxBitmap &bmp,double gamma)
 std::string SpellObject::GetDescription()
 {
 	return(description);
+}
+void SpellObject::SetDescription(std::string name)
+{
+	description = name;
 }
 
 // write object to a file (for saving objects list)
@@ -2621,6 +2722,33 @@ int Terrain::AddObject(vector<MapXY> xy,vector<Sprite*> L1_list,vector<Sprite*> 
 
 	return(0);
 }
+// remove object from list
+int Terrain::RemoveObject(int id)
+{
+	if (id < 0 || id >= objects.size())
+		return(1);
+	delete objects[id];
+	objects.erase(objects.begin() + id);
+	return(0);
+}
+// swap two objects in list
+int Terrain::MoveObject(int posa, int posb)
+{
+	if (posa < 0 || posb < 0 || posa >= objects.size() || posb >= objects.size())
+		return(1);
+	auto temp = objects[posa];
+	objects[posa] = objects[posb];
+	objects[posb] = temp;
+	return(0);
+}
+// rename object in list
+int Terrain::RenameObject(int id, string name)
+{
+	if (id < 0 || id >= objects.size())
+		return(1);
+	objects[id]->SetDescription(name);
+	return(0);
+}
 // get objects count
 int Terrain::GetObjectsCount()
 {
@@ -2632,6 +2760,11 @@ SpellObject* Terrain::GetObject(int id)
 	if(id >= objects.size())
 		return(NULL);
 	return(objects[id]);
+}
+// get objects list
+vector<SpellObject*>& Terrain::GetObjects()
+{
+	return(objects);
 }
 // tools class/group clasification
 void SpellObject::SetToolClass(int id)
@@ -2659,87 +2792,6 @@ int SpellObject::GetToolClassGroup()
 
 
 
-
-
-
-
-SpellToolsGroup::SpellToolsGroup(string& name,string& title)
-{
-	items.clear();
-	this->name = name;
-	this->title = title;
-}
-int SpellToolsGroup::AddItem(string item, int position)
-{
-	if (position < 0)
-		items.push_back(item);
-	else if (position >= 0 && position < items.size())
-		items.insert(items.begin() + position, item);
-	else
-		return(1);
-	return(0);
-}
-int SpellToolsGroup::RenameItem(string item, int position)
-{
-	if (position < 0 || position >= items.size())
-		return(1);
-	items[position] = item;
-	return(0);
-}
-int SpellToolsGroup::RemoveItem(int position)
-{
-	if (position < 0 || position >= items.size())
-		return(1);
-	items.erase(items.begin() + position);
-	return(0);
-}
-int SpellToolsGroup::MoveItem(int posa, int posb)
-{
-	if(posa < 0 || posa >= items.size() || posb < 0 || posb >= items.size())
-		return(1);
-	auto temp = items[posa];
-	items[posa] = items[posb];
-	items[posb] = temp;
-	return(0);
-}
-int SpellToolsGroup::GetCount()
-{
-	return(items.size());
-}
-string SpellToolsGroup::GetItem(int id)
-{
-	if(id < items.size())
-		return(items[id]);
-	return("");
-}
-string &SpellToolsGroup::GetClassName()
-{	
-	return(name);
-}
-string& SpellToolsGroup::GetClassTitle()
-{
-	return(title);
-}
-void SpellToolsGroup::SetClassName(string name)
-{
-	this->name = name;
-}
-void SpellToolsGroup::SetClassTitle(string title)
-{
-	this->title = title;
-}
-int SpellToolsGroup::GetItemID(const char* item_name)
-{
-	for(int k = 0; k < items.size(); k++)
-		if(items[k].compare(item_name) == 0)
-			return(k);
-	return(-1);
-}
-
-
-
-
-
 // get tool classes count
 int Terrain::GetToolsCount()
 {
@@ -2748,7 +2800,9 @@ int Terrain::GetToolsCount()
 // add new tool
 int Terrain::AddToolSet(string name, string title, int position)
 {
-	SpellToolsGroup *toolset = new SpellToolsGroup(name, title);
+	SpellToolsGroup *toolset = new SpellToolsGroup();
+	toolset->name = name;
+	toolset->title = title;
 	
 	if (position < 0)
 		tools.push_back(toolset);
@@ -2762,6 +2816,12 @@ int Terrain::AddToolSet(string name, string title, int position)
 		auto tid = spr->GetToolClass();
 		if (tid > position)
 			spr->SetToolClass(tid + 1);
+	}
+	for (auto const& obj : objects)
+	{
+		auto tid = obj->GetToolClass();
+		if (tid > position)
+			obj->SetToolClass(tid + 1);
 	}
 
 	return(0);
@@ -2779,6 +2839,13 @@ int Terrain::RemoveToolSet(int position)
 			spr->SetToolClass(0);
 		if (spr->GetToolClass() > position)
 			spr->SetToolClass(spr->GetToolClass() - 1);
+	}
+	for (auto const& obj : objects)
+	{
+		if (obj->GetToolClass() == position + 1)
+			obj->SetToolClass(0);
+		if (obj->GetToolClass() > position)
+			obj->SetToolClass(obj->GetToolClass() - 1);
 	}
 	return(0);
 }
@@ -2800,22 +2867,16 @@ int Terrain::MoveToolSet(int posa, int posb)
 		else if(tid == posb + 1)
 			spr->SetToolClass(posa + 1);
 	}
+	for (auto const& obj : objects)
+	{
+		auto tid = obj->GetToolClass();
+		if (tid == posa + 1)
+			obj->SetToolClass(posb + 1);
+		else if (tid == posb + 1)
+			obj->SetToolClass(posa + 1);
+	}
 
 	return(0);
-}
-// get tools class
-SpellToolsGroup* Terrain::GetToolSet(int id)
-{
-	if(id < tools.size())
-		return(tools[id]);
-	return(NULL);
-}
-SpellToolsGroup* Terrain::GetToolSet(string &name)
-{
-	for(auto const &id : tools)
-		if(id->GetClassName().compare(name) == 0)
-			return(id);
-	return(NULL);
 }
 // get tool class id
 int Terrain::GetToolSetID(string& name)
@@ -2825,12 +2886,39 @@ int Terrain::GetToolSetID(string& name)
 int Terrain::GetToolSetID(const char *name)
 {
 	for(int k = 0; k < tools.size(); k++)
-		if(tools[k]->GetClassName().compare(name) == 0)
+		if(tools[k]->name.compare(name) == 0)
 			return(k);
 	return(-1);
 }
+
+// get tool item glyph size [x,y]
+tuple<int, int> Terrain::GetToolSetItemImageSize(int tool_id, int item_id)
+{
+	// find sprite that matches the desired classes and is marked as tool item glyph
+	for (auto const& sid : sprites)
+	{
+		if (sid->GetToolClass() == tool_id + 1 &&
+			sid->GetToolClassGroup() == item_id + 1 &&
+			(sid->GetGlyphFlags() & Sprite::IS_TOOL_ITEM_GLYPH))
+		{
+			// mathing sprite found: render
+			return tuple(sid->x_size, sid->y_size);
+		}
+	}
+	for (auto const& obj : objects)
+	{
+		if (obj->GetToolClass() == tool_id + 1 &&
+			obj->GetToolClassGroup() == item_id + 1)
+		{
+			// mathing sprite found: render
+			return obj->GetGlyphSize();
+		}
+	}
+	// not found - render blank:	
+	return tuple(0,0);
+}
 // render tool item glyph image (if available in sprite context)
-wxBitmap* Terrain::RenderToolSetItemImage(int tool_id,int item_id,double gamma)
+wxBitmap* Terrain::RenderToolSetItemImage(int tool_id,int item_id,double gamma, int x_size, int y_size, bool no_zoom)
 {
 	// find sprite that matches the desired classes and is marked as tool item glyph
 	for(auto const &sid : sprites)
@@ -2840,11 +2928,209 @@ wxBitmap* Terrain::RenderToolSetItemImage(int tool_id,int item_id,double gamma)
 			(sid->GetGlyphFlags() & Sprite::IS_TOOL_ITEM_GLYPH))
 		{
 			// mathing sprite found: render
-			return(sid->Render((uint8_t*)pal, gamma));
+			return(sid->Render((uint8_t*)pal, gamma, x_size, y_size, no_zoom));
+		}
+	}
+	for (auto const& obj : objects)
+	{
+		if (obj->GetToolClass() == tool_id + 1 &&
+			obj->GetToolClassGroup() == item_id + 1)
+		{
+			// mathing sprite found: render
+			return(obj->RenderPreview(gamma, x_size, y_size, no_zoom));
 		}
 	}
 	// not found - render blank:	
 	wxBitmap* bmp = new wxBitmap(48,48,32);
 	bmp->UseAlpha(true);
 	return(bmp);
+}
+// get toolset name
+string Terrain::GetToolSetName(int id)
+{
+	if (id < 0 || id >= tools.size())
+		return("");
+	return(tools[id]->name);
+}
+int Terrain::SetToolSetName(int id, string name)
+{
+	if (id < 0 || id >= tools.size())
+		return(1);
+	tools[id]->name = name;
+	return(0);
+}
+// get toolset title
+string Terrain::GetToolSetTitle(int id)
+{
+	if (id < 0 || id >= tools.size())
+		return("");
+	return(tools[id]->title);
+}
+int Terrain::SetToolSetTitle(int id, string title)
+{
+	if (id < 0 || id >= tools.size())
+		return(1);
+	tools[id]->title = title;
+	return(0);
+}
+// get toolset scaling parameters
+int Terrain::GetToolSetGlyphScalingMode(int id)
+{
+	if (id < 0 || id >= tools.size())
+		return(-1);
+	return(tools[id]->glyph_mode);
+}
+int Terrain::SetToolSetGlyphScalingMode(int id, int mode)
+{
+	if (id < 0 || id >= tools.size())
+		return(1);
+	tools[id]->glyph_mode = mode;
+	return(0);
+}
+tuple<int,int> Terrain::GetToolSetGlyphScaling(int id)
+{
+	if (id < 0 || id >= tools.size())
+		return tuple(0,0);
+	return tuple(tools[id]->glyph_x, tools[id]->glyph_y);
+}
+int Terrain::SetToolSetGlyphScaling(int id, int x, int y)
+{
+	if (id < 0 || id >= tools.size())
+		return(1);
+	tools[id]->glyph_x = x;
+	tools[id]->glyph_y = y;
+	return(0);
+}
+
+// add toolset item to position
+int Terrain::AddToolSetItem(int toolset_id, string item, int position)
+{
+	if (toolset_id < 0 || toolset_id >= tools.size())
+		return(1);
+	else if (position < 0)
+		tools[toolset_id]->items.push_back(item);
+	else if (position >= 0 && position < tools[toolset_id]->items.size())
+		tools[toolset_id]->items.insert(tools[toolset_id]->items.begin() + position, item);
+	else
+		return(1);
+
+	for (auto const& spr : sprites)
+	{
+		if (spr->GetToolClass() != toolset_id + 1)
+			continue;
+		auto tid = spr->GetToolClassGroup();
+		if (tid && tid > position)
+			spr->SetToolClassGroup(tid + 1);
+	}
+	for (auto const& obj : objects)
+	{
+		if (obj->GetToolClass() != toolset_id + 1)
+			continue;
+		auto tid = obj->GetToolClassGroup();
+		if (tid && tid > position)
+			obj->SetToolClassGroup(tid + 1);
+	}
+
+	return(0);
+}
+// rename toolset item
+int Terrain::RenameToolSetItem(int toolset_id, string item, int position)
+{
+	if (toolset_id < 0 || toolset_id >= tools.size() || position < 0 || position >= tools[toolset_id]->items.size())
+		return(1);
+	tools[toolset_id]->items[position] = item;
+	return(0);
+}
+// remove toolset item
+int Terrain::RemoveToolSetItem(int toolset_id, int position)
+{
+	if (toolset_id < 0 || toolset_id >= tools.size() || position < 0 || position >= tools[toolset_id]->items.size())
+		return(1);
+	tools[toolset_id]->items.erase(tools[toolset_id]->items.begin() + position);
+
+	for (auto const& spr : sprites)
+	{
+		if (spr->GetToolClass() != toolset_id + 1)
+			continue;
+		auto tid = spr->GetToolClassGroup();
+		if (tid == position + 1)
+		{
+			spr->SetToolClassGroup(0);
+			spr->SetToolClass(0);
+			spr->SetGlyphFlags(spr->GetGlyphFlags() & ~Sprite::IS_TOOL_ITEM_GLYPH);
+		}
+		if (tid > position + 1)
+			spr->SetToolClassGroup(tid - 1);
+	}
+	for (auto const& obj : objects)
+	{
+		if (obj->GetToolClass() != toolset_id + 1)
+			continue;
+		auto tid = obj->GetToolClassGroup();
+		if (tid == position + 1)
+		{
+			obj->SetToolClassGroup(0);
+			obj->SetToolClass(0);
+		}
+		if (tid > position + 1)
+			obj->SetToolClassGroup(tid - 1);
+	}
+
+	return(0);
+}
+// move toolset item
+int Terrain::MoveToolSetItem(int toolset_id, int posa, int posb)
+{
+	if (toolset_id < 0 || toolset_id >= tools.size() || posa < 0 || posa >= tools[toolset_id]->items.size() || posb < 0 || posb >= tools[toolset_id]->items.size())
+		return(1);
+	auto temp = tools[toolset_id]->items[posa];
+	tools[toolset_id]->items[posa] = tools[toolset_id]->items[posb];
+	tools[toolset_id]->items[posb] = temp;
+
+	for (auto const& spr : sprites)
+	{
+		if (spr->GetToolClass() != toolset_id + 1)
+			continue;
+		auto tid = spr->GetToolClassGroup();
+		if (tid == posa + 1)
+			spr->SetToolClassGroup(posb + 1);
+		else if (tid == posb + 1)
+			spr->SetToolClassGroup(posa + 1);
+	}
+	for (auto const& obj : objects)
+	{
+		if (obj->GetToolClass() != toolset_id + 1)
+			continue;
+		auto tid = obj->GetToolClassGroup();
+		if (tid == posa + 1)
+			obj->SetToolClassGroup(posb + 1);
+		else if (tid == posb + 1)
+			obj->SetToolClassGroup(posa + 1);
+	}
+
+	return(0);
+}
+// get toolset items count
+int Terrain::GetToolSetItemsCount(int id)
+{
+	if (id < 0 || id >= tools.size())
+		return(0);
+	return(tools[id]->items.size());
+}
+// get toolset items (name strings)
+vector<std::string> Terrain::GetToolSetItems(int toolset_id)
+{
+	if (toolset_id < 0 || toolset_id >= tools.size())
+	{
+		vector<std::string> temp;
+		return(temp);
+	}
+	return(tools[toolset_id]->items);
+}
+// get toolset item (name string)
+string Terrain::GetToolSetItem(int toolset_id, int tool_id)
+{
+	if (toolset_id < 0 || toolset_id >= tools.size() || tool_id < 0 || tool_id >= tools[toolset_id]->items.size())
+		return("");
+	return(tools[toolset_id]->items[tool_id]);
 }

@@ -17,15 +17,16 @@
 #include <wx/string.h>
 #include <wx/stattext.h>
 #include <wx/listbox.h>
+#include <wx/button.h>
+#include <wx/bitmap.h>
+#include <wx/image.h>
+#include <wx/icon.h>
 #include <wx/sizer.h>
 #include <wx/statline.h>
 #include <wx/panel.h>
 #include <wx/textctrl.h>
 #include <wx/slider.h>
 #include <wx/choice.h>
-#include <wx/bitmap.h>
-#include <wx/image.h>
-#include <wx/icon.h>
 #include <wx/menu.h>
 #include <wx/frame.h>
 #include <wx/filedlg.h>
@@ -48,10 +49,16 @@ class FormObjects : public wxFrame
 
 		static constexpr int TERR_ID0 = 990;
 
+		void OnClose(wxCloseEvent& ev);
+		void OnCloseClick(wxCommandEvent& event);
+
 		void OnTerrainChange(wxCommandEvent& event);
 		void OnSaveObjects(wxCommandEvent& event);
 		void OnSelectObject(wxCommandEvent& event);
 		void OnSelectObjectBtn(wxCommandEvent& event);
+		void OnRemoveObject(wxCommandEvent& event);
+		void OnRenameObject(wxCommandEvent& event);
+		void OnMoveObject(wxCommandEvent& event);
 		void OnChangeGamma(wxCommandEvent& event);
 		void OnPaintCanvas(wxPaintEvent& event);
 
@@ -70,6 +77,8 @@ class FormObjects : public wxFrame
 		{
 			wxID_SB_MAIN = 1000,
 			wxID_LB_OBJECTS,
+			wxID_BTN_UP,
+			wxID_BTN_DOWN,
 			wxID_CANVAS,
 			wxID_TXT_GAMMA,
 			wxID_SLIDE_GAMMA,
@@ -78,12 +87,16 @@ class FormObjects : public wxFrame
 			wxID_MM_SAVE_OBJECTS,
 			wxID_MM_CLOSE,
 			wxID_MM_NEXT,
-			wxID_MM_PREV
+			wxID_MM_PREV,
+			wxID_MM_REMOVE,
+			wxID_MM_RENAME
 		};
 
 		wxStatusBar* sbar;
 		wxStaticText* m_staticText14;
 		wxListBox* lbObjects;
+		wxButton* btnUp;
+		wxButton* btnDown;
 		wxStaticLine* m_staticline5;
 		wxStaticText* m_staticText15;
 		wxPanel* canvas;
@@ -102,6 +115,7 @@ class FormObjects : public wxFrame
 		wxMenu* mnuFile;
 		wxMenu* mnuTerr;
 		wxMenu* mnuEdit;
+
 
 	public:
 

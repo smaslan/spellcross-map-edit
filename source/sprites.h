@@ -66,7 +66,7 @@ class Sprite
 		int GetIndex();
 		void Render(uint8_t* buffer,uint8_t* buf_end,int buf_x,int buf_y, int x_size);
 		void Render(uint8_t* buffer, uint8_t* buf_end, int buf_x, int buf_y, int x_size, uint8_t* filter);
-		wxBitmap* Render(uint8_t* pal,double gamma);
+		wxBitmap* Render(uint8_t* pal,double gamma=1.3, int x_size=-1, int y_size=-1, bool no_zoom=true);
 		int Decode(uint8_t* data, char* name);
 		void GetTileModel(TFxyz* vert, int* face=NULL, int* face_count=NULL);
 		int GetTileEdge(int edge,TFxyz* vert);
@@ -275,8 +275,11 @@ public:
 	SpellObject(vector<MapXY> xy, vector<Sprite*> L1_list,vector<Sprite*> L2_list, vector<uint8_t> flag_list, uint8_t *palette = NULL, std::string desc = "");
 	~SpellObject();
 	int RenderPreview(wxBitmap& bmp,double gamma=1.30);
+	tuple<int, int> GetGlyphSize();
+	wxBitmap *RenderPreview(double gamma = 1.30, int x_size = -1, int y_size = -1, bool no_zoom=true);
 	int WriteToFile(ofstream& fw);	
 	std::string GetDescription();
+	void SetDescription(std::string name);
 
 	void SetToolClass(int id);
 	void SetToolClassGroup(int id);
@@ -288,22 +291,18 @@ public:
 class SpellToolsGroup
 {
 private:
+	
+public:
 	std::vector<string> items;
 	string name;
 	string title;
-public:
-	SpellToolsGroup(string &name, string &title);
-	int AddItem(string item, int position=-1);
-	int RenameItem(string item, int position);
-	int RemoveItem(int position);
-	int MoveItem(int posa, int posb);
-	int GetCount();
-	string GetItem(int id);
-	string& GetClassName();
-	string& GetClassTitle();
-	void SetClassName(string name);
-	void SetClassTitle(string name);
-	int GetItemID(const char *item_name);
+	int glyph_x;
+	int glyph_y;
+	int glyph_mode;
+
+	static constexpr int SCALE_MEAN = 0;
+	static constexpr int SCALE_MAX = 1;
+	static constexpr int SCALE_MAX_NOZOOM = 2;
 };
 
 
@@ -373,19 +372,37 @@ public:
 	int RenderPreview(wxBitmap& bmp,int count,int* data,int flags,double gamma);
 		
 	int AddObject(vector<MapXY> xy,vector<Sprite*> L1_list,vector<Sprite*> L2_list,vector<uint8_t> flag_list,uint8_t* palette,std::string desc);
+	int RemoveObject(int id);
+	int MoveObject(int posa, int posb);
+	int RenameObject(int id, string name);
 	int GetObjectsCount();
 	SpellObject *GetObject(int id);
+	vector<SpellObject*> &GetObjects();
 
 	int GetToolsCount();
-	SpellToolsGroup *GetToolSet(int id);
-	SpellToolsGroup *GetToolSet(string& name);
+	string GetToolSetName(int id);
+	string GetToolSetTitle(int id);
+	int SetToolSetName(int id, string name);
+	int SetToolSetTitle(int id, string title);
+	int GetToolSetGlyphScalingMode(int id);
+	int SetToolSetGlyphScalingMode(int id, int mode);
+	tuple<int, int> GetToolSetGlyphScaling(int id);
+	int SetToolSetGlyphScaling(int id, int x, int y);
+	int GetToolSetItemsCount(int id);
+	vector<std::string> GetToolSetItems(int toolset_id);
+	string GetToolSetItem(int toolset_id, int tool_id);
+	int AddToolSetItem(int toolset_id, string item, int position = -1);
+	int RenameToolSetItem(int toolset_id, string item, int position);
+	int RemoveToolSetItem(int toolset_id, int position);
+	int MoveToolSetItem(int toolset_id, int posa, int posb);
 	int AddToolSet(string name, string title, int position=-1);
 	int RemoveToolSet(int position);
 	int MoveToolSet(int posa, int posb);
 	int GetToolSetID(string& name);
 	int GetToolSetID(const char *name);
-	wxBitmap* RenderToolSetItemImage(int tool_id, int item_id, double gamma);
-	
+	wxBitmap* RenderToolSetItemImage(int tool_id, int item_id, double gamma=1.30, int x_size=-1, int y_size=-1, bool no_zoom=true);
+	tuple<int, int> GetToolSetItemImageSize(int tool_id, int item_id);
+
 	
 
 

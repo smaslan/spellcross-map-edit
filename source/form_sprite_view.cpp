@@ -385,9 +385,10 @@ FormSprite::FormSprite( wxWindow* parent,SpellData* spell_data,wxWindowID id, co
 	FillToolsClasses();
 
 	// bind events
+	Bind(wxEVT_CLOSE_WINDOW, &FormSprite::OnClose, this, this->m_windowId);
+	Bind(wxEVT_MENU,&FormSprite::OnCloseClick, this, wxID_BTN_CLOSE);
 	Bind(wxEVT_MENU,&FormSprite::OnSelectSpriteBtn,this,wxID_BTN_NEXT);
 	Bind(wxEVT_MENU,&FormSprite::OnSelectSpriteBtn,this,wxID_BTN_PREV);
-	Bind(wxEVT_MENU,&FormSprite::OnClose,this,wxID_BTN_CLOSE);
 	Bind(wxEVT_MENU,&FormSprite::OnClearContext,this,wxID_BTN_CLR_CONTEXT);
 	Bind(wxEVT_MENU,&FormSprite::OnUpdateContext,this,wxID_EDIT_TILE_CONTEXT_AUTO);	
 	Bind(wxEVT_MENU,&FormSprite::OnAutoShadeFlags,this,wxID_BTN_AUTO_SHADING);
@@ -468,8 +469,14 @@ FormSprite::FormSprite( wxWindow* parent,SpellData* spell_data,wxWindowID id, co
 FormSprite::~FormSprite()
 {
 }
+void FormSprite::OnClose(wxCloseEvent& ev)
+{
+	wxPostEvent(GetParent(), ev);
+	ev.Skip();
+	Destroy();
+}
 // close button
-void FormSprite::OnClose(wxCommandEvent& event)
+void FormSprite::OnCloseClick(wxCommandEvent& event)
 {
 	// update list of tile to be used as class type glyphs
 	Terrain* terr = FindTerrain();
@@ -494,8 +501,7 @@ void FormSprite::FillToolsClasses()
 	// make list of existing classes
 	for(int k = 0; k < terr->GetToolsCount(); k++)
 	{
-		SpellToolsGroup *grp = terr->GetToolSet(k);
-		chbToolClass->Append(grp->GetClassName());
+		chbToolClass->Append(terr->GetToolSetName(k));
 	}
 }
 
@@ -536,11 +542,11 @@ void FormSprite::FillToolItemsList()
 		if(class_id)
 		{
 			// make list of existing classes
-			SpellToolsGroup *grp = terr->GetToolSet(class_id - 1);
+			//SpellToolsGroup *grp = terr->GetToolSet(class_id - 1);
 
 			// fill the list
-			for(int k = 0; k < grp->GetCount(); k++)
-				chbToolObjGroup->Append(grp->GetItem(k));
+			for (auto const& str : terr->GetToolSetItems(class_id - 1))
+				chbToolObjGroup->Append(str);
 
 			int item_id = terr->sprites[sel]->GetToolClassGroup();
 			chbToolObjGroup->Select(item_id);

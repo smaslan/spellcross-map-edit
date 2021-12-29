@@ -31,7 +31,7 @@ FormTools::FormTools( wxWindow* parent, SpellData* spelldata, wxWindowID id, con
 	szrToolset->Add(m_staticText19, 0, wxLEFT | wxRIGHT | wxTOP, 5);
 
 	lbToolset = new wxListBox(this, wxID_LB_TOOLSET, wxDefaultPosition, wxDefaultSize, 0, NULL, wxLB_ALWAYS_SB);
-	szrToolset->Add(lbToolset, 1, wxBOTTOM | wxEXPAND | wxLEFT | wxRIGHT, 5);
+	szrToolset->Add(lbToolset, 1, wxEXPAND | wxRIGHT | wxLEFT, 5);
 
 	m_staticText21 = new wxStaticText(this, wxID_ANY, wxT("Toolset name:"), wxDefaultPosition, wxDefaultSize, 0);
 	m_staticText21->Wrap(-1);
@@ -42,10 +42,63 @@ FormTools::FormTools( wxWindow* parent, SpellData* spelldata, wxWindowID id, con
 
 	m_staticText23 = new wxStaticText(this, wxID_ANY, wxT("Toolset title:"), wxDefaultPosition, wxDefaultSize, 0);
 	m_staticText23->Wrap(-1);
-	szrToolset->Add(m_staticText23, 0, wxTOP | wxRIGHT | wxLEFT, 5);
+	szrToolset->Add(m_staticText23, 0, wxRIGHT | wxLEFT, 5);
 
 	txtToolsetTitle = new wxTextCtrl(this, wxID_TXT_TOOLSET_TITLE, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0);
-	szrToolset->Add(txtToolsetTitle, 0, wxBOTTOM | wxRIGHT | wxLEFT | wxEXPAND, 5);
+	szrToolset->Add(txtToolsetTitle, 0, wxEXPAND | wxRIGHT | wxLEFT, 5);
+
+	wxBoxSizer* szrScaling;
+	szrScaling = new wxBoxSizer(wxHORIZONTAL);
+
+	wxBoxSizer* szrScale;
+	szrScale = new wxBoxSizer(wxVERTICAL);
+
+	m_staticText26 = new wxStaticText(this, wxID_ANY, wxT("Glyph scaling:"), wxDefaultPosition, wxDefaultSize, 0);
+	m_staticText26->Wrap(-1);
+	szrScale->Add(m_staticText26, 0, wxTOP | wxRIGHT | wxLEFT, 5);
+
+	wxArrayString chbScalingChoices;
+	chbScaling = new wxChoice(this, wxID_CHB_SCALE, wxDefaultPosition, wxDefaultSize, chbScalingChoices, 0);
+	chbScaling->SetSelection(0);
+	szrScale->Add(chbScaling, 0, wxBOTTOM | wxRIGHT | wxLEFT | wxEXPAND, 5);
+
+
+	szrScaling->Add(szrScale, 1, wxEXPAND, 5);
+
+	wxBoxSizer* szrWidth;
+	szrWidth = new wxBoxSizer(wxVERTICAL);
+
+	m_staticText27 = new wxStaticText(this, wxID_ANY, wxT("Width:"), wxDefaultPosition, wxDefaultSize, 0);
+	m_staticText27->Wrap(-1);
+	szrWidth->Add(m_staticText27, 0, wxTOP | wxRIGHT | wxLEFT, 5);
+
+	scWidth = new wxSpinCtrl(this, wxID_SC_WIDTH, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, 32, 200, 80);
+	scWidth->SetMinSize(wxSize(80, -1));
+	scWidth->SetMaxSize(wxSize(80, -1));
+
+	szrWidth->Add(scWidth, 0, wxBOTTOM | wxRIGHT | wxLEFT | wxEXPAND, 5);
+
+
+	szrScaling->Add(szrWidth, 0, wxEXPAND, 5);
+
+	wxBoxSizer* szrHeight;
+	szrHeight = new wxBoxSizer(wxVERTICAL);
+
+	m_staticText28 = new wxStaticText(this, wxID_ANY, wxT("Height:"), wxDefaultPosition, wxDefaultSize, 0);
+	m_staticText28->Wrap(-1);
+	szrHeight->Add(m_staticText28, 0, wxTOP | wxRIGHT | wxLEFT, 5);
+
+	scHeight = new wxSpinCtrl(this, wxID_SC_HEIGHT, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, 32, 200, 80);
+	scHeight->SetMinSize(wxSize(80, -1));
+	scHeight->SetMaxSize(wxSize(80, -1));
+
+	szrHeight->Add(scHeight, 0, wxBOTTOM | wxRIGHT | wxLEFT | wxEXPAND, 5);
+
+
+	szrScaling->Add(szrHeight, 0, wxEXPAND, 5);
+
+
+	szrToolset->Add(szrScaling, 0, wxEXPAND, 5);
 
 	wxGridSizer* szrToolsetBtn;
 	szrToolsetBtn = new wxGridSizer(0, 5, 0, 0);
@@ -53,7 +106,7 @@ FormTools::FormTools( wxWindow* parent, SpellData* spelldata, wxWindowID id, con
 	btnAddToolset = new wxButton(this, wxID_BTN_TOOLSET_NEW, wxT("New"), wxDefaultPosition, wxDefaultSize, 0);
 	szrToolsetBtn->Add(btnAddToolset, 0, wxALL | wxEXPAND, 5);
 
-	btnRenameToolset = new wxButton(this, wxID_BTN_TOOLSET_RENAME, wxT("Rename"), wxDefaultPosition, wxDefaultSize, 0);
+	btnRenameToolset = new wxButton(this, wxID_BTN_TOOLSET_RENAME, wxT("Update"), wxDefaultPosition, wxDefaultSize, 0);
 	szrToolsetBtn->Add(btnRenameToolset, 0, wxALL | wxEXPAND, 5);
 
 	btnToolsetDel = new wxButton(this, wxID_BTN_TOOLSET_REM, wxT("Remove"), wxDefaultPosition, wxDefaultSize, 0);
@@ -118,13 +171,13 @@ FormTools::FormTools( wxWindow* parent, SpellData* spelldata, wxWindowID id, con
 	mmBar = new wxMenuBar(0);
 	mmFile = new wxMenu();
 	wxMenuItem* mmSave;
-	mmSave = new wxMenuItem(mmFile, wxID_ANY, wxString(wxT("Save list")) + wxT('\t') + wxT("Ctrl+S"), wxEmptyString, wxITEM_NORMAL);
+	mmSave = new wxMenuItem(mmFile, wxID_MM_SAVE, wxString(wxT("Save list")) + wxT('\t') + wxT("Ctrl+S"), wxEmptyString, wxITEM_NORMAL);
 	mmFile->Append(mmSave);
 
 	mmFile->AppendSeparator();
 
 	wxMenuItem* mmClose;
-	mmClose = new wxMenuItem(mmFile, wxID_ANY, wxString(wxT("Close")), wxEmptyString, wxITEM_NORMAL);
+	mmClose = new wxMenuItem(mmFile, wxID_MM_CLOSE, wxString(wxT("Close")), wxEmptyString, wxITEM_NORMAL);
 	mmFile->Append(mmClose);
 
 	mmBar->Append(mmFile, wxT("File"));
@@ -158,8 +211,16 @@ FormTools::FormTools( wxWindow* parent, SpellData* spelldata, wxWindowID id, con
 		Bind(wxEVT_MENU, &FormTools::OnTerrainChange, this, TERR_ID0 + k);
 	}
 	SetMap(NULL);
-	
+
+	// fill glyph scaling selector
+	chbScaling->Append("Mean aspect, fixed w/h");
+	chbScaling->Append("Max size");
+	chbScaling->Append("Max size, no zoom");
+
+
 	Bind(wxEVT_CLOSE_WINDOW, &FormTools::OnClose, this, this->m_windowId);
+	Bind(wxEVT_MENU, &FormTools::OnCloseClick, this, wxID_MM_CLOSE);
+	Bind(wxEVT_MENU, &FormTools::OnSaveContext, this, wxID_MM_SAVE);
 
 	Bind(wxEVT_COMMAND_LISTBOX_SELECTED, &FormTools::OnToolsetSelect, this, wxID_LB_TOOLSET);
 	Bind(wxEVT_COMMAND_BUTTON_CLICKED, &FormTools::OnToolsetRename, this, wxID_BTN_TOOLSET_RENAME);
@@ -183,10 +244,38 @@ FormTools::~FormTools()
 void FormTools::OnClose(wxCloseEvent& ev)
 {
 	wxPostEvent(GetParent(), ev);
-	//GetParent()->ProcessEvent(*gev);
 	ev.Skip();
 	Destroy();
 }
+
+// close form
+void FormTools::OnCloseClick(wxCommandEvent& event)
+{
+	Close();
+}
+
+// save current terrain's constext
+void FormTools::OnSaveContext(wxCommandEvent& event)
+{
+	// get this terrain
+	Terrain* terrain = FindTerrain();
+
+	// split path to folder and file
+	std::filesystem::path last_path = terrain->GetSpriteContextPath();
+	wstring dir = last_path.parent_path(); dir += wstring(L"\\");
+	wstring name = last_path.filename();
+
+	// show save dialog
+	wxFileDialog saveFileDialog(this, _("Save Spellcross terrain context file"), dir, name, "Context file (*.con)|*.con", wxFD_SAVE);
+	if (saveFileDialog.ShowModal() == wxID_CANCEL)
+		return;
+	wstring path = wstring(saveFileDialog.GetPath().ToStdWstring());
+
+	// save file
+	terrain->SaveSpriteContext(path);
+}
+
+
 
 // set current map poitner
 void FormTools::SetMap(SpellMap* map)
@@ -239,8 +328,9 @@ void FormTools::SelectTerrain()
 	lbToolset->Clear();
 	for (int tid = 0; tid < terr->GetToolsCount(); tid++)
 	{
-		auto toolset = terr->GetToolSet(tid);
-		lbToolset->Append(toolset->GetClassName() + ": " + toolset->GetClassTitle());
+		//auto toolset = terr->GetToolSet(tid);
+		
+		lbToolset->Append(terr->GetToolSetName(tid) + ": " + terr->GetToolSetTitle(tid));
 	}
 	lbToolset->Thaw();
 	if(lbToolset->GetCount())
@@ -269,19 +359,21 @@ void FormTools::SelectToolset()
 	lbTool->Clear();
 	if (!lbToolset->GetCount() || lbToolset->GetSelection() < 0)
 		return;
-	auto toolset = terr->GetToolSet(lbToolset->GetSelection());
+	//auto toolset = terr->GetToolSet(lbToolset->GetSelection());
+	auto selid = lbToolset->GetSelection();
 	
 	// show name/title
-	txtNewToolset->SetValue(toolset->GetClassName());
-	txtToolsetTitle->SetValue(toolset->GetClassTitle());
+	txtNewToolset->SetValue(terr->GetToolSetName(selid));
+	txtToolsetTitle->SetValue(terr->GetToolSetTitle(selid));
+	chbScaling->SetSelection(terr->GetToolSetGlyphScalingMode(selid));
+	auto [w,h] = terr->GetToolSetGlyphScaling(selid);
+	scWidth->SetValue(w);
+	scHeight->SetValue(h);
 
 	// for each toolset:
 	lbTool->Freeze();
-	for (int tid = 0; tid < toolset->GetCount(); tid++)
-	{
-		auto tool = toolset->GetItem(tid);
-		lbTool->Append(tool);
-	}
+	for (auto const& str : terr->GetToolSetItems(selid))
+		lbTool->Append(str);
 	lbTool->Thaw();
 	if (lbTool->GetCount())
 		lbTool->Select(0);
@@ -308,13 +400,13 @@ void FormTools::SelectTool()
 	// get toolset
 	if (!lbToolset->GetCount() || lbToolset->GetSelection() < 0)
 		return;
-	auto toolset = terr->GetToolSet(lbToolset->GetSelection());
+	//auto toolset = terr->GetToolSet(lbToolset->GetSelection());
+	auto selid = lbToolset->GetSelection();
 
 	// get tool
 	if (!lbTool->GetCount() || lbTool->GetSelection() < 0)
 		return;
-	txtNewTool->SetValue(toolset->GetItem(lbTool->GetSelection()));
-
+	txtNewTool->SetValue(terr->GetToolSetItem(selid, lbTool->GetSelection()));
 }
 
 // on toolset rename click
@@ -328,11 +420,14 @@ void FormTools::OnToolsetRename(wxCommandEvent& event)
 	// get toolset
 	if (!lbToolset->GetCount() || lbToolset->GetSelection() < 0)
 		return;
-	auto toolset = terr->GetToolSet(lbToolset->GetSelection());
+	//auto toolset = terr->GetToolSet(lbToolset->GetSelection());
+	auto setid = lbToolset->GetSelection();
 
 	// update names
-	toolset->SetClassName(txtNewToolset->GetValue().ToStdString());
-	toolset->SetClassTitle(txtToolsetTitle->GetValue().ToStdString());
+	terr->SetToolSetName(setid, txtNewToolset->GetValue().ToStdString());
+	terr->SetToolSetTitle(setid, txtToolsetTitle->GetValue().ToStdString());
+	terr->SetToolSetGlyphScalingMode(setid, chbScaling->GetSelection());
+	terr->SetToolSetGlyphScaling(setid, scWidth->GetValue(), scHeight->GetValue());
 
 	auto selid = lbToolset->GetSelection();
 	SelectTerrain();
@@ -380,7 +475,7 @@ void FormTools::OnToolsetRemove(wxCommandEvent& event)
 
 	SelectTerrain();
 	if (lbToolset->GetCount())
-		lbToolset->SetSelection(min(selid, lbToolset->GetCount()-1));
+		lbToolset->SetSelection(min(selid, (int)lbToolset->GetCount()-1));
 	SelectToolset();
 }
 
@@ -423,14 +518,14 @@ void FormTools::OnToolNew(wxCommandEvent& event)
 	// get toolset
 	if (!lbToolset->GetCount() || lbToolset->GetSelection() < 0)
 		return;
-	auto toolset = terr->GetToolSet(lbToolset->GetSelection());
+	auto setid = lbToolset->GetSelection();
 
 	int selid = -1;
 	if (lbTool->GetCount() && lbTool->GetSelection() >= 0)
 		selid = lbTool->GetSelection();
 
 	// update name
-	toolset->AddItem(txtNewTool->GetValue().ToStdString(),selid);
+	terr->AddToolSetItem(setid, txtNewTool->GetValue().ToStdString(), selid);
 
 	SelectToolset();
 	lbTool->SetSelection(selid);
@@ -448,13 +543,14 @@ void FormTools::OnToolRename(wxCommandEvent& event)
 	// get toolset
 	if (!lbToolset->GetCount() || lbToolset->GetSelection() < 0)
 		return;
-	auto toolset = terr->GetToolSet(lbToolset->GetSelection());
+	//auto toolset = terr->GetToolSet(lbToolset->GetSelection());
+	auto setid = lbToolset->GetSelection();
 
 	if (!lbTool->GetCount() || lbTool->GetSelection() < 0)
 		return;
 
 	// update name
-	toolset->RenameItem(txtNewTool->GetValue().ToStdString(), lbTool->GetSelection());
+	terr->RenameToolSetItem(setid, txtNewTool->GetValue().ToStdString(), lbTool->GetSelection());
 
 	auto selid = lbTool->GetSelection();
 	SelectToolset();
@@ -473,18 +569,18 @@ void FormTools::OnToolRemove(wxCommandEvent& event)
 	// get toolset
 	if (!lbToolset->GetCount() || lbToolset->GetSelection() < 0)
 		return;
-	auto toolset = terr->GetToolSet(lbToolset->GetSelection());
+	auto setid = lbToolset->GetSelection();
 
 	if (!lbTool->GetCount() || lbTool->GetSelection() < 0)
 		return;
 
 	// update name
 	auto selid = lbTool->GetSelection();
-	toolset->RemoveItem(selid);
+	terr->RemoveToolSetItem(setid, selid);
 
 	SelectToolset();
-	if(toolset->GetCount())
-		lbTool->SetSelection(min(selid, toolset->GetCount()-1));
+	if(terr->GetToolSetItemsCount(setid))
+		lbTool->SetSelection(min(selid, terr->GetToolSetItemsCount(setid) - 1));
 	SelectTool();
 }
 
@@ -499,7 +595,8 @@ void FormTools::OnToolMove(wxCommandEvent& event)
 	// get toolset
 	if (!lbToolset->GetCount() || lbToolset->GetSelection() < 0)
 		return;
-	auto toolset = terr->GetToolSet(lbToolset->GetSelection());
+	//auto toolset = terr->GetToolSet(lbToolset->GetSelection());
+	auto setid = lbToolset->GetSelection();
 
 	if (!lbTool->GetCount() || lbTool->GetSelection() < 0)
 		return;
@@ -507,12 +604,12 @@ void FormTools::OnToolMove(wxCommandEvent& event)
 
 	if (event.GetId() == wxID_BTN_TOOL_UP && selid > 0)
 	{
-		toolset->MoveItem(selid, selid - 1);
+		terr->MoveToolSetItem(setid, selid, selid - 1);
 		selid--;
 	}
 	else if (event.GetId() == wxID_BTN_TOOL_DOWN && selid < lbTool->GetCount() - 1)
 	{
-		toolset->MoveItem(selid, selid + 1);
+		terr->MoveToolSetItem(setid, selid, selid + 1);
 		selid++;
 	}
 

@@ -18,13 +18,18 @@
 #include <wx/stattext.h>
 #include <wx/listbox.h>
 #include <wx/textctrl.h>
+#include <wx/choice.h>
+#include <wx/sizer.h>
+#include <wx/spinctrl.h>
 #include <wx/button.h>
 #include <wx/bitmap.h>
 #include <wx/image.h>
 #include <wx/icon.h>
-#include <wx/sizer.h>
 #include <wx/menu.h>
 #include <wx/frame.h>
+#include <wx/filedlg.h>
+
+#include <filesystem>
 
 #include "spellcross.h"
 #include "map.h"
@@ -58,6 +63,8 @@ class FormTools : public wxFrame
 		void OnToolMove(wxCommandEvent& event);
 
 		void OnClose(wxCloseEvent& ev);
+		void OnCloseClick(wxCommandEvent& event);
+		void OnSaveContext(wxCommandEvent& event);
 
 		void SelectTerrain();
 		void SelectToolset();
@@ -69,6 +76,9 @@ class FormTools : public wxFrame
 			wxID_LB_TOOLSET = 1000,
 			wxID_TXT_NEW_TOOLSET,
 			wxID_TXT_TOOLSET_TITLE,
+			wxID_CHB_SCALE,
+			wxID_SC_WIDTH,
+			wxID_SC_HEIGHT,
 			wxID_BTN_TOOLSET_NEW,
 			wxID_BTN_TOOLSET_RENAME,
 			wxID_BTN_TOOLSET_REM,
@@ -80,6 +90,8 @@ class FormTools : public wxFrame
 			wxID_BTN_TOOL_REM,
 			wxID_BTN_TOOL_UP,
 			wxID_BTN_TOOL_DOWN,
+			wxID_MM_SAVE,
+			wxID_MM_CLOSE,
 			wxID_MM_CLR_TOOLSETS,
 			wxID_CLR_TOOLS
 		};
@@ -91,6 +103,12 @@ class FormTools : public wxFrame
 		wxTextCtrl* txtNewToolset;
 		wxStaticText* m_staticText23;
 		wxTextCtrl* txtToolsetTitle;
+		wxStaticText* m_staticText26;
+		wxChoice* chbScaling;
+		wxStaticText* m_staticText27;
+		wxSpinCtrl* scWidth;
+		wxStaticText* m_staticText28;
+		wxSpinCtrl* scHeight;
 		wxButton* btnAddToolset;
 		wxButton* btnRenameToolset;
 		wxButton* btnToolsetDel;
