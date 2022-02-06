@@ -16,8 +16,15 @@ std::string string_format(const std::string fmt,...);
 int wildcmp(const char* wild,const char* string);
 int hex2num(char hex);
 
+//int ostream_write_string(ofstream& fw,std::string &str);
+int ostream_write_string(ofstream& fw,std::string str);
+int ostream_write_string(ofstream& fw,const char* str);
+std::string istream_read_string(ifstream& fr);
+int ostream_write_u32(ofstream& fw,uint32_t val);
+uint32_t istream_read_u32(ifstream& fr);
 
 
+void plot_line(uint8_t* buffer,uint8_t* buf_end,int buf_x,int buf_y,int x_size,uint8_t color,int x0,int y0,int x1,int y1);
 
 
 /*template <class charT,class Traits>

@@ -15,6 +15,8 @@
 #include <vector>
 #include <list>
 #include <string>
+#include <algorithm>
+#include <thread>
 
 #include "fs_archive.h"
 #include "fsu_archive.h"
@@ -77,17 +79,27 @@ class Sprite
 		double GetTileZ(double x, double y);
 		double GetTileProjY(double x, double y);
 
+		int CompareSpriteContextAlt(Sprite *alt);
+		int CheckShadingValid(Sprite* neig,int eid);
+		int CheckNeighborValid(Sprite* neig,int eid);
 
 		// sprite context stuff
-		int ReserveContext(int quadrant,char tile,int size);
+		int ReserveContext(int quadrant,int tile,int size);
 		int AddContext(int quadrant,Sprite* sprite,bool no_check=false);
 		int GetContextCount(int quadrant);
-		int GetContextCount(int quadrant, char tile);
-		Sprite* GetContext(int quadrant,char tile,int index);
+		int GetContextCount(int quadrant, int tile);
+		int GetContextCount(int quadrant,int tile,int random);
+		int GetContextCountRng(int quadrant,int tile);
 		Sprite* GetContext(int quadrant,int index);
-		void RemoveContext(int quadrant,char tile,vector<int> &list);
+		Sprite* GetContext(int quadrant,int tile,int index);		
+		Sprite* GetContext(int quadrant,int tile,int index,int random);
+		Sprite* GetContextRng(int quadrant,int tile,int index);
+		void RemoveContext(int quadrant,int tile,vector<int> &list);
+		void RemoveContext(int quadrant,vector<int>& list);
 		int CheckContext(int quadrant,Sprite *sprite);
 		int ClearContext(int quadrant);
+		int RandomizeContext();
+		int ShuffleContext();
 		uint32_t SetFlags(uint32_t new_flags);
 		uint32_t GetFlags();
 		uint32_t SetGlyphFlags(uint32_t new_flags);
@@ -145,6 +157,10 @@ class Sprite
 		static constexpr uint32_t IS_GLYPH =           0x80000000; /* use tile as glyph for general tile class display */
 		static constexpr uint32_t IS_TOOL_ITEM_GLYPH = 0x40000000; /* use tile as glyph for tool item */
 		static constexpr uint32_t IS_FAULTY =          0x20000000; /* sprite known to have faulty context in existing maps */
+		static constexpr uint32_t Q1_NOFILT =          0x01000000; /* not filter sprite context in Q1 */
+		static constexpr uint32_t Q2_NOFILT =          0x02000000; /* not filter sprite context in Q2 */
+		static constexpr uint32_t Q3_NOFILT =          0x04000000; /* not filter sprite context in Q3 */
+		static constexpr uint32_t Q4_NOFILT =          0x08000000; /* not filter sprite context in Q4 */
 
 		// special tile classes
 		static constexpr uint32_t SPEC_CLASS_NONE = 0;
@@ -167,6 +183,9 @@ class Sprite
 		static constexpr uint32_t CLASS_BLOOD = 6;
 		static constexpr uint32_t CLASS_HIGH_LAND = 7;
 		static constexpr uint32_t CLASS_SAND = 8;
+		static constexpr uint32_t CLASS_ROAD = 9;
+		static constexpr uint32_t CLASS_DIRT_ROAD = 10;
+		static constexpr uint32_t CLASS_MUD_PATH = 11;
 
 		static constexpr uint32_t SHADING_SIDE_Q1 = 0x01;
 		static constexpr uint32_t SHADING_SIDE_Q2 = 0x02;
@@ -177,6 +196,11 @@ class Sprite
 		static constexpr uint32_t SHADING_CORNER_Q3 = 0x40;
 		static constexpr uint32_t SHADING_CORNER_Q4 = 0x80;
 
+		enum {
+			NEIGHBOR_INVALID = 0,
+			NEIGHBOR_VALID = 1,
+			NEIGHBOR_UNDECIDED = 2
+		};
 
 	private:
 		int MaskHasTransp(uint8_t* mask);
@@ -194,6 +218,9 @@ class Sprite
 		uint32_t flags2;
 		uint32_t edge_class[4];
 		uint32_t spec_class;
+
+		// randomized context
+		vector<vector<Sprite*>> quad_rng[4]['M'-'A'+1];
 
 		// tool classes 
 		uint32_t tool_class;
@@ -280,6 +307,7 @@ public:
 	int WriteToFile(ofstream& fw);	
 	std::string GetDescription();
 	void SetDescription(std::string name);
+	int PlaceMapTiles(Sprite** L1,int x_size,int y_size,MapXY sel);
 
 	void SetToolClass(int id);
 	void SetToolClassGroup(int id);
@@ -319,6 +347,10 @@ private:
 
 	// tools list
 	vector<SpellToolsGroup*> tools;
+
+	void RandomizeSpriteContextTh(vector<Sprite*> *spr,int ofs,int step);
+
+	//int CheckNeighborValid(Sprite *ref,Sprite *neig,int eid);	
 
 public:
 	// terrain name
@@ -364,6 +396,8 @@ public:
 	int SaveSpriteContext(wstring& path);	
 	wstring &GetSpriteContextPath();
 	void ClearSpriteContext();
+	int RandomizeSpriteContext();
+	int ShuffleSpriteContext();
 	int UpdateSpriteContext(std::function<void(std::string)> status_cb=NULL);
 	int InitSpriteContextShading();
 	int UpdateTileGlyphs();

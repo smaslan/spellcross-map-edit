@@ -23,6 +23,8 @@
 
 #include "wx/dcbuffer.h"
 
+#include <algorithm>
+
 using namespace std;
 
 #define MAX_STR 256
@@ -199,6 +201,12 @@ class SpellMap
 		// tile selection
 		MapXY sel;
 		vector<MapXY> msel;
+		
+		// filter map
+		vector<uint8_t*> filter;
+		
+		// temp layers for debug mostly
+		vector<MapXY> dbg_ord;
 
 		// layer visibility flags
 		bool wL1, wL2, wL3, wL4, wSTCI, wUnits;
@@ -225,6 +233,12 @@ class SpellMap
 		void EditElevNbr(uint8_t* flag,int elv,int edir,int x,int y);
 		void EditElevSlope(uint8_t* flag);
 		void EditElevText(uint8_t* flag);
+
+		// shading flags stuff
+		vector<int> shading;
+		vector<int> shading_mask;
+		void SyncShading();
+		int CheckTileShading(MapXY& pos,Sprite* spr);
 
 	public:
 
@@ -277,7 +291,7 @@ class SpellMap
 		void SelectTiles(int mode);
 		int IvalidateTiles(vector<MapXY> tiles,std::function<void(std::string)> status_cb=NULL);
 		int RenderPrepare(wxBitmap& bmp, TScroll* scroll);
-		int Render(wxBitmap &bmp, TScroll* scroll);
+		int Render(wxBitmap &bmp, TScroll* scroll,SpellTool* tool);
 
 		void SetRender(bool wL1, bool wL2, bool wL3, bool wL4, bool wSECI, bool wUnits);
 		void SetGamma(double gamma);
@@ -287,6 +301,7 @@ class SpellMap
 		int ConvXY(int x, int y);
 		int ConvXY(MapXY &mxy);
 		int ConvXY(MapXY *mxy);
+
 			
 		int GetElevation(wxBitmap& bmp,TScroll* scroll);
 		char *GetL1tileName(wxBitmap& bmp,TScroll* scroll);

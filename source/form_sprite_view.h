@@ -43,6 +43,8 @@ class FormSprite : public wxFrame
 	private:
 		SpellData *spell_data;
 
+		int sprite_id;
+
 		void OnClose(wxCloseEvent& ev);
 		void OnCloseClick(wxCommandEvent& event);
 		void OnTerrainChange(wxCommandEvent& event);
@@ -53,6 +55,7 @@ class FormSprite : public wxFrame
 		void OnChangeGamma(wxCommandEvent& event);
 		void OnChangeZoom(wxCommandEvent& event);
 		void OnQchange(wxCommandEvent& event);
+		void OnSelectEdgeBtn(wxCommandEvent& event);
 
 		void OnFlagsChange(wxCommandEvent& event);
 		void OnEdgeClassChange(wxCommandEvent& event);
@@ -79,6 +82,8 @@ class FormSprite : public wxFrame
 		void OnToolClassChange(wxCommandEvent& event);
 		void OnToolClassItemChange(wxCommandEvent& event);
 
+		void FillAltList();
+
 
 		// tile edge classes
 		static constexpr struct {
@@ -94,6 +99,9 @@ class FormSprite : public wxFrame
 			{Sprite::CLASS_ASH, "Ash"},
 			{Sprite::CLASS_HIGH_LAND, "High land"},
 			{Sprite::CLASS_SAND, "Sand"},
+			{Sprite::CLASS_ROAD, "Road"},
+			{Sprite::CLASS_DIRT_ROAD, "Dirt road"},
+			{Sprite::CLASS_MUD_PATH, "Mud path"},
 			{0,NULL}
 		};
 
@@ -103,6 +111,10 @@ class FormSprite : public wxFrame
 		enum
 		{
 			wxID_BTN_CLOSE = 1000,
+			wxID_BTN_SEL_Q1,
+			wxID_BTN_SEL_Q2,
+			wxID_BTN_SEL_Q3,
+			wxID_BTN_SEL_Q4,
 			wxID_BTN_NEXT,
 			wxID_BTN_PREV,
 			wxID_BTN_CLR_CONTEXT,
@@ -110,6 +122,8 @@ class FormSprite : public wxFrame
 			wxID_BTN_AUTO_SHADING,
 			wxID_BTN_SAVE_CONTEXT,
 			wxID_LBOX_SPRITES,
+			wxID_TXT_ALT,
+			wxID_LBOX_ALT,
 			wxID_SLIDE_GAMMA,
 			wxID_CB_ZOOM,
 			wxID_LBOX_NEIGHBOR,
@@ -140,9 +154,13 @@ class FormSprite : public wxFrame
 			wxID_CB_USE_AS_GLYPH,
 			wxID_CB_FAULTY,
 			wxID_CHB_Q1_CLASS,
+			wxID_CB_Q1_NOFILT,
 			wxID_CHB_Q2_CLASS,
+			wxID_CB_Q2_NOFILT,
 			wxID_CHB_Q3_CLASS,
+			wxID_CB_Q3_NOFILT,
 			wxID_CHB_Q4_CLASS,
+			wxID_CB_Q4_NOFILT,
 			wxID_CB_SHADE_Q1,
 			wxID_CB_SHADE_Q2,
 			wxID_CB_SHADE_Q3,
@@ -162,6 +180,8 @@ class FormSprite : public wxFrame
 		wxMenu* mnuEdit;
 		wxStaticText* txtSpriteList;
 		wxListBox* lboxSprites;
+		wxStaticText* txtAltList;
+		wxListBox* lboxAlt;
 		wxPanel* canvas;
 		wxStaticText* txtGamma;
 		wxSlider* slideGamma;
@@ -199,12 +219,16 @@ class FormSprite : public wxFrame
 		wxCheckBox* cbFaultCont;
 		wxStaticText* m_staticText5;
 		wxChoice* chbQ1class;
+		wxCheckBox* cbQ1nofilt;
 		wxStaticText* m_staticText6;
 		wxChoice* chbQ2class;
+		wxCheckBox* cbQ2nofilt;
 		wxStaticText* m_staticText7;
 		wxChoice* chbQ3class;
+		wxCheckBox* cbQ3nofilt;
 		wxStaticText* m_staticText8;
 		wxChoice* chbQ4class;
+		wxCheckBox* cbQ4nofilt;
 		wxStaticText* txtShadeEdge;
 		wxCheckBox* cbShadeQ1;
 		wxCheckBox* cbShadeQ2;
@@ -223,7 +247,7 @@ class FormSprite : public wxFrame
 
 	public:
 
-		FormSprite( wxWindow* parent, SpellData *spell_data, wxWindowID id = wxID_ANY, const wxString& title = wxT("Sprite viewer"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 717,508 ), long style = wxDEFAULT_FRAME_STYLE|wxTAB_TRAVERSAL|wxSTAY_ON_TOP);
+		FormSprite( wxWindow* parent, SpellData *spell_data, wxWindowID id = wxID_ANY, const wxString& title = wxT("Sprite viewer"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 1250,600 ), long style = wxDEFAULT_FRAME_STYLE|wxTAB_TRAVERSAL|wxSTAY_ON_TOP);
 		~FormSprite();
 
 };

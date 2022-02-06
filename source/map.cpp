@@ -10,6 +10,7 @@
 #include "fs_archive.h"
 #include "fsu_archive.h"
 #include "spell_units.h"
+#include "other.h"
 
 #include <fstream>
 #include <string>
@@ -274,6 +275,8 @@ void SpellMap::Close()
 	pic = NULL;
 
 	msel.clear();
+
+	filter.clear();
 	
 	// reset gamma to make correctio recalculation
 	last_gamma = 0.0;
@@ -304,6 +307,9 @@ int SpellMap::Create(SpellData* spelldata, const char *terr_name, int x, int y)
 	flags = new uint8_t[x_size * y_size];
 	L1_flags = new uint32_t[x_size*y_size];
 	elev = new int[x_size * y_size];
+	
+	// filter mask
+	filter.resize(x_size*y_size);
 	
 
 	// generate plain map
@@ -724,10 +730,17 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 	// loose map data buffer
 	delete[] map_buffer;
 
+
+	////////////////////////////
+	///// Other map arrays /////
+	////////////////////////////
 	
 	// create selections maps
 	select = new uint8_t[x_size*y_size];
 	std::memset((void*)select, 0x00, x_size*y_size);
+
+	// filter mask
+	filter.resize(x_size*y_size, NULL);
 
 
 	//////////////////////////
@@ -925,6 +938,7 @@ int SpellMap::ConvXY(MapXY &mxy)
 	return(ConvXY(&mxy));
 }
 
+
 // this sorts units list for proper render order, call after load or units changes
 void SpellMap::SortUnits()
 {
@@ -1073,8 +1087,10 @@ void SpellMap::SelectTiles(int mode)
 {
 	for(int y = 0; y < y_size; y++)
 		for(int x = 0; x < x_size; x++)
-			if(TileIsVisible(x,y))
-				select[ConvXY(x,y)] = (mode == SELECT_ADD);
+			if(mode == SELECT_ADD && TileIsVisible(x,y))
+				select[ConvXY(x,y)] = 1;
+			else if(mode == SELECT_CLEAR)
+				select[ConvXY(x,y)] = 0;
 }
 // return list of persistent selections
 vector<MapXY> SpellMap::GetPersistSelections()
@@ -1342,7 +1358,7 @@ vector<uint8_t> SpellMap::GetFlags(vector<MapXY>& selection)
 }
 
 // render frame
-int SpellMap::Render(wxBitmap &bmp, TScroll* scroll)
+int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool)
 {
 	int i, j;
 	int m, n;
@@ -1374,6 +1390,22 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll)
 		std::memset((void*)src,MAP_BACK_COLOR,rend_x);
 	}
 
+	// edit tool pre-processing:
+	Sprite **tool_L1 = NULL;
+	if(msel.size() && tool->isObject())
+	{
+		// object tool selected (house, etc.)
+		auto obj = tool->GetObject();
+
+		// make temp tool object array for L1
+		tool_L1 = new Sprite*[x_size*y_size];
+		std::memset((void*)tool_L1, 0, sizeof(Sprite*)*x_size*y_size);
+
+		// place object's tiles to L1 overlay
+		obj->PlaceMapTiles(tool_L1, x_size, y_size, msel[0]);
+
+	}
+
 	
 	
 
@@ -1386,14 +1418,19 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll)
 		{
 			if (n + xs_ofs >= x_size - 1)
 				break;
+			int mxy = ConvXY(n + xs_ofs,m + ys_ofs*2);
 
 			// select view area
-			uint8_t *filter = NULL;
+			uint8_t *fil = NULL;
 			if(!TileIsVisible(n + xs_ofs,m + ys_ofs*2))
-				filter = terrain->filter.darkpal2;
+				fil = terrain->filter.darkpal;
+
+			// apply optional filter mask
+			if(filter[mxy])
+				fil = filter[mxy];
 
 			// get sprite parameters
-			int mxy = ConvXY(n + xs_ofs,m + ys_ofs*2);
+			
 			Sprite* sid = L1[mxy];
 			char sn = sid->name[2];
 			int sof = elev[mxy];
@@ -1408,12 +1445,21 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll)
 					sid = &spelldata->special.grid[sn - 'A'];
 			}
 
+			// override layer by tool?
+			if(tool_L1 && tool_L1[mxy])
+			{
+				sid = tool_L1[mxy];
+			}
+
 			// render sprite
 			int mxx = n * 80 + ((m & 1 != 0) ? 0 : 40);
 			int myy = m * 24 - sof * 18 + MSYOFS + 50;
-			sid->Render(pic, pic_end, mxx, myy, pic_x_size, filter);
+			sid->Render(pic, pic_end, mxx, myy, pic_x_size, fil);
 		}
 	}
+
+	if(tool_L1)
+		delete[] tool_L1;
 
 	// render 3D terrain mesh overlay (for debug only)
 	/*for (m = 0; m < ys_size; m++)
@@ -1602,7 +1648,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll)
 			// select view area
 			uint8_t* filter = NULL;
 			if(!TileIsVisible(n + xs_ofs,m + ys_ofs*2))
-				filter = terrain->filter.darkpal2;
+				filter = terrain->filter.darkpal;
 
 			// tile selected
 			int is_selected = (msel.size() && msel[0].IsSelected() && msel[0].x - xs_ofs == n && msel[0].y - ys_ofs*2 == m);
@@ -1640,7 +1686,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll)
 					}
 
 					if ((pass == 0 && unit->unit->isAir()) || pass == 2)
-						unit->unit->Render(pic, pic_end, mxx, myy, pic_x_size, terrain->filter.darkpal2, sid, azimuth, frame);
+						unit->unit->Render(pic, pic_end, mxx, myy, pic_x_size, terrain->filter.darker, sid, azimuth, frame);
 					else
 						break;
 					// go to next unit at this position
@@ -1652,6 +1698,34 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll)
 					sid2->Render(pic, pic_end, mxx, myy + sid->y_ofs, pic_x_size, filter);
 			}
 		}
+	}
+
+	
+	// show debug order lines
+	for(int k = 0; k < (int)dbg_ord.size()-1; k++)
+	{
+		MapXY mxy = dbg_ord[k];
+		MapXY nxy = dbg_ord[k+1];
+		
+		// skip if not in visible area
+		if(mxy.x < xs_ofs || mxy.x >= (xs_ofs + xs_size) || mxy.y < ys_ofs * 2 || mxy.y >= (ys_ofs * 2 + ys_size))
+			continue;
+		if(nxy.x < xs_ofs || nxy.x >= (xs_ofs + xs_size) || nxy.y < ys_ofs * 2 || nxy.y >= (ys_ofs * 2 + ys_size))
+			continue;
+
+		// L1 elevation
+		Sprite* mspr = L1[ConvXY(mxy)];
+		int m_y_elev = elev[ConvXY(mxy)];
+		Sprite* nspr = L1[ConvXY(nxy)];
+		int n_y_elev = elev[ConvXY(nxy)];
+		
+		// line ends
+		int mxx = (mxy.x - xs_ofs)*80 + (((mxy.y - ys_ofs*2) & 1 != 0) ? 0 : 40) + mspr->x_size/2;
+		int myy = (mxy.y - ys_ofs * 2) * 24 - m_y_elev*18 + MSYOFS + 50 + mspr->y_ofs + mspr->y_size/2;
+		int nxx = (nxy.x - xs_ofs)*80 + (((nxy.y - ys_ofs*2) & 1 != 0) ? 0 : 40) + nspr->x_size/2;
+		int nyy = (nxy.y - ys_ofs * 2) * 24 - n_y_elev*18 + MSYOFS + 50 + nspr->y_ofs + nspr->y_size/2;
+
+		plot_line(pic, pic_end, 0, 0, pic_x_size, 252, mxx,myy, nxx,nyy);
 	}
 
 	
@@ -2519,7 +2593,7 @@ MapXY SpellMap::GetNeighborTile(int x, int y, int quad)
 	tile.y = y + y_ofs[quad];
 
 	// check range
-	if(tile.y < 0 || tile.y > y_size || tile.x < 0 || tile.x > x_size)
+	if(tile.y < 0 || tile.y >= y_size || tile.x < 0 || tile.x >= x_size)
 	{
 		tile.x = -1;
 		tile.y = -1;
@@ -2534,229 +2608,974 @@ int SpellMap::ReTexture(uint8_t *modz,std::function<void(std::string)> status_cb
 	if(status_cb)
 		status_cb("Texturing...");
 
-	// make list of modified tiles (zig-zag order)
-	vector<MapXY> tlist;
-	MapXY mxy;
-	mxy.x = 0;
-	mxy.y = 0;
-	while(mxy.y < y_size)
-	{
-		while(mxy.x < x_size)
-		{
-			if(modz[ConvXY(mxy)])
-			{
-				tlist.push_back(mxy);
-				modz[ConvXY(mxy)] = 1;
-			}
-			mxy.x++;
-		}
-		mxy.y++;
-		if(mxy.y >= y_size)
-			break;
-		while(mxy.x > 0)
-		{
-			mxy.x--;
-			if(modz[ConvXY(mxy)])
-			{
-				tlist.push_back(mxy);
-				modz[ConvXY(mxy)] = 1;
-			}
-		}
-		mxy.y++;
-	}
+	// shuffle context alternatives before texturing
+	//terrain->ShuffleSpriteContext();
 
+	SyncShading();
 	
-	// make local candidate flags array
-	Sprite **cand = new Sprite*[terrain->GetSpriteCount()];
-	Sprite **cand2 = new Sprite*[terrain->GetSpriteCount()];
-	
+	dbg_ord.clear();
 
-	vector<SpellMapTxt> seq;
+	// clear filter mask (using it to show failed textures)
+	filter.assign(x_size*y_size, NULL);
 
-	int level = 0;
-	while(1)
+	int mode = 0;
+
+	if(mode == 0)
 	{
-		if(level >= seq.size())
-		{
-			// new level
-			SpellMapTxt rec;
-			seq.push_back(rec);
-		}
+		bool fail = false;
 
-		// this level
-		SpellMapTxt *rec = &seq[level];
+		vector<vector<Sprite*>> cand_map(x_size*y_size);
+		vector<MapXY> tlist;
+		vector<vector<MapXY>> tile_lists;
+
+		while(!fail)
+		{
+			// all to non-assigned
+			for(int k = 0; k < x_size*y_size; k++)
+			{
+				if(modz[k])
+					modz[k] = 1;
+				cand_map[k].clear();
+			}
 		
-		// this tile
-		MapXY mxy = tlist[level];
-		if(!rec->TilesCount())
-		{
-			// this level is still empty: fill in all possible tiles based on known tiles and known classes around
-			
-			// ref tile
-			Sprite *spr = L1[ConvXY(mxy)];
-			uint32_t ref_flags = L1_flags[ConvXY(mxy)];
-
-			// step 1: make list based on already assigned tiles
-			int cand_N = 0;		
-			for(int eid = 0; eid < 4; eid++)
-			{
-				// checking first neghbor?
-				bool first_neighbor = (cand_N == 0);
-				// neighbor tile
-				MapXY nxy = GetNeighborTile(mxy,eid);
-				if(!nxy.IsSelected())
-					continue;
-				// skip if not yet assigned
-				if(modz[ConvXY(nxy)] == 1)
-					continue;
-				// neighbor edge index
-				int eid180 = (eid + 2)&3;
-				// neighbor tile
-				Sprite *neig = L1[ConvXY(nxy)];
-
-				int neig_slope = spr->GetSlope();
-				
-				// for each context sprite:
-				std::memset((void*)cand2,0,cand_N*sizeof(Sprite*));
-				for(int k = 0; k < neig->GetContextCount(eid180,neig_slope); k++)
-				{					
-					Sprite* cspr = neig->GetContext(eid180,neig_slope,k);
-					// skip if class not match
-					if(cspr->GetFlags() != ref_flags)
-						continue;					
-					
-					if(first_neighbor)
+			// build ordered list of tiles to assign
+			// using spiral order from outside from tile with most assigned neighbors			
+			tlist.clear();
+			tile_lists.clear();
+			while(true)
+			{			
+				// count fixed neghbors count for each unassigned tile
+				vector<MapXY> mlist;
+				vector<int> mcnt;
+				for(int k = 0; k < x_size*y_size; k++)
+				{
+					if(modz[k] == 1)
 					{
-						// checking first neighbor: just add candidate to list
-						cand[cand_N++] = cspr;
-					}
-					else
-					{
-						// checking next neighbor: need to check overlap with previous neighbor						
-						for(int m = 0; m < cand_N; m++)
+						MapXY mxy(k%x_size,k/x_size);
+						mlist.push_back(mxy);
+						int count = 0;
+						for(int eid = 0; eid < 4; eid++)
 						{
-							if(cand[m] == cspr)
-								cand2[m] = cspr;
+							MapXY nxy = GetNeighborTile(mxy,eid);
+							if(nxy.IsSelected() && modz[ConvXY(nxy)] == 0)
+								count++;
+						}
+						mcnt.push_back(count);
+					}
+				}
+				if(!mlist.size())
+					break; // done
+
+				// add tile group to list of tile lists
+				tile_lists.emplace_back();
+
+				// max number of neghbors - start with this tile
+				//int max_neig_cnt = *max_element(tncnt.begin(), tncnt.end());
+				int max_neig = max_element(mcnt.begin(),mcnt.end()) - mcnt.begin();
+				MapXY mxy = mlist[max_neig];
+
+				// now spiral from initial tile to center ccw
+				while(true)
+				{
+					// search first invalid edge (needed to follow inner edge of unassigned area)
+					int edge_init = 0;
+					for(int eid = 0; eid < 4; eid++)
+					{
+						MapXY nxy = GetNeighborTile(mxy,eid);
+						if(nxy.IsSelected() && modz[ConvXY(nxy)] != 1)
+						{
+							edge_init = eid;
+							break;
+						}
+					}
+					// tile assigned
+					modz[ConvXY(mxy)] = 2;
+					tlist.push_back(mxy);					
+					tile_lists.back().push_back(mxy);
+
+					// not find next tile of spiral
+					int found = false;
+					for(int eid = 0; eid < 4; eid++)
+					{					
+						MapXY nxy = GetNeighborTile(mxy,(eid + edge_init)&3);
+						if(!nxy.IsSelected())
+							continue;
+						if(modz[ConvXY(nxy)] != 1)
+							continue;
+						mxy = nxy;										
+						found = true;
+						break;
+					}
+					if(!found)
+						break;
+				}
+				// repeat just in case there are several isolated islands of tiles to assign
+			}
+			// all to non-assigned
+			for(int k = 0; k < x_size*y_size; k++)
+				if(modz[k])
+					modz[k] = 1;
+
+			dbg_ord = tlist;
+		
+		
+			// make map of possible candidates			
+			for(auto & tile_xy : tlist)		
+			{
+				int mxy = ConvXY(tile_xy);
+				if(modz[mxy] == 0)
+					continue;
+
+				Sprite *spr = L1[mxy];
+				auto ref_class = L1_flags[mxy];
+				int ref_slope = spr->GetSlope();
+				auto ref_obj_class = spr->GetToolClass();
+				auto ref_obj_grp = spr->GetToolClassGroup();
+
+				vector<Sprite*> cand_list;
+				vector<Sprite*> cand_list2;
+				cand_list.reserve(terrain->GetSpriteCount());
+				cand_list2.reserve(terrain->GetSpriteCount());
+				cand_list.clear();
+
+				// -- for each search phase (1. har assigned reference, 2. candidates reference, 3. lookahead filter)
+				int first_neighbor;
+				int next_first_neighbor = true;
+				for(int phase = 0; phase < 3; phase++)
+				{
+					// -- for each tile edge (neighbor):
+					for(int eid = 0; eid < 4; eid++)
+					{
+						// neighboring tile
+						MapXY o_nxy = GetNeighborTile(tile_xy,eid);
+						if(!o_nxy.IsSelected())
+							continue; // outside map					
+						int nxy = ConvXY(o_nxy);
+
+						// neighbor tile
+						Sprite* neig = L1[nxy];
+						auto neig_class = L1_flags[nxy];
+						auto neig_obj_class = neig->GetToolClass();
+						auto neig_obj_grp = neig->GetToolClassGroup();
+					
+						// neighbor edge index
+						int eid180 = (eid + 2)&3;
+												
+						cand_list2.clear();
+
+						first_neighbor = next_first_neighbor;
+
+						if(phase == 0)
+						{
+							// -- 1. phase: make candidate list based on hard assigned neihbors only						
+							if(modz[nxy] == 0)
+							{							
+								// for each context sprite:
+								for(int k = 0; k < neig->GetContextCount(eid180,ref_slope); k++)
+								{
+									Sprite* cspr = neig->GetContext(eid180,ref_slope,k);
+									int is_object = cspr->GetFlags() & Sprite::IS_OBJECT;
+									//int is_object = true;
+									// skip if class not match
+									if(cspr->GetFlags() != ref_class)
+										continue;
+									if(is_object && cspr->GetToolClass() != ref_obj_class)
+										continue;
+									if(is_object && ref_obj_class && cspr->GetToolClassGroup() != ref_obj_grp)
+										continue;
+									if(!CheckTileShading(tile_xy, cspr))
+										continue;
+
+									if(first_neighbor)
+									{
+										// checking first neighbor: just add candidate to list
+										next_first_neighbor = false;
+										cand_list.push_back(cspr);
+									}
+									else
+									{
+										// checking next neighbor: select only previous candidate that matches the new one (if there is some)
+										if(find(cand_list.begin(), cand_list.end(), cspr) != cand_list.end())
+											cand_list2.push_back(cspr);
+									}
+								}
+								if(!first_neighbor)
+									cand_list = cand_list2; // move temp candidate list to working one for next edge test
+							}
+						}
+						else if(phase == 1)
+						{
+							// -- 2. phase: filter candidate list by previously assigned candidates
+							if(cand_map[nxy].size())
+							{
+								// process each candidate:
+								for(auto& cand : cand_map[nxy])
+								{
+									// for each context sprite of neighbor:
+									for(int k = 0; k < cand->GetContextCount(eid180,ref_slope); k++)
+									{
+										Sprite* cspr = cand->GetContext(eid180,ref_slope,k);
+										int is_object = cspr->GetFlags() & Sprite::IS_OBJECT;
+										//int is_object = true;
+										// skip if class not match
+										if(cspr->GetFlags() != ref_class)
+											continue;
+										if(is_object && cspr->GetToolClass() != ref_obj_class)
+											continue;
+										if(is_object && ref_obj_class && cspr->GetToolClassGroup() != ref_obj_grp)
+											continue;
+										if(!CheckTileShading(tile_xy,cspr))
+											continue;
+
+										if(first_neighbor)
+										{
+											next_first_neighbor = false;
+											// checking first neighbor: just add candidate to list
+											if(find(cand_list.begin(),cand_list.end(),cspr) == cand_list.end())
+												cand_list.push_back(cspr); // add only if no exist in list
+										}
+										else
+										{
+											// checking next neighbor: select only previous candidate that matches the new one (if there is some)
+											if(find(cand_list.begin(),cand_list.end(),cspr) != cand_list.end())
+												if(find(cand_list2.begin(),cand_list2.end(),cspr) == cand_list2.end())
+													cand_list2.push_back(cspr);
+										}
+									}
+								}
+								if(!first_neighbor)
+									cand_list = cand_list2; // move temp candidate list to working one for next edge test
+							}
+						}
+						else if(phase == 2)
+						{
+							// 3. phase: look ahead to yet not assigned tiles and filter by their classes and stuff...
+						
+							/*for(const auto & cspr : terrain->sprites)
+							{
+								// skip nor matching types
+								bool is_object = cspr->GetFlags() & Sprite::IS_OBJECT;
+								if(cspr->GetSlope() != ref_slope)
+									continue;
+								if(cspr->GetFlags() != ref_class)
+									continue;
+								if(is_object && cspr->GetToolClass() != ref_obj_class)
+									continue;
+								if(is_object && ref_obj_class && cspr->GetToolClassGroup() != ref_obj_grp)
+									continue;
+
+								// for each context of this candidate in current direction (edge):
+								// check if at least one context has required classes
+								bool pass = false;
+								for(int k = 0; k < cspr->GetContextCount(eid,ref_slope); k++)
+								{
+									Sprite* pspr = cspr->GetContext(eid,ref_slope,k);
+									bool is_object = pspr->GetFlags() & Sprite::IS_OBJECT;
+									// skip if class not match
+									if(pspr->GetFlags() != neig_class)
+										continue;
+									if(is_object && pspr->GetToolClass() != neig_obj_class)
+										continue;
+									if(is_object && ref_obj_class && pspr->GetToolClassGroup() != neig_obj_grp)
+										continue;
+									pass = true;
+									break;
+								}
+								if(!pass)
+									continue;
+
+							
+								if(first_neighbor)
+								{
+									// checking first neighbor: just add candidate to list
+									cand_list.push_back(cspr);
+								}
+								else
+								{
+									// checking next neighbor: select only previous candidate that matches the new one (if there is some)
+									for(const auto& cc : cand_list)
+									{									
+										if(cc == cspr)
+										{
+											cand_list2.push_back(cspr);
+											break;
+										}
+									}
+								}
+							}*/
 						}
 					}
 				}
-				if(!first_neighbor)
+
+				if(!cand_list.size())
 				{
-					Sprite **temp = cand;
-					cand = cand2;
-					cand2 = temp;
+					// FAILED: no candidate found for this tile
+					// this is likely caused by invalid surounding
+					
+					// mask red failed tile
+					filter[mxy] = terrain->filter.redpal;
+
+					fail = true;					
+					continue;					
+				}
+
+				// store candidate list to candidate map
+				cand_map[mxy] = cand_list;
+			
+			}
+			if(fail)
+			{
+				if(status_cb)
+					status_cb("Texturing ... failed initial search of tile candidates! Try invalidate region.");
+				return(1);
+			}
+
+			// remove alternative candiates (pick one)
+			for(auto& tile_xy : tlist)
+			{
+				int mxy = ConvXY(tile_xy);
+			
+				auto cand_list = cand_map[mxy];
+				cand_map[mxy].clear();
+				int count = cand_list.size();
+
+				vector<int> done(count, false);
+				vector<Sprite*> cand_list2;
+				cand_list2.reserve(count);
+
+				for(int cid = 0; cid < count; cid++)
+				{
+					auto & cand = cand_list[cid];
+					if(done[cid])
+						continue;
+					// mark this candidate done
+					done[cid] = true;
+					cand_list2.push_back(cand);
+				
+					// mark all alternatives as done
+					for(int aid = cid + 1; aid < count; aid++)
+					{
+						auto& alt = cand_list[aid];
+						if(!done[aid] && cand->CompareSpriteContextAlt(alt))
+						{
+							done[aid] = true;
+							cand_list2.push_back(alt);
+						}
+					}
+					// select random altarnative and store to candidates map
+					int count2 = cand_list2.size();
+					if(count2 > 1)
+						cand_map[mxy].push_back(cand_list2[rand() % count2]);
+					else
+						cand_map[mxy].push_back(cand_list2[0]);
 				}			
 			}
-			
-			// step 2: reduce list using remaining unassigned neighbors based on their classes
-			//         this is kind of look ahead to get rid of candidates that at not assignable anyways
-			//         so each of the candidates from step 1 must have at least one own candidate neighbor
-			//   for each candidate:
-			for(int cid = 0; cid < cand_N; cid++)
+
+			/*for(auto& tile_xy : tlist)
 			{
-				// skip unassigned candidate items
-				Sprite* cspr = cand[cid];
-				if(!cspr)
+				int mxy = ConvXY(tile_xy);
+				if(modz[mxy] == 0)
 					continue;
 
-				// for each neighbor:
+				Sprite* spr = L1[mxy];
+				auto ref_class = L1_flags[mxy];
+				int ref_slope = spr->GetSlope();
+				auto ref_obj_class = spr->GetToolClass();
+				auto ref_obj_grp = spr->GetToolClassGroup();
+						
+				// initial list of candidates
+				vector<Sprite*> cand_list;
+				cand_list = cand_map[mxy];
+				cand_map[mxy].clear();
+
+				// process each candidate:
+				for(auto & cand : cand_list)
+				{
+					// for each tile edge (neighbor):
+					int pass = true;
+					for(int eid = 0; eid < 4; eid++)
+					{									
+						// neighboring tile
+						MapXY o_nxy = GetNeighborTile(tile_xy.x,tile_xy.y,eid);
+						if(!o_nxy.IsSelected())
+							continue; // outside map					
+						int nxy = ConvXY(o_nxy);
+						if(modz[nxy] != 1)
+							continue; // not unassined tile
+						
+						// neighbor edge index
+						int eid180 = (eid + 2)&3;
+					
+						// for each neighbor candidate:
+						int found = false;
+						for(auto & neig : cand_map[nxy])
+						{
+							// for each context sprite of neighbor:
+							for(int k = 0; k < neig->GetContextCount(eid180,ref_slope); k++)
+							{
+								Sprite* cspr = neig->GetContext(eid180,ref_slope,k);
+								if(cspr == cand)
+								{
+									// at least one potential neighbor allowed at this edge
+									found = true;
+									break;
+								}
+							}
+							if(found)
+								break;
+						}
+						if(!found)
+						{
+							// this edge's nighbor does not allow this tile candidate
+							pass = false;
+							break;
+						}					
+					}
+					if(pass)
+					{
+						// place only allowed candidates to filtered list
+						cand_map[mxy].push_back(cand);
+					}
+				}
+			
+				if(!cand_map[mxy].size())
+				{
+					// FAILED: no candidate found for this tile
+					// this is likely caused by invalid surounding
+
+					// mask red failed tile
+					filter[mxy] = terrain->filter.redpal;
+
+					fail = true;				
+				}
+			}*/
+			if(fail)
+			{
+				if(status_cb)
+					status_cb("Texturing ... failed filtering of tile candidates! Try invalidate region.");
+				return(1);
+			}
+
+		
+			// -- hard assign tiles where only one candidate exists:
+			int repeat = false;
+			for(auto& tile_xy : tlist)
+			{
+				int mxy = ConvXY(tile_xy);
+				if(modz[mxy] == 0)
+					continue;						
+				if(cand_map[mxy].size() <= 1)
+				{
+					// single candidate: hard assign, mark as assigned
+					L1[mxy] = cand_map[mxy][0];
+					modz[mxy] = 0;
+					repeat = true;
+				}			
+			}
+			if(!repeat)
+				break;
+		}
+		
+		// -- build minimalist list of possible neighbors for each possible candidate of each map tile to assing:
+		vector<vector<vector<vector<Sprite*>>>> cand_map_neig(x_size*y_size);
+		for(auto & tile_xy : tlist)
+		{
+			int mxy = ConvXY(tile_xy);
+			auto& cand_list = cand_map[mxy];
+
+			// allocate list for each candidate
+			cand_map_neig[mxy].resize(cand_list.size());
+
+			// for each candidate in list:			
+			for(int cid = 0; cid < cand_list.size(); cid++)
+			{
+				Sprite *cand = cand_list[cid];
+
+				// allocate list for each edge
+				cand_map_neig[mxy][cid].resize(4);
+
+				// for each edge:
 				for(int eid = 0; eid < 4; eid++)
 				{
+					MapXY nxy_pos = GetNeighborTile(tile_xy.x,tile_xy.y,eid);
+					if(!nxy_pos.IsSelected())
+						continue;
+					int nxy = ConvXY(nxy_pos);
+
+					// skip hard assigned tile edges
+					if(modz[nxy] == 0)
+						continue;
+
+					/*Sprite* spr = L1[nxy];
+					auto ref_class = L1_flags[nxy];
+					int ref_slope = spr->GetSlope();
+					auto ref_obj_class = spr->GetToolClass();
+					auto ref_obj_grp = spr->GetToolClassGroup();*/
+
+					// neighbor slope
+					auto neig_slope = L1[nxy]->GetSlope();
+
+					// for each neighbor candidate of this candidate:
+					for(int nid = 0; nid < cand->GetContextCount(eid, neig_slope); nid++)
+					{						
+						Sprite *neig = cand->GetContext(eid, nid);
+
+						// check match with local map neghbors candidates:
+						for(const auto & nspr : cand_map[nxy])
+						{
+							if(neig == nspr)
+							{
+								// add candidate to list
+								cand_map_neig[mxy][cid][eid].push_back(neig);
+								break;
+							}
+						}
+					}																	
+				}
+			}
+		}
+
+		string str = "";
+		for(auto & cmap : cand_map)
+		{
+			if(cmap.size())
+			{
+				str = str + string_format("%d ",cmap.size());
+			}
+		}
+		if(status_cb)
+			status_cb("Texturing ... candidate list: " + str);
+
+		//return(0);
+
+		// randomizer seed
+		unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+		
+		// -- texturing start: for each isolated tiles group
+		for(const auto & tile_list : tile_lists)
+		{			
+
+			// reset all to non-assigned again
+			for(int k = 0; k < x_size*y_size; k++)
+			{
+				if(modz[k])
+					modz[k] = 1;
+			}
+
+			// candidate index map (points to candidate in cand_map[][index])
+			vector<int> index_map(x_size*y_size, -1);			
+			vector<vector<int>> cand_lists(x_size*y_size);
+
+			
+
+			int level = 0;
+			while(true)
+			{	
+				// this tile
+				auto tile_xy = tile_list[level];
+				int mxy = ConvXY(tile_xy);
+				
+				// this tile candidate index
+				int& index = index_map[mxy];
+
+				// this tile
+				if(index < 0)
+				{
+					// this level is still empty: fill in all possible tiles based on known tiles and known classes around
+
+					// local candidate buffers (temp data, two swappable buffers)
+					vector<Sprite*> cand_buf[2];
+					auto *cand1 = &cand_buf[0];
+					auto *cand2 = &cand_buf[1];
+
+					// start with entire candidate list
+					*cand1 = cand_map[mxy];					
+					cand2->reserve(cand1->size());
+					cand2->clear();
+
+					// for each edge (neighbor)
+					for(int eid = 0; eid < 4; eid++)
+					{
+						int eid180 = (eid + 2)&3;
+						// neighbor xy
+						MapXY nxy_pos = GetNeighborTile(tile_xy, eid);
+						if(!nxy_pos.IsSelected())
+							continue;
+						int nxy = ConvXY(nxy_pos);
+						// test only assigned tiles, but not hard assigned
+						if(modz[nxy] != 2)
+							continue;
+
+						// filter candidate list by neighbor list						
+						int neig_index = cand_lists[nxy][index_map[nxy]];
+						auto & neig_list = cand_map_neig[nxy][neig_index][eid180];
+						cand2->assign(cand1->size(),NULL);
+						for(int k = 0; k < cand1->size(); k++)
+						{
+							if(cand1->at(k) && find(neig_list.begin(),neig_list.end(),cand1->at(k)) != neig_list.end())
+								cand2->at(k) = cand1->at(k);
+						}
+						auto temp = cand1;
+						cand1 = cand2;
+						cand2 = temp;
+					}
+					
+					// store candidate list (storing indexes of candidates selected from cand_map[][])
+					cand_lists[mxy].reserve(cand1->size());
+					cand_lists[mxy].clear();
+					for(int k = 0; k < cand1->size();k++)
+					{
+						if(cand1->at(k))
+							cand_lists[mxy].push_back(k);
+					}
+
+					// shuffle candidates					
+					std::shuffle(cand_lists[mxy].begin(),cand_lists[mxy].end(),std::default_random_engine(seed));
+
+					// reset candidate index
+					index = 0;
+				}
+
+
+				if(index >= cand_lists[mxy].size())
+				{
+					// all candidates tested (unsuccessfully) 
+
+					// mark current position back as not assigned
+					modz[mxy] = 1;
+
+					// invalidate this level
+					index = -1;
+
+					// move level back
+					level--;
+					
+					// move previous level index
+					if(level >= 0)
+					{
+						auto tile_xy = tile_list[level];
+						int mxy = ConvXY(tile_xy);
+						index_map[mxy]++;
+					}
+
+
+
+				}
+				else
+				{
+					// some candidate found
+					Sprite *spr = cand_map[mxy][cand_lists[mxy][index]];
+
+					// put new sprite to current position
+					L1[mxy] = spr;
+					// mark it as temporarily assigned
+					modz[mxy] = 2;
+
+					// move to next level					
+					level++;
+				}				
+
+				if(level < 0)
+				{
+					// search failed:
+
+					if(status_cb)
+						status_cb("Texturing ... failed!");
+
+					break;
+				}
+				if(level >= tile_list.size())
+				{
+					// texturing done with success:
+
+					if(status_cb)
+						status_cb("Texturing ... done!");
+
+					break;
+				}
+			}
+			
+		}
+
+
+	}
+	else if(mode == 1)
+	{
+		// make list of modified tiles (zig-zag order)
+		vector<MapXY> tlist;
+		MapXY mxy;
+		/*mxy.x = 0;
+		mxy.y = 0;
+		while(mxy.y < y_size)
+		{
+			while(mxy.x < x_size)
+			{
+				if(modz[ConvXY(mxy)])
+				{
+					tlist.push_back(mxy);
+					modz[ConvXY(mxy)] = 1;
+				}
+				mxy.x++;
+			}
+			mxy.y++;
+			if(mxy.y >= y_size)
+				break;
+			while(mxy.x > 0)
+			{
+				mxy.x--;
+				if(modz[ConvXY(mxy)])
+				{
+					tlist.push_back(mxy);
+					modz[ConvXY(mxy)] = 1;
+				}
+			}
+			mxy.y++;
+		}*/
+		// all to non-assigned
+		for(int k = 0; k < x_size*y_size; k++)
+		{
+			if(modz[k])
+				modz[k] = 1;
+		}
+		// search initial tile
+		for(int k = 0; k < x_size*y_size; k++)
+		{
+			if(modz[k])
+			{
+				mxy.x = k%x_size;
+				mxy.y = k/x_size;
+				tlist.push_back(mxy);
+				modz[k] = 2; // assigned
+				break;
+			}
+		}
+		// now spiral from initial tile to center ccw
+		while(true)
+		{
+			bool found = false;
+			for(int eid = 0; eid < 4; eid++)
+			{
+				MapXY nxy = GetNeighborTile(mxy,eid);
+				if(modz[ConvXY(nxy)] != 1)
+					continue;
+				mxy = nxy;
+				tlist.push_back(mxy);
+				modz[ConvXY(nxy)] = 2; // assigned
+				found = true;
+				break;
+			}
+			if(!found)
+				break;
+		}
+		// reset all to non-assigned again
+		for(int k = 0; k < x_size*y_size; k++)
+		{
+			if(modz[k])
+				modz[k] = 1;
+		}
+
+
+	
+		// make local candidate flags array
+		Sprite **cand = new Sprite*[terrain->GetSpriteCount()];
+		Sprite **cand2 = new Sprite*[terrain->GetSpriteCount()];
+	
+
+		vector<SpellMapTxt> seq;
+
+		int level = 0;
+		while(1)
+		{
+			if(level >= seq.size())
+			{
+				// new level
+				SpellMapTxt rec;
+				seq.push_back(rec);
+			}
+
+			// this level
+			SpellMapTxt *rec = &seq[level];
+		
+			// this tile
+			MapXY mxy = tlist[level];
+			if(!rec->TilesCount())
+			{
+				// this level is still empty: fill in all possible tiles based on known tiles and known classes around
+			
+				// ref tile
+				Sprite *spr = L1[ConvXY(mxy)];
+				uint32_t ref_flags = L1_flags[ConvXY(mxy)];
+				uint32_t ref_obj_class = spr->GetToolClass();
+				uint32_t ref_obj_grp = spr->GetToolClassGroup();
+
+				// step 1: make list based on already assigned tiles
+				int cand_N = 0;		
+				for(int eid = 0; eid < 4; eid++)
+				{
+					// checking first neghbor?
+					bool first_neighbor = (cand_N == 0);
 					// neighbor tile
 					MapXY nxy = GetNeighborTile(mxy,eid);
 					if(!nxy.IsSelected())
 						continue;
-					// skip if assigned
-					if(modz[ConvXY(nxy)] != 1)
+					// skip if not yet assigned
+					if(modz[ConvXY(nxy)] == 1)
+						continue;
+					// neighbor edge index
+					int eid180 = (eid + 2)&3;
+					// neighbor tile
+					Sprite *neig = L1[ConvXY(nxy)];
+
+					int neig_slope = spr->GetSlope();
+				
+					// for each context sprite:
+					std::memset((void*)cand2,0,cand_N*sizeof(Sprite*));
+					for(int k = 0; k < neig->GetContextCount(eid180,neig_slope); k++)
+					{					
+						Sprite* cspr = neig->GetContext(eid180,neig_slope,k);
+						// skip if class not match
+						if(cspr->GetFlags() != ref_flags)
+							continue;
+						if(cspr->GetToolClass() != ref_obj_class)
+							continue;
+						if(ref_obj_class && cspr->GetToolClassGroup() != ref_obj_grp)
+							continue;
+
+					
+						if(first_neighbor)
+						{
+							// checking first neighbor: just add candidate to list
+							cand[cand_N++] = cspr;
+						}
+						else
+						{
+							// checking next neighbor: need to check overlap with previous neighbor						
+							for(int m = 0; m < cand_N; m++)
+							{
+								if(cand[m] == cspr)
+									cand2[m] = cspr;
+							}
+						}
+					}
+					if(!first_neighbor)
+					{
+						Sprite **temp = cand;
+						cand = cand2;
+						cand2 = temp;
+					}			
+				}
+			
+				// step 2: reduce list using remaining unassigned neighbors based on their classes
+				//         this is kind of look ahead to get rid of candidates that at not assignable anyways
+				//         so each of the candidates from step 1 must have at least one own candidate neighbor
+				//   for each candidate:
+				for(int cid = 0; cid < cand_N; cid++)
+				{
+					// skip unassigned candidate items
+					Sprite* cspr = cand[cid];
+					if(!cspr)
 						continue;
 
-					int neig_slope = L1[ConvXY(nxy)]->GetSlope();
-					
-					// for each context of candidate:
-					bool allow = false;
-					for(int k = 0; k < cspr->GetContextCount(eid,neig_slope); k++)
+					// for each neighbor:
+					for(int eid = 0; eid < 4; eid++)
 					{
-						Sprite* nspr = cspr->GetContext(eid,neig_slope,k);
-						// skip if neighbor class not match what should be in the position
-						if(nspr->GetFlags() != L1_flags[ConvXY(nxy)])
+						// neighbor tile
+						MapXY nxy = GetNeighborTile(mxy,eid);
+						if(!nxy.IsSelected())
 							continue;
-						allow = true;
-						break;
+						// skip if assigned
+						if(modz[ConvXY(nxy)] != 1)
+							continue;
+
+						int neig_slope = L1[ConvXY(nxy)]->GetSlope();
+					
+						// for each context of candidate:
+						bool allow = false;
+						for(int k = 0; k < cspr->GetContextCount(eid,neig_slope); k++)
+						{
+							Sprite* nspr = cspr->GetContext(eid,neig_slope,k);
+							// skip if neighbor class not match what should be in the position
+							if(nspr->GetFlags() != L1_flags[ConvXY(nxy)])
+								continue;
+							allow = true;
+							break;
+						}
+						if(!allow)
+						{
+							// not possible candidate: remove it from list
+							cand[cid] = NULL;
+							break;
+						}
 					}
-					if(!allow)
-					{
-						// not possible candidate: remove it from list
-						cand[cid] = NULL;
-						break;
-					}
-				}
-			}					
-			// make condensed candidate list
-			for(int m = 0; m < cand_N; m++)
+				}					
+				// make condensed candidate list
+				for(int m = 0; m < cand_N; m++)
+				{
+					if(cand[m])
+						rec->AddTile(cand[m]);
+				}			
+				// reset candidate index
+				rec->Shuffle();
+				rec->SetIndex();			
+			}
+
+			// get candidate
+			Sprite * spr = rec->GetTile();
+			// move to next tile
+			rec->NextIndex();
+			if(!spr)
 			{
-				if(cand[m])
-					rec->AddTile(cand[m]);
-			}			
-			// reset candidate index
-			rec->Shuffle();
-			rec->SetIndex();			
-		}
-
-		// get candidate
-		Sprite * spr = rec->GetTile();
-		// move to next tile
-		rec->NextIndex();
-		if(!spr)
-		{
-			// all candidates tested (unsuccessfully) 
+				// all candidates tested (unsuccessfully) 
 				 
-			// mark current position back as not assigned
-			modz[ConvXY(mxy)] = 1;
+				// mark current position back as not assigned
+				modz[ConvXY(mxy)] = 1;
 				 
-			// move level back
-			level--;
-			// remove last level from stack
-			seq.pop_back();
-		}
-		else
-		{
-			// some match found
+				// move level back
+				level--;
+				// remove last level from stack
+				seq.pop_back();
+			}
+			else
+			{
+				// some match found
 				
-			// put new sprite to current position
-			L1[ConvXY(mxy)] = spr;
-			// mark it as temporarily assigned
-			modz[ConvXY(mxy)] = 2;
+				// put new sprite to current position
+				L1[ConvXY(mxy)] = spr;
+				// mark it as temporarily assigned
+				modz[ConvXY(mxy)] = 2;
 								
-			// move to next level
-			level++;
+				// move to next level
+				level++;
 
-			// reset search index
-			/*if(level < seq.size())
-				seq[level].SetIndex();*/
+				// reset search index
+				/*if(level < seq.size())
+					seq[level].SetIndex();*/
+			}
+
+			if(level < 0)
+			{
+				// search failed:
+
+				if(status_cb)
+					status_cb("Texturing ... failed!");
+
+				break;
+			}
+			if(level >= tlist.size())
+			{
+				// texturing done with success:
+
+				if(status_cb)
+					status_cb("Texturing ... done!");
+
+				break;
+			}
 		}
 
-		if(level < 0)
-		{
-			// search failed:
+		delete[] cand;
+		delete[] cand2;
 
-			if(status_cb)
-				status_cb("Texturing ... failed!");
-
-			break;
-		}
-		if(level >= tlist.size())
-		{
-			// texturing done with success:
-
-			if(status_cb)
-				status_cb("Texturing ... done!");
-
-			break;
-		}
 	}
-
-	delete[] cand;
-	delete[] cand2;
 
 	
 
@@ -2781,23 +3600,19 @@ int SpellMap::IvalidateTiles(vector<MapXY> tiles,std::function<void(std::string)
 	SyncL1flags();
 
 	// allocate modification flag array
-	uint8_t* flag = new uint8_t[x_size*y_size];
-	std::memset((void*)flag,0x00,x_size*y_size*sizeof(uint8_t));
+	vector<uint8_t> flag(x_size*y_size, 0);
 
 	// === for each selected ===
-	for(i = 0; i < msel.size(); i++)
+	for(auto & xy : tiles)
 	{
 		// selected tile
-		int mxy = ConvXY(tiles[i]);
+		int mxy = ConvXY(xy);
 		// set modified flag
 		flag[mxy] = 1;
 	}
 	
 	// apply textures
-	ReTexture(flag,status_cb);
-
-	// loose memory
-	delete[] flag;
+	ReTexture(flag.data(),status_cb);
 
 	return(0);
 }
@@ -2869,7 +3684,89 @@ void SpellMap::SyncL1flags()
 	}
 }
 
+// update map shading flags
+void SpellMap::SyncShading()
+{
+	shading.assign(x_size*y_size, 0);
+	shading_mask.assign(x_size*y_size,0);
 
+	Sprite ref;
+	Sprite neig;
+
+	for(int y=0; y<y_size; y++)
+	{
+		for(int x=0; x<x_size; x++)
+		{
+			int mxy = ConvXY(x,y);
+			for(int eid = 0; eid <4; eid++)
+			{
+				int eid180 = (eid + 2)&3;
+				auto nxy_pos = GetNeighborTile(x,y,eid);
+				int nxy = ConvXY(nxy_pos);				
+
+				if(nxy_pos.IsSelected())
+				{
+					// make two fake sprites					
+					ref.name[2] = L1[mxy]->name[2];					
+					neig.name[2] = L1[nxy]->name[2];
+
+					if(ref.name[2] == 'M')
+						ref.name[2] *= 1;
+
+					// try to find valid edge shading combination
+					ref.SetShadingFlags(0xFF00 | 0);
+					neig.SetShadingFlags(0xFF00 | 0);
+					if(ref.CheckShadingValid(&neig,eid))
+					{
+						shading[mxy] |= 0<<eid;
+						continue;
+					}
+					ref.SetShadingFlags(0xFF00 | 1<<eid);
+					if(ref.CheckShadingValid(&neig,eid))
+					{
+						shading[mxy] |= 1<<eid;
+						continue;
+					}
+					neig.SetShadingFlags(0xFF00 | 1<<eid180);
+					if(ref.CheckShadingValid(&neig,eid))
+					{
+						shading[mxy] |= 1<<eid;
+						continue;
+					}
+					ref.SetShadingFlags(0xFF00 | 0);
+					if(ref.CheckShadingValid(&neig,eid))
+					{
+						shading[mxy] |= 0<<eid;
+						continue;
+					}
+				}
+				else
+				{
+					// undecided
+					shading_mask[mxy] |= 1<<eid;
+				}
+			}
+		}
+	}
+
+}
+// check tile candidate has allowed shading
+int SpellMap::CheckTileShading(MapXY &pos, Sprite *spr)
+{
+	int mxy = ConvXY(pos);
+	int ref_flag = shading[mxy] & 0x0F;
+	int ref_mask = shading[mxy] & 0x0F;
+	int spr_flag = spr->GetShadingFlags() & 0x0F;
+	int spr_mask = spr->GetShadingMask() & 0x0F;
+
+	// ignore edges that are masked by reference
+	ref_flag &= ~ref_mask;
+	spr_flag &= ~ref_mask;
+	// ignore edge that are masked by sprite
+	ref_flag &= ~spr_mask;
+	spr_flag &= ~spr_mask;
+	return(ref_flag == spr_flag);
+}
 
 // update sprite context based on selected map tiles
 int SpellMap::BuildSpriteContext()

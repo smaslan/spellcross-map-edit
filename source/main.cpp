@@ -97,7 +97,7 @@ int MyApp::OnExit()
 }
 
 
-MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "Spellcross Map Editor", wxDefaultPosition, wxSize(1024,768))
+MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "Spellcross Map Editor", wxDefaultPosition, wxSize(1600,1000))
 {
     // store local reference to initial map and data
     spell_map = map;
@@ -308,7 +308,7 @@ void MyFrame::OnPaintCanvas(wxPaintEvent& event)
 
     // render map
     wxPaintDC pdc(canvas);
-    spell_map->Render(m_buffer,&scroll);
+    spell_map->Render(m_buffer,&scroll,&spell_tool);
     pdc.DrawBitmap(m_buffer,wxPoint(0,0));
 
     event.Skip();
@@ -583,21 +583,31 @@ void MyFrame::OnToolBtnClick(wxRibbonButtonBarEvent& event)
 
     if(!spell_map->IsLoaded())
         return;
+    if(!ribbonBar)
+        return;
 
     int tool_id = (id - ID_TOOL_BASE)/ID_TOOL_CLASS_STEP;
     int item_id = (id - ID_TOOL_BASE)%ID_TOOL_CLASS_STEP;
 
     // very schmutzig way to deselect all other tool buttons
-    for(int tid = 0; tid < spell_map->terrain->GetToolsCount(); tid++)
+    for(int tid = 0; tid < ribbonBar->GetPageCount(); tid++)
     {        
-        for(int iid = 0; iid < spell_map->terrain->GetToolSetItemsCount(tid); iid++)
+        // get button bar
+        wxRibbonPage* page = ribbonBar->GetPage(tid);
+        auto wlist = page->GetChildren();
+        if(!wlist.size())
+            continue;
+        wxRibbonPanel* panel = (wxRibbonPanel*)wlist[0];
+        auto clist = panel->GetChildren();
+        if(!clist.size())
+            continue;
+        wxRibbonButtonBar* btns = (wxRibbonButtonBar*)clist[0];
+
+        // for each button:
+        for(int iid = 0; iid < btns->GetButtonCount(); iid++)
         {
             int btn_id = ID_TOOL_BASE + tid*ID_TOOL_CLASS_STEP + iid;            
-            wxRibbonPage *page = ribbonBar->GetPage(tid);
-            auto wlist = page->GetChildren();
-            wxRibbonPanel* panel = (wxRibbonPanel*)wlist[0];
-            auto clist = panel->GetChildren();
-            wxRibbonButtonBar* btns = (wxRibbonButtonBar*)clist[0];            
+            
             if(id != btn_id)
                 btns->ToggleButton(btn_id, false);
             else
@@ -606,7 +616,11 @@ void MyFrame::OnToolBtnClick(wxRibbonButtonBarEvent& event)
                 if(event.IsChecked())
                 {
                     // some tool selected: setup tool pointer
-                    spell_tool.Set(tid, iid);
+                    SpellObject *obj = (SpellObject*)btns->GetItemClientData(btns->GetItemById(btn_id));
+                    if(obj)
+                        spell_tool.Set(obj); // tool is object
+                    else
+                        spell_tool.Set(tid, iid); // tool is class
                 }
             }
         }
@@ -616,17 +630,26 @@ void MyFrame::OnToolPageClick(wxRibbonBarEvent& event)
 {
     // no tool selection
     spell_tool.Set();
+
+    if(!ribbonBar)
+        return;
+
     // very schmutzig way to deselect all other tool buttons
-    for(int tid = 0; tid < spell_map->terrain->GetToolsCount(); tid++)
+    for(int tid = 0; tid < ribbonBar->GetPageCount(); tid++)
     {
-        for(int iid = 0; iid < spell_map->terrain->GetToolSetItemsCount(tid); iid++)
+        wxRibbonPage* page = ribbonBar->GetPage(tid);
+        auto wlist = page->GetChildren();
+        if(!wlist.size())
+            continue;
+        wxRibbonPanel* panel = (wxRibbonPanel*)wlist[0];
+        auto clist = panel->GetChildren();
+        if(!clist.size())
+            continue;
+        wxRibbonButtonBar* btns = (wxRibbonButtonBar*)clist[0];
+        // for each button:
+        for(int iid = 0; iid < btns->GetButtonCount(); iid++)
         {
             int btn_id = ID_TOOL_BASE + tid*ID_TOOL_CLASS_STEP + iid;
-            wxRibbonPage* page = ribbonBar->GetPage(tid);
-            auto wlist = page->GetChildren();
-            wxRibbonPanel* panel = (wxRibbonPanel*)wlist[0];
-            auto clist = panel->GetChildren();
-            wxRibbonButtonBar* btns = (wxRibbonButtonBar*)clist[0];
             btns->ToggleButton(btn_id,false);
         }
     }
@@ -714,12 +737,16 @@ void MyFrame::LoadToolsetRibbon(Terrain *terr)
             // build buttons:
             for (int k = 0; k < size.size(); k++)
             {
-                wxBitmap *bmp=NULL;
+                // render glyph
+                wxBitmap *bmp=NULL;                
                 if (objects[k])
                     bmp = objects[k]->RenderPreview(1.30, x_size, y_size);
                 else
                     bmp = terr->RenderToolSetItemImage(tool_id, k, 1.30, x_size, y_size);
-                ribBtns->AddButton(index[k], titles[k], *bmp, wxEmptyString, wxRIBBON_BUTTON_TOGGLE);
+                // make button
+                auto btn = ribBtns->AddButton(index[k], titles[k], *bmp, wxEmptyString, wxRIBBON_BUTTON_TOGGLE);
+                // include object pointer if it's object
+                ribBtns->SetItemClientData(btn,objects[k]);
                 delete bmp;
             }
 
