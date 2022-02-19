@@ -11,7 +11,9 @@
 
 #include "fsu_archive.h"
 #include "sprites.h"
+#include "spell_graphics.h"
 #include <vector>
+#include <tuple>
 
 //using namespace std;
 
@@ -108,9 +110,12 @@ class SpellUnitRec
 		// FSU data links
 		FSU_resource* gr_base; /* unit base graphics */
 		FSU_resource* gr_aux; /* unit aux graphics (turret for tanks) */
+		// icon link
+		SpellGraphicItem *icon_glyph;
 
 		SpellUnitRec();
-		void Render(uint8_t* buffer, uint8_t* buf_end, int buf_x_pos, int buf_y_pos, int buf_x_size, uint8_t* shadow_filter, Sprite *sprt, int azim, int frame);
+		tuple<int,int> Render(uint8_t* buffer, uint8_t* buf_end, int buf_x_pos, int buf_y_pos, int buf_x_size, uint8_t* shadow_filter, Sprite *sprt, int azim, int frame);
+		
 
 		int isAir();
 		int isLight();
@@ -151,9 +156,9 @@ private:
 	vector<SpellUnitRec*> units;
 
 public:	
-	SpellUnits(uint8_t* data, int dlen);
-	SpellUnits(uint8_t* data, int dlen, FSUarchive *fsu);
+	SpellUnits(uint8_t* data, int dlen, FSUarchive *fsu, SpellGraphics *graphics);
 	~SpellUnits();
 	int Count();
 	SpellUnitRec* GetUnit(int uid);
 };
+

@@ -16,6 +16,8 @@
 #include "fsu_archive.h"
 #include "sprites.h"
 #include "spell_units.h"
+#include "spell_font.h"
+#include "spell_graphics.h"
 
 using namespace std;
 
@@ -59,11 +61,12 @@ class SpellDEF
 };
 
 
-
-
-
 class SpellData
 {
+private:
+	int LoadSpecialLand(wstring& path);
+	int LoadAuxGraphics(FSarchive* fs);
+
 public:
 	// terrains data array
 	vector<Terrain*> terrain;
@@ -78,17 +81,25 @@ public:
 	FSUarchive *units_fsu;
 	// units
 	SpellUnits* units;
+	// fonts
+	SpellFont* font;
+	SpellFont* font7;
+	// generic graphics
+	SpellGraphics gres;
+	// PNM animations
+	vector<AnimPNM*> pnms;
 	// last path
 	wstring spell_data_root;
 
-	SpellData(wstring &data_path);
-	~SpellData();
-	int LoadSpecialLand(wstring &path);
+	SpellData(wstring &data_path, wstring& spec_path);
+	~SpellData();	
 	Terrain* GetTerrain(const char* name);
 	Terrain* GetTerrain(int index);
 	int GetTerrainCount();
 	int BuildSpriteContextOfMaps(wstring folder,string terrain_name,std::function<void(std::string)> status_cb);
+	AnimPNM *GetPNM(const char *name);
 
+	AnimPNM *pnm_sipka;
 };
 
 

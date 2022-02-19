@@ -171,7 +171,7 @@ MapLayer4::MapLayer4(AnimPNM* pnm, int x_pos, int y_pos, int x_ofs, int y_ofs, i
 	this->x_ofs = x_ofs;
 	this->y_ofs = y_ofs;
 	this->frame_ofs = frame_ofs;
-	this->frame_limit = frame_limit;
+	this->frame_limit = (frame_limit<0)?(pnm->frames.size()):(frame_limit);
 }
 MapLayer4::~MapLayer4()
 {
@@ -207,6 +207,8 @@ SpellMap::SpellMap()
 
 	map_path = L"";
 	def_path = L"";	
+
+	unit_selection = NULL;
 }
 
 SpellMap::~SpellMap()
@@ -262,6 +264,7 @@ void SpellMap::Close()
 	for(k = 0; k < units.size(); k++)
 		delete units[k];
 	units.clear();
+	unit_selection = NULL;
 	// loose selection array
 	if(select)
 		delete[] select;
@@ -273,6 +276,11 @@ void SpellMap::Close()
 	if(pic)
 		delete[] pic;
 	pic = NULL;
+
+	ClearHUDbuttons();
+
+	unit_sel_land_preference = true;
+	w_unit_hud = true;
 
 	msel.clear();
 
@@ -731,9 +739,10 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 	delete[] map_buffer;
 
 
-	////////////////////////////
-	///// Other map arrays /////
-	////////////////////////////
+
+	//////////////////////////////////////
+	///// Other map arrays and stuff /////
+	//////////////////////////////////////
 	
 	// create selections maps
 	select = new uint8_t[x_size*y_size];
@@ -742,10 +751,14 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 	// filter mask
 	filter.resize(x_size*y_size, NULL);
 
+	// init unit pointer PNM
+	pnm_sipka = MapLayer4(spelldata->pnm_sipka);
+
 
 	//////////////////////////
 	///// Load DEF stuff /////
 	//////////////////////////
+	int last_unit_index = 0;
 	if (def)
 	{
 		// parse mission data
@@ -783,6 +796,9 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 				// --- AddUnit(unit_order, unit_id, position, experience, man_count, unit_mode, name) ---				
 				MapUnit *unit = new MapUnit();
 
+				// always os
+				unit->is_enemy = 1;
+
 				// unit index within map (identifier)
 				unit->id = atoi((*cmd->parameters)[0].c_str());
 
@@ -801,7 +817,10 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 				unit->man = atoi((*cmd->parameters)[4].c_str());
 
 				// unit behaviour type
-				unit->type = (*cmd->parameters)[5].c_str();
+				unit->type = (*cmd->parameters)[5].c_str();				
+
+				// unit active (to change in game mode)
+				unit->is_active = 1;
 
 				// try fetch unit record from spelldata
 				unit->unit = spelldata->units->GetUnit(unit->type_id);				
@@ -812,6 +831,21 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 					return(1);
 				}
 
+				// copy unit name
+				strcpy_s(unit->name,sizeof(unit->name),unit->unit->name);
+				auto & custom_name = cmd->parameters->at(6);
+				if(custom_name.size() && custom_name.compare("-")!=0)
+					strcpy_s(unit->name,sizeof(unit->name),custom_name.c_str());
+
+				// initial action points
+				unit->ResetAP();
+
+				unit->dig_level = rand()%7;
+				unit->commander_id = rand()%9;
+				unit->is_commander = rand()%2;
+				unit->morale = 1 + rand()%100;
+
+
 				// add unit to list
 				units.push_back(unit);
 			}
@@ -819,20 +853,32 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 			{
 				// --- Event definitions: AddSpecialEvent(type, position, index, probability) ---
 				
-				if ((*cmd->parameters)[0].compare("SeePlace"))
-					continue;
-
-				// event position xy
-				MapXY coor;
-				int xy = atoi((*cmd->parameters)[1].c_str());
-				coor.y = (xy / x_size);
-				coor.x = xy - coor.y * x_size;
+				int index;
+				int probab;
+				if(cmd->parameters->at(0).compare("SeePlace") == 0)
+				{				
+					// event position xy
+					MapXY coor;					
+					int xy = atoi(cmd->parameters->at(1).c_str());
+					coor.y = (xy / x_size);
+					coor.x = xy - coor.y * x_size;
 				
-				// event index
-				int index = atoi((*cmd->parameters)[2].c_str());
+					// event index
+					index = atoi(cmd->parameters->at(2).c_str());
 
-				// probability
-				int probab = atoi((*cmd->parameters)[3].c_str());
+					// probability
+					probab = atoi(cmd->parameters->at(3).c_str());
+				}
+				else if(cmd->parameters->at(0).compare("MissionStart") == 0)
+				{
+					// event index
+					index = atoi(cmd->parameters->at(1).c_str());
+
+					// probability
+					probab = atoi(cmd->parameters->at(2).c_str());
+				}
+				else
+					continue;
 				
 				// parse event data
 				string event_data_header = "EventData(" + std::to_string(index) + ")";
@@ -849,8 +895,22 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 						MapUnit* unit = new MapUnit();
 
 						// unit index within map (identifier)
-						unit->id = atoi((*evcmd->parameters)[0].c_str());
+						unit->id = last_unit_index++;
 
+						// decode unit type
+						if(evcmd->parameters->at(0).compare("EnemyUnit") == 0)
+						{
+							unit->is_enemy = 1;
+						}
+						else if(evcmd->parameters->at(0).compare("MissionUnit") == 0)
+						{
+							unit->type = MapUnitType::MissionUnit;
+						}
+						else if(evcmd->parameters->at(0).compare("SpecUnit1") == 0)
+						{
+							unit->type = MapUnitType::SpecUnit1;
+						}
+						
 						// unit type index
 						unit->type_id = atoi((*evcmd->parameters)[1].c_str());
 
@@ -863,7 +923,10 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 						unit->experience = atoi((*evcmd->parameters)[3].c_str());
 
 						// man count
-						unit->man = atoi((*evcmd->parameters)[4].c_str());
+						unit->man = atoi((*evcmd->parameters)[4].c_str());						
+
+						// unit active (to change in game mode)
+						unit->is_active = 1;
 
 						// try fetch unit record from spelldata
 						unit->unit = spelldata->units->GetUnit(unit->type_id);
@@ -873,6 +936,21 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 							delete unit;
 							return(1);
 						}
+
+						// copy unit name
+						strcpy_s(unit->name, sizeof(unit->name),unit->unit->name);
+						auto& custom_name = evcmd->parameters->at(5);
+						if(custom_name.size() && custom_name.compare("-")!=0)
+							strcpy_s(unit->name,sizeof(unit->name),custom_name.c_str());
+
+						// default action points
+						unit->ResetAP();
+
+						unit->dig_level = rand()%7;
+						unit->commander_id = rand()%9;
+						unit->is_commander = rand()%2;
+						unit->morale = 1 + rand()%100;
+
 
 						// add unit to list
 						units.push_back(unit);
@@ -907,6 +985,14 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 		}
 		
 	}
+
+	// select some unit
+	if(units.size())
+		unit_selection = units[0];
+
+	// clear units view range map
+	PrepareUnitsViewMask();
+	ClearUnitsView(true);
 
 	// assign the units to map array
 	SortUnits();
@@ -1019,7 +1105,7 @@ int SpellMap::RenderPrepare(wxBitmap& bmp, TScroll* scroll)
 {
 	if(!IsLoaded())
 		return(1);
-	
+
 	// get surface size
 	surf_x = bmp.GetWidth();
 	surf_y = bmp.GetHeight();
@@ -1028,7 +1114,7 @@ int SpellMap::RenderPrepare(wxBitmap& bmp, TScroll* scroll)
 	if(pic && (surf_x != last_surf_x || surf_y != last_surf_y))
 	{
 		delete[] pic;	
-		pic = NULL;
+		pic = NULL;		
 	}
 
 	// remember last surface size
@@ -1045,13 +1131,20 @@ int SpellMap::RenderPrepare(wxBitmap& bmp, TScroll* scroll)
 		pic = new uint8_t[pic_x_size * pic_y_size];		
 		// buffer end for range checking
 		pic_end = &pic[pic_x_size * pic_y_size];
+		// surface modified flag (used mainly for rearranging HUD buttons)
+		surf_modified = true;
 	}
 	if(!pic)
 		return(1);	
 
 	// limit scroller to valid range
 	scroll->CheckScroll(pic_x_size - surf_x, pic_y_size - surf_y);
-		
+
+	// top-left visible portion of buffer (surface origin)	
+	auto [x_pos,y_pos] = scroll->GetScroll();
+	surf_x_origin = (x_pos >= 80 ? (80) : (0)) + (x_pos % 80);
+	surf_y_origin = (y_pos / 48 <= MSYOFST ? (y_pos / 48) * 48 : MSYOFST * 48) + (y_pos % 48);
+			
 	// tiles to draw
 	xs_size = surf_x / 80 + 3;
 	ys_size = surf_y / 24 + 12;
@@ -1065,6 +1158,18 @@ int SpellMap::RenderPrepare(wxBitmap& bmp, TScroll* scroll)
 		ys_ofs = 0;	
 
 	return(0);
+}
+// return true if surface was modified in last RenderPrepare()
+int SpellMap::isRenderSurfModified()
+{
+	return(surf_modified);
+}
+// call to commit surface modified flag
+int SpellMap::CommitRenderSurfModified()
+{
+	int temp = surf_modified;
+	surf_modified = false;
+	return(temp);
 }
 
 
@@ -1160,7 +1265,7 @@ vector<MapXY> &SpellMap::GetSelections(wxBitmap& bmp, TScroll *scroll)
 
 
 					// pixel coordinates of search rect
-					int mxx = n * 80 + ((m & 1 != 0) ? 0 : 40);
+					int mxx = n * 80 + (((m & 1) != 0) ? 0 : 40);
 					int ymn = -((dy / 48 <= MSYOFST ? (dy / 48) * 48 : MSYOFST * 48) + (dy % 48) * smooth);
 					int xmn = mxx - ((dx >= 80 ? (80) : (0)) + (dx % 80) * smooth);
 					if(sn == 'C' || sn == 'D' || sn == 'M' || sn == 'B')
@@ -1358,9 +1463,9 @@ vector<uint8_t> SpellMap::GetFlags(vector<MapXY>& selection)
 }
 
 // render frame
-int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool)
+int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::function<void(void)> hud_buttons_cb)
 {
-	int i, j;
+	int i;
 	int m, n;
 
 	// ###todo: always smooth scroll?
@@ -1378,12 +1483,12 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool)
 	auto msel = GetSelections(bmp,scroll);
 
 	// get scroll position
-	auto [x_pos,y_pos] = scroll->GetScroll();
+	//auto [x_pos,y_pos] = scroll->GetScroll();
 
 	// clear used surface range
 	for(int y = 0; y < surf_y; ++y)
 	{
-		uint8_t* src = &pic[(y + (y_pos / 48 <= MSYOFST ? (y_pos / 48) * 48 : MSYOFST * 48) + (y_pos % 48) * smooth)*pic_x_size + ((x_pos >= 80 ? (80) : (0)) + (x_pos % 80) * smooth)];
+		uint8_t* src = &pic[surf_x_origin + (surf_y_origin + y)*pic_x_size];
 		int rend_x = surf_x;
 		if(&src[surf_x] > pic_end)
 			rend_x = pic_end - src;		
@@ -1425,6 +1530,9 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool)
 			if(!TileIsVisible(n + xs_ofs,m + ys_ofs*2))
 				fil = terrain->filter.darkpal;
 
+			if(units_view[mxy])
+				fil = terrain->filter.dbluepal;
+
 			// apply optional filter mask
 			if(filter[mxy])
 				fil = filter[mxy];
@@ -1452,7 +1560,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool)
 			}
 
 			// render sprite
-			int mxx = n * 80 + ((m & 1 != 0) ? 0 : 40);
+			int mxx = n * 80 + (((m & 1) != 0) ? 0 : 40);
 			int myy = m * 24 - sof * 18 + MSYOFS + 50;
 			sid->Render(pic, pic_end, mxx, myy, pic_x_size, fil);
 		}
@@ -1501,7 +1609,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool)
 			Sprite* frame = anm->anim->frames[anm->frame_ofs];
 
 			// render sprite
-			int mxx = (anm->x_pos - xs_ofs) * 80 + (((anm->y_pos - ys_ofs * 2) & 1 != 0) ? 0 : 40);
+			int mxx = (anm->x_pos - xs_ofs) * 80 + ((((anm->y_pos - ys_ofs * 2) & 1) != 0) ? 0 : 40);
 			int myy = (anm->y_pos - ys_ofs * 2) * 24 - sof * 18 + MSYOFS + 50;
 			frame->Render(pic, pic_end, mxx, myy, pic_x_size);
 		}
@@ -1527,7 +1635,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool)
 				int y_elev = elev[(pos->y) * x_size + pos->x];
 
 				// render sprite
-				int mxx = (pos->x - xs_ofs) * 80 + (((pos->y - ys_ofs * 2) & 1 != 0) ? 0 : 40);
+				int mxx = (pos->x - xs_ofs) * 80 + ((((pos->y - ys_ofs * 2) & 1) != 0) ? 0 : 40);
 				int myy = (pos->y - ys_ofs * 2) * 24 - y_elev * 18 + MSYOFS + 50;
 				spec_sprite[sid]->Render(pic, pic_end, mxx, myy, pic_x_size);
 
@@ -1564,7 +1672,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool)
 			spr = &spelldata->special.select[spr->GetSlope() - 'A'];
 
 			// render sprite
-			int mxx = n * 80 + ((m & 1 != 0) ? 0 : 40);
+			int mxx = n * 80 + (((m & 1) != 0) ? 0 : 40);
 			int myy = m * 24 - sof * 18 + MSYOFS + 50;
 			spr->Render(pic,pic_end,mxx,myy,pic_x_size,fil);
 		}
@@ -1595,7 +1703,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool)
 			sid = &spelldata->special.select[sn - 'A'];
 
 			// draw selection sprite
-			int mxx = n * 80 + ((m & 1 != 0) ? 0 : 40);
+			int mxx = n * 80 + (((m & 1) != 0) ? 0 : 40);
 			int myy = m * 24 - sof * 18 + MSYOFS + 50;
 			sid->Render(pic, pic_end, mxx, myy, pic_x_size);
 
@@ -1625,7 +1733,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool)
 			Sprite* frame = pnm->anim->frames[pnm->frame_ofs];
 
 			// render sprite
-			int mxx = (pnm->x_pos - xs_ofs)*80 + pnm->x_ofs + (((pnm->y_pos - ys_ofs*2) & 1 != 0) ? 0 : 40);
+			int mxx = (pnm->x_pos - xs_ofs)*80 + pnm->x_ofs + ((((pnm->y_pos - ys_ofs*2) & 1) != 0) ? 0 : 40);
 			int myy = (pnm->y_pos - ys_ofs * 2) * 24 + pnm->y_ofs - y_elev*18 + MSYOFS + 50;
 			frame->Render(pic, pic_end, mxx, myy, pic_x_size);
 		}
@@ -1686,7 +1794,16 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool)
 					}
 
 					if ((pass == 0 && unit->unit->isAir()) || pass == 2)
-						unit->unit->Render(pic, pic_end, mxx, myy, pic_x_size, terrain->filter.darker, sid, azimuth, frame);
+					{
+						int top_y_ofs = unit->Render(terrain, pic, pic_end, mxx, myy, pic_x_size, sid, w_unit_hud,azimuth, frame);
+
+						// render selection pointer for selected unit
+						if(unit_selection && unit_selection->coor.IsEqual(n + xs_ofs,m + ys_ofs * 2))
+						{
+							Sprite* frame = pnm_sipka.anim->frames[pnm_sipka.frame_ofs];
+							frame->Render(pic, pic_end, mxx, myy + top_y_ofs - pnm_sipka.anim->y_max - 8, pic_x_size);
+						}
+					}
 					else
 						break;
 					// go to next unit at this position
@@ -1699,6 +1816,8 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool)
 			}
 		}
 	}
+
+
 
 	
 	// show debug order lines
@@ -1720,13 +1839,52 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool)
 		int n_y_elev = elev[ConvXY(nxy)];
 		
 		// line ends
-		int mxx = (mxy.x - xs_ofs)*80 + (((mxy.y - ys_ofs*2) & 1 != 0) ? 0 : 40) + mspr->x_size/2;
+		int mxx = (mxy.x - xs_ofs)*80 + ((((mxy.y - ys_ofs*2) & 1) != 0) ? 0 : 40) + mspr->x_size/2;
 		int myy = (mxy.y - ys_ofs * 2) * 24 - m_y_elev*18 + MSYOFS + 50 + mspr->y_ofs + mspr->y_size/2;
-		int nxx = (nxy.x - xs_ofs)*80 + (((nxy.y - ys_ofs*2) & 1 != 0) ? 0 : 40) + nspr->x_size/2;
+		int nxx = (nxy.x - xs_ofs)*80 + ((((nxy.y - ys_ofs*2) & 1) != 0) ? 0 : 40) + nspr->x_size/2;
 		int nyy = (nxy.y - ys_ofs * 2) * 24 - n_y_elev*18 + MSYOFS + 50 + nspr->y_ofs + nspr->y_size/2;
 
 		plot_line(pic, pic_end, 0, 0, pic_x_size, 252, mxx,myy, nxx,nyy);
 	}
+
+	// DEBUG: render mean elevations (for units view range)
+	for(m = 0; m < ys_size; m++)
+	{
+		if(m + ys_ofs * 2 >= y_size)
+			break;
+		for(n = 0; n < xs_size; n++)
+		{
+			if(n + xs_ofs >= x_size - 1)
+				break;
+			int x_pos = n + xs_ofs;
+			int y_pos = m + ys_ofs*2;
+			int mxy = ConvXY(x_pos,y_pos);
+
+			// get view height map elevation
+			auto [vx, vy, vz] = GetUnitsViewTileCenter(x_pos, y_pos);
+			auto [tile_id, vh] = GetUnitsViewMask(vx, vy);
+			string hstr = string_format("%d",vh);
+
+			// get tile
+			Sprite* spr = L1[mxy];
+			int sof = elev[mxy];
+
+			// render sprite
+			int mxx = n * 80 + (((m & 1) != 0) ? 0 : 40);
+			int myy = m * 24 - sof * 18 + MSYOFS + 50;
+
+			terrain->font7->Render(pic, pic_end, pic_x_size, mxx, myy + spr->y_ofs, 80, spr->y_size, hstr, 252, 254, SpellFont::DIAG);
+		}
+	}
+
+
+	
+	
+	// check unit on cursor
+	MapUnit* cursor_unit = GetCursorUnit(bmp, scroll);
+		
+	// render HUD
+	RenderHUD(pic, pic_end, pic_x_size, cursor_unit, hud_buttons_cb);
 
 	
 	
@@ -1752,10 +1910,10 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool)
 	// render 24bit RGB data to raw bmp buffer
 	wxNativePixelData data(bmp);
 	wxNativePixelData::Iterator p(data);
-	for(unsigned int y = 0; y < surf_y; ++y)
+	for(int y = 0; y < surf_y; ++y)
 	{
 		uint8_t* scan = p.m_ptr;
-		uint8_t* src = &pic[(y + (y_pos / 48 <= MSYOFST ? (y_pos / 48) * 48 : MSYOFST * 48) + (y_pos % 48) * smooth)*pic_x_size + ((x_pos >= 80 ? (80) : (0)) + (x_pos % 80) * smooth)];
+		uint8_t* src = &pic[surf_x_origin + (surf_y_origin + y)*pic_x_size];
 		int rend_x = surf_x;
 		if(&src[surf_x] > pic_end)
 			rend_x = pic_end - src;
@@ -1769,8 +1927,615 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool)
 		p.OffsetY(data,1);
 	}
 
+	// render surface changes processed
+	CommitRenderSurfModified();
+
 	return(0);
 }
+
+// select unit, if currently selected at the same position, switch between air-land
+MapUnit* SpellMap::SelectUnit(MapUnit* new_unit)
+{
+	if(unit_selection && unit_selection == new_unit)
+	{
+		// selection of already selected unit: detect if there is air-land pair and swap selection
+		for(auto & unit : units)
+		{
+			if(unit != new_unit && unit->coor == new_unit->coor)
+			{
+				// found: swap air-land selection
+				unit_selection = unit;
+			}
+		}
+	}
+	else if(new_unit)
+		unit_selection = new_unit;
+	// return new selection
+	return(unit_selection);
+}
+
+// get unit at cursor position
+MapUnit *SpellMap::GetCursorUnit(wxBitmap& bmp,TScroll* scroll)
+{
+	// find selection tiles
+	auto msel = GetSelections(bmp,scroll);
+
+	// no selection?
+	if(!msel.size() || !msel[0].IsSelected())
+		return(NULL);
+	auto & pos = msel[0];
+
+	for(auto * unit : units)
+	{
+		if(unit->coor == pos)
+			return(unit); // found match
+	}
+	return(NULL);
+}
+
+// get currently selected unit
+MapUnit* SpellMap::GetSelectedUnit()
+{	
+	return(unit_selection);
+}
+
+// render game mode HUD
+int SpellMap::RenderHUD(uint8_t *buf,uint8_t* buf_end,int buf_x_size,MapUnit *cursor_unit,std::function<void(void)> hud_buttons_cb)
+{
+	static MapUnit *last_cursor_unit = NULL;
+	static MapUnit *last_selected_unit = NULL;
+		
+	auto& gres = spelldata->gres;
+	auto& font = spelldata->font;
+	SpellGraphicItem *img;
+	int x_ofs, y_ofs;
+
+	// right panel x-offset (with exception of unit icon and experience indicators)
+	const int x_rpan = 336;
+	// right panel x-offset for icon and experience
+	const int x_rpan_icon = 579;
+
+	// render center panel
+	img = gres.wm_hud;
+	x_ofs = surf_x_origin + (surf_x - img->x_size)/2;
+	y_ofs = surf_y_origin + surf_y - img->y_size;
+	img->Render(buf,buf_end,buf_x_size,x_ofs,y_ofs);
+	int hud_left = x_ofs;
+	int hud_right = x_ofs + img->x_size;
+	int hud_top = y_ofs;
+
+	// render side fillings
+	img = gres.wm_hud_sides;
+	y_ofs = surf_y_origin + surf_y - img->y_size - 1;
+	x_ofs = hud_right;
+	for(; x_ofs < surf_x_origin+surf_x; x_ofs += img->x_size)
+		img->Render(buf,buf_end,buf_x_size,x_ofs,y_ofs);
+	if(x_ofs < surf_x)
+		img->Render(buf,buf_end,buf_x_size,x_ofs,y_ofs);
+	x_ofs = hud_left-img->x_size;
+	for(; x_ofs >= surf_x_origin; x_ofs -= img->x_size)
+		img->Render(buf,buf_end,buf_x_size,x_ofs,y_ofs);
+	img->Render(buf,buf_end,buf_x_size,x_ofs,y_ofs);
+
+	// for left and right panels
+	for(int pid = 0; pid < 2; pid++)
+	{	
+		MapUnit *unit;
+		int px_ref = 0;
+		int ix_ref = 0;
+		if(pid == 0 && unit_selection)
+			unit = unit_selection;
+		else if(pid == 1 && cursor_unit)
+		{
+			unit = cursor_unit;
+			px_ref = x_rpan;
+			ix_ref = x_rpan_icon;
+		}
+		else if(pid == 1)
+		{
+			// no cursor unit: overlay right panel (when buttons active)
+			img = gres.wm_hud_overlay;
+			img->Render(buf,buf_end,buf_x_size,hud_left+409,hud_top+26);
+			continue;
+		}
+		else
+			continue;
+		
+		// render health bar
+		//pos A: 118,54  size: 112,7
+		//pos B: 454,54  size: 112,7
+		int men_max = unit->unit->cnt;
+		int men_active = unit->man;
+		int men_wound = 0;
+		int health_pix = men_active*112/men_max;
+		int wound_pix = (men_wound + men_active)*112/men_max;
+		for(int y = 0; y < 7; y++)
+		{
+			memset(&buf[hud_left+px_ref+118 + (hud_top+y+54)*buf_x_size], 216, wound_pix);
+			memset(&buf[hud_left+px_ref+118 + (hud_top+y+54)*buf_x_size], 235, health_pix);
+		}
+		// pos a: 133,61
+		font->Render(buf,buf_end,buf_x_size,hud_left+px_ref+133,hud_top+61,string_format("%02d",men_max),216,254,SpellFont::RIGHT_DOWN);
+		// pos a: 168,61
+		font->Render(buf,buf_end,buf_x_size,hud_left+px_ref+168,hud_top+61,string_format("%02d",men_active),235,254,SpellFont::RIGHT_DOWN);
+		// pos a: 204,61
+		font->Render(buf,buf_end,buf_x_size,hud_left+px_ref+204,hud_top+61,string_format("%02d",men_wound),216,254,SpellFont::RIGHT_DOWN);
+
+		// pos a: 109,83
+		int attack_light = unit->unit->alig;
+		font->Render(buf,buf_end,buf_x_size,hud_left+px_ref+109,hud_top+83,string_format("%02d",attack_light),232,254,SpellFont::RIGHT_DOWN);
+		// pos a: 145,83
+		int attack_heavy = unit->unit->aarm;
+		font->Render(buf,buf_end,buf_x_size,hud_left+px_ref+145,hud_top+83,string_format("%02d",attack_heavy),232,254,SpellFont::RIGHT_DOWN);
+		// pos a: 181,83
+		int attack_air = unit->unit->aair;
+		font->Render(buf,buf_end,buf_x_size,hud_left+px_ref+181,hud_top+83,string_format("%02d",attack_air),232,254,SpellFont::RIGHT_DOWN);
+		// pos a: 216,83
+		int defense = unit->unit->def;
+		font->Render(buf,buf_end,buf_x_size,hud_left+px_ref+216,hud_top+83,string_format("%02d",defense),232,254,SpellFont::RIGHT_DOWN);
+		
+
+		// fire count bar
+		const struct {int x; int y;} fire_pos[6] = {{88,52},{88,47},{88,42},{88,37},{88,32},{88,27}};
+		int fire_count = unit->GetFireCount();
+		int max_fire_count = unit->GetMaxFireCount();
+		for(int k = 0; k < max_fire_count; k++)
+		{
+			auto pos = &fire_pos[k];	
+			if(k <= fire_count)
+				gres.red_led_on->Render(buf, buf_end, buf_x_size,hud_left+px_ref+pos->x,hud_top+pos->y);
+			else
+				gres.red_led_off->Render(buf,buf_end,buf_x_size,hud_left+px_ref+pos->x,hud_top+pos->y);
+		}
+
+		// render dig level
+		const struct { int x; int y; } dig_level[6] ={{97,79},{102,77},{106,73},{108,68},{109,63},{109,58}};
+		int dig_count = unit->dig_level;
+		for(int k = 0; k < dig_count; k++)
+		{
+			auto pos = &dig_level[k];
+			gres.yellow_led_on->Render(buf,buf_end,buf_x_size,hud_left+px_ref+pos->x,hud_top+pos->y);
+		}
+
+		// render unit experience
+		// pos A: 5,77  size: 51,2
+		int skill_fraction_pix = rand()%52;
+		for(int y = 0; y < 2; y++)
+			memset(&buf[hud_left+ix_ref+5 + (hud_top+y+77)*buf_x_size],235,skill_fraction_pix);
+		
+		const struct { int x; int y; } exp_mark[2][12] = {{	{1,81},{11,81},{21,81},{31,81},{41,81},{51,81},
+															{1,90},{11,90},{21,90},{31,90},{41,90},{51,90}},
+														 {	{580,81},{590,81},{600,81},{610,81},{620,81},{630,81},
+															{580,90},{590,90},{600,90},{610,90},{620,90},{630,90}}};
+		int skill_level = rand()%13;
+		for(int k = 0; k < skill_level; k++)
+			gres.wm_exp_mark->Render(buf,buf_end,buf_x_size,hud_left+exp_mark[pid][k].x,hud_top+exp_mark[pid][k].y);
+
+		// render morale
+		// pos A: 73,82  size: 6,48
+		// pos B: 402,82  size: 6,48
+		int morale = unit->morale;
+		int morale_pix = morale*48/100;
+		for(int y = 0; y < morale_pix; y++)
+			memset(&buf[hud_left+px_ref+73 + (hud_top+82-y)*buf_x_size],199,6);
+		// pos a: 75,70
+		font->Render(buf,buf_end,buf_x_size,hud_left+px_ref+75,hud_top+70,string_format("%02d",morale),252,254,SpellFont::RIGHT_DOWN);
+
+		// render action points
+		// pos A: 81,70  size: 6,44
+		// pos B: 417,70  size: 6,44
+		int ap_max = unit->GetMaxAP();
+		int ap = unit->action_points;
+		int ap_pix = ap*44/ap_max;
+		for(int y = 0; y < ap_pix; y++)
+			memset(&buf[hud_left+px_ref+81 + (hud_top+70-y)*buf_x_size],228,6);
+		// pos a: 83,56
+		font->Render(buf,buf_end,buf_x_size,hud_left+px_ref+83,hud_top+56,string_format("%02d",ap),230,254,SpellFont::RIGHT_DOWN);
+
+		// render state text
+		// pos: 244,77  size: 150,16
+		if((pid == 0 && !cursor_unit) || (pid == 1 && unit_selection))
+			font->Render(buf,buf_end,buf_x_size,hud_left+244,hud_top+77,150,16,string_format("ab: %d / attack: %d",ap,fire_count),232,254,SpellFont::DIAG2);
+
+		// render unit icon
+		// pos a: 1,23  size: 60x50
+		// pos b: 579,23  size: 60x50
+		unit->unit->icon_glyph->Render(buf,buf_end,buf_x_size,hud_left+((pid==0)?(1):(579)),hud_top+23);
+
+		// render command level mark
+		// pos a: 48,25
+		// pos b: 626,25
+		int command_level = rand()%4;
+		if(command_level)
+			gres.wm_form[command_level-1]->Render(buf,buf_end,buf_x_size,hud_left+ix_ref+48,hud_top+25);
+
+		// render freeze mark
+		// pos a: 13,5
+		// pos b: 593,5
+		int freeze_mark = rand()%2;
+		if(freeze_mark)
+			gres.wm_freeze->Render(buf,buf_end,buf_x_size,hud_left+ix_ref+(pid==1)+13,hud_top+5);
+		
+		// render paralysed mark
+		// pos a: 36,5
+		// pos b: 616,5
+		int paralyze_mark = rand()%2;
+		if(paralyze_mark)
+			gres.wm_paralyze->Render(buf,buf_end,buf_x_size,hud_left+ix_ref+(pid==1)+36,hud_top+5);
+	
+		// render unit name
+		// pos a: 95,25   size: 137,16
+		string name = unit->name;		
+		font->Render(buf,buf_end,buf_x_size,hud_left+px_ref+95,hud_top+28,137,16,name,232,254,SpellFont::DIAG2);
+
+	}	
+
+	// modify HUD buttons?
+	int state_chaned = isRenderSurfModified() || cursor_unit != last_cursor_unit || unit_selection != last_selected_unit;
+
+	if(state_chaned && hud_buttons_cb)
+	{		
+		t_xypos btn_top[4] = {{246,26},{246+36,26},{246+36*2,26},{246+36*3,26}};
+		t_xypos btn_right[8] = {{413,29},{449,29},{485,29},{534,29}, {413,63},{449,63},{485,63},{534,63}};
+		t_xypos hud_origin = {hud_left, hud_top};
+				
+		ClearHUDbuttons();						
+		CreateHUDbutton(gres.wm_glyph_next,hud_origin, btn_top[0], buf, buf_end, buf_x_size, 0,bind(&SpellMap::OnHUDnextUnit,this), NULL);
+		CreateHUDbutton(gres.wm_glyph_next_unused,hud_origin,btn_top[1],buf,buf_end,buf_x_size, 0,bind(&SpellMap::OnHUDnextUnfinishedUnit,this),NULL);
+		
+		if(!cursor_unit)
+		{
+			CreateHUDbutton(gres.wm_glyph_map,hud_origin,btn_right[0],buf,buf_end,buf_x_size,0,NULL,NULL);
+			CreateHUDbutton((unit_sel_land_preference)?(gres.wm_glyph_ground):(gres.wm_glyph_air),hud_origin,btn_right[1],buf,buf_end,buf_x_size,0,bind(&SpellMap::OnHUDswitchAirLand,this),NULL);
+			CreateHUDbutton(gres.wm_glyph_goto_unit,hud_origin,btn_right[2],buf,buf_end,buf_x_size,0,NULL,NULL);
+			CreateHUDbutton(gres.wm_glyph_end_turn,hud_origin,btn_right[3],buf,buf_end,buf_x_size,0,NULL,NULL);
+			
+			CreateHUDbutton(gres.wm_glyph_unit_info,hud_origin,btn_right[4],buf,buf_end,buf_x_size,0,bind(&SpellMap::OnHUDswitchUnitHUD,this),NULL);
+			CreateHUDbutton(gres.wm_glyph_info,hud_origin,btn_right[5],buf,buf_end,buf_x_size,0,NULL,NULL);
+			CreateHUDbutton(gres.wm_glyph_options,hud_origin,btn_right[6],buf,buf_end,buf_x_size,0,NULL,NULL);
+			CreateHUDbutton(gres.wm_glyph_retreat,hud_origin,btn_right[7],buf,buf_end,buf_x_size,0,NULL,NULL);
+		}
+		
+		hud_buttons_cb();
+	}
+
+	// store last units for change detection
+	last_cursor_unit = cursor_unit;
+	last_selected_unit = unit_selection;
+
+	return(0);
+}
+
+// HUD button event handlers
+void SpellMap::OnHUDnextUnit()
+{
+	for(int uid = 0; uid < units.size(); uid++)
+	{
+		if(units[uid] == unit_selection)
+		{
+			// current unit found in the list: go to next
+			uid++;
+			if(uid >= units.size())
+				uid = 0;
+			unit_selection = units[uid];
+		}
+	}
+}
+void SpellMap::OnHUDnextUnfinishedUnit()
+{
+
+}
+void SpellMap::OnHUDswitchAirLand()
+{
+	unit_sel_land_preference = !unit_sel_land_preference;
+	InvalidateHUDbuttons();
+}
+void SpellMap::OnHUDswitchUnitHUD()
+{
+	w_unit_hud = !w_unit_hud;	
+}
+
+
+
+
+// clear all HUD buttons
+void SpellMap::ClearHUDbuttons()
+{
+	for(auto & btn : hud_buttons)
+		delete btn;
+	hud_buttons.clear();
+}
+// get list of HUD button
+vector<SpellBtnHUD*> *SpellMap::GetHUDbuttons()
+{
+	return(&hud_buttons);
+}
+// get HUD button by id (assigned by GUI)
+SpellBtnHUD* SpellMap::GetHUDbutton(int id)
+{
+	for(auto& btn : hud_buttons)
+		if(btn->wx_id == id)
+			return(btn);
+	return(NULL);
+}
+// sets flag for refresh of HUD button in next render
+void SpellMap::InvalidateHUDbuttons()
+{
+	surf_modified = true;
+}
+// create new HUD button
+SpellBtnHUD* SpellMap::CreateHUDbutton(SpellGraphicItem* glyph,t_xypos &hud_pos,t_xypos &pos,uint8_t* buf,uint8_t* buf_end,int buf_x_size,
+	int action_id,std::function<void(void)> cb_press,std::function<void(void)> cb_hover)
+{
+	int x_pos = hud_pos.x + pos.x;
+	int y_pos = hud_pos.y + pos.y;
+
+	// button base graphics
+	SpellGraphicItem *btn_gr_states[3] = {spelldata->gres.wm_btn_idle, spelldata->gres.wm_btn_hover, spelldata->gres.wm_btn_press};	
+
+	// for each button state:
+	int x_size;
+	int y_size;
+	uint8_t* surf[3];
+	for(int sid = 0; sid < 3; sid++)
+	{
+		auto *grb = btn_gr_states[sid];
+		x_size = grb->x_size + grb->x_ofs;
+		y_size = grb->y_size + grb->y_ofs;
+		
+		// make button background from current surface (wxWidgets cannot render semitransparents)
+		surf[sid] = new uint8_t[x_size*y_size];
+		for(int y = 0; y < y_size; y++)
+			memcpy(&surf[sid][y*x_size], &buf[x_pos + (y_pos + y)*buf_x_size], x_size);
+
+		// render button base
+		grb->Render(surf[sid], &surf[sid][x_size*y_size], x_size, 0, 0);
+
+		// render overlay button glyph
+		if(glyph)
+		{
+			glyph->Render(surf[sid],&surf[sid][x_size*y_size],x_size,0, (sid==2)*2);
+		}
+	}
+	
+	// create button
+	SpellBtnHUD* btn = new SpellBtnHUD(x_pos - surf_x_origin, y_pos - surf_y_origin, x_size, y_size, (uint8_t*)terrain->pal, surf[0],surf[1],surf[2], action_id, cb_press, cb_hover);
+	hud_buttons.push_back(btn);
+
+	// loose buffers
+	for(int sid = 0; sid < 3; sid++)
+		delete[] surf[sid];
+
+	return(btn);
+}
+
+
+
+
+
+// creates height map for unit view calculation, call this whenever map static content changes (destroyed walls)
+int SpellMap::PrepareUnitsViewMask()
+{
+	// allocate mask
+	const int tile_size = 10;
+	const int mask_x_size = (x_size)*tile_size + tile_size/2;
+	const int mask_y_size = 10*tile_size + (y_size) * (tile_size/2) + 10*tile_size;
+	if(!units_view_mask.size())
+	{
+		units_view_map.assign(mask_x_size*mask_y_size,0);
+		units_view_mask.assign(mask_x_size*mask_y_size,0);
+	}
+	
+	// render mask
+	for(int y = 0; y < y_size; y++)
+	{
+		for(int x = 0; x < x_size; x++)
+		{
+			int mxy = ConvXY(x,y);	
+
+			// tile origin
+			int mxx = x*tile_size + (((y & 1) != 0) ? 0 : tile_size/2);
+			int myy = y*(tile_size/2);
+
+			for(int n = 0; n < tile_size; n++)
+			{
+				for(int m = 0; m < tile_size-1; m++)
+				{
+					if((n < tile_size/2 && m >= (tile_size/2-1 - n) && m <= (tile_size/2-1 + n)) || (n >= tile_size/2 && m >= (n-tile_size/2) && m <= (tile_size-1+tile_size/2-1 - n)))
+					{
+						// get mean elevation of tile
+						TFxyz vert[4];
+						L1[mxy]->GetTileModel(vert);
+						double h = 0;
+						for(int k = 0; k < 4; k++)
+							h += vert[k].z;
+						h *= 0.25;
+						// add terrain elevation
+						h += elev[mxy]*Sprite::TILE_ELEVATION;
+						
+						units_view_mask[mxx+m + (myy+n)*mask_x_size] = (unsigned)h;
+						units_view_map[mxx+m + (myy+n)*mask_x_size] = mxy;
+					}
+				}
+			}
+		}
+	}
+
+	return(1);
+}
+
+// get unit view map and mask <map tile ID, height>, where <x,y> are units_view...[] related coordinates (not equal to main render coordinates!)
+tuple<int,int> SpellMap::GetUnitsViewMask(int x, int y)
+{
+	const int tile_size = 10;
+	const int mask_x_size = (x_size)*tile_size + tile_size/2;
+	const int mask_y_size = 10*tile_size + (y_size) * (tile_size/2) + 10*tile_size;
+	return tuple(units_view_map[x + y*mask_x_size],units_view_mask[x + y*mask_x_size]);
+}
+
+// get unit view map/mask center coordinates <x,y,z> of tile (these are related to local units_vies... coordinates), the mxy or <x,y> are tile coordinates
+tuple<int,int,int> SpellMap::GetUnitsViewTileCenter(MapXY mxy)
+{
+	return GetUnitsViewTileCenter(mxy.x, mxy.y);
+}
+tuple<int,int,int> SpellMap::GetUnitsViewTileCenter(int x,int y)
+{
+	const int tile_size = 10;
+	const int mask_x_size = (x_size)*tile_size + tile_size/2;
+	const int mask_y_size = 10*tile_size + (y_size) * (tile_size/2) + 10*tile_size;
+	// tile origin
+	int mxx = x*tile_size + (((y & 1) != 0) ? 0 : tile_size/2) + tile_size/2;
+	int myy = y*(tile_size/2) + tile_size/2;
+	return tuple(mxx,myy,units_view_mask[mxx + myy*mask_x_size]);
+}
+
+// reset units view state to desired state
+int SpellMap::ClearUnitsView(int to_unseen)
+{
+	if(to_unseen)
+	{
+		// all to never seen state
+		units_view.assign(x_size*y_size, 0);
+	}
+	else
+	{
+		// all seen to currently invisible
+		if(units_view.size() != x_size*y_size)
+			units_view.resize(x_size*y_size,0);
+		else
+			for(auto & pos : units_view)
+				if(pos == 2)
+					pos = 1;
+	}
+	return(0);
+}
+
+// calculate unit view range
+int SpellMap::AddUnitView(MapUnit *unit)
+{
+	if(!unit)
+		return(1);
+
+	// get unit view range in tiles
+	int ref_view = unit->unit->sdir;
+
+	// reference position
+	MapXY &ref_pos = unit->coor;
+	int ref_alt = elev[ConvXY(ref_pos)];
+
+	// recursion buffer
+	vector<int> dirz;
+	vector<MapXY> posz;
+	dirz.reserve(400);
+	posz.reserve(400);
+
+	// first tile
+	if(!dirz.size())
+	{		
+		dirz.push_back(0);
+		posz.push_back(ref_pos);
+	}
+	
+	// mark my position as visible
+	units_view[ConvXY(ref_pos)] = 2;
+
+	// proceed recoursively till max visibility
+	while(true)
+	{
+		// go to next direction
+		dirz.back()++;
+		if(dirz.back() > 4)
+		{
+			// this recursion level is done: revert back
+			dirz.erase(dirz.end()-1);
+			posz.erase(posz.end()-1);
+			if(!dirz.size())
+				break; // all done
+			continue;
+		}
+		MapXY this_pos = posz.back();
+
+		// try look for next position
+		MapXY next_pos = GetNeighborTile(this_pos, dirz.back()-1);
+		if(!next_pos.IsSelected())
+			continue;
+		int next_mxy = ConvXY(next_pos);
+
+		// skip if already done
+		if(units_view[next_mxy] > 1)
+			continue;
+
+		// next tile elevation
+		int next_alt = elev[next_mxy];
+		int view = ref_view + max(ref_alt-next_alt,0); // expand if terget lower than ref
+
+		// visible?
+		if((next_pos.Distance(ref_pos)-0.5) > view)
+			continue; // nope: goto next tile
+		// mark this tile as potentially visible (to stop recursion)
+		units_view[next_mxy] += 3;
+				
+		
+		// send ray to target tile to find out if it is visible:
+		
+		// get view ray initial coordinates (unit)
+		auto [x0,y0,z0] = GetUnitsViewTileCenter(ref_pos);
+		z0 += 15; // unit height estimate		
+		// get target coordinates
+		auto [x1,y1,z1] = GetUnitsViewTileCenter(next_pos);
+		z1 += 1; // target height estimate
+		
+		// based on: http://members.chello.at/easyfilter/bresenham.html
+		int dx = abs(x1-x0),sx = x0<x1 ? 1 : -1;
+		int dy = abs(y1-y0),sy = y0<y1 ? 1 : -1;
+		int dz = abs(z1-z0),sz = z0<z1 ? 1 : -1;
+		int dm = max(max(dx,dy),dz),i = dm; // maximum difference
+		x1 = y1 = z1 = dm/2; // error offset
+
+		int pass = true;
+		int last_tile_id = -1;
+		for(;;) {  // loop
+			auto [tile_id,hx] = GetUnitsViewMask(x0,y0);
+			if(pass && tile_id == next_mxy)
+			{
+				// target reached: mark tile as visible and done
+				units_view[next_mxy] = 2;
+				break;
+			}
+			if(tile_id != last_tile_id)
+			{
+				// ray hit ground: stop here
+				if(!pass)
+					break;
+				pass = false;
+			}
+			// at least one pixel of crossed tile must be visible
+			if(z0 >= hx)
+				pass = true;
+
+			
+			last_tile_id = tile_id;
+
+			if(i-- == 0) break;
+			x1 -= dx; if(x1 < 0) { x1 += dm; x0 += sx; }
+			y1 -= dy; if(y1 < 0) { y1 += dm; y0 += sy; }
+			z1 -= dz; if(z1 < 0) { z1 += dm; z0 += sz; }
+		}
+
+		// proceed to next position allowed
+		dirz.push_back(0);
+		posz.push_back(next_pos);		
+	}
+
+	// clear potentially visible tiles (temps)
+	for(auto & tile : units_view)
+		if(tile > 2)
+			tile -= 3;
+
+	return(0);
+}
+
+
 
 // returns true when tile is in the normally visible area of map, false for the dark map bevel
 bool SpellMap::TileIsVisible(int x, int y)
@@ -1830,6 +2595,11 @@ int SpellMap::Tick()
 		if (pnm->frame_ofs >= pnm->frame_limit)
 			pnm->frame_ofs = 0;
 	}
+
+	// animate unit pointer
+	pnm_sipka.frame_ofs++;
+	if(pnm_sipka.frame_ofs >= pnm_sipka.frame_limit)
+		pnm_sipka.frame_ofs = 0;
 
 	// animate units
 	for (int k = 0; k < units.size(); k++)
@@ -3586,8 +4356,6 @@ int SpellMap::ReTexture(uint8_t *modz,std::function<void(std::string)> status_cb
 // invalidate region of map (retexture)
 int SpellMap::IvalidateTiles(vector<MapXY> tiles,std::function<void(std::string)> status_cb)
 {
-	int i,j;
-
 	// leave if map not loaded
 	if(!IsLoaded())
 		return(1);

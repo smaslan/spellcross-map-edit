@@ -10,6 +10,7 @@
 #include "fs_archive.h"
 #include "fsu_archive.h"
 #include "spell_units.h"
+#include "LZ_spell.h"
 #include "other.h"
 #include "map.h"
 
@@ -18,6 +19,7 @@
 #include <vector>
 #include <stdexcept>
 #include <regex>
+#include <filesystem>
 
 //#include <format>
 
@@ -178,39 +180,46 @@ SpellDefSection *SpellDEF::GetSection(std::string section)
 // class SpellData
 //=============================================================================
 
-SpellData::SpellData(wstring &data_path)
+SpellData::SpellData(wstring &data_path,wstring& spec_path)
 {
+	font = NULL;
+	font7 = NULL;
+	units = NULL;
+	units_fsu = NULL;
+	
 	// store path
 	spell_data_root = data_path;
-	
+
 	// load terrains
-	const wchar_t* terrain_list[] = {L"\\T11.FS",
-		                             L"\\PUST.FS",
-		                             L"\\DEVAST.FS"};
-	for (unsigned k = 0; k < sizeof(terrain_list)/sizeof(const wchar_t*); k++)
-	{		
+	const wchar_t* terrain_list[] ={L"\\T11.FS",
+									 L"\\PUST.FS",
+									 L"\\DEVAST.FS"};
+	for(unsigned k = 0; k < sizeof(terrain_list)/sizeof(const wchar_t*); k++)
+	{
 		// terrain archive path
 		wstring path = data_path + terrain_list[k];
-						
+
 		// load terrain
 		Terrain* new_terrain = new Terrain();
 		new_terrain->Load(path);
 
 		// store to list
-		terrain.push_back(new_terrain);		
+		terrain.push_back(new_terrain);
 	}
-	
+		
 	// load FSU data
 	wstring path = data_path + L"\\UNITS.FSU";
 	units_fsu = new FSUarchive(path);
-
-
+	
 	// load COMMON.FS
 	FSarchive *common;
 	path = data_path + L"\\COMMON.FS";
 	common = new FSarchive(path);
 	uint8_t* data;
 	int size;
+
+	// load generic graphic resources
+	LoadAuxGraphics(common);
 	
 	// load UNITS.PAL palette chunk and merge with terrain palette chunk
 	if (common->GetFile("UNITS.PAL", &data, &size))
@@ -235,16 +244,66 @@ SpellData::SpellData(wstring &data_path)
 		std::memcpy((void*)&this->terrain[k]->pal[240][0], (void*)temp, 10 * 3);
 	}
 
+	// processing all other common files
+	for(int fid = 0; fid < common->Count(); fid++)
+	{
+		// get file data
+		char* name;
+		uint8_t* data;
+		int flen;
+		common->GetFile(fid,&data,&flen,&name);
+		uint8_t* data_end = &data[flen];
+
+		if(wildcmp("*.PNM",name))
+		{
+			// PNM animations
+			AnimPNM *pnm = new AnimPNM();
+			char temp_name[13];
+			strcpy_noext(temp_name,name);
+			pnm->Decode(data,temp_name);
+			pnms.push_back(pnm);			
+		}
+	}
+
+	// hard assign some PNM links
+	pnm_sipka = GetPNM("SIPKA");
+
 	// load JEDNOTKY.DEF units definition file
 	if (common->GetFile("JEDNOTKY.DEF", &data, &size))
 	{
 		delete common;
 		throw runtime_error("JEDNOTKY.DEF not found in COMMON.FS!");
 	}
-	units = new SpellUnits(data, size, units_fsu);
+	units = new SpellUnits(data, size, units_fsu, &gres);
+
+	// load font file
+	if(common->GetFile("FONT_001.FNT",&data,&size))
+	{
+		// failed
+		delete common;
+		throw std::exception("Font file FONT_001.FNT not found in FS archive!");
+	}
+	font = new SpellFont(data, size);
 
 	// close common.fs
 	delete common;
+
+	// load special tiles
+	LoadSpecialLand(spec_path);
+
+	// load aux 7pix font
+	std::filesystem::path font7_path = spec_path;
+	font7_path.append("font_spellcross_7pix.fnt");
+	font7 = new SpellFont(font7_path.wstring());
+
+	
+
+	// copy some global stuff to terrains
+	for(const auto & terr : terrain)
+	{
+		terr->font = font;
+		terr->font7 = font7;
+	}
 	
 }
 
@@ -255,9 +314,28 @@ SpellData::~SpellData()
 		delete terrain[k];
 	terrain.clear();	
 	// clear units list
-	delete units;
+	if(units)
+		delete units;
 	// delete FSU unit data
-	delete units_fsu;
+	if(units_fsu)
+		delete units_fsu;
+	// delete pnm animations
+	for(auto & pnm : pnms)
+		delete pnm;
+	// delete font
+	if(font)
+		delete font;
+	if(font7)
+		delete font7;
+}
+
+// find loaded PNM animation
+AnimPNM* SpellData::GetPNM(const char* name)
+{
+	for(auto & pnm : pnms)
+		if(strcmp(pnm->name, name) == 0)
+			return(pnm);
+	return(NULL);
 }
 
 // auto build sprite context from all available spellcross maps
@@ -305,12 +383,132 @@ int SpellData::BuildSpriteContextOfMaps(wstring folder, string terrain_name,std:
 }
 
 
+// load generic graphics resources
+int SpellData::LoadAuxGraphics(FSarchive *fs)
+{
+	// init LZW decoder
+	LZWexpand *lzw = new LZWexpand(1000000);
+
+	// for each file:
+	for(int k = 0; k < fs->Count(); k++)
+	{
+		// get file data
+		char *name;
+		uint8_t *data;
+		int flen;
+		fs->GetFile(k, &data, &flen, &name);
+		uint8_t* data_end = &data[flen];
+
+		int is_lzw = false;
+		if(wildcmp("I_*.LZ", name))
+		{
+			// units icons, fized width 60
+			is_lzw = true;
+			lzw->Decode(data, data_end, &data, &flen);			
+			gres.AddRaw(data, flen, 60, flen/60, name);		
+		}
+		else if(strcmp(name, "LISTA_0.LZ") == 0 || strcmp(name,"LISTA_1.LZ") == 0)
+		{
+			// war map bottom panel
+			is_lzw = true;
+			lzw->Decode(data,data_end,&data,&flen);
+			gres.AddRaw(data,flen,640,flen/640,name);
+		}
+		else if(strcmp(name,"LISTA_0B.LZ0") == 0)
+		{
+			// war map right panel overlay
+			is_lzw = true;
+			lzw->Decode(data,data_end,&data,&flen);
+			gres.AddRaw(data,flen,160,flen/160,name);
+		}
+		else if(strcmp(name,"LISTAPAT.LZ") == 0)
+		{
+			// war map bottom panel side filling
+			is_lzw = true;
+			lzw->Decode(data,data_end,&data,&flen);
+			gres.AddRaw(data,flen,32,flen/32,name);
+		}
+		else if(strcmp(name,"LEV_GFK.LZ") == 0)
+		{
+			// experience mark
+			is_lzw = true;
+			lzw->Decode(data,data_end,&data,&flen);
+			gres.AddRaw(data,flen,9,flen/9,name);
+		}
+		else if(strcmp(name,"M_ACCOMP.LZ") == 0 || strcmp(name,"M_FAILED.LZ") == 0)
+		{
+			// war map end title
+			is_lzw = true;
+			lzw->Decode(data,data_end,&data,&flen);
+			gres.AddRaw(data,flen,340,flen/340,name);
+		}
+		else if(wildcmp("*.ICO",name) || wildcmp("*.BTN",name))
+		{
+			// ICO files (compression line in PNM files)			
+			gres.AddICO(data, flen, name);
+		}
+
+		if(is_lzw)
+			delete[] data;
+	}
+
+	// make round LED indicators for mission HUD
+	gres.AddLED(204,"RLED_OFF");
+	gres.AddLED(253,"RLED_ON");
+	gres.AddLED(229,"YLED_ON");
+	
+	// --- DO NOT ADD ANYTHING TO LIST FROM HERE!!! it would change memory locations!
+
+	// make direct (fast) links to some resoruces
+	gres.red_led_off = gres.GetResource("RLED_OFF");
+	gres.red_led_on = gres.GetResource("RLED_ON");
+	gres.yellow_led_on = gres.GetResource("YLED_ON");
+	gres.wm_hud = gres.GetResource("LISTA_0");
+	gres.wm_hud_enemy = gres.GetResource("LISTA_1");
+	gres.wm_hud_sides = gres.GetResource("LISTAPAT");
+	gres.wm_hud_overlay = gres.GetResource("LISTA_0B");
+	gres.wm_form[0] = gres.GetResource("WM_FORM0");
+	gres.wm_form[1] = gres.GetResource("WM_FORM1");
+	gres.wm_form[2] = gres.GetResource("WM_FORM2");
+	gres.wm_exp_mark = gres.GetResource("LEV_GFK");
+	gres.wm_freeze = gres.GetResource("MRAZIK");
+	gres.wm_paralyze = gres.GetResource("PARALIZ");
+	gres.wm_btn_idle = gres.GetResource("MAINB__D");
+	gres.wm_btn_hover = gres.GetResource("MAINB__A");
+	gres.wm_btn_press = gres.GetResource("MAINB__P");
+	gres.wm_glyph_air = gres.GetResource("AIRUNIT");
+	gres.wm_glyph_center_unit = gres.GetResource("CENTRUNIT");
+	gres.wm_glyph_radar_down = gres.GetResource("RADAROFF");
+	gres.wm_glyph_radar_up = gres.GetResource("RADARON");
+	gres.wm_glyph_end_turn = gres.GetResource("ENDTURN");
+	gres.wm_glyph_goto_unit = gres.GetResource("GOTOUNIT");
+	gres.wm_glyph_ground = gres.GetResource("GRNDUNIT");
+	gres.wm_glyph_map = gres.GetResource("MAP");
+	gres.wm_glyph_heal = gres.GetResource("HEAL");
+	gres.wm_glyph_unit_info = gres.GetResource("INFO");
+	gres.wm_glyph_next = gres.GetResource("NEXT");
+	gres.wm_glyph_options = gres.GetResource("OPTIONS");
+	gres.wm_glyph_next_unused = gres.GetResource("PREVIOUS");
+	gres.wm_glyph_retreat = gres.GetResource("RETREAT");
+	gres.wm_glyph_end_placement = gres.GetResource("UKONCEN");
+	gres.wm_glyph_info = gres.GetResource("UNITINFO");
+	
+
+	
+
+	// loose LZW decoder
+	delete lzw;
+
+	return(0);
+}
+
+
 // Load special land images (solid A-M, edge A-M, selection A-M)
 int SpellData::LoadSpecialLand(wstring &spec_folder)
 {
 
 	// groups to load
-	const wchar_t* files[] = { L"\\solid.fs", L"\\edge.fs", L"\\grid.fs", L"\\select.fs" };
+	const wchar_t* files[] = { L"\\spec\\solid.fs", L"\\spec\\edge.fs", L"\\spec\\grid.fs", L"\\spec\\select.fs" };
 	Sprite* lists[] = { special.solid, special.edge, special.grid, special.select };
 	
 	// for each group:

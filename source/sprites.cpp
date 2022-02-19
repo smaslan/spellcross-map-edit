@@ -3295,3 +3295,114 @@ string Terrain::GetToolSetItem(int toolset_id, int tool_id)
 		return("");
 	return(tools[toolset_id]->items[tool_id]);
 }
+
+
+
+
+
+
+// render palette into bitmap (scale up as much as possible)
+int Terrain::RenderPalette(wxBitmap& bmp, int relative_time)
+{
+	// canvas size
+	int surf_x = bmp.GetWidth();
+	int surf_y = bmp.GetHeight();
+
+	int x_color_width = surf_x/256;
+	int x_ofs = (surf_x - x_color_width*256)/2;
+	int x_end = x_ofs + x_color_width*256;
+
+	// make local copy of palette, cycle colors
+	uint8_t cpal[256][3];
+	memcpy((void*)cpal, (void*)pal, 3*256);
+	for(int k = 240; k < 240+10; k++)
+	{
+		int src = (k + relative_time)%10 + 240;
+		std::memcpy((void*)&cpal[k][0],(void*)&pal[src][0],3);
+	}
+		
+	// render 24bit RGB data to raw bmp buffer
+	wxNativePixelData data(bmp);
+	wxNativePixelData::Iterator p(data);
+	for(int y = 0; y < surf_y; ++y)
+	{
+		uint8_t* scan = p.m_ptr;
+		for(int x = 0; x < surf_x; x++)
+		{
+			if(x < 1 || x >= surf_x-1 || y < 1 || y >= surf_y-1)
+			{
+				*scan++ = 0x00;
+				*scan++ = 0x00;
+				*scan++ = 0x00;
+			}
+			else if(x >= x_ofs && x < x_end)
+			{
+				int color = (x - x_ofs)/x_color_width;
+				*scan++ = cpal[color][2];
+				*scan++ = cpal[color][1];
+				*scan++ = cpal[color][0];
+			}
+			else
+			{
+				uint8_t color = (!(x&32) ^ !(y&32))?0x55:0xAA;
+				*scan++ = color;
+				*scan++ = color;
+				*scan++ = color;
+			}
+		}
+		p.OffsetY(data,1);
+	}
+
+	return(0);
+}
+// render palette color selection into canvas
+int Terrain::RenderPaletteColor(wxBitmap& bmp, int x_size, int x_pos)
+{
+	// canvas size
+	int surf_x = bmp.GetWidth();
+	int surf_y = bmp.GetHeight();
+
+	// palette position and size in canvas
+	int x_color_width = x_size/256;
+	int x_ofs = (x_size - x_color_width*256)/2;
+	int x_end = x_ofs + x_color_width*256;
+
+	int is_selected = x_pos >= x_ofs && x_pos < x_end;
+	int pal_id = (is_selected)?((x_pos - x_ofs)/x_color_width):-1;
+
+	// render 24bit RGB data to raw bmp buffer
+	wxNativePixelData data(bmp);
+	wxNativePixelData::Iterator p(data);
+	for(int y = 0; y < surf_y; ++y)
+	{
+		uint8_t* scan = p.m_ptr;
+		for(int x = 0; x < surf_x; x++)
+		{
+			if(x > 0 && x < surf_x-1 && y > 0 && y < surf_y-1)
+			{				
+				if(is_selected)
+				{
+					*scan++ = pal[pal_id][2];
+					*scan++ = pal[pal_id][1];
+					*scan++ = pal[pal_id][0];
+				}
+				else
+				{
+					uint8_t color = (!(x&8) ^ !(y&8))?0x55:0xAA;
+					*scan++ = color;
+					*scan++ = color;
+					*scan++ = color;
+				}
+			}
+			else
+			{				
+				*scan++ = 0x00;
+				*scan++ = 0x00;
+				*scan++ = 0x00;
+			}
+		}
+		p.OffsetY(data,1);
+	}
+
+	return(pal_id);
+}

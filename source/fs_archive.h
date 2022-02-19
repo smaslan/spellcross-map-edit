@@ -22,6 +22,8 @@ class FSarchive
 		int GetFile(const char* name, uint8_t** data, int* size);
 		int GetFile(int id, uint8_t** data, int* size, char** name);		
 		int Count();
+		const char *GetFileName(int id);
+
 
 	private:
 		vector<uint8_t*> data;

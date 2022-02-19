@@ -19,8 +19,10 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="form_gr_view.cpp" />
     <ClCompile Include="form_new_object.cpp" />
     <ClCompile Include="form_objects.cpp" />
+    <ClCompile Include="form_pal_view.cpp" />
     <ClCompile Include="form_sprite_view.cpp" />
     <ClCompile Include="form_tools.cpp" />
     <ClCompile Include="fsu_archive.cpp" />
@@ -29,17 +31,23 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="map.cpp" />
     <ClCompile Include="other.cpp" />
+    <ClCompile Include="spell_graphics.cpp" />
     <ClCompile Include="spellcross.cpp" />
+    <ClCompile Include="spell_font.cpp" />
+    <ClCompile Include="spell_hud_buttons.cpp" />
     <ClCompile Include="spell_units.cpp" />
     <ClCompile Include="sprites.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="form_gr_view.h" />
     <ClInclude Include="form_new_object.h" />
     <ClInclude Include="form_objects.h" />
+    <ClInclude Include="form_pal_view.h" />
     <ClInclude Include="form_sprite_view.h" />
     <ClInclude Include="form_tools.h" />
     <ClInclude Include="fsu_archive.h" />
     <ClInclude Include="fs_archive.h" />
+    <ClInclude Include="spell_graphics.h" />
     <ClInclude Include="map_types.h" />
     <ClInclude Include="other.h" />
     <ClInclude Include="LZ_spell.h" />
@@ -47,6 +55,8 @@
     <ClInclude Include="map.h" />
     <ClInclude Include="SimpleIni.h" />
     <ClInclude Include="spellcross.h" />
+    <ClInclude Include="spell_font.h" />
+    <ClInclude Include="spell_hud_buttons.h" />
     <ClInclude Include="spell_units.h" />
     <ClInclude Include="sprites.h" />
   </ItemGroup>

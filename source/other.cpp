@@ -57,6 +57,14 @@ int wildcmp(const char* wild,const char* string)
     return !*wild;
 }
 
+// copy string with no extension, assuming destiantion has enough space!
+void strcpy_noext(char *dest, char *src)
+{
+    while(*src && *src != '.')
+        *dest++ = *src++;
+    *dest = '\0';
+}
+
 // convert single hex digit to int
 int hex2num(char hex)
 {
@@ -147,7 +155,7 @@ uint32_t istream_read_u32(ifstream& fr)
 // Bresneham algorithm (based on GitHub/bert algorithm)
 void plot_line(uint8_t* buffer,uint8_t* buf_end,int buf_x,int buf_y,int x_size,uint8_t color,int x0,int y0,int x1,int y1)
 {
-    int dx = abs(x1 - x0),sx = x0 < x1 ? 1 : -1;
+    int dx =  abs(x1 - x0),sx = x0 < x1 ? 1 : -1;
     int dy = -abs(y1 - y0),sy = y0 < y1 ? 1 : -1;
     int err = dx + dy,e2; /* error value e_xy */
 

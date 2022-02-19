@@ -20,6 +20,7 @@
 #include "spell_units.h"
 #include "spellcross.h"
 #include "map_types.h"
+#include "spell_hud_buttons.h"
 
 #include "wx/dcbuffer.h"
 
@@ -56,7 +57,8 @@ public:
 	int frame_limit;
 	AnimPNM* anim;
 
-	MapLayer4(AnimPNM* pnm, int x_pos, int y_pos, int x_ofs, int y_ofs, int frame_ofs, int frame_limit);
+	MapLayer4() {};
+	MapLayer4(AnimPNM* pnm, int x_pos=0, int y_pos=0, int x_ofs=0, int y_ofs=0, int frame_ofs=0, int frame_limit=-1);
 	~MapLayer4();
 };
 
@@ -79,22 +81,28 @@ public:
 		PatrolUnit,
 		WaitForContact,
 		NormalUnit,
-		ToughDefence
+		ToughDefence,
+		SpecUnit1,
+		MissionUnit
 	};
 	MapUnitType() = default;
 	constexpr MapUnitType(Values type) : value(type) { }
 
 	constexpr bool operator==(MapUnitType type) const { return value == type.value; }
 	constexpr bool operator!=(MapUnitType type) const { return value != type.value; }
-	void operator=(const char *type) {
-		if (_strcmpi(type, "PatrolUnit") == 0)
+	void operator=(const char* type) {
+		if(_strcmpi(type,"PatrolUnit") == 0)
 			value = Values::NormalUnit;
-		else if (_strcmpi(type, "WaitForContact") == 0)
+		else if(_strcmpi(type,"WaitForContact") == 0)
 			value = Values::WaitForContact;
-		else if (_strcmpi(type, "NormalUnit") == 0)
+		else if(_strcmpi(type,"NormalUnit") == 0)
 			value = Values::NormalUnit;
-		else if (_strcmpi(type, "ToughDefence") == 0)
+		else if(_strcmpi(type,"ToughDefence") == 0)
 			value = Values::ToughDefence;
+		else if(_strcmpi(type,"MissionUnit") == 0)
+			value = Values::MissionUnit;
+		else if(_strcmpi(type,"SpecUnit1") == 0)
+			value = Values::SpecUnit1;
 		else
 			value = Values::Unknown;
 	}
@@ -110,17 +118,33 @@ public:
 	int id;
 	// unit type ID
 	int type_id;
-	SpellUnitRec *unit;
+	SpellUnitRec* unit;
 	// position
 	MapXY coor;
 	// experience
 	int experience;
-	// man count
+	// man count (health)
 	int man;
+	int wounded;
 	// unit type/behaviour
 	MapUnitType type;
 	// custom name
 	char name[100];
+	// commander id or zero	
+	int commander_id;
+	int is_commander;
+	// dig in
+	int dig_level;
+	// action points
+	int action_points;
+	// unit active (set except insertion time)
+	int is_active;
+	// enemy?
+	int is_enemy;
+	// morale level
+	int morale;
+	// unit in placement (selected and moving)
+	int in_placement;
 
 	// pointer to next unit to draw (for correct render order)
 	MapUnit* next;
@@ -131,7 +155,13 @@ public:
 	int azimuth_anim;
 	int frame;
 
-	int GetXY();
+	MapUnit();
+	int Render(Terrain* data,uint8_t* buffer,uint8_t* buf_end,int buf_x_pos,int buf_y_pos,int buf_x_size,Sprite* sprt,int show_hud,int azim,int frame);
+
+	int ResetAP();
+	int GetMaxAP();
+	int GetFireCount();
+	int GetMaxFireCount();
 };
 
 // Scroller
@@ -175,6 +205,8 @@ typedef struct{
 	int elev;
 }TTileElevMod;
 
+
+
 class SpellMap
 {
 	private:
@@ -182,6 +214,9 @@ class SpellMap
 		int surf_y;
 		int last_surf_x;
 		int last_surf_y;
+		int surf_modified;		
+		int surf_x_origin; /* surface origin in raster buffer */
+		int surf_y_origin;
 		// indexed raster buffer		
 		int pic_x_size;
 		int pic_y_size;
@@ -197,6 +232,8 @@ class SpellMap
 		// special tiles pointers
 		Sprite* start_sprite;
 		Sprite* escape_sprite;
+		// unit pointer animation
+		MapLayer4 pnm_sipka;
 
 		// tile selection
 		MapXY sel;
@@ -208,8 +245,24 @@ class SpellMap
 		// temp layers for debug mostly
 		vector<MapXY> dbg_ord;
 
+		// currently selected unit
+		MapUnit *unit_selection;
+		int unit_sel_land_preference;
+		// units view map
+		vector<int> units_view;
+		// units view mask map
+		vector<uint8_t> units_view_mask;
+		vector<uint16_t> units_view_map;
+		tuple<int,int> GetUnitsViewMask(int x,int y);
+		tuple<int,int,int> GetUnitsViewTileCenter(int x,int y);
+		tuple<int,int,int> GetUnitsViewTileCenter(MapXY mxy);
+		
+		// current HUD buttons list
+		vector<SpellBtnHUD*> hud_buttons;
+
 		// layer visibility flags
 		bool wL1, wL2, wL3, wL4, wSTCI, wUnits;
+		int w_unit_hud;
 
 		// last gamma
 		double last_gamma;
@@ -239,6 +292,13 @@ class SpellMap
 		vector<int> shading_mask;
 		void SyncShading();
 		int CheckTileShading(MapXY& pos,Sprite* spr);
+
+		class t_xypos{
+		public:
+			int x;
+			int y;
+			t_xypos Add(int xx,int yy) { t_xypos pos; pos.x = x+xx; pos.y = y+yy; return(pos);};
+		};
 
 	public:
 
@@ -291,7 +351,33 @@ class SpellMap
 		void SelectTiles(int mode);
 		int IvalidateTiles(vector<MapXY> tiles,std::function<void(std::string)> status_cb=NULL);
 		int RenderPrepare(wxBitmap& bmp, TScroll* scroll);
-		int Render(wxBitmap &bmp, TScroll* scroll,SpellTool* tool);
+		int isRenderSurfModified();
+		int CommitRenderSurfModified();		
+		int Render(wxBitmap &bmp, TScroll* scroll,SpellTool* tool,std::function<void(void)> hud_buttons_cb=NULL);
+		
+		int RenderHUD(uint8_t* buf,uint8_t* buf_end,int buf_x_size,MapUnit *cursor_unit,std::function<void(void)> hud_buttons_cb=NULL);
+		SpellBtnHUD* CreateHUDbutton(SpellGraphicItem* glyph,t_xypos& hud_pos,t_xypos &pos,uint8_t* buf,uint8_t* buf_end,int buf_x_size,
+			int action_id,std::function<void(void)> cb_press,std::function<void(void)> cb_hover);
+		SpellBtnHUD *GetHUDbutton(int id);
+		void ClearHUDbuttons();
+		void InvalidateHUDbuttons();
+		vector<SpellBtnHUD*> *GetHUDbuttons();
+		
+		void OnHUDnextUnit();
+		void OnHUDnextUnfinishedUnit();
+		void OnHUDswitchAirLand();
+		void OnHUDswitchUnitHUD();
+
+		
+
+
+
+		MapUnit *GetCursorUnit(wxBitmap& bmp,TScroll* scroll);
+		MapUnit *SelectUnit(MapUnit* new_unit);
+		MapUnit* GetSelectedUnit();
+		int PrepareUnitsViewMask();
+		int ClearUnitsView(int to_unseen=false);
+		int AddUnitView(MapUnit* unit);
 
 		void SetRender(bool wL1, bool wL2, bool wL3, bool wL4, bool wSECI, bool wUnits);
 		void SetGamma(double gamma);

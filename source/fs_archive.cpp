@@ -101,7 +101,7 @@ int FSarchive::GetFile(const char* name, uint8_t** data, int* size)
 // get file by order index (zero based)
 int FSarchive::GetFile(int id, uint8_t** data, int* size, char **name)
 {	
-	if (id > this->data.size())
+	if (id >= this->data.size())
 		return(1);
 	if (data)
 		*data = this->data[id];
@@ -112,3 +112,10 @@ int FSarchive::GetFile(int id, uint8_t** data, int* size, char **name)
 	return(0);
 }
 
+// get name of file index
+const char* FSarchive::GetFileName(int id)
+{
+	if(id >= this->data.size())
+		return("");
+	return(names[id]);
+}

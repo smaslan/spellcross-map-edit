@@ -23,10 +23,6 @@
 #include "spellcross.h"
 #include "map.h"
 
-#include "form_sprite_view.h"
-#include "form_objects.h"
-#include "form_new_object.h"
-
 
 
 
@@ -40,8 +36,11 @@ bool MyApp::OnInit()
 
     // spellcross data root path
     wstring spelldata_path = char2wstring(ini.GetValue("SPELCROS","spell_path",""));
+    // special data folder
+    wstring spec_folder = char2wstring(ini.GetValue("DATA","spec_data_path",""));
+
     // try load spellcross data
-    spell_data = new SpellData(spelldata_path);
+    spell_data = new SpellData(spelldata_path, spec_folder);
 
     // for each terrain load tile context
     for(int k = 0; k < spell_data->GetTerrainCount(); k++)
@@ -55,12 +54,7 @@ bool MyApp::OnInit()
         wstring cont_path = char2wstring(ini.GetValue(sec_name.c_str(), "context_path", ""));        
         terr->InitSpriteContext(cont_path);        
     }
-
-
-    // special data folder
-    wstring spec_folder = char2wstring(ini.GetValue("DATA","spec_tiles_path",""));
-    // load special sprites
-    spell_data->LoadSpecialLand(spec_folder);
+          
 
     // load some map
     wstring map_path = char2wstring(ini.GetValue("STATE","last_map",""));
@@ -141,6 +135,8 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     menuEdit->Append(ID_InvalidateSel,"Invalidate selection\tCtrl+I","",wxITEM_NORMAL);
     menuEdit->Append(wxID_ANY,"","",wxITEM_SEPARATOR);
     menuEdit->Append(ID_CreateNewObject,"Create new object\tCtrl+Shift+O","",wxITEM_NORMAL);
+    menuEdit->Append(wxID_ANY,"","",wxITEM_SEPARATOR);
+    menuEdit->Append(ID_MoveUnit,"Move unit\tCtrl+M","",wxITEM_NORMAL);
 
     
     // tools
@@ -148,6 +144,8 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     menuTools->Append(ID_ViewSprites,"Sprites editor","",wxITEM_NORMAL);
     menuTools->Append(ID_ViewObjects,"Objects editor","",wxITEM_NORMAL);
     menuTools->Append(ID_ViewTools, "Tools editor", "", wxITEM_NORMAL);
+    menuTools->Append(ID_ViewPal,"Palette viewer","",wxITEM_NORMAL);
+    menuTools->Append(ID_ViewGRes,"Graphics viewer","",wxITEM_NORMAL);
     menuTools->Append(ID_SetGamma,"","",wxITEM_SEPARATOR);
     menuTools->Append(ID_UpdateSprContext, "Update tile context from map","",wxITEM_NORMAL);
     menuTools->Append(ID_UpdateSprContextMaps,"Update tile context from ALL maps","",wxITEM_NORMAL);
@@ -195,7 +193,9 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     // make and attach render canvas
     canvas = new wxPanel(this,wxID_ANY,wxDefaultPosition,wxDefaultSize,wxTAB_TRAVERSAL);
     sizer->Add(canvas,1,wxEXPAND|wxALL,1);
+    canvas->SetBackgroundStyle(wxBG_STYLE_PAINT);
     canvas->SetDoubleBuffered(true);
+    
 
     canvas->Bind(wxEVT_PAINT,&MyFrame::OnPaintCanvas,this);
     canvas->Bind(wxEVT_RIGHT_DOWN,&MyFrame::OnCanvasMouseDown,this);
@@ -231,7 +231,9 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     Bind(wxEVT_MENU,&MyFrame::OnSetGamma,this,ID_SetGamma);
     Bind(wxEVT_MENU,&MyFrame::OnViewSprites,this,ID_ViewSprites);
     Bind(wxEVT_MENU,&MyFrame::OnViewObjects,this,ID_ViewObjects);
-    Bind(wxEVT_MENU, &MyFrame::OnViewTools, this, ID_ViewTools);
+    Bind(wxEVT_MENU,&MyFrame::OnViewTools, this, ID_ViewTools);
+    Bind(wxEVT_MENU,&MyFrame::OnViewPal,this,ID_ViewPal);
+    Bind(wxEVT_MENU,&MyFrame::OnViewGrRes,this,ID_ViewGRes);
     Bind(wxEVT_MENU,&MyFrame::OnUpdateTileContext,this,ID_UpdateSprContext);
     Bind(wxEVT_MENU,&MyFrame::OnUpdateTileContextMaps,this,ID_UpdateSprContextMaps);
 
@@ -239,6 +241,20 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     Bind(wxEVT_MENU,&MyFrame::OnDeselectAll,this,ID_DeselectAll);
     Bind(wxEVT_MENU,&MyFrame::OnInvalidateSelection,this,ID_InvalidateSel);
     Bind(wxEVT_MENU,&MyFrame::OnCreateNewObject,this,ID_CreateNewObject);
+    Bind(wxEVT_MENU,&MyFrame::OnMoveUnit,this,ID_MoveUnit);
+
+
+    // main sizer 
+    /*auto sizer2 = new wxBoxSizer(wxVERTICAL);
+
+    wxButton *btnOk = new wxButton(canvas,wxID_ANY,wxT("TEST"),wxDefaultPosition,wxDefaultSize,0);
+    sizer2->Add(btnOk,0,wxALL,5);
+
+    canvas->SetSizer(sizer2);
+    canvas->SetAutoLayout(true);
+    canvas->Layout();*/
+
+    
     
 }
 // on form close
@@ -280,9 +296,23 @@ void MyFrame::OnClose(wxCloseEvent& ev)
         form_sprites->Destroy();
         LoadToolsetRibbon();
     }
+    else if(ev.GetId() == ID_PAL_WIN)
+    {
+        form_pal->Destroy();
+    }
+    else if(ev.GetId() == ID_GRES_WIN)
+    {
+        form_gres->Destroy();
+    }
     else
         ev.Skip();
 }
+
+
+
+
+
+
 
 // map animation periodic refresh tick
 void MyFrame::OnTimer(wxTimerEvent& event)
@@ -298,21 +328,128 @@ void MyFrame::OnResize(wxSizeEvent& event)
     Refresh();
 }
 
-
 // render canvas repaint event
 void MyFrame::OnPaintCanvas(wxPaintEvent& event)
 {
     // make buffer
-    if(!m_buffer.IsOk() || m_buffer.GetSize() != GetClientSize())
-        m_buffer = wxBitmap(GetClientSize(),24);
+    if(!m_buffer.IsOk() || m_buffer.GetSize() != canvas->GetClientSize())
+        m_buffer = wxBitmap(canvas->GetClientSize(),24);
 
     // render map
     wxPaintDC pdc(canvas);
-    spell_map->Render(m_buffer,&scroll,&spell_tool);
+    spell_map->Render(m_buffer,&scroll,&spell_tool,bind(&MyFrame::CreateHUDbuttons,this));
     pdc.DrawBitmap(m_buffer,wxPoint(0,0));
 
     event.Skip();
 }
+
+
+void MyFrame::CreateHUDbuttons()
+{
+    // mark all buttons as unused
+    for(auto & pan : hud_buttons)
+    {
+        pan->SetClientData(0);
+    }
+
+    // create new ones
+    int button_id = ID_HUD_BASE;
+    for(auto & btn : *spell_map->GetHUDbuttons())
+    {        
+        // try to find existing button
+        int skip = false;
+        for(auto& pan : hud_buttons)
+        {
+            if(pan->GetPosition().x == btn->x_pos && pan->GetPosition().y == btn->y_pos)
+            {
+                btn->wx_id = button_id++;
+                pan->SetId(btn->wx_id);
+                pan->SetClientData((void*)1);
+                pan->Refresh();
+                skip = true;
+                break;
+            }
+        }
+        if(skip)
+            continue;
+        
+        btn->wx_id = button_id++;
+        wxPanel *wx_btn = new wxPanel(canvas,btn->wx_id,wxPoint(btn->x_pos, btn->y_pos),wxSize(btn->x_size, btn->y_size));
+        wx_btn->SetClientData((void*)1);
+        wx_btn->SetWindowStyle(wxTRANSPARENT_WINDOW);       
+        wx_btn->SetBackgroundStyle(wxBG_STYLE_PAINT);
+        wx_btn->SetDoubleBuffered(true);        
+        wx_btn->Bind(wxEVT_PAINT,&MyFrame::OnPaintHUDbutton,this);
+        wx_btn->Bind(wxEVT_LEAVE_WINDOW,&MyFrame::OnHUDbuttonsLeave,this);
+        wx_btn->Bind(wxEVT_ENTER_WINDOW,&MyFrame::OnHUDbuttonsMouseEnter,this);
+        wx_btn->Bind(wxEVT_LEFT_DOWN,&MyFrame::OnHUDbuttonsClick,this);
+        wx_btn->Bind(wxEVT_LEFT_UP,&MyFrame::OnHUDbuttonsClick,this);
+        hud_buttons.push_back(wx_btn);
+    }
+
+    // loose old unused buttons   
+    for(int pid = hud_buttons.size()-1; pid >= 0; pid--)
+    {
+        if(!hud_buttons[pid]->GetClientData())
+        {
+            hud_buttons[pid]->Destroy();
+            hud_buttons.erase(hud_buttons.begin() + pid);
+        }
+    }
+}
+void MyFrame::OnPaintHUDbutton(wxPaintEvent& event)
+{
+    wxPanel* pan = (wxPanel*)event.GetEventObject();
+    auto* btn = spell_map->GetHUDbutton(pan->GetId());
+    if(btn)
+    {                
+        wxPaintDC pdc(pan);
+        if(btn->is_press)
+            pdc.DrawBitmap(*btn->bmp_press,wxPoint(0,0));
+        else if(btn->is_hover)
+            pdc.DrawBitmap(*btn->bmp_hover,wxPoint(0,0));
+        else
+            pdc.DrawBitmap(*btn->bmp_idle,wxPoint(0,0));
+    }
+    event.Skip();
+}
+void MyFrame::OnHUDbuttonsMouseEnter(wxMouseEvent& event)
+{
+    wxPanel* pan = (wxPanel*)event.GetEventObject();
+    auto* btn = spell_map->GetHUDbutton(pan->GetId());
+    if(btn)
+    {
+        btn->is_hover = true;
+        pan->Refresh();
+        // click event callback?
+        if(btn->is_hover && btn->cb_hover)
+            btn->cb_hover();
+    }
+}
+void MyFrame::OnHUDbuttonsLeave(wxMouseEvent& event)
+{
+    wxPanel* pan = (wxPanel*)event.GetEventObject();
+    auto* btn = spell_map->GetHUDbutton(pan->GetId());
+    if(btn)
+    {
+        btn->is_hover = false;
+        pan->Refresh();
+    }
+}
+void MyFrame::OnHUDbuttonsClick(wxMouseEvent& event)
+{
+    wxPanel* pan = (wxPanel*)event.GetEventObject();
+    auto* btn = spell_map->GetHUDbutton(pan->GetId());
+    if(btn)
+    {
+        btn->is_press = (event.GetEventType() == wxEVT_LEFT_DOWN);        
+        pan->Refresh();
+        // click event callback?
+        if(!btn->is_press && btn->cb_press)
+            btn->cb_press();
+    }
+}
+
 
 
 // on change of map layer view
@@ -429,6 +566,29 @@ void MyFrame::OnViewObjects(wxCommandEvent& event)
         form_objects->Show();
     }
 }
+
+// open palette viewer
+void MyFrame::OnViewPal(wxCommandEvent& event)
+{
+    if(!FindWindowById(ID_PAL_WIN))
+    {
+        form_pal = new FormPalView(this,spell_data,ID_PAL_WIN);
+        form_pal->SetMap(spell_map);
+        form_pal->Show();
+    }
+}
+
+// open graphics viewer
+void MyFrame::OnViewGrRes(wxCommandEvent& event)
+{
+    if(!FindWindowById(ID_GRES_WIN))
+    {
+        form_gres = new FormGResView(this,spell_data,ID_GRES_WIN);
+        form_gres->Show();
+    }
+}
+
+
 // create new object
 void MyFrame::OnCreateNewObject(wxCommandEvent& event)
 {
@@ -455,6 +615,17 @@ void MyFrame::OnCreateNewObject(wxCommandEvent& event)
     
     // destroy form
     delete form;    
+}
+
+// move unit (if selected)
+void MyFrame::OnMoveUnit(wxCommandEvent& event)
+{
+    auto *unit = spell_map->GetSelectedUnit();
+    if(unit)
+    {
+        // start unti movement
+        unit->in_placement = true;
+    }
 }
 
 
@@ -493,6 +664,18 @@ void MyFrame::OnCanvasMouseMove(wxMouseEvent& event)
     //int height, flags, code;
     auto [flags,height,code] = spell_map->GetTileFlags(m_buffer,&scroll);
     SetStatusText(wxString::Format(wxT("(0x%02X)"),code),6);
+
+    auto* unit = spell_map->GetSelectedUnit();
+    if(unit && unit->in_placement && mxy.IsSelected())
+    {
+        // change unit position
+        unit->coor = mxy;
+        // sort units before rendering
+        spell_map->SortUnits();
+
+        spell_map->ClearUnitsView(true);
+        spell_map->AddUnitView(unit);
+    }
     
     canvas->Refresh();
 }
@@ -570,6 +753,26 @@ void MyFrame::OnCanvasLMouseDown(wxMouseEvent& event)
         // something selected: edit map class        
         spell_map->EditClass(xy_list, &spell_tool, bind(&MyFrame::StatusStringCallback,this,placeholders::_1));
     }
+    else
+    {
+        // try select unit:
+
+        auto* cur_unit = spell_map->GetCursorUnit(m_buffer,&scroll);
+        auto* sel_unit = spell_map->GetSelectedUnit();
+        if(cur_unit && cur_unit == sel_unit)
+        {
+            // move/place unit
+            sel_unit->in_placement = !sel_unit->in_placement;
+        }
+        else
+        {
+            // try select unit (if on cursor)
+            auto* unit = spell_map->GetCursorUnit(m_buffer, &scroll);
+            spell_map->SelectUnit(unit);
+        }
+    }
+
+    canvas->Refresh();
 }
 
 // tool selected

@@ -21,6 +21,7 @@
 #include "fs_archive.h"
 #include "fsu_archive.h"
 #include "map_types.h"
+#include "spell_font.h"
 
 #include "wx/dcbuffer.h"
 
@@ -202,11 +203,12 @@ class Sprite
 			NEIGHBOR_UNDECIDED = 2
 		};
 
-	private:
-		int MaskHasTransp(uint8_t* mask);
-
 		// tile elevation step in pixels
 		static constexpr double TILE_ELEVATION = 22.5;
+
+	private:
+		int MaskHasTransp(uint8_t* mask);
+		
 		// tile projection angle (degrees)
 		static constexpr double PROJECTION_ANGLE = 37.0;
 
@@ -375,7 +377,10 @@ public:
 		uint8_t bluepal[256];
 		uint8_t dbluepal[256];
 		uint8_t redpal[256];
-	} filter; 
+	} filter;
+	// fonts
+	SpellFont *font;
+	SpellFont *font7;
 
 	enum WildMode { FIRST,RANDOM };
 
@@ -437,8 +442,9 @@ public:
 	wxBitmap* RenderToolSetItemImage(int tool_id, int item_id, double gamma=1.30, int x_size=-1, int y_size=-1, bool no_zoom=true);
 	tuple<int, int> GetToolSetItemImageSize(int tool_id, int item_id);
 
+	int RenderPalette(wxBitmap& bmp,int relative_time=0);
+	int RenderPaletteColor(wxBitmap& bmp,int x_size,int x_pos);
 	
-
 
 	static constexpr int RENDER_CENTER = 0x01;
 	static constexpr int RENDER_ZOOMX2 = 0x02;

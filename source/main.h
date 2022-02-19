@@ -4,9 +4,13 @@
 #include "simpleini.h"
 #include "spellcross.h"
 #include "map.h"
+#include "spell_hud_buttons.h"
 #include "form_objects.h"
 #include "form_tools.h"
 #include "form_sprite_view.h"
+#include "form_pal_view.h"
+#include "form_gr_view.h"
+#include "form_new_object.h"
 
 #include <wx/ribbon/buttonbar.h>
 #include <wx/ribbon/panel.h>
@@ -38,6 +42,8 @@ public:
     MyFrame(SpellMap* map,SpellData* spelldata);      
     void StatusStringCallback(std::string info);
 
+    void CreateHUDbuttons();
+
 private:
     void OnViewLayer(wxCommandEvent& event);
     void OnOpenMap(wxCommandEvent& event);
@@ -57,6 +63,8 @@ private:
     //void OnViewToolsClose(wxWindowDestroyEvent& ev);
     void OnViewSprites(wxCommandEvent& event);
     void OnViewObjects(wxCommandEvent& event);
+    void OnViewPal(wxCommandEvent& event);
+    void OnViewGrRes(wxCommandEvent& event);
     //void OnViewObjectsClose(wxWindowDestroyEvent& ev);
     void OnUpdateTileContext(wxCommandEvent& event);
     void OnUpdateTileContextMaps(wxCommandEvent& event);    
@@ -64,6 +72,7 @@ private:
     void OnDeselectAll(wxCommandEvent& event);
     void OnInvalidateSelection(wxCommandEvent& event);
     void OnCreateNewObject(wxCommandEvent& event);
+    void OnMoveUnit(wxCommandEvent& event);
 
     void OnToolBtnClick(wxRibbonButtonBarEvent& event);
     void OnToolPageClick(wxRibbonBarEvent& event);
@@ -82,6 +91,7 @@ private:
     void OnCanvasLMouseDown(wxMouseEvent& event);
     wxBitmap m_buffer;
 
+    
 
     wxPanel* canvas;
     
@@ -101,15 +111,25 @@ private:
     FormSprite* form_sprites;
     FormObjects* form_objects;
     FormTools* form_tools;
+    FormPalView* form_pal;
+    FormGResView* form_gres;
+    
+    void OnPaintHUDbutton(wxPaintEvent& event);
+    void OnHUDbuttonsMouseEnter(wxMouseEvent& event);
+    void OnHUDbuttonsLeave(wxMouseEvent& event);
+    void OnHUDbuttonsClick(wxMouseEvent& event);
+    vector<wxPanel*> hud_buttons;
 
     enum
     {
         ID_MAIN_WIN = 2000,
         ID_OBJECTS_WIN,
         ID_SPRITES_WIN,
-        ID_TOOLS_WIN
+        ID_TOOLS_WIN,
+        ID_PAL_WIN,
+        ID_GRES_WIN
     };
-
+    static constexpr int ID_HUD_BASE = 3000;
     static constexpr int ID_TOOL_BASE = 10000;
     static constexpr int ID_TOOL_CLASS_STEP = 100;
 };
@@ -140,6 +160,8 @@ enum
     ID_ViewStTa,
     ID_SetGamma,
     ID_ViewSprites,
+    ID_ViewPal,
+    ID_ViewGRes,
     ID_UpdateSprContext,
     ID_SaveSprContext,
     ID_ViewObjects,
@@ -148,6 +170,7 @@ enum
     ID_DeselectAll,
     ID_InvalidateSel,
     ID_CreateNewObject,
+    ID_MoveUnit,
     ID_UpdateSprContextMaps
 };
 

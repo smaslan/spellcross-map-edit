@@ -14,6 +14,7 @@ std::string wstring2string(const std::wstring& str);
 std::string string_format(const std::string fmt,...);
 
 int wildcmp(const char* wild,const char* string);
+void strcpy_noext(char* dest,char* src);
 int hex2num(char hex);
 
 //int ostream_write_string(ofstream& fw,std::string &str);

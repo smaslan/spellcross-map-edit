@@ -9,8 +9,8 @@
 //=============================================================================
 
 #include "spell_units.h"
-#include "fsu_archive.h"
-#include "sprites.h"
+#include "spellcross.h"
+#include "map.h"
 #include <vector>
 #include <stdexcept>
 
@@ -24,11 +24,7 @@ SpellUnitRec::SpellUnitRec()
 }
 
 // decode units def file
-SpellUnits::SpellUnits(uint8_t* data, int dlen)
-{
-	SpellUnits(data, dlen, NULL);
-}
-SpellUnits::SpellUnits(uint8_t* data, int dlen, FSUarchive *fsu)
+SpellUnits::SpellUnits(uint8_t* data, int dlen, FSUarchive *fsu, SpellGraphics *graphics)
 {
 	int count;
 	if (dlen % 206 == 0 && dlen % 207 != 0)
@@ -290,11 +286,18 @@ SpellUnits::SpellUnits(uint8_t* data, int dlen, FSUarchive *fsu)
 		unit->ramax = rdu32(rec + 0xCA);
 
 		// --- assign FSU resources:
-		if (fsu)
+		if(fsu)
 		{
 			unit->gr_base = fsu->GetResource(unit->gra);
 			unit->gr_aux = fsu->GetResource(unit->grb);
-		}		
+		}
+
+		// --- assign aux graphics
+		if(graphics)
+		{
+			// find unit icon
+			unit->icon_glyph = graphics->GetResource(unit->icon);
+		}
 
 		// store unit to list
 		units.push_back(unit);
@@ -362,8 +365,8 @@ SpellUnitRec *SpellUnits::GetUnit(int uid)
 
 
 
-// render unit (complete, i.e. group of man or tank with turret)
-void SpellUnitRec::Render(uint8_t* buffer, uint8_t* buf_end, int buf_x_pos, int buf_y_pos, int buf_x_size,
+// render unit (complete, i.e. group of man or tank with turret) and stick for air units
+tuple<int,int> SpellUnitRec::Render(uint8_t* buffer, uint8_t* buf_end, int buf_x_pos, int buf_y_pos, int buf_x_size,
 	uint8_t* shadow_filter, ::Sprite *sprt, int azim, int frame)
 {
 	// tile slope
@@ -380,9 +383,6 @@ void SpellUnitRec::Render(uint8_t* buffer, uint8_t* buf_end, int buf_x_pos, int 
 	double uofs_x[5];
 	double uofs_y[5];
 	int uofs[5];
-
-	/*if (man == 4)
-		man = 40;*/
 
 	// precalculate sin/cos to save time
 	static int isa = 0;
@@ -458,6 +458,9 @@ void SpellUnitRec::Render(uint8_t* buffer, uint8_t* buf_end, int buf_x_pos, int 
 	int y_pos;
 	FSU_sprite* spr = NULL;
 
+	int y_status_bar = 2^30;
+	int x_status_bar = 0;
+
 	// --- repeat for each man:
 	for (int uid = 0; uid < man; uid++)
 	{
@@ -516,13 +519,18 @@ void SpellUnitRec::Render(uint8_t* buffer, uint8_t* buf_end, int buf_x_pos, int 
 				y_pos -= AIR_UNIT_FLY_HEIGHT;
 			}
 
+			// store unit highest pixel offset
+			if(uid == 0)
+				x_status_bar = 40;
+			y_status_bar = min(y_pos + (spr->y_ofs - 128) - buf_y_pos,y_status_bar);
+
 			// render man of unit			
 			spr->Render(buffer, buf_end, x_pos, y_pos, buf_x_size, shadow_filter);
 			//buffer[x_pos + (spr->x_max + spr->x_min)/2 + (y_pos + spr->y_ofs + spr->y_size-128) * buf_x_size] = 252;
 		}
 	}
 
-	// --- redner "stick" to ground:
+	// --- render "stick" to ground:
 	if (spr && isAir() && man == 1 && !gr_aux)
 	{
 		// only for air, single man unit, not tank
@@ -544,5 +552,207 @@ void SpellUnitRec::Render(uint8_t* buffer, uint8_t* buf_end, int buf_x_pos, int 
 
 	}
 
+	// return unit top-center (upper most pixel) offset from buffer origin
+	return tuple(x_status_bar,y_status_bar);
+}
 
+
+
+
+MapUnit::MapUnit()
+{
+	// unit idnetifier index within map
+	id = 0;
+	// unit type ID
+	type_id = 0;
+	unit =  NULL;
+	// position
+	coor = MapXY();
+	// experience
+	experience = 0;
+	// man count
+	man = 1;
+	// unit type/behaviour
+	type = MapUnitType::NormalUnit;
+	// custom name
+	name[0] = '\0';
+	// commander id or zero	
+	commander_id = 0;
+	is_commander = 0;
+	// dig in
+	dig_level = 0;
+	// action points
+	action_points = 1;
+	// unit active (set except insertion time)
+	is_active = 0;
+	// enemy?
+	is_enemy = 0;
+	// unit being placed?
+	in_placement = 0;
+}
+
+// action points for this level of experience
+int MapUnit::GetMaxAP()
+{
+	// basic AP
+	int ap = unit->ap;
+
+	// experience bonuses
+	if(experience >= 6)
+		ap += unit->apw;
+	if(experience >= 9)
+		ap += unit->apw;
+
+	return(ap);
+}
+
+// reset unit action points
+int MapUnit::ResetAP()
+{
+	action_points = GetMaxAP();
+	return(action_points);
+}
+
+// get fires count
+int MapUnit::GetFireCount()
+{
+	// get max fires count
+	int ap = GetMaxAP();
+	int basic_fires = GetMaxFireCount();
+
+	// get ap per fire for this level of experience
+	int ap_per_fire = floor(ap/basic_fires);
+	
+	// actual fires count
+	int fires = floor(action_points/ap_per_fire);
+	
+	return(fires);
+}
+
+// get max fires count
+int MapUnit::GetMaxFireCount()
+{
+	// get max fires count
+	int ap = GetMaxAP();
+	int basic_fires = floor(unit->ap/unit->aps);
+	if(experience >= 5)
+		basic_fires++;
+	if(experience >= 10)
+		basic_fires++;
+	return(basic_fires);
+}
+
+int MapUnit::Render(Terrain* data,uint8_t* buffer,uint8_t* buf_end,int buf_x_pos,int buf_y_pos,int buf_x_size,Sprite* sprt,int show_hud,int azim,int frame)
+{
+	// filter for shadow rendering
+	auto shadow_filter = data->filter.darker;
+	
+	// render unit
+	auto [x_status_bar,y_status_bar] = unit->Render(buffer, buf_end, buf_x_pos, buf_y_pos, buf_x_size,shadow_filter, sprt, azim, frame);	
+	
+
+	// -- make status bar
+	if(!show_hud)
+		return(y_status_bar);
+	const int bar_w = 28;
+	const int bar_h = 15;
+	// check valid rendering range
+	auto *psb     = &buffer[(buf_x_pos + x_status_bar - bar_w/2) + (buf_y_pos + y_status_bar - bar_h/2)*buf_x_size];
+	auto *psb_end = &buffer[(buf_x_pos + x_status_bar - bar_w/2 + bar_w-1) + (buf_y_pos + y_status_bar - bar_h/2 + bar_h-1)*buf_x_size];
+	if(psb < buffer || psb_end >= buf_end)
+		return(0);
+
+	// render shadow background
+	for(int y = 0; y < bar_h; y++)
+	{
+		uint8_t* buf = &psb[y*buf_x_size];
+		for(int x = 0; x < bar_w; x++)
+			buf[x] = shadow_filter[buf[x]];
+	}
+
+	// hitpoints bar size
+	int hp_w;
+	if(is_enemy)
+		hp_w = 26;
+	else
+		hp_w = (commander_id)?17:26;
+	int hp_h = 3;
+	
+	// hit points (in pixels)
+	int hp = min((hp_w*man)/unit->cnt,hp_w);
+
+	// action points (in pixels)
+	int ap = min((hp_w*action_points)/GetMaxAP(),hp_w);
+	
+	// render action point (aliance only)
+	if(!is_enemy)
+	{
+		int ap_color = (is_active)?230:228;
+		for(int y = 1; y < 4; y++)
+		{
+			uint8_t* buf = &psb[y*buf_x_size];
+			for(int x = 1; x <= ap; x++)
+				buf[x] = ap_color;
+		}
+	}
+	
+	// render hitpoints
+	int hp_color = (is_active)?234:233;
+	if(is_enemy)
+		hp_color = 253;
+	for(int y = 5; y < 8; y++)
+	{
+		uint8_t* buf = &psb[y*buf_x_size];
+		for(int x = 1; x <= hp; x++)
+			buf[x] = hp_color;
+	}
+
+	// render special unit type mark
+	int type_color = 0;
+	if(type == MapUnitType::MissionUnit)
+		type_color = 230;
+	else if(type == MapUnitType::SpecUnit1)
+		type_color = 253;
+	for(int y = 9; y < bar_h; y+=2)
+	{
+		uint8_t* buf = &psb[y*buf_x_size];
+		for(int x = bar_w-3; x < bar_w-1; x++)
+			buf[x] = type_color;
+	}
+
+	// render fire count
+	if(!is_enemy)
+	{
+		int fires = GetFireCount();
+		for(int k = 0; k < fires; k++)
+		{		
+			uint8_t* buf = &psb[9*buf_x_size + 1 + k*4];
+			buf[0] = 253; buf[1] = 253; buf[2] = 202;
+			buf += buf_x_size;
+			buf[0] = 253; buf[1] = 202; buf[2] = 202;
+		}
+	}
+
+	// render dig level
+	for(int k = 0; k < dig_level; k++)
+	{
+		uint8_t* buf = &psb[12*buf_x_size + 1 + k*4];
+		buf[0] = 252; buf[1] = 252; buf[2] = 214;
+		buf += buf_x_size;
+		buf[0] = 252; buf[1] = 214; buf[2] = 214;
+	}
+
+	if(commander_id && !is_enemy)
+	{
+		// render commander id
+		data->font7->RenderSymbol(psb, psb_end, buf_x_size, 19, 1, '0'+commander_id, 232);
+
+		// render commander mark
+		if(is_commander)
+			data->font7->RenderSymbol(psb,psb_end,buf_x_size,24,1,31,232);
+
+	}
+	
+	// return top pixel of unit
+	return(y_status_bar);
 }
