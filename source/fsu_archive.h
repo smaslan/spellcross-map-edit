@@ -29,7 +29,7 @@ public:
 
 	FSU_sprite();
 	~FSU_sprite();
-	void Render(uint8_t* buffer, uint8_t* buf_end, int buf_x_pos, int buf_y_pos, int buf_x_size, uint8_t* shadow_filter);
+	void Render(uint8_t* buffer, uint8_t* buf_end, int buf_x_pos, int buf_y_pos, int buf_x_size, uint8_t* shadow_filter,uint8_t* filter=NULL);
 };
 
 class FSU_resource

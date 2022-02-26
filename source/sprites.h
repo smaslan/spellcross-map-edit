@@ -41,6 +41,12 @@ typedef struct {
 	int x, y;
 }Txy;
 
+class Txyz {
+public:
+	int x,y,z;
+	Txyz(int xx,int yy,int zz) {x=xx;y=yy;z=zz;};
+};
+
 
 class Sprite
 {
@@ -371,6 +377,7 @@ public:
 	uint8_t pal[256][3];
 	// filters
 	struct {
+		uint8_t nullpal[256];
 		uint8_t darkpal[256];
 		uint8_t darkpal2[256];
 		uint8_t darker[256];

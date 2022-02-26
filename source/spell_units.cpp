@@ -367,7 +367,7 @@ SpellUnitRec *SpellUnits::GetUnit(int uid)
 
 // render unit (complete, i.e. group of man or tank with turret) and stick for air units
 tuple<int,int> SpellUnitRec::Render(uint8_t* buffer, uint8_t* buf_end, int buf_x_pos, int buf_y_pos, int buf_x_size,
-	uint8_t* shadow_filter, ::Sprite *sprt, int azim, int frame)
+	uint8_t* filter, uint8_t* shadow_filter, ::Sprite *sprt, int azim, int frame)
 {
 	// tile slope
 	char slope = sprt->name[2];
@@ -525,8 +525,7 @@ tuple<int,int> SpellUnitRec::Render(uint8_t* buffer, uint8_t* buf_end, int buf_x
 			y_status_bar = min(y_pos + (spr->y_ofs - 128) - buf_y_pos,y_status_bar);
 
 			// render man of unit			
-			spr->Render(buffer, buf_end, x_pos, y_pos, buf_x_size, shadow_filter);
-			//buffer[x_pos + (spr->x_max + spr->x_min)/2 + (y_pos + spr->y_ofs + spr->y_size-128) * buf_x_size] = 252;
+			spr->Render(buffer, buf_end, x_pos, y_pos, buf_x_size, shadow_filter, filter);
 		}
 	}
 
@@ -588,7 +587,9 @@ MapUnit::MapUnit()
 	// enemy?
 	is_enemy = 0;
 	// unit being placed?
-	in_placement = 0;
+	in_placement = false;
+	// moved
+	was_moved = true;
 }
 
 // action points for this level of experience
@@ -614,7 +615,7 @@ int MapUnit::ResetAP()
 }
 
 // get fires count
-int MapUnit::GetFireCount()
+int MapUnit::GetFireCount(int ext_ap)
 {
 	// get max fires count
 	int ap = GetMaxAP();
@@ -624,9 +625,9 @@ int MapUnit::GetFireCount()
 	int ap_per_fire = floor(ap/basic_fires);
 	
 	// actual fires count
-	int fires = floor(action_points/ap_per_fire);
-	
-	return(fires);
+	if(ext_ap >= 0)		
+		return(floor(ext_ap/ap_per_fire));
+	return(floor(action_points/ap_per_fire));
 }
 
 // get max fires count
@@ -642,14 +643,27 @@ int MapUnit::GetMaxFireCount()
 	return(basic_fires);
 }
 
-int MapUnit::Render(Terrain* data,uint8_t* buffer,uint8_t* buf_end,int buf_x_pos,int buf_y_pos,int buf_x_size,Sprite* sprt,int show_hud,int azim,int frame)
+// get AP per walk
+int MapUnit::GetWalkAP()
+{
+	int move_range = unit->apw;
+	if(experience >= 6)
+		move_range++;
+	if(experience >= 10)
+		move_range++;
+	return(GetMaxAP()/(move_range-1));
+}
+
+int MapUnit::Render(Terrain* data,uint8_t* buffer,uint8_t* buf_end,int buf_x_pos,int buf_y_pos,int buf_x_size,uint8_t *filter,Sprite* sprt,int show_hud,int azim,int frame)
 {
 	// filter for shadow rendering
 	auto shadow_filter = data->filter.darker;
 	
 	// render unit
-	auto [x_status_bar,y_status_bar] = unit->Render(buffer, buf_end, buf_x_pos, buf_y_pos, buf_x_size,shadow_filter, sprt, azim, frame);	
+	auto [x_status_bar,y_status_bar] = unit->Render(buffer, buf_end, buf_x_pos, buf_y_pos, buf_x_size,filter,shadow_filter, sprt, azim, frame);	
 	
+	if(!filter)
+		filter = data->filter.nullpal;
 
 	// -- make status bar
 	if(!show_hud)
@@ -667,7 +681,7 @@ int MapUnit::Render(Terrain* data,uint8_t* buffer,uint8_t* buf_end,int buf_x_pos
 	{
 		uint8_t* buf = &psb[y*buf_x_size];
 		for(int x = 0; x < bar_w; x++)
-			buf[x] = shadow_filter[buf[x]];
+			buf[x] = filter[shadow_filter[buf[x]]];
 	}
 
 	// hitpoints bar size
@@ -692,7 +706,7 @@ int MapUnit::Render(Terrain* data,uint8_t* buffer,uint8_t* buf_end,int buf_x_pos
 		{
 			uint8_t* buf = &psb[y*buf_x_size];
 			for(int x = 1; x <= ap; x++)
-				buf[x] = ap_color;
+				buf[x] = filter[ap_color];
 		}
 	}
 	
@@ -704,7 +718,7 @@ int MapUnit::Render(Terrain* data,uint8_t* buffer,uint8_t* buf_end,int buf_x_pos
 	{
 		uint8_t* buf = &psb[y*buf_x_size];
 		for(int x = 1; x <= hp; x++)
-			buf[x] = hp_color;
+			buf[x] = filter[hp_color];
 	}
 
 	// render special unit type mark
@@ -717,7 +731,7 @@ int MapUnit::Render(Terrain* data,uint8_t* buffer,uint8_t* buf_end,int buf_x_pos
 	{
 		uint8_t* buf = &psb[y*buf_x_size];
 		for(int x = bar_w-3; x < bar_w-1; x++)
-			buf[x] = type_color;
+			buf[x] = filter[type_color];
 	}
 
 	// render fire count
@@ -727,9 +741,9 @@ int MapUnit::Render(Terrain* data,uint8_t* buffer,uint8_t* buf_end,int buf_x_pos
 		for(int k = 0; k < fires; k++)
 		{		
 			uint8_t* buf = &psb[9*buf_x_size + 1 + k*4];
-			buf[0] = 253; buf[1] = 253; buf[2] = 202;
+			buf[0] = filter[253]; buf[1] = filter[253]; buf[2] = filter[202];
 			buf += buf_x_size;
-			buf[0] = 253; buf[1] = 202; buf[2] = 202;
+			buf[0] = filter[253]; buf[1] = filter[202]; buf[2] = filter[202];
 		}
 	}
 
@@ -737,19 +751,19 @@ int MapUnit::Render(Terrain* data,uint8_t* buffer,uint8_t* buf_end,int buf_x_pos
 	for(int k = 0; k < dig_level; k++)
 	{
 		uint8_t* buf = &psb[12*buf_x_size + 1 + k*4];
-		buf[0] = 252; buf[1] = 252; buf[2] = 214;
+		buf[0] = filter[252]; buf[1] = filter[252]; buf[2] = filter[214];
 		buf += buf_x_size;
-		buf[0] = 252; buf[1] = 214; buf[2] = 214;
+		buf[0] = filter[252]; buf[1] = filter[214]; buf[2] = filter[214];
 	}
 
 	if(commander_id && !is_enemy)
 	{
 		// render commander id
-		data->font7->RenderSymbol(psb, psb_end, buf_x_size, 19, 1, '0'+commander_id, 232);
+		data->font7->RenderSymbol(psb, psb_end, buf_x_size, 19, 1, '0'+commander_id,filter[232]);
 
 		// render commander mark
 		if(is_commander)
-			data->font7->RenderSymbol(psb,psb_end,buf_x_size,24,1,31,232);
+			data->font7->RenderSymbol(psb,psb_end,buf_x_size,24,1,31,filter[232]);
 
 	}
 	

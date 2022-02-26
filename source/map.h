@@ -145,6 +145,8 @@ public:
 	int morale;
 	// unit in placement (selected and moving)
 	int in_placement;
+	// unit moved flag (cleared when rendered)
+	int was_moved;
 
 	// pointer to next unit to draw (for correct render order)
 	MapUnit* next;
@@ -156,11 +158,12 @@ public:
 	int frame;
 
 	MapUnit();
-	int Render(Terrain* data,uint8_t* buffer,uint8_t* buf_end,int buf_x_pos,int buf_y_pos,int buf_x_size,Sprite* sprt,int show_hud,int azim,int frame);
+	int Render(Terrain* data,uint8_t* buffer,uint8_t* buf_end,int buf_x_pos,int buf_y_pos,int buf_x_size,uint8_t* filter,Sprite* sprt,int show_hud,int azim,int frame);
 
 	int ResetAP();
 	int GetMaxAP();
-	int GetFireCount();
+	int GetWalkAP();
+	int GetFireCount(int ext_ap=-1);
 	int GetMaxFireCount();
 };
 
@@ -186,12 +189,14 @@ public:
 	void Reset();
 	void SetRef(int x, int y);
 	void Move(int x, int y);
+	void SetPos(int x,int y);
 	void Idle();
 	int ResizeSelection(int delta);
 	bool wasModified();
 	bool Commit();
 	
 	tuple<int,int> CheckScroll(int x_limit,int y_limit);
+	tuple<int,int> CheckScroll(int x_min,int y_min,int x_limit,int y_limit);
 	tuple<int,int> GetScroll();
 	tuple<int,int> GetCursor();
 	int GetSize();
@@ -206,10 +211,24 @@ typedef struct{
 }TTileElevMod;
 
 
+class AStarNode {
+public:
+	MapXY pos;
+	MapXY parent_pos;
+	int g_cost;
+	int h_cost;
+	int f_cost;
+	int closed;
+	AStarNode();
+	static constexpr int INIT_COST = 1<<30;
+};
 
 class SpellMap
 {
 	private:
+		// game mode
+		int game_mode;		
+		// render surface
 		int surf_x;
 		int surf_y;
 		int last_surf_x;
@@ -248,17 +267,37 @@ class SpellMap
 		// currently selected unit
 		MapUnit *unit_selection;
 		int unit_sel_land_preference;
-		// units view map
+		// current view state of map tiles
 		vector<int> units_view;
 		// units view mask map
-		vector<uint8_t> units_view_mask;
+		vector<uint8_t> units_view_mask; // mask with objects
+		vector<uint8_t> units_view_mask_0; // mask without object
 		vector<uint16_t> units_view_map;
-		tuple<int,int> GetUnitsViewMask(int x,int y);
+		static constexpr int units_view_mask_size = 10;
+		int units_view_mask_x_size;
+		int units_view_mask_y_size;
+		// unit range map
+		vector<AStarNode> unit_range_nodes_buffer; // this is preinitialized buffer holding the nodes
+		vector<AStarNode> unit_range_nodes; // this is working buffer
+		vector<int> unit_ap_left;
+		vector<int> unit_fire_left;
+		int InitUnitRangeStuff();
+		// units moved flag (can be set to force view tiles recalc)
+		int units_moved;
+		void SortUnits();
+		int UnitsMoved(int clear=true);
+		tuple<int,int> GetUnitsViewMask(int x,int y,int plain_tile_id=-1);
 		tuple<int,int,int> GetUnitsViewTileCenter(int x,int y);
 		tuple<int,int,int> GetUnitsViewTileCenter(MapXY mxy);
+		vector<Txyz> GetUnitsViewTilePixels(int x,int y,int all=false);
+		vector<Txyz> GetUnitsViewTilePixels(MapXY mxy,int all=false);
+		// unit types
+		static constexpr int UNIT_TYPE_ALIANCE = 0x01;
+		static constexpr int UNIT_TYPE_OS = 0x02;
 		
 		// current HUD buttons list
 		vector<SpellBtnHUD*> hud_buttons;
+		int hud_enabled;
 
 		// layer visibility flags
 		bool wL1, wL2, wL3, wL4, wSTCI, wUnits;
@@ -268,7 +307,8 @@ class SpellMap
 		double last_gamma;
 		double gamma;
 
-		static constexpr int MAP_BACK_COLOR = 230; // map background color index
+		//static constexpr int MAP_BACK_COLOR = 230; // map background color index
+		static constexpr int MAP_BACK_COLOR = 254; // map background color index
 		static constexpr int MSYOFS = 150; // map render Y-offset from top (this should make enough space for highest elevation)
 		static constexpr int MSYOFST = 6; // map render Y-offset from top in tiles
 
@@ -334,10 +374,10 @@ class SpellMap
 		
 		SpellMap();
 		~SpellMap();
+		int SetGameMode(int new_mode);
 		void Close();
 		int Create(SpellData* spelldata,const char* terr_name,int x,int y);
-		int Load(wstring &path, SpellData* spelldata);
-		void SortUnits();
+		int Load(wstring &path, SpellData* spelldata);		
 		int IsLoaded();
 		bool TileIsVisible(int x, int y);
 		
@@ -351,11 +391,14 @@ class SpellMap
 		void SelectTiles(int mode);
 		int IvalidateTiles(vector<MapXY> tiles,std::function<void(std::string)> status_cb=NULL);
 		int RenderPrepare(wxBitmap& bmp, TScroll* scroll);
+		tuple<int,int> GetMapSurfaceSize();
 		int isRenderSurfModified();
 		int CommitRenderSurfModified();		
-		int Render(wxBitmap &bmp, TScroll* scroll,SpellTool* tool,std::function<void(void)> hud_buttons_cb=NULL);
+		int Render(wxBitmap &bmp, TScroll* scroll,SpellTool* tool=NULL,std::function<void(void)> hud_buttons_cb=NULL);
 		
-		int RenderHUD(uint8_t* buf,uint8_t* buf_end,int buf_x_size,MapUnit *cursor_unit,std::function<void(void)> hud_buttons_cb=NULL);
+		int GetHUDstate();
+		int SetHUDstate(int state);
+		int RenderHUD(uint8_t* buf,uint8_t* buf_end,int buf_x_size,MapXY* cursor,MapUnit *cursor_unit,std::function<void(void)> hud_buttons_cb=NULL);
 		SpellBtnHUD* CreateHUDbutton(SpellGraphicItem* glyph,t_xypos& hud_pos,t_xypos &pos,uint8_t* buf,uint8_t* buf_end,int buf_x_size,
 			int action_id,std::function<void(void)> cb_press,std::function<void(void)> cb_hover);
 		SpellBtnHUD *GetHUDbutton(int id);
@@ -376,8 +419,14 @@ class SpellMap
 		MapUnit *SelectUnit(MapUnit* new_unit);
 		MapUnit* GetSelectedUnit();
 		int PrepareUnitsViewMask();
+		wxBitmap *ExportUnitsViewZmap();
 		int ClearUnitsView(int to_unseen=false);
 		int AddUnitView(MapUnit* unit);
+		int AddUnitsView(int unit_type=UNIT_TYPE_ALIANCE);
+		void InvalidateUnitsView();
+		vector<AStarNode> FindUnitPath(MapUnit* unit,MapXY target);
+		int FindUnitRange(MapUnit* unit);
+
 
 		void SetRender(bool wL1, bool wL2, bool wL3, bool wL4, bool wSECI, bool wUnits);
 		void SetGamma(double gamma);
@@ -403,6 +452,10 @@ class SpellMap
 		MapXY GetNeighborTile(int x,int y,int quad);
 		MapXY GetNeighborTile(MapXY xy,int quad);
 		int BuildSpriteContext();
+
+		enum{
+			HUD_ACTION_MINIMAP = 1000
+		};
 };
 
 

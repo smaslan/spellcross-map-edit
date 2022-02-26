@@ -473,7 +473,7 @@ FSU_sprite::~FSU_sprite()
 }
 
 // render sprite to target buffer, buffer is sprite origin, x_size is buffer width
-void FSU_sprite::Render(uint8_t* buffer, uint8_t* buf_end, int buf_x_pos, int buf_y_pos, int buf_x_size, uint8_t* shadow_filter)
+void FSU_sprite::Render(uint8_t* buffer, uint8_t* buf_end, int buf_x_pos, int buf_y_pos, int buf_x_size,uint8_t* shadow_filter,uint8_t* filter)
 {
 	// source data
 	uint8_t* data = this->data;
@@ -497,20 +497,41 @@ void FSU_sprite::Render(uint8_t* buffer, uint8_t* buf_end, int buf_x_pos, int bu
 		if (scan + count > buf_end)
 			break;
 		// render line
-		for (int x = 0; x < count; x++)
+		if(filter)
 		{
-			if (*data == 0xFD && shadow_filter)
+			for(int x = 0; x < count; x++)
 			{
-				// shadow it is - convert original color using filter
-				*scan = shadow_filter[*scan];
+				if(*data == 0xFD && shadow_filter)
+				{
+					// shadow it is - convert original color using filter
+					*scan = filter[shadow_filter[*scan]];
+				}
+				else if(*data)
+				{
+					// normal visible pixel
+					*scan = filter[*data];
+				}
+				data++;
+				scan++;
 			}
-			else if (*data)
+		}
+		else
+		{
+			for (int x = 0; x < count; x++)
 			{
-				// normal visible pixel
-				*scan = *data;
+				if (*data == 0xFD && shadow_filter)
+				{
+					// shadow it is - convert original color using filter
+					*scan = shadow_filter[*scan];
+				}
+				else if (*data)
+				{
+					// normal visible pixel
+					*scan = *data;
+				}
+				data++;
+				scan++;
 			}
-			data++;
-			scan++;
 		}
 		// move to next buffer line
 		dest += buf_x_size;

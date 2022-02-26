@@ -56,6 +56,16 @@ void TScroll::Reset()
 	// no change
 	modified = 0;
 }
+// set absolute position
+void TScroll::SetPos(int x,int y)
+{
+	dx = x;
+	dy = y;
+	xref = x;
+	yref = y;
+	state = 0;
+	modified = true;
+}
 // set cursor ref. position (callwed on mouse down event)
 void TScroll::SetRef(int x,int y)
 {
@@ -108,6 +118,19 @@ tuple<int,int> TScroll::CheckScroll(int x_limit,int y_limit)
 		dy = y_limit/* - 1*/;
 	if(dy < 0)
 		dy = 0;
+	return {dx, dy};
+}
+// limit scroll to valid range (min,max)
+tuple<int,int> TScroll::CheckScroll(int x_min, int y_min, int x_limit,int y_limit)
+{
+	if(dx >= x_limit)
+		dx = x_limit/* - 1*/;
+	if(dx < x_min)
+		dx = x_min;
+	if(dy >= y_limit)
+		dy = y_limit/* - 1*/;
+	if(dy < y_min)
+		dy = y_min;
 	return {dx, dy};
 }
 // return scroll position
@@ -187,6 +210,8 @@ MapLayer4::~MapLayer4()
 
 SpellMap::SpellMap()
 {
+	game_mode = false;
+
 	L1 = NULL;
 	L2 = NULL;
 	elev = NULL;
@@ -209,12 +234,26 @@ SpellMap::SpellMap()
 	def_path = L"";	
 
 	unit_selection = NULL;
+	hud_enabled = true;
 }
 
 SpellMap::~SpellMap()
 {
 	// cleanup heap allocated stuff
 	Close();
+}
+
+// switch game mode
+int SpellMap::SetGameMode(int new_mode)
+{
+	int old_state = game_mode;
+	game_mode = new_mode;
+
+	// force recalculation of units view map
+	if(game_mode)
+		InvalidateUnitsView();
+
+	return(old_state);
 }
 
 // returns path to DEF file or DTA file if DEF was not used
@@ -281,6 +320,9 @@ void SpellMap::Close()
 
 	unit_sel_land_preference = true;
 	w_unit_hud = true;
+	units_view_mask.clear();
+	units_view_mask_0.clear();
+	units_view_map.clear();
 
 	msel.clear();
 
@@ -335,9 +377,6 @@ int SpellMap::Create(SpellData* spelldata, const char *terr_name, int x, int y)
 	// create selections maps
 	select = new uint8_t[x_size*y_size];
 	std::memset((void*)select,0x00,x_size*y_size);
-
-	// assign the units to map array
-	SortUnits();
 
 	// prefetch pointers to common stuff needed fast when rendering
 	start_sprite = terrain->GetSprite("START");
@@ -994,9 +1033,9 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 	PrepareUnitsViewMask();
 	ClearUnitsView(true);
 
-	// assign the units to map array
-	SortUnits();
-
+	// init range maps
+	InitUnitRangeStuff();
+	
 	// prefetch pointers to common stuff needed fast when rendering
 	start_sprite = terrain->GetSprite("START");
 	escape_sprite = terrain->GetSprite("CIEL");
@@ -1025,10 +1064,34 @@ int SpellMap::ConvXY(MapXY &mxy)
 }
 
 
+// check units were moved and eventually clear moved flags
+int SpellMap::UnitsMoved(int clear)
+{
+	// scan units for placement changes and clear the move flags
+	int moved = units_moved;
+	for(auto& unit : units)
+	{
+		if(unit->was_moved)
+			moved = true;
+		if(clear)
+			unit->was_moved = false;
+	}
+	if(clear)
+		units_moved = false;
+	return(moved);
+}
+
+// invalidate current units view map to force recalculation (actual calculation is done while rendering for now)
+void SpellMap::InvalidateUnitsView()
+{
+	units_moved = true;
+}
+
 // this sorts units list for proper render order, call after load or units changes
 void SpellMap::SortUnits()
 {
 	int k;
+		
 	// allocate units layer array
 	if (!Lunit)
 		Lunit = new MapUnit*[x_size * y_size];
@@ -1085,7 +1148,7 @@ void SpellMap::SortUnits()
 // is some valid map data loaded?
 int SpellMap::IsLoaded()
 {
-	if (!L1 || !L2 || !elev || !flags || !Lunit)
+	if (!L1 || !L2 || !elev || !flags)
 		return(0);
 
 	if (!x_size || !y_size)
@@ -1097,7 +1160,11 @@ int SpellMap::IsLoaded()
 
 
 
-
+// get total size (in pixels) of map
+tuple<int,int> SpellMap::GetMapSurfaceSize()
+{
+	return tuple(pic_x_size, pic_y_size);
+}
 
 // call whenever scroll or screen changes
 // it allocates render buffer and fixes scroller limits
@@ -1125,7 +1192,7 @@ int SpellMap::RenderPrepare(wxBitmap& bmp, TScroll* scroll)
 	if(!pic)
 	{
 		// new render buffer size
-		pic_x_size = max((x_size) * 80 + 40,surf_x);
+		pic_x_size = max((x_size)*80 + 40,surf_x);
 		pic_y_size = max(MSYOFS + 60 + 47 + (y_size) * 24 + MSYOFS,surf_y);
 		// allocate it
 		pic = new uint8_t[pic_x_size * pic_y_size];		
@@ -1138,7 +1205,20 @@ int SpellMap::RenderPrepare(wxBitmap& bmp, TScroll* scroll)
 		return(1);	
 
 	// limit scroller to valid range
-	scroll->CheckScroll(pic_x_size - surf_x, pic_y_size - surf_y);
+	int scroll_x_min = 0;
+	int scroll_y_min = 0;
+	int scroll_x_max = pic_x_size - surf_x;
+	int scroll_y_max = pic_y_size - surf_y;
+	if(game_mode)
+	{
+		scroll_x_min = 120;
+		scroll_y_min = 250;
+		scroll_x_max -= 240;
+		scroll_y_max -= 400;
+		if(!hud_enabled)
+			scroll_y_max -= 90;
+	}
+	scroll->CheckScroll(scroll_x_min,scroll_y_min,scroll_x_max,scroll_y_max);
 
 	// top-left visible portion of buffer (surface origin)	
 	auto [x_pos,y_pos] = scroll->GetScroll();
@@ -1249,7 +1329,7 @@ vector<MapXY> &SpellMap::GetSelections(wxBitmap& bmp, TScroll *scroll)
 					break;
 				for(n = 0; n < xs_size; n++)
 				{
-					if(n + xs_ofs >= x_size - 1)
+					if(n + xs_ofs >= x_size)
 						break;
 					// --- for every valid tile ---
 
@@ -1353,7 +1433,10 @@ vector<MapXY> &SpellMap::GetSelections(wxBitmap& bmp, TScroll *scroll)
 MapXY SpellMap::GetSelection(wxBitmap& bmp,TScroll* scroll)
 {
 	vector<MapXY>& sel = GetSelections(bmp, scroll);
-	return(sel[0]);
+	if(sel.size())
+		return(sel[0]);
+	else
+		return(MapXY());
 }
 // get selection elevation
 int SpellMap::GetElevation(wxBitmap& bmp,TScroll* scroll)
@@ -1468,9 +1551,6 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 	int i;
 	int m, n;
 
-	// ###todo: always smooth scroll?
-	int smooth = 1;
-
 	// skip if invalid pointer
 	if (!IsLoaded())
 		return(1);
@@ -1481,23 +1561,24 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 
 	// find selection tiles
 	auto msel = GetSelections(bmp,scroll);
-
-	// get scroll position
-	//auto [x_pos,y_pos] = scroll->GetScroll();
+	MapXY cursor;
+	if(msel.size() && msel[0].IsSelected())
+		cursor = msel[0];
 
 	// clear used surface range
-	for(int y = 0; y < surf_y; ++y)
+	for(int y = 0; y < min(surf_y,pic_y_size-surf_y_origin); y++)
 	{
-		uint8_t* src = &pic[surf_x_origin + (surf_y_origin + y)*pic_x_size];
-		int rend_x = surf_x;
+		uint8_t* src = &pic[surf_x_origin + (surf_y_origin + y)*pic_x_size];		
+		std::memset((void*)src,MAP_BACK_COLOR,min(surf_x,pic_x_size - surf_x_origin));
+		/*int rend_x = surf_x;
 		if(&src[surf_x] > pic_end)
 			rend_x = pic_end - src;		
-		std::memset((void*)src,MAP_BACK_COLOR,rend_x);
+		std::memset((void*)src,MAP_BACK_COLOR,rend_x);*/
 	}
 
 	// edit tool pre-processing:
 	Sprite **tool_L1 = NULL;
-	if(msel.size() && tool->isObject())
+	if(msel.size() && tool && tool->isObject())
 	{
 		// object tool selected (house, etc.)
 		auto obj = tool->GetObject();
@@ -1511,9 +1592,21 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 
 	}
 
-	
-	
+	// check if units position moved since last test (and clear movement flags)
+	int units_moved = UnitsMoved();
 
+	if(units_moved && game_mode)
+	{
+		// update view mask (this should be probably somewhere else?)
+		ClearUnitsView(false);
+		AddUnitsView();
+	}
+
+	// sort units positions for rendering
+	if(units_moved)
+		SortUnits();
+
+	
 	// --- Render Layer 1 - ground sprites ---
 	for (m = 0; m < ys_size; m++)
 	{
@@ -1521,7 +1614,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 			break;
 		for (n = 0; n < xs_size; n++)
 		{
-			if (n + xs_ofs >= x_size - 1)
+			if (n + xs_ofs >= x_size)
 				break;
 			int mxy = ConvXY(n + xs_ofs,m + ys_ofs*2);
 
@@ -1530,8 +1623,11 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 			if(!TileIsVisible(n + xs_ofs,m + ys_ofs*2))
 				fil = terrain->filter.darkpal;
 
-			if(units_view[mxy])
-				fil = terrain->filter.dbluepal;
+			// game mode view range
+			if(game_mode && units_view[mxy] == 0)
+				continue;
+			else if(game_mode && units_view[mxy] == 1)
+				fil = terrain->filter.darkpal;
 
 			// apply optional filter mask
 			if(filter[mxy])
@@ -1576,7 +1672,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 			break;
 		for (n = 0; n < xs_size; n++)
 		{
-			if (n + xs_ofs >= x_size - 1)
+			if (n + xs_ofs >= x_size)
 				break;
 			// get sprite parameters
 			Sprite* sid = L1[(m + ys_ofs * 2) * x_size + n + xs_ofs];
@@ -1601,9 +1697,17 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 			// skip if not in visible area
 			if (anm->x_pos < xs_ofs || anm->x_pos >= (xs_ofs + xs_size) || anm->y_pos < ys_ofs * 2 || anm->y_pos >= (ys_ofs * 2 + ys_size))
 				continue;
+			int mxy = ConvXY(anm->x_pos, anm->y_pos);
+
+			// game mode view range
+			uint8_t* fil = NULL;
+			if(game_mode && units_view[mxy] == 0)
+				continue;
+			else if(game_mode && units_view[mxy] == 1)
+				fil = terrain->filter.darkpal;
 
 			// L1 elevation
-			int sof = elev[(anm->y_pos) * x_size + anm->x_pos];
+			int sof = elev[mxy];
 
 			// get sprite
 			Sprite* frame = anm->anim->frames[anm->frame_ofs];
@@ -1611,7 +1715,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 			// render sprite
 			int mxx = (anm->x_pos - xs_ofs) * 80 + ((((anm->y_pos - ys_ofs * 2) & 1) != 0) ? 0 : 40);
 			int myy = (anm->y_pos - ys_ofs * 2) * 24 - sof * 18 + MSYOFS + 50;
-			frame->Render(pic, pic_end, mxx, myy, pic_x_size);
+			frame->Render(pic, pic_end, mxx, myy, pic_x_size, fil);
 		}
 	}
 
@@ -1630,14 +1734,22 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 				// skip if not in visible area
 				if (pos->x < xs_ofs || pos->x >= (xs_ofs + xs_size) || pos->y < ys_ofs * 2 || pos->y >= (ys_ofs * 2 + ys_size))
 					continue;
+				int mxy = ConvXY(pos->x,pos->y);
+
+				// game mode view range
+				uint8_t* fil = NULL;
+				if(game_mode && units_view[mxy] == 0)
+					continue;
+				else if(game_mode && units_view[mxy] == 1)
+					fil = terrain->filter.darkpal;
 
 				// L1 elevation
-				int y_elev = elev[(pos->y) * x_size + pos->x];
+				int y_elev = elev[mxy];
 
 				// render sprite
 				int mxx = (pos->x - xs_ofs) * 80 + ((((pos->y - ys_ofs * 2) & 1) != 0) ? 0 : 40);
 				int myy = (pos->y - ys_ofs * 2) * 24 - y_elev * 18 + MSYOFS + 50;
-				spec_sprite[sid]->Render(pic, pic_end, mxx, myy, pic_x_size);
+				spec_sprite[sid]->Render(pic, pic_end, mxx, myy, pic_x_size, fil);
 
 			}
 		}
@@ -1651,7 +1763,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 			break;
 		for(n = 0; n < xs_size; n++)
 		{
-			if(n + xs_ofs >= x_size - 1)
+			if(n + xs_ofs >= x_size)
 				break;
 			int x_pos = n + xs_ofs;
 			int y_pos = m + ys_ofs*2;
@@ -1659,7 +1771,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 
 			// skip if not selected
 			if(!select[mxy])
-				continue;
+				continue;			
 
 			// remap tile colors
 			uint8_t fil[256];
@@ -1688,9 +1800,16 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 			n = msel[i].x - xs_ofs;
 			m = msel[i].y - ys_ofs * 2;
 
-			if (n < 0 || m < 0 || (m + ys_ofs * 2) >= y_size || (n + xs_ofs) >= x_size - 1)
+			if (n < 0 || m < 0 || (m + ys_ofs * 2) >= y_size || (n + xs_ofs) >= x_size)
 				continue;
 			int mxy = ConvXY(n + xs_ofs, m + ys_ofs*2);
+
+			// game mode view range
+			uint8_t* fil = NULL;
+			if(game_mode && units_view[mxy] == 0)
+				continue;
+			else if(game_mode && units_view[mxy] == 1)
+				fil = terrain->filter.darkpal;
 
 			// get map tile
 			Sprite *sid = L1[mxy];
@@ -1705,11 +1824,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 			// draw selection sprite
 			int mxx = n * 80 + (((m & 1) != 0) ? 0 : 40);
 			int myy = m * 24 - sof * 18 + MSYOFS + 50;
-			sid->Render(pic, pic_end, mxx, myy, pic_x_size);
-
-			
-			/*SpellUnitRec* unit = spelldata->units->GetUnit(68);
-			unit->Render(pic, pice, mxx, myy, pic_x_size, terrain->filter.darkpal2, sid, 0);*/
+			sid->Render(pic, pic_end, mxx, myy, pic_x_size, fil);
 		}
 	}
 
@@ -1725,9 +1840,17 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 			// skip if not in visible area
 			if (pnm->x_pos < xs_ofs || pnm->x_pos >= (xs_ofs + xs_size) || pnm->y_pos < ys_ofs * 2 || pnm->y_pos >= (ys_ofs * 2 + ys_size))
 				continue;
+			int mxy = ConvXY(pnm->x_pos, pnm->y_pos);
+
+			// game mode view range
+			uint8_t* fil = NULL;
+			if(game_mode && units_view[mxy] == 0)
+				continue;
+			else if(game_mode && units_view[mxy] == 1)
+				fil = terrain->filter.darkpal;
 
 			// L1 elevation
-			int y_elev = elev[(pnm->y_pos) * x_size + pnm->x_pos];
+			int y_elev = elev[mxy];
 			
 			// get sprite
 			Sprite* frame = pnm->anim->frames[pnm->frame_ofs];
@@ -1735,7 +1858,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 			// render sprite
 			int mxx = (pnm->x_pos - xs_ofs)*80 + pnm->x_ofs + ((((pnm->y_pos - ys_ofs*2) & 1) != 0) ? 0 : 40);
 			int myy = (pnm->y_pos - ys_ofs * 2) * 24 + pnm->y_ofs - y_elev*18 + MSYOFS + 50;
-			frame->Render(pic, pic_end, mxx, myy, pic_x_size);
+			frame->Render(pic, pic_end, mxx, myy, pic_x_size, fil);
 		}
 	}
 
@@ -1749,14 +1872,14 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 			break;
 		for (n = 0; n < xs_size; n++)
 		{
-			if (n + xs_ofs >= x_size - 1)
+			if (n + xs_ofs >= x_size)
 				break;
 			int mxy = ConvXY(n + xs_ofs, m + ys_ofs * 2);
 
 			// select view area
 			uint8_t* filter = NULL;
 			if(!TileIsVisible(n + xs_ofs,m + ys_ofs*2))
-				filter = terrain->filter.darkpal;
+				filter = terrain->filter.darkpal;			
 
 			// tile selected
 			int is_selected = (msel.size() && msel[0].IsSelected() && msel[0].x - xs_ofs == n && msel[0].y - ys_ofs*2 == m);
@@ -1770,6 +1893,14 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 			// L2 tile
 			Sprite* sid2 = L2[mxy];
 
+			// game mode view range
+			int hide_units = game_mode && units_view[mxy] == 1;
+			if(game_mode && units_view[mxy] == 0)
+				continue;
+			else if(hide_units)
+				filter = terrain->filter.darkpal;
+			
+
 			// render origin
 			int mxx = n * 80 + (((m & 1) != 0) ? 0 : 40);
 			int myy = m * 24 - sof * 18 + MSYOFS + 50/* + sid->y_ofs*/;
@@ -1778,7 +1909,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 			for (int pass = 0; pass < 3; pass++)
 			{										
 				// units render:
-				while (wUnits && unit)
+				while (wUnits && unit && !hide_units)
 				{
 					// unit animation frame selection
 					int frame, azimuth;
@@ -1795,13 +1926,13 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 
 					if ((pass == 0 && unit->unit->isAir()) || pass == 2)
 					{
-						int top_y_ofs = unit->Render(terrain, pic, pic_end, mxx, myy, pic_x_size, sid, w_unit_hud,azimuth, frame);
+						int top_y_ofs = unit->Render(terrain, pic, pic_end, mxx, myy, pic_x_size, filter, sid, w_unit_hud,azimuth, frame);
 
 						// render selection pointer for selected unit
 						if(unit_selection && unit_selection->coor.IsEqual(n + xs_ofs,m + ys_ofs * 2))
 						{
 							Sprite* frame = pnm_sipka.anim->frames[pnm_sipka.frame_ofs];
-							frame->Render(pic, pic_end, mxx, myy + top_y_ofs - pnm_sipka.anim->y_max - 8, pic_x_size);
+							frame->Render(pic, pic_end, mxx, myy + top_y_ofs - pnm_sipka.anim->y_max - 8, pic_x_size, filter);
 						}
 					}
 					else
@@ -1818,6 +1949,13 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 	}
 
 
+	MapUnit *unit = GetSelectedUnit();
+	MapXY t_pos = GetSelection(bmp, scroll);
+	/*if(unit && t_pos.IsSelected())
+		FindUnitPath(unit, t_pos);*/
+	
+	if(unit && t_pos.IsSelected())
+		FindUnitRange(unit);
 
 	
 	// show debug order lines
@@ -1848,13 +1986,13 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 	}
 
 	// DEBUG: render mean elevations (for units view range)
-	for(m = 0; m < ys_size; m++)
+	/*for(m = 0; m < ys_size; m++)
 	{
 		if(m + ys_ofs * 2 >= y_size)
 			break;
 		for(n = 0; n < xs_size; n++)
 		{
-			if(n + xs_ofs >= x_size - 1)
+			if(n + xs_ofs >= x_size)
 				break;
 			int x_pos = n + xs_ofs;
 			int y_pos = m + ys_ofs*2;
@@ -1875,6 +2013,37 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 
 			terrain->font7->Render(pic, pic_end, pic_x_size, mxx, myy + spr->y_ofs, 80, spr->y_size, hstr, 252, 254, SpellFont::DIAG);
 		}
+	}*/
+
+	// Debug: render remaining ap/fire
+	for(m = 0; m < ys_size; m++)
+	{
+		if(m + ys_ofs * 2 >= y_size)
+			break;
+		for(n = 0; n < xs_size; n++)
+		{
+			if(n + xs_ofs >= x_size)
+				break;
+			int x_pos = n + xs_ofs;
+			int y_pos = m + ys_ofs*2;
+			int mxy = ConvXY(x_pos,y_pos);
+
+			// get view height map elevation
+			int ap_left = unit_ap_left[mxy];
+			if(ap_left < 0)
+				continue;
+			string hstr = string_format("%d",ap_left);
+
+			// get tile
+			Sprite* spr = L1[mxy];
+			int sof = elev[mxy];
+
+			// render sprite
+			int mxx = n * 80 + (((m & 1) != 0) ? 0 : 40);
+			int myy = m * 24 - sof * 18 + MSYOFS + 50;
+
+			terrain->font7->Render(pic,pic_end,pic_x_size,mxx,myy + spr->y_ofs,80,spr->y_size,hstr,252,254,SpellFont::DIAG);
+		}
 	}
 
 
@@ -1884,7 +2053,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 	MapUnit* cursor_unit = GetCursorUnit(bmp, scroll);
 		
 	// render HUD
-	RenderHUD(pic, pic_end, pic_x_size, cursor_unit, hud_buttons_cb);
+	RenderHUD(pic, pic_end, pic_x_size, &cursor, cursor_unit, hud_buttons_cb);
 
 	
 	
@@ -1933,6 +2102,293 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 	return(0);
 }
 
+
+
+AStarNode::AStarNode()
+{
+	g_cost = INIT_COST;
+	h_cost = INIT_COST;
+	f_cost = INIT_COST;
+	closed = false;
+	pos ={0,0};
+	parent_pos ={-1,-1};
+}
+
+
+// call before unit range finder is used when map is loaded
+int SpellMap::InitUnitRangeStuff()
+{
+	// make default nodes
+	AStarNode node_init;
+	unit_range_nodes_buffer.assign(x_size*y_size,node_init);
+
+	// fill with tile addresses
+	auto* p_node = &unit_range_nodes_buffer.at(0);
+	for(int y = 0; y < y_size; y++)
+		for(int x = 0; x < x_size; x++)
+		{
+			p_node->pos = MapXY(x,y);
+			p_node++;
+		}	
+
+	// init unit range map
+	unit_ap_left.assign(x_size*y_size,-1);
+	unit_fire_left.assign(x_size*y_size,-1);
+
+	return(0);
+}
+
+// find walkable range of unit
+int SpellMap::FindUnitRange(MapUnit* unit)
+{	
+	// processed tiles flags
+	vector<int> done(x_size*y_size,false);
+
+	// recoursive tiles search buffer
+	vector<int> dirz;
+	vector<MapXY> posz;
+	dirz.reserve(500);
+	posz.reserve(500);
+
+	// initial tile
+	dirz.push_back(-1);
+	posz.push_back(unit->coor);
+	done[ConvXY(unit->coor)] = true;
+
+	// clear range filters
+	filter.assign(x_size*y_size, NULL);
+	unit_ap_left.assign(x_size*y_size,-1);
+	unit_fire_left.assign(x_size*y_size,-1);
+
+	int count = 0;
+	vector<int> times;
+
+	// recoursively expand move range untill no path is found
+	while(true)
+	{		
+		dirz.back()++;
+		if(dirz.back() >= 4)
+		{
+			// this tile is done
+			dirz.pop_back();
+			posz.pop_back();
+			if(dirz.empty())
+			{
+				// all done				
+				return(0);
+			}			
+		}
+
+		// look for next neighbor
+		MapXY neig_pos = GetNeighborTile(posz.back(), dirz.back());
+		if(!neig_pos.IsSelected())
+			continue;
+
+		// skip done tiles
+		if(done[ConvXY(neig_pos)])
+			continue;
+		done[ConvXY(neig_pos)] = true;
+
+		count++;
+
+		auto start = std::chrono::high_resolution_clock::now();
+
+		// try to get path to target tile
+		auto path = FindUnitPath(unit, neig_pos);
+
+		auto stop = std::chrono::high_resolution_clock::now();
+		auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
+
+		times.push_back(duration.count());
+		
+		if(path.empty())
+			continue;
+
+		// check AP limit
+		/*if(path.back().g_cost > 50)
+			continue;*/
+		
+		// mark tiles accessible
+		int ap_left = unit->action_points - path.back().g_cost;
+		int fire_count = unit->GetFireCount(ap_left);
+		unit_ap_left[ConvXY(neig_pos)] = ap_left;
+		unit_fire_left[ConvXY(neig_pos)] = fire_count;
+		if(fire_count)
+			filter[ConvXY(neig_pos)] = terrain->filter.bluepal;
+		else
+			filter[ConvXY(neig_pos)] = terrain->filter.dbluepal;
+
+
+		// path found and all tests ok: step forward in recursion
+		dirz.push_back(-1);
+		posz.push_back(neig_pos);
+	}
+
+	
+
+	return(1);
+}
+
+// try to find path for unit to target position
+vector<AStarNode> SpellMap::FindUnitPath(MapUnit* unit, MapXY target)
+{
+	// local nodes map
+	vector<AStarNode> *nodes = &unit_range_nodes;
+	
+	auto start = std::chrono::high_resolution_clock::now();
+
+	// init local nodes map
+	nodes->resize(x_size*y_size);
+	memcpy(&nodes->at(0), &unit_range_nodes_buffer[0],x_size*y_size*sizeof(AStarNode));
+			
+	auto stop = std::chrono::high_resolution_clock::now();
+	auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
+			
+	// path start position
+	MapXY start_pos = unit->coor;
+	
+	// list of active nodes
+	vector<AStarNode*> open_set;
+	open_set.reserve(500);
+
+	// initial tile
+	open_set.push_back(&nodes->at(ConvXY(start_pos)));
+	open_set.back()->f_cost = 0;
+	open_set.back()->h_cost = 0;
+	open_set.back()->g_cost = 0;
+
+	// unit maximum AP
+	int max_ap = unit->GetMaxAP();
+
+	int count = 0;
+
+	while(true)
+	{
+		// look for lowest cost node
+		int init_node = 0;
+		while(init_node < open_set.size() && !open_set[init_node])
+			init_node++;
+		if(init_node >= open_set.size())
+			break; // done with fail
+
+		AStarNode* current_node = open_set[init_node];
+		int min_cost_id = init_node;
+		for(int k = init_node+1; k < open_set.size(); k++)
+		{
+			if(!open_set[k])
+				continue;
+			if(open_set[k]->f_cost < current_node->f_cost ||
+				open_set[k]->g_cost == current_node->g_cost && open_set[k]->h_cost < current_node->h_cost)
+			{
+				current_node = open_set[k];
+				min_cost_id = k;
+			}
+			count++;
+		}	
+		// remove it from open nodes
+		open_set.erase(open_set.begin() + min_cost_id);
+		//open_set[min_cost_id] = NULL;
+		// close it
+		current_node->closed = true;
+
+		if(current_node->pos == target)
+		{
+			// found path: retrace
+			vector<AStarNode> path;
+			
+			//path.push_back(*current_node);
+
+			path.reserve(30);
+			while(true)
+			{
+				path.push_back(*current_node);
+				if(!current_node->parent_pos.IsSelected())
+					break;
+				current_node = &nodes->at(ConvXY(current_node->parent_pos));
+			};
+			reverse(path.begin(),path.end());
+
+			return(path);
+		}
+
+		// current sprite
+		Sprite *current_spr = L1[ConvXY(current_node->pos)];
+		int current_slope = current_spr->GetSlope();
+
+		// for each neighbor:
+		for(int nid = 0; nid < 8; nid++)
+		{
+			MapXY n_pos = GetTileNeihgborXY(current_node->pos, nid);
+			if(!n_pos.IsSelected())
+				continue;
+			AStarNode *neighbor_node = &nodes->at(ConvXY(n_pos));
+
+			// skip if closed
+			if(neighbor_node->closed)
+				continue;
+
+			// basic AP/step
+			double ap_step_w = (double)unit->GetWalkAP();
+			// finite AP/step
+			double ap_step = ap_step_w;
+
+			// tile flags
+			int flag = flags[ConvXY(n_pos)];
+
+			// get L1 sprite
+			Sprite* spr = L1[ConvXY(n_pos)];
+			int class_flags = spr->GetFlags();
+			int slope = spr->GetSlope();
+			
+			
+			if(!unit->unit->isAir())
+			{
+				if(flag == 0x60 || flag == 0x40  || flag == 0x30 || flag == 0x20 || flag == 0x10)
+					continue;
+				
+				if(unit->unit->isLight() && flag == 0x90)
+					ap_step = (ap_step_w*10.0/9.0);
+				else if(flag == 0x90)
+					continue;
+				else if(slope != 'A' && current_slope != 'A')
+					ap_step = (ap_step_w*11.0/9.0);
+
+				// modify step cost for various terrains	
+				double cost = 1.0;
+				if(class_flags & Sprite::IS_DIRT_ROAD)
+					cost = 0.9;
+				else if(class_flags & Sprite::IS_ROAD)
+					cost = 0.75;
+				ap_step *= cost;
+			}						
+												
+			// potential neighbor costs
+			int next_g = current_node->g_cost + (int)round(ap_step*current_node->pos.Distance(n_pos));
+			int next_h = ap_step_w*neighbor_node->pos.Distance(target);
+			int next_f = next_g + next_h;
+
+			// leave if exceeded AP count
+			if(next_g > max_ap)
+				continue;
+
+			if(neighbor_node->f_cost == AStarNode::INIT_COST || neighbor_node->f_cost > next_f)
+			{
+				// new node or better node: replace
+				neighbor_node->g_cost = next_g;
+				neighbor_node->h_cost = next_h;
+				neighbor_node->f_cost = next_f;
+				neighbor_node->parent_pos = current_node->pos;
+				open_set.push_back(neighbor_node);
+			}
+		}		
+	}
+
+	// fail: return empty path
+	vector<AStarNode> path;
+	return(path);
+}
+
+
 // select unit, if currently selected at the same position, switch between air-land
 MapUnit* SpellMap::SelectUnit(MapUnit* new_unit)
 {
@@ -1979,12 +2435,37 @@ MapUnit* SpellMap::GetSelectedUnit()
 	return(unit_selection);
 }
 
-// render game mode HUD
-int SpellMap::RenderHUD(uint8_t *buf,uint8_t* buf_end,int buf_x_size,MapUnit *cursor_unit,std::function<void(void)> hud_buttons_cb)
+
+// set mission HUD enable state
+int SpellMap::SetHUDstate(int state)
 {
-	static MapUnit *last_cursor_unit = NULL;
-	static MapUnit *last_selected_unit = NULL;
-		
+	int old_state = hud_enabled;
+	hud_enabled = state;
+	return(old_state);
+}
+// get mission HUD state
+int SpellMap::GetHUDstate()
+{	
+	return(hud_enabled);
+}
+
+// render game mode HUD
+int SpellMap::RenderHUD(uint8_t *buf,uint8_t* buf_end,int buf_x_size,MapXY *cursor, MapUnit *cursor_unit,std::function<void(void)> hud_buttons_cb)
+{
+	static int last_hud_state = -1;
+	static MapUnit* last_cursor_unit = NULL;
+	static MapUnit* last_selected_unit = NULL;
+
+	if(!hud_enabled)
+	{
+		// is disabled: just clear HUD buttons		
+		ClearHUDbuttons();
+		if(hud_buttons_cb)
+			hud_buttons_cb();
+		last_hud_state = hud_enabled;
+		return(0);
+	}
+			
 	auto& gres = spelldata->gres;
 	auto& font = spelldata->font;
 	SpellGraphicItem *img;
@@ -2006,7 +2487,7 @@ int SpellMap::RenderHUD(uint8_t *buf,uint8_t* buf_end,int buf_x_size,MapUnit *cu
 
 	// render side fillings
 	img = gres.wm_hud_sides;
-	y_ofs = surf_y_origin + surf_y - img->y_size - 1;
+	y_ofs = surf_y_origin + surf_y - img->y_size;
 	x_ofs = hud_right;
 	for(; x_ofs < surf_x_origin+surf_x; x_ofs += img->x_size)
 		img->Render(buf,buf_end,buf_x_size,x_ofs,y_ofs);
@@ -2073,20 +2554,7 @@ int SpellMap::RenderHUD(uint8_t *buf,uint8_t* buf_end,int buf_x_size,MapUnit *cu
 		// pos a: 216,83
 		int defense = unit->unit->def;
 		font->Render(buf,buf_end,buf_x_size,hud_left+px_ref+216,hud_top+83,string_format("%02d",defense),232,254,SpellFont::RIGHT_DOWN);
-		
-
-		// fire count bar
-		const struct {int x; int y;} fire_pos[6] = {{88,52},{88,47},{88,42},{88,37},{88,32},{88,27}};
-		int fire_count = unit->GetFireCount();
-		int max_fire_count = unit->GetMaxFireCount();
-		for(int k = 0; k < max_fire_count; k++)
-		{
-			auto pos = &fire_pos[k];	
-			if(k <= fire_count)
-				gres.red_led_on->Render(buf, buf_end, buf_x_size,hud_left+px_ref+pos->x,hud_top+pos->y);
-			else
-				gres.red_led_off->Render(buf,buf_end,buf_x_size,hud_left+px_ref+pos->x,hud_top+pos->y);
-		}
+				
 
 		// render dig level
 		const struct { int x; int y; } dig_level[6] ={{97,79},{102,77},{106,73},{108,68},{109,63},{109,58}};
@@ -2132,10 +2600,26 @@ int SpellMap::RenderHUD(uint8_t *buf,uint8_t* buf_end,int buf_x_size,MapUnit *cu
 		// pos a: 83,56
 		font->Render(buf,buf_end,buf_x_size,hud_left+px_ref+83,hud_top+56,string_format("%02d",ap),230,254,SpellFont::RIGHT_DOWN);
 
+		// fire count bar
+		const struct { int x; int y; } fire_pos[6] ={{88,52},{88,47},{88,42},{88,37},{88,32},{88,27}};
+		int ap_left = 0;
+		if(cursor->IsSelected() && unit_ap_left[ConvXY(cursor)] >= 0)
+			ap_left = unit_ap_left[ConvXY(cursor)];
+		int fire_count = unit->GetFireCount(ap_left);
+		int max_fire_count = unit->GetMaxFireCount();
+		for(int k = 0; k < max_fire_count; k++)
+		{
+			auto pos = &fire_pos[k];
+			if(k <= fire_count)
+				gres.red_led_on->Render(buf,buf_end,buf_x_size,hud_left+px_ref+pos->x,hud_top+pos->y);
+			else
+				gres.red_led_off->Render(buf,buf_end,buf_x_size,hud_left+px_ref+pos->x,hud_top+pos->y);
+		}
+
 		// render state text
 		// pos: 244,77  size: 150,16
 		if((pid == 0 && !cursor_unit) || (pid == 1 && unit_selection))
-			font->Render(buf,buf_end,buf_x_size,hud_left+244,hud_top+77,150,16,string_format("ab: %d / attack: %d",ap,fire_count),232,254,SpellFont::DIAG2);
+			font->Render(buf,buf_end,buf_x_size,hud_left+244,hud_top+77,150,16,string_format("ab: %d / attack: %d",ap_left,fire_count),232,254,SpellFont::DIAG2);
 
 		// render unit icon
 		// pos a: 1,23  size: 60x50
@@ -2171,7 +2655,7 @@ int SpellMap::RenderHUD(uint8_t *buf,uint8_t* buf_end,int buf_x_size,MapUnit *cu
 	}	
 
 	// modify HUD buttons?
-	int state_chaned = isRenderSurfModified() || cursor_unit != last_cursor_unit || unit_selection != last_selected_unit;
+	int state_chaned = isRenderSurfModified() || cursor_unit != last_cursor_unit || unit_selection != last_selected_unit || hud_enabled != last_hud_state;
 
 	if(state_chaned && hud_buttons_cb)
 	{		
@@ -2185,7 +2669,7 @@ int SpellMap::RenderHUD(uint8_t *buf,uint8_t* buf_end,int buf_x_size,MapUnit *cu
 		
 		if(!cursor_unit)
 		{
-			CreateHUDbutton(gres.wm_glyph_map,hud_origin,btn_right[0],buf,buf_end,buf_x_size,0,NULL,NULL);
+			CreateHUDbutton(gres.wm_glyph_map,hud_origin,btn_right[0],buf,buf_end,buf_x_size,HUD_ACTION_MINIMAP,NULL,NULL);
 			CreateHUDbutton((unit_sel_land_preference)?(gres.wm_glyph_ground):(gres.wm_glyph_air),hud_origin,btn_right[1],buf,buf_end,buf_x_size,0,bind(&SpellMap::OnHUDswitchAirLand,this),NULL);
 			CreateHUDbutton(gres.wm_glyph_goto_unit,hud_origin,btn_right[2],buf,buf_end,buf_x_size,0,NULL,NULL);
 			CreateHUDbutton(gres.wm_glyph_end_turn,hud_origin,btn_right[3],buf,buf_end,buf_x_size,0,NULL,NULL);
@@ -2200,6 +2684,7 @@ int SpellMap::RenderHUD(uint8_t *buf,uint8_t* buf_end,int buf_x_size,MapUnit *cu
 	}
 
 	// store last units for change detection
+	last_hud_state = hud_enabled;
 	last_cursor_unit = cursor_unit;
 	last_selected_unit = unit_selection;
 
@@ -2317,13 +2802,14 @@ SpellBtnHUD* SpellMap::CreateHUDbutton(SpellGraphicItem* glyph,t_xypos &hud_pos,
 int SpellMap::PrepareUnitsViewMask()
 {
 	// allocate mask
-	const int tile_size = 10;
-	const int mask_x_size = (x_size)*tile_size + tile_size/2;
-	const int mask_y_size = 10*tile_size + (y_size) * (tile_size/2) + 10*tile_size;
+	const int tile_size = units_view_mask_size;
+	units_view_mask_x_size = (x_size)*tile_size + tile_size/2 + 2;
+	units_view_mask_y_size = (y_size + 1) * (tile_size/2) + 2;
 	if(!units_view_mask.size())
 	{
-		units_view_map.assign(mask_x_size*mask_y_size,0);
-		units_view_mask.assign(mask_x_size*mask_y_size,0);
+		units_view_map.assign(units_view_mask_x_size*units_view_mask_y_size,0);
+		units_view_mask.assign(units_view_mask_x_size*units_view_mask_y_size,0);
+		units_view_mask_0.assign(units_view_mask_x_size*units_view_mask_y_size,0);
 	}
 	
 	// render mask
@@ -2333,28 +2819,56 @@ int SpellMap::PrepareUnitsViewMask()
 		{
 			int mxy = ConvXY(x,y);	
 
-			// tile origin
-			int mxx = x*tile_size + (((y & 1) != 0) ? 0 : tile_size/2);
-			int myy = y*(tile_size/2);
+			// tile origin (local coordinate system)
+			int mxx = 1 + x*tile_size + (((y & 1) != 0) ? 0 : tile_size/2);
+			int myy = 1 + y*(tile_size/2);
 
+			// this tile L1 sprite
+			Sprite *spr = L1[mxy];
+			int flag = flags[mxy];
+
+			// sprite origin (sprite coordinate system)
+			double sxx = -40.0;
+			double syy = -40.0;
+			double ssx = 80.0/(tile_size-2);
+			double ssy = 80.0/(tile_size-1);
+			
 			for(int n = 0; n < tile_size; n++)
 			{
 				for(int m = 0; m < tile_size-1; m++)
 				{
 					if((n < tile_size/2 && m >= (tile_size/2-1 - n) && m <= (tile_size/2-1 + n)) || (n >= tile_size/2 && m >= (n-tile_size/2) && m <= (tile_size-1+tile_size/2-1 - n)))
 					{
-						// get mean elevation of tile
-						TFxyz vert[4];
-						L1[mxy]->GetTileModel(vert);
-						double h = 0;
-						for(int k = 0; k < 4; k++)
-							h += vert[k].z;
-						h *= 0.25;
+						// get elevation of tile at this relative position
+						double h = spr->GetTileZ(sxx + ssx*m, -(syy + ssy*n));
 						// add terrain elevation
 						h += elev[mxy]*Sprite::TILE_ELEVATION;
-						
-						units_view_mask[mxx+m + (myy+n)*mask_x_size] = (unsigned)h;
-						units_view_map[mxx+m + (myy+n)*mask_x_size] = mxy;
+
+						// store basic elevation (without objects)
+						units_view_mask_0[mxx+m + (myy+n)*units_view_mask_x_size] = (unsigned)max(h,0.0);
+						units_view_map[mxx+m + (myy+n)*units_view_mask_x_size] = mxy;
+
+						// include L2 objects to mask
+						if(flag == 0x90)
+						{
+							// tree and stuff: elevate center part of tile
+							const int rfrm = 1;
+							if((n >= rfrm+1 && n < tile_size/2 && m >= tile_size/2-1+rfrm-n && m <= tile_size/2-1-rfrm+n) ||
+								(n >= tile_size/2 && n <= tile_size-rfrm-2 && m >= n-tile_size/2+rfrm-0 && m <= tile_size-1+tile_size/2-1-n-(rfrm-0)))
+								h += 20.0;
+						}
+						else if(flag == 0x10 || flag == 0x20 || flag == 0x30)
+						{
+							// houses: elevete by hopefully height of object? this is unlear, but makes sense flag code is actual sprite z-size
+							h += flag;
+						}
+						else if(flag == 0xA0 || flag == 0xB0 || flag == 0xC0 || flag == 0xD0 || flag == 0xE0 || flag == 0xF0)
+						{
+							// walls: full blocking
+							if(n > 0 && n < tile_size-1 && m > 0 && m < tile_size-2)
+								h += Sprite::TILE_ELEVATION;
+						}						
+						units_view_mask[mxx+m + (myy+n)*units_view_mask_x_size] = (unsigned)max(h,0.0);						
 					}
 				}
 			}
@@ -2364,13 +2878,48 @@ int SpellMap::PrepareUnitsViewMask()
 	return(1);
 }
 
-// get unit view map and mask <map tile ID, height>, where <x,y> are units_view...[] related coordinates (not equal to main render coordinates!)
-tuple<int,int> SpellMap::GetUnitsViewMask(int x, int y)
+// render units view elevation map (mask) to bitmap
+// do not forget destroy returned object!
+wxBitmap *SpellMap::ExportUnitsViewZmap()
 {
-	const int tile_size = 10;
-	const int mask_x_size = (x_size)*tile_size + tile_size/2;
-	const int mask_y_size = 10*tile_size + (y_size) * (tile_size/2) + 10*tile_size;
-	return tuple(units_view_map[x + y*mask_x_size],units_view_mask[x + y*mask_x_size]);
+	// make raster for entire map
+	wxBitmap *bmp = new wxBitmap(wxSize(units_view_mask_x_size, units_view_mask_y_size), 24);
+
+	// get max Z
+	int max_h = 0;
+	for(auto & tile_h : units_view_mask)
+		max_h = max(max_h, tile_h);
+	int gain = 65535/max_h;
+	
+	// render 24bit RGB data to raw bmp buffer
+	uint8_t* src = &units_view_mask[0];
+	wxNativePixelData data(*bmp);
+	wxNativePixelData::Iterator p(data);
+	for(int y = 0; y < units_view_mask_y_size; y++)
+	{
+		uint8_t* scan = p.m_ptr;
+		for(int x = 0; x < units_view_mask_x_size; x++)
+		{
+			uint8_t pix = (((uint32_t)*src*gain)>>8);
+			*scan++ = pix;
+			*scan++ = pix;
+			*scan++ = pix;
+			src++;
+		}
+		p.OffsetY(data,1);
+	}
+	return(bmp);
+}
+
+// get unit view map and mask <map tile ID, height>, where <x,y> are units_view...[] related coordinates (not equal to main render coordinates!)
+tuple<int,int> SpellMap::GetUnitsViewMask(int x, int y,int plain_tile_id)
+{
+	int tile_id = units_view_map[x + y*units_view_mask_x_size];
+	if(plain_tile_id == tile_id)
+		return tuple(tile_id, units_view_mask_0[x + y*units_view_mask_x_size]);
+	else
+		return tuple(tile_id, units_view_mask[x + y*units_view_mask_x_size]);
+
 }
 
 // get unit view map/mask center coordinates <x,y,z> of tile (these are related to local units_vies... coordinates), the mxy or <x,y> are tile coordinates
@@ -2380,14 +2929,55 @@ tuple<int,int,int> SpellMap::GetUnitsViewTileCenter(MapXY mxy)
 }
 tuple<int,int,int> SpellMap::GetUnitsViewTileCenter(int x,int y)
 {
-	const int tile_size = 10;
-	const int mask_x_size = (x_size)*tile_size + tile_size/2;
-	const int mask_y_size = 10*tile_size + (y_size) * (tile_size/2) + 10*tile_size;
 	// tile origin
-	int mxx = x*tile_size + (((y & 1) != 0) ? 0 : tile_size/2) + tile_size/2;
-	int myy = y*(tile_size/2) + tile_size/2;
-	return tuple(mxx,myy,units_view_mask[mxx + myy*mask_x_size]);
+	int mxx = 1 + x*units_view_mask_size + (((y & 1) != 0) ? 0 : units_view_mask_size/2) + units_view_mask_size/2;
+	int myy = 1 + y*(units_view_mask_size/2) + units_view_mask_size/2;
+	return tuple(mxx,myy,units_view_mask_0[mxx + myy*units_view_mask_x_size]);
 }
+
+// get unit view map/mask pixel coordinates <x,y,z> of tile (these are related to local units_vies... coordinates), the mxy or <x,y> are tile coordinates
+vector<Txyz> SpellMap::GetUnitsViewTilePixels(MapXY mxy,int all)
+{
+	return(GetUnitsViewTilePixels(mxy.x,mxy.y,all));
+}
+vector<Txyz> SpellMap::GetUnitsViewTilePixels(int x,int y,int all)
+{
+	const int tile_size = units_view_mask_size;
+	// tile origin
+	int mxx = 1 + x*tile_size + (((y & 1) != 0) ? 0 : tile_size/2);
+	int myy = 1 + y*(tile_size/2);
+	
+	// make list of all belonging pixels
+	vector<Txyz> list;
+	if(all)
+	{
+		list.reserve(tile_size*tile_size);
+		for(int n = 0; n < tile_size; n++)
+		{
+			for(int m = 0; m < tile_size-1; m++)
+			{
+				if((n < tile_size/2 && m >= (tile_size/2-1 - n) && m <= (tile_size/2-1 + n)) || (n >= tile_size/2 && m >= (n-tile_size/2) && m <= (tile_size-1+tile_size/2-1 - n)))
+				{
+					list.emplace_back(mxx+m,myy+n,(int)(unsigned)units_view_mask_0[mxx+m + (myy+n)*units_view_mask_x_size]);
+				}
+			}
+		}
+	}
+	else
+	{
+		// only selection of points (center + corners)
+		list.reserve(5);
+		list.emplace_back(mxx+tile_size/2,myy+tile_size/2,(int)(unsigned)units_view_mask_0[mxx+tile_size/2 + (myy+tile_size/2)*units_view_mask_x_size]);
+		list.emplace_back(mxx+tile_size/2,myy+0,(int)(unsigned)units_view_mask_0[mxx+tile_size/2 + (myy+0)*units_view_mask_x_size]);
+		list.emplace_back(mxx+tile_size/2,myy+tile_size-1,(int)(unsigned)units_view_mask_0[mxx+tile_size/2 + (myy+tile_size-1)*units_view_mask_x_size]);
+		list.emplace_back(mxx+0,myy+tile_size/2,(int)(unsigned)units_view_mask_0[mxx+0 + (myy+tile_size/2)*units_view_mask_x_size]);
+		list.emplace_back(mxx+tile_size-2,myy+tile_size/2,(int)(unsigned)units_view_mask_0[mxx+tile_size-2 + (myy+tile_size/2)*units_view_mask_x_size]);
+	}
+	return(list);
+}
+
+
+
 
 // reset units view state to desired state
 int SpellMap::ClearUnitsView(int to_unseen)
@@ -2406,7 +2996,8 @@ int SpellMap::ClearUnitsView(int to_unseen)
 			for(auto & pos : units_view)
 				if(pos == 2)
 					pos = 1;
-	}
+	}		
+
 	return(0);
 }
 
@@ -2420,7 +3011,8 @@ int SpellMap::AddUnitView(MapUnit *unit)
 	int ref_view = unit->unit->sdir;
 
 	// reference position
-	MapXY &ref_pos = unit->coor;
+	MapXY ref_pos = unit->coor;
+	int ref_mxy = ConvXY(ref_pos);
 	int ref_alt = elev[ConvXY(ref_pos)];
 
 	// recursion buffer
@@ -2440,6 +3032,7 @@ int SpellMap::AddUnitView(MapUnit *unit)
 	units_view[ConvXY(ref_pos)] = 2;
 
 	// proceed recoursively till max visibility
+	int count = 0;
 	while(true)
 	{
 		// go to next direction
@@ -2462,9 +3055,9 @@ int SpellMap::AddUnitView(MapUnit *unit)
 		int next_mxy = ConvXY(next_pos);
 
 		// skip if already done
-		if(units_view[next_mxy] > 1)
+		if(units_view[next_mxy] > 2)
 			continue;
-
+		
 		// next tile elevation
 		int next_alt = elev[next_mxy];
 		int view = ref_view + max(ref_alt-next_alt,0); // expand if terget lower than ref
@@ -2473,54 +3066,128 @@ int SpellMap::AddUnitView(MapUnit *unit)
 		if((next_pos.Distance(ref_pos)-0.5) > view)
 			continue; // nope: goto next tile
 		// mark this tile as potentially visible (to stop recursion)
-		units_view[next_mxy] += 3;
+		units_view[next_mxy] += 3;				
+		
+		// -- send ray to target tile to find out if it is visible:				
+		if(units_view[next_mxy] < 5) // only if was not visible before
+		{
+			// multisampling mode
+			const int msx_ofs[4] ={1,-1,0,0};
+			const int msy_ofs[4] ={0,0,1,-1};
+			const int ms_count = 4;
+		
+			// get list of all points belonging target tile (in view mask coordinate system)
+			auto target_pix = GetUnitsViewTilePixels(next_pos);
+			// for each target point: send ray and check if the tartget point is visible, if at least one ray is, mark tile as visible
+			for(auto & target_pos : target_pix)
+			{
+				// get view ray initial coordinates (unit)
+				auto [x0,y0,z0b] = GetUnitsViewTileCenter(ref_pos);				
+				int z0 = (int)z0b;
+				if(unit->unit->isAir())
+					z0 += 100; // air-unit height estimate
+				else
+					z0 += 15; // unit height estimate
+
+				count++;
+
+				// get target coordinates
+				int x1 = target_pos.x;
+				int y1 = target_pos.y;
+				int z1 = target_pos.z;
+				z1 += 4; // target height estimate
+		
+				// based on: http://members.chello.at/easyfilter/bresenham.html
+				int dx = abs(x1-x0),sx = x0<x1 ? 1 : -1;
+				int dy = abs(y1-y0),sy = y0<y1 ? 1 : -1;
+				int dz = abs(z1-z0),sz = z0<z1 ? 1 : -1;
+				int dm = max(max(dx,dy),dz),i = dm; // maximum difference
+				x1 = y1 = z1 = dm/2; // error offset
+
+				int last_tile_id = -1;
+				for(;;) {  // loop
 				
-		
-		// send ray to target tile to find out if it is visible:
-		
-		// get view ray initial coordinates (unit)
-		auto [x0,y0,z0] = GetUnitsViewTileCenter(ref_pos);
-		z0 += 15; // unit height estimate		
-		// get target coordinates
-		auto [x1,y1,z1] = GetUnitsViewTileCenter(next_pos);
-		z1 += 1; // target height estimate
-		
-		// based on: http://members.chello.at/easyfilter/bresenham.html
-		int dx = abs(x1-x0),sx = x0<x1 ? 1 : -1;
-		int dy = abs(y1-y0),sy = y0<y1 ? 1 : -1;
-		int dz = abs(z1-z0),sz = z0<z1 ? 1 : -1;
-		int dm = max(max(dx,dy),dz),i = dm; // maximum difference
-		x1 = y1 = z1 = dm/2; // error offset
-
-		int pass = true;
-		int last_tile_id = -1;
-		for(;;) {  // loop
-			auto [tile_id,hx] = GetUnitsViewMask(x0,y0);
-			if(pass && tile_id == next_mxy)
-			{
-				// target reached: mark tile as visible and done
-				units_view[next_mxy] = 2;
-				break;
-			}
-			if(tile_id != last_tile_id)
-			{
-				// ray hit ground: stop here
-				if(!pass)
-					break;
-				pass = false;
-			}
-			// at least one pixel of crossed tile must be visible
-			if(z0 >= hx)
-				pass = true;
-
+					auto [tile_id,hx] = GetUnitsViewMask(x0,y0,ref_mxy);
+					// multisampling test (tries to send ray with +-1pixel offset)
+					int pass = (ms_count == 0);
+					for(int k = 0; k < ms_count; k++)
+					{
+						auto [ms_tile_id,ms_hx] = GetUnitsViewMask(x0 + msx_ofs[k],y0 + msy_ofs[k],ref_mxy);
+						if(z0 >= ms_hx/* && ms_tile_id == tile_id*/)
+						{
+							pass = true;
+							break;
+						}
+					}
+					if(tile_id == next_mxy)
+					{
+						// target reached: mark tile as visible and done
+						units_view[next_mxy] = 5;
+						break;
+					}
+					// at least one pixel of crossed tile must be visible
+					if(!pass)
+						break;
 			
-			last_tile_id = tile_id;
+					last_tile_id = tile_id;
 
-			if(i-- == 0) break;
-			x1 -= dx; if(x1 < 0) { x1 += dm; x0 += sx; }
-			y1 -= dy; if(y1 < 0) { y1 += dm; y0 += sy; }
-			z1 -= dz; if(z1 < 0) { z1 += dm; z0 += sz; }
+					if(i-- == 0) break;
+					x1 -= dx; if(x1 < 0) { x1 += dm; x0 += sx; }
+					y1 -= dy; if(y1 < 0) { y1 += dm; y0 += sy; }
+					z1 -= dz; if(z1 < 0) { z1 += dm; z0 += sz; }
+				}
+				// done if ray passed to target
+				if(units_view[next_mxy] == 5)
+					break;
+			}
 		}
+
+		// -- expand viewto entire objects (houses)
+		vector<int> hdir;
+		vector<MapXY> hpos;
+		hdir.push_back(0);
+		hpos.push_back(next_pos);
+		int mxy = ConvXY(next_pos);
+		if(flags[mxy] == 0x10 || flags[mxy] == 0x20 || flags[mxy] == 0x30)
+		{
+			while(1)
+			{			
+				// go to next direction
+				hdir.back()++;
+				if(hdir.back() > 4)
+				{
+					// this recursion level is done: revert back
+					hdir.erase(hdir.end()-1);
+					hpos.erase(hpos.end()-1);
+					if(!hdir.size())
+						break; // all done
+					continue;
+				}
+				MapXY hthis_pos = hpos.back();
+
+				// try look for next position
+				MapXY hnext_pos = GetNeighborTile(hthis_pos,hdir.back()-1);
+				if(!hnext_pos.IsSelected())
+					continue;
+				int hnext_mxy = ConvXY(hnext_pos);
+
+				// skip if already done
+				if(units_view[hnext_mxy] > 2)
+					continue;
+
+				// skip if not house
+				if(flags[hnext_mxy] != 0x10 && flags[hnext_mxy] != 0x20 && flags[hnext_mxy] != 0x30)
+					continue;
+
+				// mark as seen
+				units_view[hnext_mxy] = 5;
+
+				// proceed to next position
+				hdir.push_back(0);
+				hpos.push_back(hnext_pos);
+			}
+		}
+
 
 		// proceed to next position allowed
 		dirz.push_back(0);
@@ -2532,6 +3199,21 @@ int SpellMap::AddUnitView(MapUnit *unit)
 		if(tile > 2)
 			tile -= 3;
 
+	return(count);
+}
+
+// add view range of all units of given type
+int SpellMap::AddUnitsView(int unit_type)
+{
+	for(auto & unit : units)
+	{
+		// filter unit types to view
+		if(unit->is_enemy && !(unit_type & UNIT_TYPE_OS) || !unit->is_enemy && !(unit_type & UNIT_TYPE_ALIANCE))
+			continue;
+		
+		// add view mask
+		AddUnitView(unit);
+	}
 	return(0);
 }
 
@@ -3148,13 +3830,11 @@ MapXY SpellMap::GetTileNeihgborXY(int x, int y, int angle)
 	const int xlsta[8]={+1,+1, 0, 0,-1, 0, 0,+1};
 	const int xlstb[8]={+1, 0, 0,-1,-1,-1, 0, 0};
 	const int ylst[8] ={0,-1,-2,-1, 0,+1,+2,+1};
-
-	MapXY nxy;
-	if(angle < 0 || angle > 7)
-		return(nxy);
+	MapXY nxy;	
 	nxy.x = x + ((y&1)?xlstb[angle]:xlsta[angle]);
 	nxy.y = y + ylst[angle];
-
+	if(nxy.x < 0 || nxy.x >= x_size || nxy.y < 0 || nxy.y >= y_size)
+		nxy = {-1,-1};
 	return(nxy);
 }
 

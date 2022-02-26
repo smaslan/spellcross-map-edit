@@ -1477,6 +1477,10 @@ int Terrain::Load(wstring &path)
 		}
 	}
 
+	// generate neutral filter
+	for(unsigned k = 0; k < 256; k++)
+		filter.nullpal[k] = k;
+
 	// free archive
 	delete fs;
 

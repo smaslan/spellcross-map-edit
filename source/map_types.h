@@ -16,7 +16,7 @@ public:
 	int y;
 	int IsSelected() {return(x >= 0 && y >= 0);};
 	int IsEqual(int x, int y) {return(this->x == x && this->y == y);};
-	MapXY() {x=0;y=0;};
+	MapXY() {x=-1;y=-1;};
 	MapXY(int xpos, int ypos) { x=xpos;y=ypos; };
 	// geometric distance of tile
 	double Distance(MapXY mxy) { return(Distance(mxy.x,mxy.y)); };
@@ -59,6 +59,10 @@ public:
 	int operator == (MapXY par)
 	{		
 		return(this->x == par.x && this->y == par.y);
+	}
+	int operator != (MapXY par)
+	{
+		return(this->x != par.x || this->y != par.y);
 	}
 };
 

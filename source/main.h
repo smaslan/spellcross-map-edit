@@ -20,6 +20,15 @@
 #include <wx/ribbon/bar.h>
 
 
+class TMiniMap {
+public:
+    wxBitmap* bmp;
+    int source_x_ofs;
+    int source_y_ofs;
+    int source_x;
+    int source_y;
+};
+
 
 // main
 class MyApp : public wxApp
@@ -50,8 +59,15 @@ private:
     void OnNewMap(wxCommandEvent& event);
     void OnExit(wxCommandEvent& event);
     void OnAbout(wxCommandEvent& event);
-
     void OnClose(wxCloseEvent& ev);
+
+    void CreateMiniMapDialog(TMiniMap& minimap);
+    void OnPaintMapView(wxPaintEvent& event);
+    void OnMapViewKeyDown(wxKeyEvent& event);
+    void OnMapViewMouseUp(wxMouseEvent& event);
+
+    void OnSwitchGameMode(wxCommandEvent& event);
+    void OnResetUnitView(wxCommandEvent& event);
 
     void OnPaint(wxPaintEvent& event);
     void OnResize(wxSizeEvent& event);
@@ -60,12 +76,12 @@ private:
 
     void OnSetGamma(wxCommandEvent& event);
     void OnViewTools(wxCommandEvent& event);
-    //void OnViewToolsClose(wxWindowDestroyEvent& ev);
     void OnViewSprites(wxCommandEvent& event);
     void OnViewObjects(wxCommandEvent& event);
     void OnViewPal(wxCommandEvent& event);
     void OnViewGrRes(wxCommandEvent& event);
-    //void OnViewObjectsClose(wxWindowDestroyEvent& ev);
+    void OnViewVoxZ(wxCommandEvent& event);
+    void OnViewMiniMap(wxCommandEvent& event);
     void OnUpdateTileContext(wxCommandEvent& event);
     void OnUpdateTileContextMaps(wxCommandEvent& event);    
     void OnSelectAll(wxCommandEvent& event);
@@ -90,9 +106,7 @@ private:
     void OnCanvasKeyDown(wxKeyEvent& event);
     void OnCanvasLMouseDown(wxMouseEvent& event);
     wxBitmap m_buffer;
-
     
-
     wxPanel* canvas;
     
     wxBoxSizer* sizer;
@@ -118,7 +132,7 @@ private:
     void OnHUDbuttonsMouseEnter(wxMouseEvent& event);
     void OnHUDbuttonsLeave(wxMouseEvent& event);
     void OnHUDbuttonsClick(wxMouseEvent& event);
-    vector<wxPanel*> hud_buttons;
+    vector<wxPanel*> hud_buttons;    
 
     enum
     {
@@ -127,11 +141,16 @@ private:
         ID_SPRITES_WIN,
         ID_TOOLS_WIN,
         ID_PAL_WIN,
-        ID_GRES_WIN
+        ID_GRES_WIN,
+        ID_MINIMAP_WIN
     };
     static constexpr int ID_HUD_BASE = 3000;
     static constexpr int ID_TOOL_BASE = 10000;
     static constexpr int ID_TOOL_CLASS_STEP = 100;
+
+    // maximum size of minimap panel
+    static constexpr int MAX_MINIMAP_X = 1000;
+    static constexpr int MAX_MINIMAP_Y = 400;
 };
 
 
@@ -152,12 +171,18 @@ enum
 {
     ID_OpenMap = 100,
     ID_NewMap,
+    ID_mmGameMode,
+    ID_mmResetViewMap,
     ID_ViewTer,
     ID_ViewObj,
     ID_ViewAnm,
     ID_ViewPnm,
     ID_ViewUnt,
     ID_ViewStTa,
+    ID_ViewHUD,
+    ID_ViewVoxZ,
+    ID_ViewMiniMap,
+    ID_ExportVoxZ,
     ID_SetGamma,
     ID_ViewSprites,
     ID_ViewPal,

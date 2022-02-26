@@ -5,17 +5,19 @@
 #include <wx/wx.h>
 #endif
 
-#include "wx/dcgraph.h"
-#include "wx/dcbuffer.h"
+#include <wx/dcgraph.h>
+#include <wx/dcbuffer.h>
 #include <wx/rawbmp.h>
 #include <wx/timer.h>
 #include <wx/filedlg.h>
-#include "wx/slider.h"
+#include <wx/slider.h>
+#include <wx/stdpaths.h>
 
 #include <filesystem>
 #include <codecvt>
 #include <tuple>
 #include <string>
+#include <chrono>
 
 #include "main.h"
 #include "other.h"
@@ -109,6 +111,13 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     menuFile->Append(ID_NewMap,"&Ceate new Map\tCtrl-N","Create new map.");
     menuFile->AppendSeparator();
     menuFile->Append(wxID_EXIT);
+
+    // Game menu
+    wxMenu* menuGame = new wxMenu;
+    menuGame->Append(ID_mmGameMode,"Game mode\tCtrl-G","Switch game mode",wxITEM_CHECK);
+    menuGame->AppendSeparator();
+    menuGame->Append(ID_mmResetViewMap,"Reset view map","");
+    
     
     // View menu
     wxMenu* menuView = new wxMenu;
@@ -124,8 +133,11 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     menuView->FindItem(ID_ViewUnt)->Check(true);
     menuView->Append(ID_ViewStTa,"Layer 6: Start/Target\tF6","",wxITEM_CHECK);
     menuView->FindItem(ID_ViewStTa)->Check(true);
+    menuView->Append(ID_ViewHUD,"Show mission HUD panel\tCtrl+H","",wxITEM_CHECK);
+    menuView->FindItem(ID_ViewHUD)->Check(spell_map->GetHUDstate());    
     menuView->Append(wxID_ANY,"","",wxITEM_SEPARATOR);
-    menuView->Append(ID_SetGamma,"Set gamma","",wxITEM_NORMAL);
+    menuView->Append(ID_SetGamma,"Set gamma","",wxITEM_NORMAL);    
+
 
     // edit menu
     wxMenu* menuEdit = new wxMenu;
@@ -146,7 +158,11 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     menuTools->Append(ID_ViewTools, "Tools editor", "", wxITEM_NORMAL);
     menuTools->Append(ID_ViewPal,"Palette viewer","",wxITEM_NORMAL);
     menuTools->Append(ID_ViewGRes,"Graphics viewer","",wxITEM_NORMAL);
-    menuTools->Append(ID_SetGamma,"","",wxITEM_SEPARATOR);
+    menuTools->Append(wxID_ANY,"","",wxITEM_SEPARATOR);
+    menuTools->Append(ID_ViewMiniMap,"View mini-map","",wxITEM_NORMAL);
+    menuTools->Append(ID_ViewVoxZ,"View Z-map","",wxITEM_NORMAL);
+    menuTools->Append(ID_ExportVoxZ,"Export Z-map","",wxITEM_NORMAL);
+    menuTools->Append(wxID_ANY,"","",wxITEM_SEPARATOR);
     menuTools->Append(ID_UpdateSprContext, "Update tile context from map","",wxITEM_NORMAL);
     menuTools->Append(ID_UpdateSprContextMaps,"Update tile context from ALL maps","",wxITEM_NORMAL);
     
@@ -158,6 +174,7 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     // Main menu
     wxMenuBar* menuBar = new wxMenuBar;    
     menuBar->Append(menuFile, "&File");
+    menuBar->Append(menuGame, "&Game");
     menuBar->Append(menuEdit, "&Edit");
     menuBar->Append(menuView, "&View");
     menuBar->Append(menuTools,"&Tools");
@@ -216,10 +233,13 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
 
     Bind(wxEVT_CLOSE_WINDOW, &MyFrame::OnClose, this);
     
-    Bind(wxEVT_MENU, &MyFrame::OnOpenMap, this, ID_OpenMap);
+    Bind(wxEVT_MENU,&MyFrame::OnOpenMap, this, ID_OpenMap);
     Bind(wxEVT_MENU,&MyFrame::OnNewMap,this,ID_NewMap);
-    Bind(wxEVT_MENU, &MyFrame::OnAbout, this, wxID_ABOUT);
-    Bind(wxEVT_MENU, &MyFrame::OnExit, this, wxID_EXIT);
+    Bind(wxEVT_MENU,&MyFrame::OnAbout, this, wxID_ABOUT);
+    Bind(wxEVT_MENU,&MyFrame::OnExit, this, wxID_EXIT);
+
+    Bind(wxEVT_MENU,&MyFrame::OnSwitchGameMode,this,ID_mmGameMode);
+    Bind(wxEVT_MENU,&MyFrame::OnResetUnitView,this,ID_mmResetViewMap);
 
     Bind(wxEVT_MENU,&MyFrame::OnViewLayer,this,ID_ViewTer);
     Bind(wxEVT_MENU,&MyFrame::OnViewLayer,this,ID_ViewObj);
@@ -227,6 +247,7 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     Bind(wxEVT_MENU,&MyFrame::OnViewLayer,this,ID_ViewPnm);
     Bind(wxEVT_MENU,&MyFrame::OnViewLayer,this,ID_ViewUnt);
     Bind(wxEVT_MENU,&MyFrame::OnViewLayer,this,ID_ViewStTa);
+    Bind(wxEVT_MENU,&MyFrame::OnViewLayer,this,ID_ViewHUD);
 
     Bind(wxEVT_MENU,&MyFrame::OnSetGamma,this,ID_SetGamma);
     Bind(wxEVT_MENU,&MyFrame::OnViewSprites,this,ID_ViewSprites);
@@ -234,6 +255,9 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     Bind(wxEVT_MENU,&MyFrame::OnViewTools, this, ID_ViewTools);
     Bind(wxEVT_MENU,&MyFrame::OnViewPal,this,ID_ViewPal);
     Bind(wxEVT_MENU,&MyFrame::OnViewGrRes,this,ID_ViewGRes);
+    Bind(wxEVT_MENU,&MyFrame::OnViewVoxZ,this,ID_ViewVoxZ);
+    Bind(wxEVT_MENU,&MyFrame::OnViewVoxZ,this,ID_ExportVoxZ);
+    Bind(wxEVT_MENU,&MyFrame::OnViewMiniMap,this,ID_ViewMiniMap);
     Bind(wxEVT_MENU,&MyFrame::OnUpdateTileContext,this,ID_UpdateSprContext);
     Bind(wxEVT_MENU,&MyFrame::OnUpdateTileContextMaps,this,ID_UpdateSprContextMaps);
 
@@ -309,9 +333,21 @@ void MyFrame::OnClose(wxCloseEvent& ev)
 }
 
 
+// on switch game mode
+void MyFrame::OnSwitchGameMode(wxCommandEvent& event)
+{
+    auto is_game = GetMenuBar()->FindItem(ID_mmGameMode)->IsChecked();
+    spell_map->SetGameMode(is_game);
+    canvas->Refresh();
+}
 
-
-
+// on reset view range in game mode
+void MyFrame::OnResetUnitView(wxCommandEvent& event)
+{
+    spell_map->ClearUnitsView(true);
+    spell_map->InvalidateUnitsView();
+    canvas->Refresh();
+}
 
 
 // map animation periodic refresh tick
@@ -447,6 +483,12 @@ void MyFrame::OnHUDbuttonsClick(wxMouseEvent& event)
         // click event callback?
         if(!btn->is_press && btn->cb_press)
             btn->cb_press();
+        if(btn->action_id == SpellMap::HUD_ACTION_MINIMAP)
+        {
+            // show minimap
+            wxCommandEvent cmd(wxEVT_MENU);
+            OnViewMiniMap(cmd);
+        }
     }
 }
 
@@ -462,6 +504,8 @@ void MyFrame::OnViewLayer(wxCommandEvent& event)
     bool wL5 = GetMenuBar()->FindItem(ID_ViewUnt)->IsChecked();
     bool wSS = GetMenuBar()->FindItem(ID_ViewStTa)->IsChecked();
     spell_map->SetRender(wL1,wL2,wL3,wL4,wSS,wL5);
+    bool hud = GetMenuBar()->FindItem(ID_ViewHUD)->IsChecked();
+    spell_map->SetHUDstate(hud);
     Refresh();
 }
 
@@ -589,6 +633,165 @@ void MyFrame::OnViewGrRes(wxCommandEvent& event)
 }
 
 
+// creates minimap dialog window with bmp image scaled down to limit size
+void MyFrame::CreateMiniMapDialog(TMiniMap &minimap)
+{
+    
+    int xs = minimap.bmp->GetWidth();
+    int ys = minimap.bmp->GetHeight();
+    if(xs > MAX_MINIMAP_X || ys >= MAX_MINIMAP_Y)
+    {
+        // resize to fit
+        wxImage img = minimap.bmp->ConvertToImage();
+        delete minimap.bmp;
+        double scale = min((double)MAX_MINIMAP_X/xs,(double)MAX_MINIMAP_Y/ys);
+        xs = (int)(scale*xs);
+        ys = (int)(scale*ys);
+        img.Rescale(xs,ys,wxIMAGE_QUALITY_HIGH);
+        minimap.bmp = new wxBitmap(img);
+    }
+    int pxs = GetClientSize().x;
+    int pys = GetClientSize().y;
+    wxPoint pos = wxPoint((pxs - xs)/2 + GetPosition().x,(pys - ys)/2 + GetPosition().y);
+    wxDialog* map_form = new wxDialog(this,ID_MINIMAP_WIN,"Spellcross map",pos,wxSize(xs,ys));
+    wxSize csize = map_form->GetClientSize();
+    map_form->SetSize(wxSize(2*xs-csize.x,2*ys-csize.y));
+    map_form->SetClientData(&minimap);
+    map_form->SetDoubleBuffered(true);
+    map_form->Bind(wxEVT_PAINT,&MyFrame::OnPaintMapView,this,ID_MINIMAP_WIN);
+    map_form->Bind(wxEVT_KEY_DOWN,&MyFrame::OnMapViewKeyDown,this,ID_MINIMAP_WIN);
+    map_form->Bind(wxEVT_LEFT_UP,&MyFrame::OnMapViewMouseUp,this,ID_MINIMAP_WIN);
+    map_form->Bind(wxEVT_LEFT_DOWN,&MyFrame::OnMapViewMouseUp,this,ID_MINIMAP_WIN);
+    map_form->Bind(wxEVT_MOTION,&MyFrame::OnMapViewMouseUp,this,ID_MINIMAP_WIN);
+    map_form->ShowModal();
+    map_form->Destroy();
+}
+void MyFrame::OnPaintMapView(wxPaintEvent& event)
+{
+    // get bitmap to render
+    wxDialog* panel = (wxDialog*)event.GetEventObject();
+    TMiniMap* minimap = (TMiniMap*)panel->GetClientData();
+    wxBitmap* bmp = minimap->bmp;
+    // render map
+    wxPaintDC pdc(panel);
+    pdc.DrawBitmap(*bmp,wxPoint(0,0));
+    // render selection:
+    int bmp_x = bmp->GetWidth();
+    int bmp_y = bmp->GetHeight();
+    //auto [map_x,map_y] = spell_map->GetMapSurfaceSize();
+    int surf_x = m_buffer.GetWidth();
+    int surf_y = m_buffer.GetHeight();
+    auto [scroll_x,scroll_y] = scroll.GetScroll();
+    scroll_x -= minimap->source_x_ofs;
+    scroll_y -= minimap->source_y_ofs;
+    wxPoint c1 = wxPoint(scroll_x*bmp_x/minimap->source_x,scroll_y*bmp_y/minimap->source_y);
+    wxPoint c2 = wxPoint(min((scroll_x+surf_x)*bmp_x/minimap->source_x,bmp_x),min((scroll_y+surf_y)*bmp_y/minimap->source_y,bmp_y));
+    pdc.SetBrush(wxBrush(wxColor(0,0,0),wxBRUSHSTYLE_TRANSPARENT));
+    pdc.SetPen(wxPen(wxColor(255,0,0),3));
+    pdc.DrawRectangle(c1.x, c1.y, c2.x-c1.x, c2.y-c1.y);
+    event.Skip();
+}
+void MyFrame::OnMapViewKeyDown(wxKeyEvent& event)
+{
+    if(event.GetKeyCode() == WXK_ESCAPE)
+    {
+        wxDialog* panel = (wxDialog*)event.GetEventObject();
+        panel->EndModal(wxID_OK);
+    }
+
+}
+void MyFrame::OnMapViewMouseUp(wxMouseEvent& event)
+{
+    if(!event.LeftIsDown() && event.GetEventType() != wxEVT_LEFT_UP)
+        return;
+    // get bitmap to render
+    wxDialog* panel = (wxDialog*)event.GetEventObject();
+    TMiniMap* minimap = (TMiniMap*)panel->GetClientData();
+    wxBitmap* bmp = minimap->bmp;
+    // current position
+    int bmp_x = bmp->GetWidth();
+    int bmp_y = bmp->GetHeight();
+    //auto [map_x,map_y] = spell_map->GetMapSurfaceSize();
+    int surf_x = m_buffer.GetWidth();
+    int surf_y = m_buffer.GetHeight();
+    int point_x = event.GetX();
+    int point_y = event.GetY();
+    // set new pos
+    int pos_x = point_x*minimap->source_x/bmp_x - surf_x/2 + minimap->source_x_ofs;
+    int pos_y = point_y*minimap->source_y/bmp_y - surf_y/2 + minimap->source_y_ofs;
+    scroll.SetPos(pos_x,pos_y);
+    scroll.CheckScroll(minimap->source_x_ofs,minimap->source_y_ofs, minimap->source_x - surf_x + minimap->source_x_ofs,minimap->source_y - surf_y + minimap->source_y_ofs);
+    // repaint map
+    panel->Refresh();
+    canvas->Refresh();
+}
+
+
+// export voxel map elevation raster
+void MyFrame::OnViewVoxZ(wxCommandEvent& event)
+{    
+    wxBitmap* bmp = spell_map->ExportUnitsViewZmap();
+    if(event.GetId() == ID_ViewVoxZ)
+    {
+        // view only:
+        auto [map_x,map_y] = spell_map->GetMapSurfaceSize();
+        TMiniMap minimap ={bmp, 0,0,map_x,map_y};
+        CreateMiniMapDialog(minimap);
+    }
+    else if(event.GetId() == ID_ExportVoxZ)
+    {
+        // export to file:
+        // 
+        // split path to folder and file
+        std::filesystem::path last_path = wxStandardPaths::Get().GetExecutablePath().ToStdWstring();
+        wstring dir = last_path.parent_path(); dir += wstring(L"\\");
+        wstring name = last_path.filename();
+
+        // show open dialog
+        wxFileDialog saveFileDialog(this,_("Save voxel map elevation"),dir,name,"PNG file (*.png)|*.png",wxFD_SAVE);
+        if(saveFileDialog.ShowModal() == wxID_CANCEL)
+            return;
+        wstring path = wstring(saveFileDialog.GetPath().ToStdWstring());
+
+        // expor as PNG
+        bmp->SaveFile(path,wxBITMAP_TYPE_PNG);
+    }
+    delete bmp;
+}
+// view minimap
+void MyFrame::OnViewMiniMap(wxCommandEvent& event)
+{
+    // make local scroll object with zero scroll state
+    TScroll scrl;
+    scrl.Reset();
+    
+    // obtain redner surface range
+    auto [pic_x,pic_y] = spell_map->GetMapSurfaceSize();
+    int hud_state = spell_map->SetHUDstate(false);
+    wxBitmap* buf = new wxBitmap(1,1,24);
+    scrl.SetPos(0,0);
+    spell_map->RenderPrepare(*buf, &scrl);    
+    auto [x1,y1] = scrl.GetScroll();
+    scrl.SetPos(pic_x,pic_y);
+    spell_map->RenderPrepare(*buf,&scrl);
+    auto [x2,y2] = scrl.GetScroll();
+    delete buf;
+    
+    // make local render buffer for entire map size    
+    buf = new wxBitmap(x2-x1, y2-y1, 24);
+    scrl.SetPos(0,0);
+    spell_map->Render(*buf, &scrl);
+    spell_map->SetHUDstate(hud_state);
+    
+    // ceate panel
+    TMiniMap minimap = {buf, x1, y1, x2-x1, y2-y1};
+    CreateMiniMapDialog(minimap);
+    delete buf;
+}
+
+
+
+
 // create new object
 void MyFrame::OnCreateNewObject(wxCommandEvent& event)
 {
@@ -670,14 +873,25 @@ void MyFrame::OnCanvasMouseMove(wxMouseEvent& event)
     {
         // change unit position
         unit->coor = mxy;
-        // sort units before rendering
-        spell_map->SortUnits();
+        unit->was_moved = true;
 
+        // force recalculation of units view map
+        spell_map->InvalidateUnitsView();
+
+        //auto start = std::chrono::high_resolution_clock::now();
+        /*spell_map->ClearUnitsView(false);
+        spell_map->AddUnitsView();        
         spell_map->ClearUnitsView(true);
-        spell_map->AddUnitView(unit);
+        int count = spell_map->AddUnitView(unit);
+        //auto stop = std::chrono::high_resolution_clock::now();
+        //auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
+        //StatusStringCallback(string_format("%d",duration));
+        StatusStringCallback(string_format("%d",count));*/
+        
     }
     
     canvas->Refresh();
+    //event.Skip();
 }
 void MyFrame::OnCanvasMouseWheel(wxMouseEvent& event)
 {

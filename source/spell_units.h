@@ -114,7 +114,8 @@ class SpellUnitRec
 		SpellGraphicItem *icon_glyph;
 
 		SpellUnitRec();
-		tuple<int,int> Render(uint8_t* buffer, uint8_t* buf_end, int buf_x_pos, int buf_y_pos, int buf_x_size, uint8_t* shadow_filter, Sprite *sprt, int azim, int frame);
+		tuple<int,int> Render(uint8_t* buffer, uint8_t* buf_end, int buf_x_pos, int buf_y_pos, int buf_x_size,
+			uint8_t* filter,uint8_t* shadow_filter, Sprite *sprt, int azim, int frame);
 		
 
 		int isAir();
