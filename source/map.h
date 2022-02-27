@@ -12,6 +12,8 @@
 #include "windows.h"
 #include "cstdint"
 #include <vector>
+#include <thread>
+#include <mutex>
 #include <list>
 #include <string>
 #include <tuple>
@@ -266,6 +268,7 @@ class SpellMap
 
 		// currently selected unit
 		MapUnit *unit_selection;
+		int unit_selection_mod;
 		int unit_sel_land_preference;
 		// current view state of map tiles
 		vector<int> units_view;
@@ -281,7 +284,21 @@ class SpellMap
 		vector<AStarNode> unit_range_nodes; // this is working buffer
 		vector<int> unit_ap_left;
 		vector<int> unit_fire_left;
-		int InitUnitRangeStuff();
+		thread *unit_range_th;
+		int unit_range_th_control;
+		MapUnit unit_range_th_unit;
+		mutex unit_range_th_lock;
+		int unit_range_view_mode;
+		uint8_t *GetUnitRangeFilter(int mxy);
+		int FindUnitRangeLock(bool state);
+		int FindUnitRange_th();
+		int InitUnitRangeStuff();		
+		int viewingUnitMoveRange() {return(unit_range_view_mode == UNIT_RANGE_MOVE);};
+		int viewingUnitAttackRange() { return(unit_range_view_mode == UNIT_RANGE_ATTACK);};
+		static constexpr int UNIT_RANGE_TH_IDLE = 0x00;
+		static constexpr int UNIT_RANGE_TH_RUN = 0x01;
+		static constexpr int UNIT_RANGE_TH_STOP = 0x02;
+		static constexpr int UNIT_RANGE_TH_EXIT = 0x03;		
 		// units moved flag (can be set to force view tiles recalc)
 		int units_moved;
 		void SortUnits();
@@ -417,6 +434,7 @@ class SpellMap
 
 		MapUnit *GetCursorUnit(wxBitmap& bmp,TScroll* scroll);
 		MapUnit *SelectUnit(MapUnit* new_unit);
+		int UnitChanged(int clear=false);
 		MapUnit* GetSelectedUnit();
 		int PrepareUnitsViewMask();
 		wxBitmap *ExportUnitsViewZmap();
@@ -426,6 +444,10 @@ class SpellMap
 		void InvalidateUnitsView();
 		vector<AStarNode> FindUnitPath(MapUnit* unit,MapXY target);
 		int FindUnitRange(MapUnit* unit);
+		int SetUnitRangeViewMode(int mode);
+		static constexpr int UNIT_RANGE_NONE = 0x00;
+		static constexpr int UNIT_RANGE_MOVE = 0x01;
+		static constexpr int UNIT_RANGE_ATTACK = 0x02;
 
 
 		void SetRender(bool wL1, bool wL2, bool wL3, bool wL4, bool wSECI, bool wUnits);
@@ -456,6 +478,8 @@ class SpellMap
 		enum{
 			HUD_ACTION_MINIMAP = 1000
 		};
+
+		
 };
 
 

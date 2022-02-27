@@ -235,6 +235,9 @@ SpellMap::SpellMap()
 
 	unit_selection = NULL;
 	hud_enabled = true;
+
+	unit_range_th = NULL;
+	unit_range_th_control = UNIT_RANGE_TH_IDLE;
 }
 
 SpellMap::~SpellMap()
@@ -268,6 +271,20 @@ wstring SpellMap::GetTopPath()
 void SpellMap::Close()
 {
 	int k;
+
+	// cleanup unit range calculator
+	unit_range_nodes.clear();
+	unit_range_nodes_buffer.clear();
+	unit_ap_left.clear();
+	unit_fire_left.clear();
+	if(unit_range_th)
+	{
+		unit_range_th_control = UNIT_RANGE_TH_EXIT;
+		unit_range_th->join();
+		delete unit_range_th;
+		unit_range_th = NULL;
+	}
+
 	// loose terrain
 	if(L1)
 		delete[] L1;
@@ -323,7 +340,9 @@ void SpellMap::Close()
 	units_view_mask.clear();
 	units_view_mask_0.clear();
 	units_view_map.clear();
-
+	
+	SetUnitRangeViewMode(UNIT_RANGE_NONE);
+	
 	msel.clear();
 
 	filter.clear();
@@ -1595,6 +1614,9 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 	// check if units position moved since last test (and clear movement flags)
 	int units_moved = UnitsMoved();
 
+	// check if unit selection changed
+	int unit_changed = UnitChanged(true);
+
 	if(units_moved && game_mode)
 	{
 		// update view mask (this should be probably somewhere else?)
@@ -1606,6 +1628,13 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 	if(units_moved)
 		SortUnits();
 
+	// initialize unit view recalculation
+	MapUnit* unit = GetSelectedUnit();	
+	if(units_moved || unit_changed)
+		FindUnitRange(unit);
+
+	// lock stuff while rendering
+	FindUnitRangeLock(true);
 	
 	// --- Render Layer 1 - ground sprites ---
 	for (m = 0; m < ys_size; m++)
@@ -1619,7 +1648,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 			int mxy = ConvXY(n + xs_ofs,m + ys_ofs*2);
 
 			// select view area
-			uint8_t *fil = NULL;
+			uint8_t *fil = GetUnitRangeFilter(mxy);
 			if(!TileIsVisible(n + xs_ofs,m + ys_ofs*2))
 				fil = terrain->filter.darkpal;
 
@@ -1700,7 +1729,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 			int mxy = ConvXY(anm->x_pos, anm->y_pos);
 
 			// game mode view range
-			uint8_t* fil = NULL;
+			uint8_t* fil = GetUnitRangeFilter(mxy);
 			if(game_mode && units_view[mxy] == 0)
 				continue;
 			else if(game_mode && units_view[mxy] == 1)
@@ -1737,7 +1766,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 				int mxy = ConvXY(pos->x,pos->y);
 
 				// game mode view range
-				uint8_t* fil = NULL;
+				uint8_t* fil = GetUnitRangeFilter(mxy);
 				if(game_mode && units_view[mxy] == 0)
 					continue;
 				else if(game_mode && units_view[mxy] == 1)
@@ -1805,7 +1834,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 			int mxy = ConvXY(n + xs_ofs, m + ys_ofs*2);
 
 			// game mode view range
-			uint8_t* fil = NULL;
+			uint8_t* fil = GetUnitRangeFilter(mxy);
 			if(game_mode && units_view[mxy] == 0)
 				continue;
 			else if(game_mode && units_view[mxy] == 1)
@@ -1843,7 +1872,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 			int mxy = ConvXY(pnm->x_pos, pnm->y_pos);
 
 			// game mode view range
-			uint8_t* fil = NULL;
+			uint8_t* fil = GetUnitRangeFilter(mxy);
 			if(game_mode && units_view[mxy] == 0)
 				continue;
 			else if(game_mode && units_view[mxy] == 1)
@@ -1877,7 +1906,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 			int mxy = ConvXY(n + xs_ofs, m + ys_ofs * 2);
 
 			// select view area
-			uint8_t* filter = NULL;
+			uint8_t* filter = GetUnitRangeFilter(mxy);
 			if(!TileIsVisible(n + xs_ofs,m + ys_ofs*2))
 				filter = terrain->filter.darkpal;			
 
@@ -1947,15 +1976,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 			}
 		}
 	}
-
-
-	MapUnit *unit = GetSelectedUnit();
-	MapXY t_pos = GetSelection(bmp, scroll);
-	/*if(unit && t_pos.IsSelected())
-		FindUnitPath(unit, t_pos);*/
-	
-	if(unit && t_pos.IsSelected())
-		FindUnitRange(unit);
+		
 
 	
 	// show debug order lines
@@ -2015,7 +2036,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 		}
 	}*/
 
-	// Debug: render remaining ap/fire
+	// Debug: render remaining ap/fire	
 	for(m = 0; m < ys_size; m++)
 	{
 		if(m + ys_ofs * 2 >= y_size)
@@ -2028,11 +2049,15 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 			int y_pos = m + ys_ofs*2;
 			int mxy = ConvXY(x_pos,y_pos);
 
+			if(!GetUnitRangeFilter(mxy))
+				continue;
+
 			// get view height map elevation
 			int ap_left = unit_ap_left[mxy];
-			if(ap_left < 0)
+			int fire_left = unit_fire_left[mxy];
+			if(fire_left < 1)
 				continue;
-			string hstr = string_format("%d",ap_left);
+			string hstr = string_format("%c %d",29,fire_left);
 
 			// get tile
 			Sprite* spr = L1[mxy];
@@ -2042,7 +2067,8 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 			int mxx = n * 80 + (((m & 1) != 0) ? 0 : 40);
 			int myy = m * 24 - sof * 18 + MSYOFS + 50;
 
-			terrain->font7->Render(pic,pic_end,pic_x_size,mxx,myy + spr->y_ofs,80,spr->y_size,hstr,252,254,SpellFont::DIAG);
+			//terrain->font7->Render(pic,pic_end,pic_x_size,mxx,myy + spr->y_ofs,80,spr->y_size,hstr,252,254,SpellFont::DIAG);
+			terrain->font7->Render(pic,pic_end,pic_x_size,mxx,myy + spr->y_ofs,80,spr->y_size,hstr,252,254,SpellFont::RIGHT_DOWN);
 		}
 	}
 
@@ -2055,6 +2081,9 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 	// render HUD
 	RenderHUD(pic, pic_end, pic_x_size, &cursor, cursor_unit, hud_buttons_cb);
 
+
+	// unlock stuff while rendering
+	FindUnitRangeLock(false);
 	
 	
 	// --- translate indexed image buffer to RGB bitmap scanline by scanline:
@@ -2135,99 +2164,198 @@ int SpellMap::InitUnitRangeStuff()
 	unit_ap_left.assign(x_size*y_size,-1);
 	unit_fire_left.assign(x_size*y_size,-1);
 
+	if(!unit_range_th)
+	{
+		unit_range_th_control = UNIT_RANGE_TH_IDLE;
+		unit_range_th = new thread(&SpellMap::FindUnitRange_th, this);
+	}
+
+	return(0);
+}
+
+
+// locks/unlocks data related to unit range
+int SpellMap::FindUnitRangeLock(bool state)
+{
+	if(state)
+		unit_range_th_lock.lock();
+	else
+		unit_range_th_lock.unlock();
 	return(0);
 }
 
 // find walkable range of unit
 int SpellMap::FindUnitRange(MapUnit* unit)
-{	
-	// processed tiles flags
-	vector<int> done(x_size*y_size,false);
-
-	// recoursive tiles search buffer
-	vector<int> dirz;
-	vector<MapXY> posz;
-	dirz.reserve(500);
-	posz.reserve(500);
-
-	// initial tile
-	dirz.push_back(-1);
-	posz.push_back(unit->coor);
-	done[ConvXY(unit->coor)] = true;
-
-	// clear range filters
-	filter.assign(x_size*y_size, NULL);
-	unit_ap_left.assign(x_size*y_size,-1);
-	unit_fire_left.assign(x_size*y_size,-1);
-
-	int count = 0;
-	vector<int> times;
-
-	// recoursively expand move range untill no path is found
-	while(true)
-	{		
-		dirz.back()++;
-		if(dirz.back() >= 4)
-		{
-			// this tile is done
-			dirz.pop_back();
-			posz.pop_back();
-			if(dirz.empty())
-			{
-				// all done				
-				return(0);
-			}			
-		}
-
-		// look for next neighbor
-		MapXY neig_pos = GetNeighborTile(posz.back(), dirz.back());
-		if(!neig_pos.IsSelected())
-			continue;
-
-		// skip done tiles
-		if(done[ConvXY(neig_pos)])
-			continue;
-		done[ConvXY(neig_pos)] = true;
-
-		count++;
-
-		auto start = std::chrono::high_resolution_clock::now();
-
-		// try to get path to target tile
-		auto path = FindUnitPath(unit, neig_pos);
-
-		auto stop = std::chrono::high_resolution_clock::now();
-		auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-
-		times.push_back(duration.count());
-		
-		if(path.empty())
-			continue;
-
-		// check AP limit
-		/*if(path.back().g_cost > 50)
-			continue;*/
-		
-		// mark tiles accessible
-		int ap_left = unit->action_points - path.back().g_cost;
-		int fire_count = unit->GetFireCount(ap_left);
-		unit_ap_left[ConvXY(neig_pos)] = ap_left;
-		unit_fire_left[ConvXY(neig_pos)] = fire_count;
-		if(fire_count)
-			filter[ConvXY(neig_pos)] = terrain->filter.bluepal;
-		else
-			filter[ConvXY(neig_pos)] = terrain->filter.dbluepal;
-
-
-		// path found and all tests ok: step forward in recursion
-		dirz.push_back(-1);
-		posz.push_back(neig_pos);
+{
+	if(unit_range_th_control != UNIT_RANGE_TH_IDLE)
+	{
+		// still running: terminate task before new task
+		unit_range_th_control = UNIT_RANGE_TH_STOP;
+		while(unit_range_th_control != UNIT_RANGE_TH_IDLE)
+			this_thread::sleep_for(1ms);
 	}
+	
+	// set new unit
+	if(unit)
+		unit_range_th_unit = *unit;
+	else
+		unit_range_th_unit.coor = {-1,-1};
 
 	
+	// start calculation
+	unit_range_th_control = UNIT_RANGE_TH_RUN;
 
 	return(1);
 }
+
+
+
+// find walkable range of unit thread
+int SpellMap::FindUnitRange_th()
+{		
+	// target unit
+	MapUnit* unit = &unit_range_th_unit;
+
+	// clear range filters
+	vector<int> unit_ap_left;
+	vector<int> unit_fire_left;
+	
+	while(unit_range_th_control != UNIT_RANGE_TH_EXIT)
+	{		
+		if(unit_range_th_control != UNIT_RANGE_TH_RUN)
+		{
+			// chill out till caller wants to do stuff..
+			unit_range_th_control = UNIT_RANGE_TH_IDLE;
+			this_thread::sleep_for(1ms);
+			continue;
+		}
+
+		// processed tiles flags
+		vector<int> done(x_size*y_size,false);
+
+		// clear range filters
+		unit_ap_left.assign(x_size*y_size,-1);
+		unit_fire_left.assign(x_size*y_size,-1);
+
+		if(!unit->coor.IsSelected())
+		{
+			FindUnitRangeLock(true);
+			this->unit_ap_left = unit_ap_left;
+			this->unit_fire_left = unit_fire_left;
+			FindUnitRangeLock(false);
+			unit_range_th_control = UNIT_RANGE_TH_IDLE;
+			continue;
+		}
+
+		// recoursive tiles search buffer
+		vector<int> dirz;
+		vector<MapXY> posz;
+		dirz.reserve(500);
+		posz.reserve(500);
+
+		// initial tile
+		dirz.push_back(-1);
+		posz.push_back(unit->coor);
+		done[ConvXY(unit->coor)] = true;
+		
+		int count = 0;
+		vector<int> times;
+
+		// recoursively expand move range untill no path is found
+		while(true)
+		{		
+			// leave if run no longer needed
+			if(unit_range_th_control != UNIT_RANGE_TH_RUN)
+				break;
+			
+			dirz.back()++;
+			if(dirz.back() >= 4)
+			{
+				// this tile is done
+				dirz.pop_back();
+				posz.pop_back();
+				if(dirz.empty())
+				{
+					// all done: store range data atomically
+					
+					FindUnitRangeLock(true);
+					this->unit_ap_left = unit_ap_left;
+					this->unit_fire_left = unit_fire_left;
+					FindUnitRangeLock(false);
+					unit_range_th_control = UNIT_RANGE_TH_IDLE;
+
+					break;
+				}			
+			}
+
+			// look for next neighbor
+			MapXY neig_pos = GetNeighborTile(posz.back(), dirz.back());
+			if(!neig_pos.IsSelected())
+				continue;
+
+			// skip done tiles
+			if(done[ConvXY(neig_pos)])
+				continue;
+			done[ConvXY(neig_pos)] = true;
+
+
+			// get tile infoz
+			Sprite* spr = L1[ConvXY(neig_pos)];
+			int flag = flags[ConvXY(neig_pos)];		
+			//int class_flags = spr->GetFlags();
+			//int slope = spr->GetSlope();
+
+			// skip invalid targets to save time
+			if(!unit->unit->isAir())
+			{
+				if(flag == 0x60 || flag == 0x40  || flag == 0x30 || flag == 0x20 || flag == 0x10)
+					continue;
+				if(flag == 0x90 && !unit->unit->isLight())
+					continue;
+			}
+
+
+			count++;
+
+			auto start = std::chrono::high_resolution_clock::now();
+
+			// try to get path to target tile
+			auto path = FindUnitPath(unit, neig_pos);
+
+			auto stop = std::chrono::high_resolution_clock::now();
+			auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
+
+			times.push_back(duration.count());
+		
+			if(path.empty())
+				continue;
+
+			// check AP limit
+			/*if(path.back().g_cost > 50)
+				continue;*/
+		
+			// mark tiles accessible
+			int ap_left = unit->action_points - path.back().g_cost;
+			int fire_count = unit->GetFireCount(ap_left);
+			unit_ap_left[ConvXY(neig_pos)] = ap_left;
+			unit_fire_left[ConvXY(neig_pos)] = fire_count;
+
+			// path found and all tests ok: step forward in recursion
+			dirz.push_back(-1);
+			posz.push_back(neig_pos);
+		}
+	}
+
+	return(0);
+}
+
+struct FindUnitPathCompareHeap
+{
+	bool operator()(AStarNode*& b,AStarNode*& a) const
+	{		
+		return((a->f_cost < b->f_cost || a->g_cost == b->g_cost && a->h_cost < b->h_cost));
+	}
+};
 
 // try to find path for unit to target position
 vector<AStarNode> SpellMap::FindUnitPath(MapUnit* unit, MapXY target)
@@ -2249,45 +2377,27 @@ vector<AStarNode> SpellMap::FindUnitPath(MapUnit* unit, MapXY target)
 	
 	// list of active nodes
 	vector<AStarNode*> open_set;
-	open_set.reserve(500);
+	open_set.reserve(500);	
 
 	// initial tile
 	open_set.push_back(&nodes->at(ConvXY(start_pos)));
 	open_set.back()->f_cost = 0;
 	open_set.back()->h_cost = 0;
 	open_set.back()->g_cost = 0;
+	push_heap(open_set.begin(),open_set.end(),FindUnitPathCompareHeap());
 
 	// unit maximum AP
 	int max_ap = unit->GetMaxAP();
 
 	int count = 0;
 
-	while(true)
+	while(open_set.size())
 	{
-		// look for lowest cost node
-		int init_node = 0;
-		while(init_node < open_set.size() && !open_set[init_node])
-			init_node++;
-		if(init_node >= open_set.size())
-			break; // done with fail
+		// look for lowest cost node	
+		pop_heap(open_set.begin(),open_set.end(),FindUnitPathCompareHeap());
+		AStarNode* current_node = open_set.back();
+		open_set.pop_back();		
 
-		AStarNode* current_node = open_set[init_node];
-		int min_cost_id = init_node;
-		for(int k = init_node+1; k < open_set.size(); k++)
-		{
-			if(!open_set[k])
-				continue;
-			if(open_set[k]->f_cost < current_node->f_cost ||
-				open_set[k]->g_cost == current_node->g_cost && open_set[k]->h_cost < current_node->h_cost)
-			{
-				current_node = open_set[k];
-				min_cost_id = k;
-			}
-			count++;
-		}	
-		// remove it from open nodes
-		open_set.erase(open_set.begin() + min_cost_id);
-		//open_set[min_cost_id] = NULL;
 		// close it
 		current_node->closed = true;
 
@@ -2378,7 +2488,9 @@ vector<AStarNode> SpellMap::FindUnitPath(MapUnit* unit, MapXY target)
 				neighbor_node->h_cost = next_h;
 				neighbor_node->f_cost = next_f;
 				neighbor_node->parent_pos = current_node->pos;
+				
 				open_set.push_back(neighbor_node);
+				push_heap(open_set.begin(),open_set.end(),FindUnitPathCompareHeap());
 			}
 		}		
 	}
@@ -2388,10 +2500,27 @@ vector<AStarNode> SpellMap::FindUnitPath(MapUnit* unit, MapXY target)
 	return(path);
 }
 
+// get filter pointer or NULL based for the tile
+uint8_t* SpellMap::GetUnitRangeFilter(int mxy)
+{
+	if(viewingUnitMoveRange() && unit_fire_left[mxy] > 0)
+		return(terrain->filter.bluepal);
+	else if(viewingUnitMoveRange() && unit_ap_left[mxy] >= 0)
+		return(terrain->filter.dbluepal);
+	return(NULL);
+}
+
+// set map view mode (none, move range, fire range)
+int SpellMap::SetUnitRangeViewMode(int mode)
+{
+	int old_state = unit_range_view_mode;
+	unit_range_view_mode = mode;
+	return(old_state);
+}
 
 // select unit, if currently selected at the same position, switch between air-land
 MapUnit* SpellMap::SelectUnit(MapUnit* new_unit)
-{
+{	
 	if(unit_selection && unit_selection == new_unit)
 	{
 		// selection of already selected unit: detect if there is air-land pair and swap selection
@@ -2406,8 +2535,19 @@ MapUnit* SpellMap::SelectUnit(MapUnit* new_unit)
 	}
 	else if(new_unit)
 		unit_selection = new_unit;
+	// unit selected
+	unit_selection_mod = true;
 	// return new selection
 	return(unit_selection);
+}
+
+// check if unit was selected and eventually clear flag
+int SpellMap::UnitChanged(int clear)
+{
+	int was_selected = unit_selection_mod;
+	if(clear)
+		unit_selection_mod = false;
+	return(was_selected);
 }
 
 // get unit at cursor position

@@ -215,8 +215,8 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     
 
     canvas->Bind(wxEVT_PAINT,&MyFrame::OnPaintCanvas,this);
-    canvas->Bind(wxEVT_RIGHT_DOWN,&MyFrame::OnCanvasMouseDown,this);
-    canvas->Bind(wxEVT_RIGHT_UP,&MyFrame::OnCanvasMouseUp,this);
+    canvas->Bind(wxEVT_RIGHT_DOWN,&MyFrame::OnCanvasRMouse,this);
+    canvas->Bind(wxEVT_RIGHT_UP,&MyFrame::OnCanvasRMouse,this);
     canvas->Bind(wxEVT_MOTION,&MyFrame::OnCanvasMouseMove,this);
     canvas->Bind(wxEVT_LEAVE_WINDOW,&MyFrame::OnCanvasMouseLeave,this);
     canvas->Bind(wxEVT_ENTER_WINDOW,&MyFrame::OnCanvasMouseEnter,this);
@@ -284,6 +284,7 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
 // on form close
 void MyFrame::OnExit(wxCommandEvent& event)
 {
+    spell_map->Close();
     Close(true);
 }
 // about message
@@ -835,19 +836,27 @@ void MyFrame::OnMoveUnit(wxCommandEvent& event)
 
 
 // --- scrolling control ---
-void MyFrame::OnCanvasMouseDown(wxMouseEvent& event)
+void MyFrame::OnCanvasRMouse(wxMouseEvent& event)
 {    
-    scroll.SetRef(event.GetX(), event.GetY());
+    if(event.RightDown())
+        scroll.SetRef(event.GetX(), event.GetY());
+    else if(event.RightUp())
+        scroll.Idle();
+    
+    // unit view mode:
+    int is_down = event.RightIsDown();
+    if(is_down)
+        spell_map->SetUnitRangeViewMode(SpellMap::UNIT_RANGE_MOVE);
+    else
+        spell_map->SetUnitRangeViewMode(SpellMap::UNIT_RANGE_NONE);
+    canvas->Refresh();
+
 }
 void MyFrame::OnCanvasMouseEnter(wxMouseEvent& event)
 {
     canvas->SetFocus();
 }
 void MyFrame::OnCanvasMouseLeave(wxMouseEvent& event)
-{
-    scroll.Idle();
-}
-void MyFrame::OnCanvasMouseUp(wxMouseEvent& event)
 {
     scroll.Idle();
 }
@@ -956,33 +965,38 @@ void MyFrame::OnInvalidateSelection(wxCommandEvent& event)
 }
 
 
-// tool edit click
+// canvas left click
 void MyFrame::OnCanvasLMouseDown(wxMouseEvent& event)
 {
     // get selection
-    auto xy_list = spell_map->GetSelections(m_buffer, &scroll);
+    auto xy_list = spell_map->GetSelections(m_buffer,&scroll);
 
-    if(spell_tool.isActive() && xy_list.size() && xy_list[0].IsSelected())
+    if(event.LeftDown())
     {
-        // something selected: edit map class        
-        spell_map->EditClass(xy_list, &spell_tool, bind(&MyFrame::StatusStringCallback,this,placeholders::_1));
-    }
-    else
-    {
-        // try select unit:
+        // LEFT DOWN event:
 
-        auto* cur_unit = spell_map->GetCursorUnit(m_buffer,&scroll);
-        auto* sel_unit = spell_map->GetSelectedUnit();
-        if(cur_unit && cur_unit == sel_unit)
+        if(spell_tool.isActive() && xy_list.size() && xy_list[0].IsSelected())
         {
-            // move/place unit
-            sel_unit->in_placement = !sel_unit->in_placement;
+            // something selected: edit map class        
+            spell_map->EditClass(xy_list, &spell_tool, bind(&MyFrame::StatusStringCallback,this,placeholders::_1));
         }
         else
         {
-            // try select unit (if on cursor)
-            auto* unit = spell_map->GetCursorUnit(m_buffer, &scroll);
-            spell_map->SelectUnit(unit);
+            // try select unit:
+
+            auto* cur_unit = spell_map->GetCursorUnit(m_buffer,&scroll);
+            auto* sel_unit = spell_map->GetSelectedUnit();
+            if(cur_unit && cur_unit == sel_unit)
+            {
+                // move/place unit
+                sel_unit->in_placement = !sel_unit->in_placement;
+            }
+            else
+            {
+                // try select unit (if on cursor)
+                auto* unit = spell_map->GetCursorUnit(m_buffer, &scroll);
+                spell_map->SelectUnit(unit);
+            }
         }
     }
 

@@ -97,8 +97,7 @@ private:
 
     // canvas stuff:
     void OnPaintCanvas(wxPaintEvent& event);
-    void OnCanvasMouseDown(wxMouseEvent& event);
-    void OnCanvasMouseUp(wxMouseEvent& event);
+    void OnCanvasRMouse(wxMouseEvent& event);
     void OnCanvasMouseMove(wxMouseEvent& event);
     void OnCanvasMouseLeave(wxMouseEvent& event);
     void OnCanvasMouseEnter(wxMouseEvent& event);
