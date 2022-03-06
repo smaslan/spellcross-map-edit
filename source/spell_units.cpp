@@ -11,6 +11,7 @@
 #include "spell_units.h"
 #include "spellcross.h"
 #include "map.h"
+#include <sstream>
 #include <vector>
 #include <stdexcept>
 
@@ -21,10 +22,40 @@ SpellUnitRec::SpellUnitRec()
 {	
 	gr_base = NULL;
 	gr_aux = NULL;
+	projectile = NULL;
+	pnm_light_hit = NULL;
+	pnm_armored_hit = NULL;
+	pnm_air_hit = NULL;
+	pnm_light_shot = NULL;
+	pnm_armored_shot = NULL;
+	pnm_air_shot = NULL;
+
+	sound_move = NULL;
+	sound_report = NULL;
+	sound_contact = NULL;
+	sound_attack_light = NULL;
+	sound_attack_armor = NULL;
+	sound_attack_air = NULL;
+}
+
+SpellUnitRec::~SpellUnitRec()
+{
+	if(sound_move)
+		delete sound_move;
+	if(sound_report)
+		delete sound_report;
+	if(sound_contact)
+		delete sound_contact;
+	if(sound_attack_light)
+		delete sound_attack_light;
+	if(sound_attack_armor)
+		delete sound_attack_armor;
+	if(sound_attack_air)
+		delete sound_attack_air;
 }
 
 // decode units def file
-SpellUnits::SpellUnits(uint8_t* data, int dlen, FSUarchive *fsu, SpellGraphics *graphics)
+SpellUnits::SpellUnits(uint8_t* data, int dlen, FSUarchive *fsu, SpellGraphics *graphics,SpellSounds *sounds)
 {
 	int count;
 	if (dlen % 206 == 0 && dlen % 207 != 0)
@@ -126,8 +157,8 @@ SpellUnits::SpellUnits(uint8_t* data, int dlen, FSUarchive *fsu, SpellGraphics *
 		// ???
 		unit->res3 = rdu8(rec + 0x45);
 
-		// max range
-		unit->rmax = rdu8(rec + 0x46);
+		// max fire range
+		unit->fire_range = rdu8(rec + 0x46);
 
 		// special shot flags
 		// 0x01 - high turret origin (probably???)
@@ -138,16 +169,12 @@ SpellUnits::SpellUnits(uint8_t* data, int dlen, FSUarchive *fsu, SpellGraphics *
 		// 0x20 - indirect missile (MLRS only???)
 		// 0x40 - fire projectile
 		// 0x80 - fire sensitivity (increased fire sensitivity???)
-		unit->rsfl = rdu8(rec + 0x47);
-
+		unit->fire_flags = rdu8(rec + 0x47);		
 		// aditional ENG version item
-		// 0x01 - unit is healed by fire
+		// 0x100 - unit is healed by fire
 		if (is_eng)
 		{
-			// read it
-			unit->res1 = rdu8(rec + 0x48);
-
-			// move record pointer after that
+			unit->fire_flags |= rdu8(rec + 0x48)<<8;
 			rec++;
 		}
 
@@ -156,43 +183,43 @@ SpellUnits::SpellUnits(uint8_t* data, int dlen, FSUarchive *fsu, SpellGraphics *
 
 
 		// light attack hit animation (*.pnm animation)
-		rdsc(unit->anhlig, rec + 0x49, 9);
+		rdsc(unit->pnm_light_hit_name, rec + 0x49, 9);
 
 		// light attack unit animation resource (*.fsu resource)
-		rdsc(unit->anlig, rec + 0x52, 6);
+		rdsc(unit->anim_atack_light_name, rec + 0x52, 6);
 		// used frames count
-		unit->anligf = rdu8(rec + 0x61);
+		unit->anim_atack_light_frames = rdu8(rec + 0x61);
 
 		// light attack shot animation (*.pnm resource)
-		rdsc(unit->anslig, rec + 0x58, 9);
+		rdsc(unit->pnm_light_shot_name, rec + 0x58, 9);
 
 		// armored attack hit animation (*.pnm animation)
-		rdsc(unit->anharm, rec + 0x62, 9);
+		rdsc(unit->pnm_armored_hit_name, rec + 0x62, 9);
 
 		// armored attack unit animation resource (*.fsu resource)
-		rdsc(unit->anarm, rec + 0x6B, 6);
+		rdsc(unit->anim_atack_armor_name, rec + 0x6B, 6);
 		// used frames count
-		unit->anarmf = rdu8(rec + 0x7A);
+		unit->anim_atack_armor_frames = rdu8(rec + 0x7A);
 
 		// armored attack shot animation (*.pnm resource)
-		rdsc(unit->ansarm, rec + 0x71, 9);
+		rdsc(unit->pnm_armored_shot_name, rec + 0x71, 9);
 
 		// air attack hit animation (*.pnm animation)
-		rdsc(unit->anhair, rec + 0x7B, 9);
+		rdsc(unit->pnm_air_hit_name, rec + 0x7B, 9);
 
 		// air attack unit animation resource (*.fsu content)
-		rdsc(unit->anair, rec + 0x84, 6);
+		rdsc(unit->anim_atack_air_name, rec + 0x84, 6);
 		// used frames count
-		unit->anairf = rdu8(rec + 0x93);
+		unit->anim_atack_air_frames = rdu8(rec + 0x93);
 
 		// air attack shot animation (*.pnm resource)
-		rdsc(unit->ansair, rec + 0x8A, 9);
+		rdsc(unit->pnm_air_shot_name, rec + 0x8A, 9);
 
 		// projectile visibility flags (0x01-light, 0x02-armored, 0x04-air attacks)
 		unit->prjf = rdu8(rec + 0x94);
 
 		// projectile resource (*.grf files)
-		rdsc(unit->prj, rec + 0x95, 13);
+		rdsc(unit->projetile_name, rec + 0x95, 13);
 
 		// special action id
 		// 1  - enable/disable radar (par3-radar indirect sight range)
@@ -290,6 +317,9 @@ SpellUnits::SpellUnits(uint8_t* data, int dlen, FSUarchive *fsu, SpellGraphics *
 		{
 			unit->gr_base = fsu->GetResource(unit->gra);
 			unit->gr_aux = fsu->GetResource(unit->grb);
+			unit->gr_attack_light = fsu->GetResource(unit->anim_atack_light_name);
+			unit->gr_attack_armor = fsu->GetResource(unit->anim_atack_armor_name);
+			unit->gr_attack_air = fsu->GetResource(unit->anim_atack_air_name);
 		}
 
 		// --- assign aux graphics
@@ -297,6 +327,28 @@ SpellUnits::SpellUnits(uint8_t* data, int dlen, FSUarchive *fsu, SpellGraphics *
 		{
 			// find unit icon
 			unit->icon_glyph = graphics->GetResource(unit->icon);
+
+			// find unit projectile
+			unit->projectile = graphics->GetProjectile(unit->projetile_name);
+
+			// find shot/hit PNMs
+			unit->pnm_air_hit = graphics->GetPNM(unit->pnm_air_hit_name);
+			unit->pnm_air_shot = graphics->GetPNM(unit->pnm_air_shot_name);
+			unit->pnm_light_hit = graphics->GetPNM(unit->pnm_light_hit_name);
+			unit->pnm_light_shot = graphics->GetPNM(unit->pnm_light_shot_name);
+			unit->pnm_armored_hit = graphics->GetPNM(unit->pnm_armored_hit_name);
+			unit->pnm_armored_shot = graphics->GetPNM(unit->pnm_armored_shot_name);			
+		}
+
+		// --- assign sounds
+		if(sounds)
+		{
+			unit->sound_move = sounds->GetMoveClass(unit->smov);
+			unit->sound_report = sounds->GetReportClass(unit->ssel);
+			unit->sound_contact = sounds->GetContactClass(unit->ssel);
+			unit->sound_attack_light = sounds->GetAttackClass(unit->slig);
+			unit->sound_attack_armor = sounds->GetAttackClass(unit->sarm);
+			unit->sound_attack_air = sounds->GetAttackClass(unit->sair);
 		}
 
 		// store unit to list
@@ -363,11 +415,16 @@ SpellUnitRec *SpellUnits::GetUnit(int uid)
 	return(units[uid]);
 }
 
+// get full units list
+vector<SpellUnitRec*> &SpellUnits::GetUnits()
+{
+	return(units);
+}
 
 
 // render unit (complete, i.e. group of man or tank with turret) and stick for air units
 tuple<int,int> SpellUnitRec::Render(uint8_t* buffer, uint8_t* buf_end, int buf_x_pos, int buf_y_pos, int buf_x_size,
-	uint8_t* filter, uint8_t* shadow_filter, ::Sprite *sprt, int azim, int frame)
+	uint8_t* filter, uint8_t* shadow_filter, ::Sprite *sprt, int azim, int frame, FSU_resource *fsu_anim)
 {
 	// tile slope
 	char slope = sprt->name[2];
@@ -491,7 +548,12 @@ tuple<int,int> SpellUnitRec::Render(uint8_t* buffer, uint8_t* buf_end, int buf_x
 				slope = 'A';
 												
 			// get sprite record
-			if (frame >= 0 && res->anim.frames)
+			if(fsu_anim && frame >= 0 && frame < fsu_anim->anim.frames)
+			{
+				// custom animation resource
+				spr = fsu_anim->anim.lists[azim][frame];
+			}
+			else if (frame >= 0 && res->anim.frames)
 			{
 				// animate
 				spr = res->anim.lists[azim][frame];
@@ -555,6 +617,46 @@ tuple<int,int> SpellUnitRec::Render(uint8_t* buffer, uint8_t* buf_end, int buf_x
 	return tuple(x_status_bar,y_status_bar);
 }
 
+// get art images count
+vector<string> SpellUnitRec::GetArtList(FSarchive* info_fs)
+{
+	vector<string> list;
+
+	// put first item	
+	list.push_back(string(this->info));
+
+	// load list file
+	string list_name = string(this->info) + ".LST";
+	uint8_t *data;
+	int size;
+	int fail = info_fs->GetFile(list_name.c_str(), &data, &size);
+	if(!fail)
+	{			
+		// parse next items
+		list.clear();
+		list.push_back(string(this->info));
+		string str;
+		str.resize(size);
+		memcpy(str.data(),data,size);
+		auto ss = std::stringstream{str};
+		for(std::string line; std::getline(ss,line,'\n');)
+		{
+			if(line.back() == '\r')
+				line = line.substr(0,line.size()-1);
+			list.push_back(line);
+		}
+	}
+		
+	return(list);
+}
+
+// get count of available arts for unit
+int SpellUnitRec::GetArtCount(FSarchive* info_fs)
+{
+	auto list = GetArtList(info_fs);
+	return(list.size());
+}
+
 
 
 
@@ -590,7 +692,42 @@ MapUnit::MapUnit()
 	in_placement = false;
 	// moved
 	was_moved = true;
+
+	// sound refs
+	sound_report = NULL;
+	sound_move = NULL;
+	sound_attack_light = NULL;
+	sound_attack_armor = NULL;
+	sound_attack_air = NULL;
+
+	// FSU sprite index
+	in_animation = NULL;
+	azimuth = 0;
+	frame = 0;
 }
+MapUnit::~MapUnit()
+{
+	if(sound_report)
+		delete sound_report;
+	if(sound_move)
+		delete sound_move;
+	if(sound_attack_light)
+		delete sound_attack_light;
+	if(sound_attack_armor)
+		delete sound_attack_armor;
+	if(sound_attack_air)
+		delete sound_attack_air;
+}
+MapUnit::MapUnit(MapUnit &obj)
+{
+	*this = obj;
+	sound_report = NULL;
+	sound_move = NULL;
+	sound_attack_light = NULL;
+	sound_attack_armor = NULL;
+	sound_attack_air = NULL;
+}
+
 
 // action points for this level of experience
 int MapUnit::GetMaxAP()
@@ -620,6 +757,8 @@ int MapUnit::GetFireCount(int ext_ap)
 	// get max fires count
 	int ap = GetMaxAP();
 	int basic_fires = GetMaxFireCount();
+	if(!basic_fires)
+		return(0);
 
 	// get ap per fire for this level of experience
 	int ap_per_fire = floor(ap/basic_fires);
@@ -635,6 +774,8 @@ int MapUnit::GetMaxFireCount()
 {
 	// get max fires count
 	int ap = GetMaxAP();
+	if(!unit->aps)
+		return(0);
 	int basic_fires = floor(unit->ap/unit->aps);
 	if(experience >= 5)
 		basic_fires++;
@@ -654,13 +795,17 @@ int MapUnit::GetWalkAP()
 	return(GetMaxAP()/(move_range-1));
 }
 
-int MapUnit::Render(Terrain* data,uint8_t* buffer,uint8_t* buf_end,int buf_x_pos,int buf_y_pos,int buf_x_size,uint8_t *filter,Sprite* sprt,int show_hud,int azim,int frame)
+int MapUnit::Render(Terrain* data,uint8_t* buffer,uint8_t* buf_end,int buf_x_pos,int buf_y_pos,int buf_x_size,uint8_t *filter,Sprite* sprt,int show_hud)
 {
 	// filter for shadow rendering
 	auto shadow_filter = data->filter.darker;
 	
+	int loc_frame = frame;
+	if(!in_animation)
+		loc_frame = -1; // static unit resource
+
 	// render unit
-	auto [x_status_bar,y_status_bar] = unit->Render(buffer, buf_end, buf_x_pos, buf_y_pos, buf_x_size,filter,shadow_filter, sprt, azim, frame);	
+	auto [x_status_bar,y_status_bar] = unit->Render(buffer, buf_end, buf_x_pos, buf_y_pos, buf_x_size,filter,shadow_filter, sprt, azimuth, loc_frame, in_animation);
 	
 	if(!filter)
 		filter = data->filter.nullpal;
@@ -769,4 +914,51 @@ int MapUnit::Render(Terrain* data,uint8_t* buffer,uint8_t* buf_end,int buf_x_pos
 	
 	// return top pixel of unit
 	return(y_status_bar);
+}
+
+
+// play report sound
+int MapUnit::PlayReport()
+{
+	if(!sound_report)
+		sound_report = new SpellSound(*unit->sound_report);
+	sound_report->Play();
+	return(0);
+}
+
+// play move sound
+int MapUnit::PlayMove()
+{
+	if(!sound_move)
+		sound_move = new SpellSound(*unit->sound_move);
+	sound_move->Play();
+	return(0);
+}
+// stop move sound
+int MapUnit::PlayStop()
+{
+	sound_move->StopMove();
+	return(0);
+}
+
+// play fire sound to given unit type
+int MapUnit::PlayFire(SpellUnitRec* target)
+{
+	// make local copy of sound objects (because of polyphony for multiple units)
+	if(!sound_attack_light)
+		sound_attack_light = new SpellAttackSound(*unit->sound_attack_light);
+	if(!sound_attack_armor)
+		sound_attack_armor = new SpellAttackSound(*unit->sound_attack_armor);
+	if(!sound_attack_air)
+		sound_attack_air = new SpellAttackSound(*unit->sound_attack_air);
+
+	// play shot sound
+	if(target->isLight())
+		sound_attack_light->shot->Play();
+	else if(target->isHeavy())
+		sound_attack_armor->shot->Play();
+	else if(target->isAir())
+		sound_attack_air->shot->Play();
+
+	return(0);
 }

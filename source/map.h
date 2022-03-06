@@ -155,12 +155,27 @@ public:
 	int assigned;
 
 	// unit rendering state
+	FSU_resource *in_animation;
 	int azimuth;
-	int azimuth_anim;
 	int frame;
+	int frame_stop;
+	double azimuth_angle;
+
+	int PlayReport();
+	SpellSound *sound_report;
+	int PlayMove();
+	int PlayStop();
+	SpellSound* sound_move;
+	int PlayFire(SpellUnitRec *unit);
+	SpellAttackSound* sound_attack_light;
+	SpellAttackSound* sound_attack_armor;
+	SpellAttackSound* sound_attack_air;
+
 
 	MapUnit();
-	int Render(Terrain* data,uint8_t* buffer,uint8_t* buf_end,int buf_x_pos,int buf_y_pos,int buf_x_size,uint8_t* filter,Sprite* sprt,int show_hud,int azim,int frame);
+	MapUnit(MapUnit& obj);
+	~MapUnit();
+	int Render(Terrain* data,uint8_t* buffer,uint8_t* buf_end,int buf_x_pos,int buf_y_pos,int buf_x_size,uint8_t* filter,Sprite* sprt,int show_hud);
 
 	int ResetAP();
 	int GetMaxAP();
@@ -266,6 +281,11 @@ class SpellMap
 		// temp layers for debug mostly
 		vector<MapXY> dbg_ord;
 
+		static constexpr int UNIT_PATH_IDLE = -1;
+		int unit_path_state;
+		mutex unit_path_lock;
+		vector<AStarNode> unit_path;		
+
 		// currently selected unit
 		MapUnit *unit_selection;
 		int unit_selection_mod;
@@ -279,6 +299,10 @@ class SpellMap
 		static constexpr int units_view_mask_size = 10;
 		int units_view_mask_x_size;
 		int units_view_mask_y_size;
+		// unit attack range stuff
+		vector<int> unit_attack_map;
+		int UnitAttackRangeInit();
+		int CalcUnitAttackRange(MapUnit* unit);		
 		// unit range map
 		vector<AStarNode> unit_range_nodes_buffer; // this is preinitialized buffer holding the nodes
 		vector<AStarNode> unit_range_nodes; // this is working buffer
@@ -289,6 +313,7 @@ class SpellMap
 		MapUnit unit_range_th_unit;
 		mutex unit_range_th_lock;
 		int unit_range_view_mode;
+		int unit_range_view_mode_lock;
 		uint8_t *GetUnitRangeFilter(int mxy);
 		int FindUnitRangeLock(bool state);
 		int FindUnitRange_th();
@@ -300,9 +325,8 @@ class SpellMap
 		static constexpr int UNIT_RANGE_TH_STOP = 0x02;
 		static constexpr int UNIT_RANGE_TH_EXIT = 0x03;		
 		// units moved flag (can be set to force view tiles recalc)
-		int units_moved;
-		void SortUnits();
-		int UnitsMoved(int clear=true);
+		//int units_moved;		
+		int UnitsMoved(int clear=false);
 		tuple<int,int> GetUnitsViewMask(int x,int y,int plain_tile_id=-1);
 		tuple<int,int,int> GetUnitsViewTileCenter(int x,int y);
 		tuple<int,int,int> GetUnitsViewTileCenter(MapXY mxy);
@@ -392,6 +416,7 @@ class SpellMap
 		SpellMap();
 		~SpellMap();
 		int SetGameMode(int new_mode);
+		int isGameMode();
 		void Close();
 		int Create(SpellData* spelldata,const char* terr_name,int x,int y);
 		int Load(wstring &path, SpellData* spelldata);		
@@ -427,11 +452,12 @@ class SpellMap
 		void OnHUDnextUnfinishedUnit();
 		void OnHUDswitchAirLand();
 		void OnHUDswitchUnitHUD();
+		void OnHUDswitchenTurn();
 
 		
 
 
-
+		void SortUnits();
 		MapUnit *GetCursorUnit(wxBitmap& bmp,TScroll* scroll);
 		MapUnit *SelectUnit(MapUnit* new_unit);
 		int UnitChanged(int clear=false);
@@ -440,14 +466,19 @@ class SpellMap
 		wxBitmap *ExportUnitsViewZmap();
 		int ClearUnitsView(int to_unseen=false);
 		int AddUnitView(MapUnit* unit);
-		int AddUnitsView(int unit_type=UNIT_TYPE_ALIANCE);
+		int AddUnitsView(int unit_type=UNIT_TYPE_ALIANCE,int clear=true);
 		void InvalidateUnitsView();
 		vector<AStarNode> FindUnitPath(MapUnit* unit,MapXY target);
 		int FindUnitRange(MapUnit* unit);
 		int SetUnitRangeViewMode(int mode);
+		int MoveUnit(MapXY target);
+		int isUnitMoving();
+		int ResetUnitsAP();
 		static constexpr int UNIT_RANGE_NONE = 0x00;
 		static constexpr int UNIT_RANGE_MOVE = 0x01;
 		static constexpr int UNIT_RANGE_ATTACK = 0x02;
+		static constexpr int UNIT_RANGE_INCREMENT = -1;
+		int AttackUnit(MapUnit* target);
 
 
 		void SetRender(bool wL1, bool wL2, bool wL3, bool wL4, bool wSECI, bool wUnits);

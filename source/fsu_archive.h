@@ -63,6 +63,9 @@ public:
 		FSU_sprite*** lists;
 	} anim;	
 
+	int GetAnimAzim(double angle);
+	int GetStaticAzim(double angle);
+
 	FSU_resource();
 	~FSU_resource();
 };

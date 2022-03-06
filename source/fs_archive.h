@@ -20,7 +20,8 @@ class FSarchive
 		FSarchive(wstring &path);
 		~FSarchive();
 		int GetFile(const char* name, uint8_t** data, int* size);
-		int GetFile(int id, uint8_t** data, int* size, char** name);		
+		int GetFile(int id, uint8_t** data, int* size, char** name=NULL);
+		string GetFile(const char* name);
 		int Count();
 		const char *GetFileName(int id);
 

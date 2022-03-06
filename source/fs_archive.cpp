@@ -8,6 +8,7 @@
 //=============================================================================
 
 #include "fs_archive.h"
+#include "other.h"
 #include <string>
 #include <vector>
 #include <fstream>
@@ -19,6 +20,8 @@ FSarchive::FSarchive(wstring &path)
 {
 	// try to open FS archive
 	ifstream fr(path, ios::in | ios::binary);
+	if(!fr)
+		throw runtime_error(string_format("Cannot open \"%s\"!",path));
 
 	// get count of files in archive
 	uint32_t count;
@@ -96,6 +99,18 @@ int FSarchive::GetFile(const char* name, uint8_t** data, int* size)
 		}
 	}
 	return(1);
+}
+
+// get file by name
+string FSarchive::GetFile(const char* name)
+{
+	string text;
+	uint8_t* data;
+	int size;
+	GetFile(name, &data, &size);
+	text.resize(size);
+	memcpy(&text[0],data,size);
+	return(text);
 }
 
 // get file by order index (zero based)

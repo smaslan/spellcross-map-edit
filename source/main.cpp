@@ -38,11 +38,13 @@ bool MyApp::OnInit()
 
     // spellcross data root path
     wstring spelldata_path = char2wstring(ini.GetValue("SPELCROS","spell_path",""));
+    // spellcross data root path
+    wstring spellcd_path = char2wstring(ini.GetValue("SPELCROS","spellcd_path",""));
     // special data folder
     wstring spec_folder = char2wstring(ini.GetValue("DATA","spec_data_path",""));
 
     // try load spellcross data
-    spell_data = new SpellData(spelldata_path, spec_folder);
+    spell_data = new SpellData(spelldata_path, spellcd_path, spec_folder);
 
     // for each terrain load tile context
     for(int k = 0; k < spell_data->GetTerrainCount(); k++)
@@ -101,6 +103,12 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
 
     // subforms
     form_objects = NULL;
+    form_sprites = NULL;
+    form_gres = NULL;
+    form_units = NULL;
+    form_pal = NULL;
+    form_tools = NULL;
+
 
     // view scroller
     scroll.Reset();
@@ -117,6 +125,7 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     menuGame->Append(ID_mmGameMode,"Game mode\tCtrl-G","Switch game mode",wxITEM_CHECK);
     menuGame->AppendSeparator();
     menuGame->Append(ID_mmResetViewMap,"Reset view map","");
+    menuGame->Append(ID_mmUnitViewMode,"View unit move/attack range\tSpace","");
     
     
     // View menu
@@ -158,6 +167,7 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     menuTools->Append(ID_ViewTools, "Tools editor", "", wxITEM_NORMAL);
     menuTools->Append(ID_ViewPal,"Palette viewer","",wxITEM_NORMAL);
     menuTools->Append(ID_ViewGRes,"Graphics viewer","",wxITEM_NORMAL);
+    menuTools->Append(ID_EditUnit,"Units viewer/editor\tCtrl+U","",wxITEM_NORMAL);
     menuTools->Append(wxID_ANY,"","",wxITEM_SEPARATOR);
     menuTools->Append(ID_ViewMiniMap,"View mini-map","",wxITEM_NORMAL);
     menuTools->Append(ID_ViewVoxZ,"View Z-map","",wxITEM_NORMAL);
@@ -189,7 +199,7 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
 
     m_timer.SetOwner(this);
     this->Connect(wxEVT_TIMER,wxTimerEventHandler(MyFrame::OnTimer),NULL,this);
-    m_timer.Start(100);
+    m_timer.Start(33);
 
 
     // main sizer 
@@ -240,6 +250,7 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
 
     Bind(wxEVT_MENU,&MyFrame::OnSwitchGameMode,this,ID_mmGameMode);
     Bind(wxEVT_MENU,&MyFrame::OnResetUnitView,this,ID_mmResetViewMap);
+    Bind(wxEVT_MENU,&MyFrame::OnSelectUnitView,this,ID_mmUnitViewMode);
 
     Bind(wxEVT_MENU,&MyFrame::OnViewLayer,this,ID_ViewTer);
     Bind(wxEVT_MENU,&MyFrame::OnViewLayer,this,ID_ViewObj);
@@ -255,6 +266,7 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     Bind(wxEVT_MENU,&MyFrame::OnViewTools, this, ID_ViewTools);
     Bind(wxEVT_MENU,&MyFrame::OnViewPal,this,ID_ViewPal);
     Bind(wxEVT_MENU,&MyFrame::OnViewGrRes,this,ID_ViewGRes);
+    Bind(wxEVT_MENU,&MyFrame::OnEditUnit,this,ID_EditUnit);
     Bind(wxEVT_MENU,&MyFrame::OnViewVoxZ,this,ID_ViewVoxZ);
     Bind(wxEVT_MENU,&MyFrame::OnViewVoxZ,this,ID_ExportVoxZ);
     Bind(wxEVT_MENU,&MyFrame::OnViewMiniMap,this,ID_ViewMiniMap);
@@ -329,6 +341,18 @@ void MyFrame::OnClose(wxCloseEvent& ev)
     {
         form_gres->Destroy();
     }
+    else if(ev.GetId() == ID_UNITS_WIN)
+    {
+        // unit editor closed
+        if(form_units->DoUpdateUnit())
+        {
+            // update current unit:
+            spell_map->SortUnits();
+            canvas->Refresh();
+        }
+        
+        form_units->Destroy();
+    }
     else
         ev.Skip();
 }
@@ -349,6 +373,19 @@ void MyFrame::OnResetUnitView(wxCommandEvent& event)
     spell_map->InvalidateUnitsView();
     canvas->Refresh();
 }
+
+// cycle unit range view modes
+void MyFrame::OnSelectUnitView(wxCommandEvent& event)
+{
+    if(spell_map->isGameMode())
+    {
+        // game mode unti range view selection
+        spell_map->SetUnitRangeViewMode(SpellMap::UNIT_RANGE_INCREMENT);
+        canvas->Refresh();
+    }
+}
+
+
 
 
 // map animation periodic refresh tick
@@ -633,6 +670,18 @@ void MyFrame::OnViewGrRes(wxCommandEvent& event)
     }
 }
 
+// open units viewer/editor
+void MyFrame::OnEditUnit(wxCommandEvent& event)
+{
+    if(!FindWindowById(ID_UNITS_WIN))
+    {
+        form_units = new FormUnits(this,ID_UNITS_WIN);
+        form_units->SetSpellData(spell_data);
+        form_units->SetMapUnit(spell_map->GetSelectedUnit());
+        form_units->Show();
+    }
+}
+
 
 // creates minimap dialog window with bmp image scaled down to limit size
 void MyFrame::CreateMiniMapDialog(TMiniMap &minimap)
@@ -858,6 +907,7 @@ void MyFrame::OnCanvasMouseEnter(wxMouseEvent& event)
 }
 void MyFrame::OnCanvasMouseLeave(wxMouseEvent& event)
 {
+    spell_map->SetUnitRangeViewMode(SpellMap::UNIT_RANGE_NONE);
     scroll.Idle();
 }
 void MyFrame::OnCanvasMouseMove(wxMouseEvent& event)
@@ -909,9 +959,10 @@ void MyFrame::OnCanvasMouseWheel(wxMouseEvent& event)
 }
 void MyFrame::OnCanvasKeyDown(wxKeyEvent& event)
 {
+    int key = event.GetKeyCode();
+
     if(event.ControlDown())
-    {
-        int key = event.GetKeyCode();
+    {        
         if(key == WXK_CONTROL)
             return;
 
@@ -939,8 +990,9 @@ void MyFrame::OnCanvasKeyDown(wxKeyEvent& event)
             // clear selection
             auto list = spell_map->GetSelections(m_buffer, &scroll);
             spell_map->SelectTiles(list,SpellMap::SELECT_CLEAR);
-        }
-    }    
+        }        
+    }   
+            
 }
 // select all tiles
 void MyFrame::OnSelectAll(wxCommandEvent& event)
@@ -982,21 +1034,35 @@ void MyFrame::OnCanvasLMouseDown(wxMouseEvent& event)
         }
         else
         {
-            // try select unit:
+            // try select/move unit:
 
+            if(spell_map->isUnitMoving())
+                return;
+
+            auto select = spell_map->GetSelection(m_buffer,&scroll);
             auto* cur_unit = spell_map->GetCursorUnit(m_buffer,&scroll);
             auto* sel_unit = spell_map->GetSelectedUnit();
-            if(cur_unit && cur_unit == sel_unit)
+            if(!spell_map->isGameMode() && cur_unit && cur_unit == sel_unit)
             {
                 // move/place unit
                 sel_unit->in_placement = !sel_unit->in_placement;
             }
-            else
+            else if(spell_map->isGameMode() && sel_unit && !sel_unit->is_enemy && cur_unit && cur_unit->is_enemy)
+            {
+                // game mode: attack unit
+                spell_map->AttackUnit(cur_unit);
+            }
+            else if(cur_unit)
             {
                 // try select unit (if on cursor)
-                auto* unit = spell_map->GetCursorUnit(m_buffer, &scroll);
-                spell_map->SelectUnit(unit);
+                spell_map->SelectUnit(cur_unit);
             }
+            else if(spell_map->isGameMode() && select.IsSelected())
+            {
+                // game mode: move unit
+                spell_map->MoveUnit(select);
+            }
+            
         }
     }
 

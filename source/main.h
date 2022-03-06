@@ -10,6 +10,7 @@
 #include "form_sprite_view.h"
 #include "form_pal_view.h"
 #include "form_gr_view.h"
+#include "form_units.h"
 #include "form_new_object.h"
 
 #include <wx/ribbon/buttonbar.h>
@@ -68,6 +69,7 @@ private:
 
     void OnSwitchGameMode(wxCommandEvent& event);
     void OnResetUnitView(wxCommandEvent& event);
+    void OnSelectUnitView(wxCommandEvent& event);
 
     void OnPaint(wxPaintEvent& event);
     void OnResize(wxSizeEvent& event);
@@ -80,6 +82,7 @@ private:
     void OnViewObjects(wxCommandEvent& event);
     void OnViewPal(wxCommandEvent& event);
     void OnViewGrRes(wxCommandEvent& event);
+    void OnEditUnit(wxCommandEvent& event);
     void OnViewVoxZ(wxCommandEvent& event);
     void OnViewMiniMap(wxCommandEvent& event);
     void OnUpdateTileContext(wxCommandEvent& event);
@@ -126,6 +129,7 @@ private:
     FormTools* form_tools;
     FormPalView* form_pal;
     FormGResView* form_gres;
+    FormUnits* form_units;
     
     void OnPaintHUDbutton(wxPaintEvent& event);
     void OnHUDbuttonsMouseEnter(wxMouseEvent& event);
@@ -141,6 +145,7 @@ private:
         ID_TOOLS_WIN,
         ID_PAL_WIN,
         ID_GRES_WIN,
+        ID_UNITS_WIN,
         ID_MINIMAP_WIN
     };
     static constexpr int ID_HUD_BASE = 3000;
@@ -172,6 +177,7 @@ enum
     ID_NewMap,
     ID_mmGameMode,
     ID_mmResetViewMap,
+    ID_mmUnitViewMode,
     ID_ViewTer,
     ID_ViewObj,
     ID_ViewAnm,
@@ -186,6 +192,7 @@ enum
     ID_ViewSprites,
     ID_ViewPal,
     ID_ViewGRes,
+    ID_EditUnit,
     ID_UpdateSprContext,
     ID_SaveSprContext,
     ID_ViewObjects,

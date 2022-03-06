@@ -1,4 +1,4 @@
-#include "other.h"
+﻿#include "other.h"
 
 #include <string>
 #include <codecvt>
@@ -18,6 +18,59 @@ std::string wstring2string(const std::wstring& str)
     std::wstring_convert<std::codecvt_utf8<wchar_t>> myconv;
     return myconv.to_bytes(str);
 }
+
+// convert char str to wstring using CZ CP852 encoding
+std::wstring char2wstringCP852(const char* str)
+{
+    wstring codes = {L"ÇüéâäůćçłëŐőîŹÄĆ"
+                     L"ÉĹĺôöĽľŚśÖÜŤťŁ×č"
+                     L"áíóúĄąŽžĘę¬źČş«»"
+                     L"░▒▓│┤ÁÂĚŞ╣║╗╝Żż┐"
+                     L"└┴┬├─┼Ăă╚╔╩╦╠═╬¤"
+                     L"đĐĎËďŇÍÎě┘┌█▄ŢŮ▀"
+                     L"ÓßÔŃńňŠšŔÚŕŰýÝţ´"
+                     L" ˝˛ˇ˘§÷¸°¨˙űŘř■ "};
+    
+    wstring result;
+    result.resize(strlen(str));
+    wchar_t *data = result.data();
+    while(*str)
+    {
+        int code = (unsigned)(unsigned char)*str++;
+        wchar_t wcode = code;
+        if(code >= 128)
+            wcode = codes.data()[code-128];
+        *data++ = wcode;
+    }
+    return(result);
+}
+
+// convert char str to wstring using CZ CP895 encoding
+std::wstring char2wstringCP895(const char* str)
+{
+    wstring codes ={ L"ČüéďäĎŤčěĚĹÍľĺÄÁ"
+                     L"ÉžŽôöÓůÚýÖÜŠĽÝŘť"
+                     L"áíóúňŇŮÔšřŕŔ¼§«»"
+                     L"░▒▓│┤╡╢╖╕╣║╗╝╜╛┐"
+                     L"└┴┬├─┼╞╟╚╔╩╦╠═╬╧"
+                     L"╨╤╥╙╘╒╓╫╪┘┌█▄▌▐▀"
+                     L"αßΓπΣσµτΦΘΩδ∞φε∩"
+                     L"≡±≥≤⌠⌡÷≈°∙·√ⁿ²■ "};
+
+    wstring result;
+    result.resize(strlen(str));
+    wchar_t* data = result.data();
+    while(*str)
+    {
+        int code = (unsigned)(unsigned char)*str++;
+        wchar_t wcode = code;
+        if(code >= 128)
+            wcode = codes.data()[code-128];
+        *data++ = wcode;
+    }
+    return(result);
+}
+
 
 // compare wildcard string to string
 int wildcmp(const char* wild,const char* string)

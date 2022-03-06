@@ -12,6 +12,7 @@
 #include "fsu_archive.h"
 #include "sprites.h"
 #include "spell_graphics.h"
+#include "spell_sound.h"
 #include <vector>
 #include <tuple>
 
@@ -31,8 +32,20 @@ class SpellUnitRec
 		int def;
 
 		// range
-		int rmax;
-		int rsfl;
+		int fire_range;
+		int fire_flags;
+		static constexpr int FIRE_HIGH_TURRET = 0x01;
+		static constexpr int FIRE_INDIRECT = 0x02;
+		static constexpr int FIRE_STEAL_AP = 0x04;
+		static constexpr int FIRE_INEFFICIENT_TO_ARMORRED = 0x08;
+		static constexpr int FIRE_NOT_SLOPES = 0x10;
+		static constexpr int FIRE_MLRS = 0x20;
+		static constexpr int FIRE_FIRE_PROJECTILE = 0x40;
+		static constexpr int FIRE_FIRE_SENSITIVE = 0x80;
+		static constexpr int FIRE_FIRE_HEALED = 0x100;
+
+		int isIndirectFire() {return(fire_flags & FIRE_INDIRECT || fire_flags & FIRE_MLRS);}; // any indirect shot
+
 
 		// sight
 		int sdir;
@@ -63,24 +76,31 @@ class SpellUnitRec
 		int sspc;
 		int ssel;
 
+		SpellSound* sound_move;
+		SpellSound* sound_report;
+		SpellSound* sound_contact;		
+		SpellAttackSound* sound_attack_light;
+		SpellAttackSound* sound_attack_armor;
+		SpellAttackSound* sound_attack_air;
+
 		// animations/graphics
 		char info[9];
 		char gra[6];
 		char grb[6];
 		char icon[9];
-		char anlig[6];
-		char anarm[6];
-		char anair[6];
-		int anligf;
-		int anarmf;
-		int anairf;
-		char anhlig[9];
-		char anharm[9];
-		char anhair[9];
-		char anslig[9];
-		char ansarm[9];
-		char ansair[9];
-		char prj[13];
+		char anim_atack_light_name[6];
+		char anim_atack_armor_name[6];
+		char anim_atack_air_name[6];
+		int anim_atack_light_frames;
+		int anim_atack_armor_frames;
+		int anim_atack_air_frames;
+		char pnm_light_hit_name[9];
+		char pnm_armored_hit_name[9];
+		char pnm_air_hit_name[9];
+		char pnm_light_shot_name[9];
+		char pnm_armored_shot_name[9];
+		char pnm_air_shot_name[9];
+		char projetile_name[13];
 		int prjf;
 		int vis;
 
@@ -107,15 +127,35 @@ class SpellUnitRec
 		int dap2;
 		int dap3;
 
+		int GetHP() {return((cnt==1)?(100):(cnt));};
+
 		// FSU data links
 		FSU_resource* gr_base; /* unit base graphics */
 		FSU_resource* gr_aux; /* unit aux graphics (turret for tanks) */
+		FSU_resource* gr_attack_light; /* light unit attack animation */
+		FSU_resource* gr_attack_armor; /* armored unit attack animation */
+		FSU_resource* gr_attack_air; /* air unit attack animation */
 		// icon link
 		SpellGraphicItem *icon_glyph;
+		// projectile link
+		SpellProjectile* projectile;
+		// PNM shot/hit
+		AnimPNM *pnm_light_hit;
+		AnimPNM *pnm_armored_hit;
+		AnimPNM *pnm_air_hit;
+		AnimPNM *pnm_light_shot;
+		AnimPNM *pnm_armored_shot;
+		AnimPNM *pnm_air_shot;
+		
 
 		SpellUnitRec();
+		~SpellUnitRec();
 		tuple<int,int> Render(uint8_t* buffer, uint8_t* buf_end, int buf_x_pos, int buf_y_pos, int buf_x_size,
-			uint8_t* filter,uint8_t* shadow_filter, Sprite *sprt, int azim, int frame);
+			uint8_t* filter,uint8_t* shadow_filter, Sprite *sprt, int azim, int frame,FSU_resource* fsu_anim=NULL);
+
+		vector<string> GetArtList(FSarchive* info_fs);
+		int GetArtCount(FSarchive* info_fs);
+		//wxBitmap *RenderArt(FSarchive *info, string &name, int surf_x, int surf_y);
 		
 
 		int isAir();
@@ -157,9 +197,10 @@ private:
 	vector<SpellUnitRec*> units;
 
 public:	
-	SpellUnits(uint8_t* data, int dlen, FSUarchive *fsu, SpellGraphics *graphics);
+	SpellUnits(uint8_t* data, int dlen, FSUarchive *fsu, SpellGraphics *graphics,SpellSounds* sounds);
 	~SpellUnits();
 	int Count();
 	SpellUnitRec* GetUnit(int uid);
+	vector<SpellUnitRec*> &GetUnits();
 };
 

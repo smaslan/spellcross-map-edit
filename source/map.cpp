@@ -238,6 +238,11 @@ SpellMap::SpellMap()
 
 	unit_range_th = NULL;
 	unit_range_th_control = UNIT_RANGE_TH_IDLE;
+
+	unit_range_view_mode = UNIT_RANGE_NONE;
+	unit_range_view_mode_lock = false;
+
+	unit_path_state = UNIT_PATH_IDLE;
 }
 
 SpellMap::~SpellMap()
@@ -257,6 +262,11 @@ int SpellMap::SetGameMode(int new_mode)
 		InvalidateUnitsView();
 
 	return(old_state);
+}
+// game mode
+int SpellMap::isGameMode()
+{
+	return(game_mode);
 }
 
 // returns path to DEF file or DTA file if DEF was not used
@@ -1021,26 +1031,6 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 		}
 		delete mission_data;
 		delete def;
-
-		// initialize units state variables:
-		for (int k = 0; k < units.size(); k++)
-		{
-			int azn_stat = units[k]->unit->gr_base->stat.azimuths;
-			int azn_anim = units[k]->unit->gr_base->anim.azimuths;
-			int azn_step = 1;
-			if (azn_anim)
-			{
-				azn_step = azn_stat / azn_anim;
-				units[k]->azimuth_anim = rand() % azn_anim;
-				units[k]->azimuth = units[k]->azimuth_anim * azn_step;
-			}
-			else
-			{
-				units[k]->azimuth_anim = 0;
-				units[k]->azimuth = rand() % azn_stat;				
-			}			
-			units[k]->frame = 0;
-		}
 		
 	}
 
@@ -1051,6 +1041,9 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 	// clear units view range map
 	PrepareUnitsViewMask();
 	ClearUnitsView(true);
+
+	// clear unit attack range
+	UnitAttackRangeInit();
 
 	// init range maps
 	InitUnitRangeStuff();
@@ -1083,11 +1076,11 @@ int SpellMap::ConvXY(MapXY &mxy)
 }
 
 
-// check units were moved and eventually clear moved flags
+// check any unit was moved and eventually clear moved flags
 int SpellMap::UnitsMoved(int clear)
 {
 	// scan units for placement changes and clear the move flags
-	int moved = units_moved;
+	int moved = false;
 	for(auto& unit : units)
 	{
 		if(unit->was_moved)
@@ -1095,15 +1088,14 @@ int SpellMap::UnitsMoved(int clear)
 		if(clear)
 			unit->was_moved = false;
 	}
-	if(clear)
-		units_moved = false;
 	return(moved);
 }
 
 // invalidate current units view map to force recalculation (actual calculation is done while rendering for now)
 void SpellMap::InvalidateUnitsView()
 {
-	units_moved = true;
+	for(auto& unit : units)
+		unit->was_moved = true;
 }
 
 // this sorts units list for proper render order, call after load or units changes
@@ -1612,26 +1604,34 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 	}
 
 	// check if units position moved since last test (and clear movement flags)
-	int units_moved = UnitsMoved();
+	int units_moved = UnitsMoved(true);
 
 	// check if unit selection changed
 	int unit_changed = UnitChanged(true);
-
-	if(units_moved && game_mode)
-	{
-		// update view mask (this should be probably somewhere else?)
-		ClearUnitsView(false);
-		AddUnitsView();
-	}
 
 	// sort units positions for rendering
 	if(units_moved)
 		SortUnits();
 
-	// initialize unit view recalculation
+	if(units_moved && game_mode)
+	{
+		// update view mask (this should be probably somewhere else?)
+		ClearUnitsView(false);
+		AddUnitsView();				
+	}
+	
+	
 	MapUnit* unit = GetSelectedUnit();	
-	if(units_moved || unit_changed)
+	if((units_moved || unit_changed) && !isUnitMoving())
+	{
+		// initialize unit view recalculation
 		FindUnitRange(unit);
+
+		// calculate attack range
+		CalcUnitAttackRange(unit);
+	}
+
+	
 
 	// lock stuff while rendering
 	FindUnitRangeLock(true);
@@ -1940,22 +1940,9 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 				// units render:
 				while (wUnits && unit && !hide_units)
 				{
-					// unit animation frame selection
-					int frame, azimuth;
-					if (is_selected && unit->unit->gr_base->anim.frames)
-					{
-						frame = unit->frame;
-						azimuth = unit->azimuth_anim;
-					}
-					else
-					{
-						frame = -1;
-						azimuth = unit->azimuth;
-					}
-
 					if ((pass == 0 && unit->unit->isAir()) || pass == 2)
 					{
-						int top_y_ofs = unit->Render(terrain, pic, pic_end, mxx, myy, pic_x_size, filter, sid, w_unit_hud,azimuth, frame);
+						int top_y_ofs = unit->Render(terrain, pic, pic_end, mxx, myy, pic_x_size, filter, sid, w_unit_hud);
 
 						// render selection pointer for selected unit
 						if(unit_selection && unit_selection->coor.IsEqual(n + xs_ofs,m + ys_ofs * 2))
@@ -2037,7 +2024,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 	}*/
 
 	// Debug: render remaining ap/fire	
-	for(m = 0; m < ys_size; m++)
+	/*for(m = 0; m < ys_size; m++)
 	{
 		if(m + ys_ofs * 2 >= y_size)
 			break;
@@ -2070,9 +2057,16 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 			//terrain->font7->Render(pic,pic_end,pic_x_size,mxx,myy + spr->y_ofs,80,spr->y_size,hstr,252,254,SpellFont::DIAG);
 			terrain->font7->Render(pic,pic_end,pic_x_size,mxx,myy + spr->y_ofs,80,spr->y_size,hstr,252,254,SpellFont::RIGHT_DOWN);
 		}
-	}
+	}*/
 
-
+	// put unit range view mode string (game mode)
+	string unit_view_string;
+	if(viewingUnitMoveRange())
+		unit_view_string = "MOVEMENT MODE";
+	else if(viewingUnitAttackRange())
+		unit_view_string = "ATTACK MODE";
+	if(!unit_view_string.empty())
+		terrain->font->Render(pic,pic_end,pic_x_size,surf_x_origin+surf_x-150,surf_y_origin+0,150,50,unit_view_string,255,254,SpellFont::RIGHT_DOWN);
 	
 	
 	// check unit on cursor
@@ -2197,7 +2191,7 @@ int SpellMap::FindUnitRange(MapUnit* unit)
 	
 	// set new unit
 	if(unit)
-		unit_range_th_unit = *unit;
+		unit_range_th_unit = MapUnit(*unit);
 	else
 		unit_range_th_unit.coor = {-1,-1};
 
@@ -2387,7 +2381,7 @@ vector<AStarNode> SpellMap::FindUnitPath(MapUnit* unit, MapXY target)
 	push_heap(open_set.begin(),open_set.end(),FindUnitPathCompareHeap());
 
 	// unit maximum AP
-	int max_ap = unit->GetMaxAP();
+	int max_ap = unit->action_points;
 
 	int count = 0;
 
@@ -2505,8 +2499,12 @@ uint8_t* SpellMap::GetUnitRangeFilter(int mxy)
 {
 	if(viewingUnitMoveRange() && unit_fire_left[mxy] > 0)
 		return(terrain->filter.bluepal);
-	else if(viewingUnitMoveRange() && unit_ap_left[mxy] >= 0)
+	if(viewingUnitMoveRange() && unit_ap_left[mxy] >= 0)
 		return(terrain->filter.dbluepal);
+	if(viewingUnitAttackRange() && unit_attack_map[mxy] > 0)
+		return(terrain->filter.redpal);
+	if(viewingUnitMoveRange() || viewingUnitAttackRange())
+		return(terrain->filter.darkpal);
 	return(NULL);
 }
 
@@ -2514,9 +2512,145 @@ uint8_t* SpellMap::GetUnitRangeFilter(int mxy)
 int SpellMap::SetUnitRangeViewMode(int mode)
 {
 	int old_state = unit_range_view_mode;
-	unit_range_view_mode = mode;
+
+	if(mode == UNIT_RANGE_INCREMENT)
+	{
+		// cycle through mode only
+		unit_range_view_mode++;
+		if(unit_range_view_mode > UNIT_RANGE_ATTACK)
+			unit_range_view_mode = UNIT_RANGE_NONE;
+		
+		// explicit selection lock if not NONE state
+		unit_range_view_mode_lock = (unit_range_view_mode != UNIT_RANGE_NONE);
+	}
+	else if(!unit_range_view_mode_lock)
+	{
+		// explicit setup
+		unit_range_view_mode = mode;
+		
+	}
 	return(old_state);
 }
+
+
+// move unit (in game mode)
+int SpellMap::MoveUnit(MapXY target)
+{	
+	unit_path_lock.lock();
+	unit_path_state = UNIT_PATH_IDLE;
+	unit_path.clear();
+	unit_path_lock.unlock();
+	
+
+	if(!target.IsSelected())
+		return(1);
+	int t_mxy = ConvXY(target);
+
+	// selected unit
+	auto* unit = GetSelectedUnit();
+	if(!unit)
+		return(1);
+
+	// skip if outside move range
+	if(unit_ap_left[t_mxy] < 0)
+		return(1);
+	
+	// skip if not discovered map
+	if(units_view[t_mxy] < 1)
+		return(1);
+	
+	// find path
+	auto path = FindUnitPath(unit, target);
+	
+	unit_path_lock.lock();
+
+	// build path
+	for(int nid = 1; nid < path.size(); nid++)
+		unit_path.push_back(path[nid]);
+	// init path move
+	if(!unit_path.empty())
+	unit_path_state = 0;
+
+	unit_path_lock.unlock();
+		
+	return(0);
+}
+
+// is unit in movement?
+int SpellMap::isUnitMoving()
+{
+	return(unit_path_state != UNIT_PATH_IDLE);
+}
+
+// reset AP of all units
+int SpellMap::ResetUnitsAP()
+{
+	for(auto & unit : units)
+		unit->ResetAP();
+	return(0);
+}
+
+// attack enemy unit
+int SpellMap::AttackUnit(MapUnit *target)
+{
+	// get target position
+	if(!target)
+		return(1);
+	auto target_pos = target->coor;
+	int target_mxy = ConvXY(target_pos);	
+
+	// skip if out of range
+	if(!unit_attack_map[target_mxy])
+		return(1);
+
+	// get attacking unit
+	auto* unit = GetSelectedUnit();
+	if(!unit)
+		return(1);
+
+	// check fires cound
+	int fires = unit->GetFireCount();
+	if(!fires)
+		return(1);	
+
+	FSU_resource *fsu_anim;
+	int frame_stop;
+	if(target->unit->isLight())
+	{
+		fsu_anim = unit->unit->gr_attack_light;
+		frame_stop = unit->unit->anim_atack_light_frames;
+	}
+	else if(target->unit->isHeavy())
+	{
+		fsu_anim = unit->unit->gr_attack_armor;
+		frame_stop = unit->unit->anim_atack_armor_frames;
+	}
+	else if(target->unit->isAir())
+	{
+		fsu_anim = unit->unit->gr_attack_air;
+		frame_stop = unit->unit->anim_atack_air_frames;
+	}
+	else
+		return(1);
+
+	// play shot sound (async)
+	unit->PlayFire(target->unit);
+
+	if(fsu_anim)
+	{
+		// play FSU animation
+		unit->in_animation = fsu_anim;
+		unit->frame = 0;		
+		unit->frame_stop = frame_stop;
+		unit->azimuth_angle = unit->coor.Angle(target_pos);
+		unit->azimuth = fsu_anim->GetAnimAzim(unit->azimuth_angle);
+	}
+
+}
+
+
+
+
 
 // select unit, if currently selected at the same position, switch between air-land
 MapUnit* SpellMap::SelectUnit(MapUnit* new_unit)
@@ -2537,6 +2671,10 @@ MapUnit* SpellMap::SelectUnit(MapUnit* new_unit)
 		unit_selection = new_unit;
 	// unit selected
 	unit_selection_mod = true;
+
+	if(new_unit && new_unit->unit->sound_report)
+		new_unit->PlayReport();
+
 	// return new selection
 	return(unit_selection);
 }
@@ -2812,7 +2950,7 @@ int SpellMap::RenderHUD(uint8_t *buf,uint8_t* buf_end,int buf_x_size,MapXY *curs
 			CreateHUDbutton(gres.wm_glyph_map,hud_origin,btn_right[0],buf,buf_end,buf_x_size,HUD_ACTION_MINIMAP,NULL,NULL);
 			CreateHUDbutton((unit_sel_land_preference)?(gres.wm_glyph_ground):(gres.wm_glyph_air),hud_origin,btn_right[1],buf,buf_end,buf_x_size,0,bind(&SpellMap::OnHUDswitchAirLand,this),NULL);
 			CreateHUDbutton(gres.wm_glyph_goto_unit,hud_origin,btn_right[2],buf,buf_end,buf_x_size,0,NULL,NULL);
-			CreateHUDbutton(gres.wm_glyph_end_turn,hud_origin,btn_right[3],buf,buf_end,buf_x_size,0,NULL,NULL);
+			CreateHUDbutton(gres.wm_glyph_end_turn,hud_origin,btn_right[3],buf,buf_end,buf_x_size,0,bind(&SpellMap::OnHUDswitchenTurn,this),NULL);
 			
 			CreateHUDbutton(gres.wm_glyph_unit_info,hud_origin,btn_right[4],buf,buf_end,buf_x_size,0,bind(&SpellMap::OnHUDswitchUnitHUD,this),NULL);
 			CreateHUDbutton(gres.wm_glyph_info,hud_origin,btn_right[5],buf,buf_end,buf_x_size,0,NULL,NULL);
@@ -2858,6 +2996,12 @@ void SpellMap::OnHUDswitchAirLand()
 void SpellMap::OnHUDswitchUnitHUD()
 {
 	w_unit_hud = !w_unit_hud;	
+}
+void SpellMap::OnHUDswitchenTurn()
+{
+	ResetUnitsAP();
+	// todo: replace by something that will trigger range recalculation
+	unit_selection_mod = true;
 }
 
 
@@ -3342,20 +3486,212 @@ int SpellMap::AddUnitView(MapUnit *unit)
 	return(count);
 }
 
-// add view range of all units of given type
-int SpellMap::AddUnitsView(int unit_type)
+// add view range of all moved units of given type, clear moved flags
+int SpellMap::AddUnitsView(int unit_type, int clear)
 {
 	for(auto & unit : units)
 	{
 		// filter unit types to view
 		if(unit->is_enemy && !(unit_type & UNIT_TYPE_OS) || !unit->is_enemy && !(unit_type & UNIT_TYPE_ALIANCE))
 			continue;
+		/*if(!unit->was_moved)
+			continue;*/
+		if(clear)
+			unit->was_moved = false;
 		
 		// add view mask
 		AddUnitView(unit);
 	}
 	return(0);
 }
+
+
+
+// initialize unit attack range calculator
+int SpellMap::UnitAttackRangeInit()
+{
+	// clear current mask
+	unit_attack_map.assign(x_size*y_size,0);
+
+	return(0);
+}
+
+// calculates attack range for given unit
+int SpellMap::CalcUnitAttackRange(MapUnit *unit)
+{
+	// clear current view
+	UnitAttackRangeInit();
+
+	// leave if no unit selected
+	if(!unit)
+		return(0);
+
+	// get initial unit attack range
+	int ref_view = unit->unit->fire_range;
+
+	// reference unit position
+	MapXY ref_pos = unit->coor;
+	int ref_mxy = ConvXY(ref_pos);
+	int ref_alt = elev[ConvXY(ref_pos)];
+	int ref_slope = L1[ref_mxy]->GetSlope();
+
+	if(ref_slope != 'A' && unit->unit->fire_flags & SpellUnitRec::FIRE_NOT_SLOPES)
+	{
+		// cannot fire from slopes, leave
+		return(0);
+	}
+
+	// recursion buffer
+	vector<int> dirz;
+	vector<MapXY> posz;
+	dirz.reserve(500);
+	posz.reserve(500);
+
+	// place first tile to recoursive buffer (center tile)
+	dirz.push_back(0);
+	posz.push_back(ref_pos);
+
+
+	// proceed recoursively till max visibility
+	while(true)
+	{
+		// go to next direction
+		dirz.back()++;
+		if(dirz.back() > 4)
+		{
+			// this recursion level is done: revert back
+			dirz.erase(dirz.end()-1);
+			posz.erase(posz.end()-1);
+			if(!dirz.size())
+				break; // all done
+			continue;
+		}
+		MapXY this_pos = posz.back();
+
+		// try look for next position
+		MapXY next_pos = GetNeighborTile(this_pos,dirz.back()-1);
+		if(!next_pos.IsSelected())
+			continue;
+		int next_mxy = ConvXY(next_pos);
+
+		// skip if already done
+		if(unit_attack_map[next_mxy])
+			continue;
+
+		// next tile elevation
+		int next_alt = elev[next_mxy];
+		int view = ref_view + max(ref_alt-next_alt,0); // expand if terget lower than ref
+
+		// visible?
+		if((next_pos.Distance(ref_pos)-0.5) > view)
+			continue; // nope: goto next tile
+		// mark this tile as potentially visible (to stop recursion)
+		unit_attack_map[next_mxy] = 1;
+
+		if(unit->unit->isIndirectFire())
+		{
+			// indirect fire: no need to check direct sight, only min distance
+			if((next_pos.Distance(ref_pos)-0.5) > 2.0)
+			{
+				// min range ok
+				unit_attack_map[next_mxy] = 2;
+			}
+		}
+		else
+		{
+			// -- send ray to target tile to find out if it is visible:				
+			 
+			// multisampling mode
+			const int msx_ofs[4] ={1,-1,0,0};
+			const int msy_ofs[4] ={0,0,1,-1};
+			const int ms_count = 4;
+
+			// get list of all points belonging target tile (in view mask coordinate system)
+			auto target_pix = GetUnitsViewTilePixels(next_pos);
+			// for each target point: send ray and check if the tartget point is visible, if at least one ray is, mark tile as visible
+			for(auto& target_pos : target_pix)
+			{
+				// get view ray initial coordinates (unit)
+				auto [x0,y0,z0b] = GetUnitsViewTileCenter(ref_pos);
+				int z0 = (int)z0b;
+				if(unit->unit->isAir())
+					z0 += 100; // air-unit height estimate
+				else
+					z0 += 15; // unit height estimate
+
+				// get target coordinates
+				int x1 = target_pos.x;
+				int y1 = target_pos.y;
+				int z1 = target_pos.z;
+				z1 += 4; // target height estimate
+
+				// based on: http://members.chello.at/easyfilter/bresenham.html
+				int dx = abs(x1-x0),sx = x0<x1 ? 1 : -1;
+				int dy = abs(y1-y0),sy = y0<y1 ? 1 : -1;
+				int dz = abs(z1-z0),sz = z0<z1 ? 1 : -1;
+				int dm = max(max(dx,dy),dz),i = dm; // maximum difference
+				x1 = y1 = z1 = dm/2; // error offset
+
+				int last_tile_id = -1;
+				for(;;) {  // loop
+
+					auto [tile_id,hx] = GetUnitsViewMask(x0,y0,ref_mxy);
+					// multisampling test (tries to send ray with +-1pixel offset)
+					int pass = (ms_count == 0);
+					for(int k = 0; k < ms_count; k++)
+					{
+						auto [ms_tile_id,ms_hx] = GetUnitsViewMask(x0 + msx_ofs[k],y0 + msy_ofs[k],ref_mxy);
+						if(z0 >= ms_hx/* && ms_tile_id == tile_id*/)
+						{
+							pass = true;
+							break;
+						}
+					}
+					if(tile_id == next_mxy)
+					{
+						// target reached: mark tile as visible and done
+						unit_attack_map[next_mxy] = 2;
+						break;
+					}
+					// at least one pixel of crossed tile must be visible
+					if(!pass)
+						break;
+
+					last_tile_id = tile_id;
+
+					if(i-- == 0) break;
+					x1 -= dx; if(x1 < 0) { x1 += dm; x0 += sx; }
+					y1 -= dy; if(y1 < 0) { y1 += dm; y0 += sy; }
+					z1 -= dz; if(z1 < 0) { z1 += dm; z0 += sz; }
+				}
+				// done if ray passed to target
+				if(unit_attack_map[next_mxy] == 2)
+					break;
+			}
+		}
+
+		// proceed to next position allowed
+		dirz.push_back(0);
+		posz.push_back(next_pos);
+	}
+
+	// clear potentially visible tiles (temps)
+	for(auto& tile : unit_attack_map)
+		if(tile < 2)
+			tile = 0;
+
+	return(0);
+}
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3391,55 +3727,130 @@ int SpellMap::Tick()
 {
 	if (!this->IsLoaded())
 		return(0);
+
+	int update = false;
+
+	static int tick_100ms_div;
+	tick_100ms_div++;
+	if(tick_100ms_div >= 3)
+		tick_100ms_div = 0;
+	int tick_100ms = (tick_100ms_div == 0);
+
+	if(tick_100ms)
+	{
 	
-	// cycle water palette
-	uint8_t water[10][3];
-	std::memcpy((void*)water, (void*)&pal[240][0], 10 * 3);
-	std::memcpy((void*)&pal[240][0], (void*)&water[1][0], 9 * 3);
-	std::memcpy((void*)&pal[249][0], (void*)&water[0][0], 1 * 3);
+		// cycle water palette
+		uint8_t water[10][3];
+		std::memcpy((void*)water, (void*)&pal[240][0], 10 * 3);
+		std::memcpy((void*)&pal[240][0], (void*)&water[1][0], 9 * 3);
+		std::memcpy((void*)&pal[249][0], (void*)&water[0][0], 1 * 3);
 
-	// animate L3 animations
-	for (int k = 0; k < L3.size(); k++)
-	{
-		MapLayer3 *anm = L3[k];
-		// cycle through frames
-		anm->frame_ofs++;
-		if (anm->frame_ofs >= anm->frame_limit)
-			anm->frame_ofs = 0;
-	}
-
-	// animate L4 animations
-	for (int k = 0; k < L4.size(); k++)
-	{
-		MapLayer4* pnm = L4[k];
-		// cycle through frames
-		pnm->frame_ofs++;
-		if (pnm->frame_ofs >= pnm->frame_limit)
-			pnm->frame_ofs = 0;
-	}
-
-	// animate unit pointer
-	pnm_sipka.frame_ofs++;
-	if(pnm_sipka.frame_ofs >= pnm_sipka.frame_limit)
-		pnm_sipka.frame_ofs = 0;
-
-	// animate units
-	for (int k = 0; k < units.size(); k++)
-	{
-		MapUnit* unit = units[k];
-
-		// cycle frames when animation avilable
-		FSU_resource* fsu = unit->unit->gr_base;
-		if (fsu->anim.frames)
+		// animate L3 animations
+		for (int k = 0; k < L3.size(); k++)
 		{
-			unit->frame++;
-			if (unit->frame >= fsu->anim.frames)
-				unit->frame = 0;
+			MapLayer3 *anm = L3[k];
+			// cycle through frames
+			anm->frame_ofs++;
+			if (anm->frame_ofs >= anm->frame_limit)
+				anm->frame_ofs = 0;
 		}
-	}	
+
+		// animate L4 animations
+		for (int k = 0; k < L4.size(); k++)
+		{
+			MapLayer4* pnm = L4[k];
+			// cycle through frames
+			pnm->frame_ofs++;
+			if (pnm->frame_ofs >= pnm->frame_limit)
+				pnm->frame_ofs = 0;
+		}
+
+		// animate unit pointer
+		pnm_sipka.frame_ofs++;
+		if(pnm_sipka.frame_ofs >= pnm_sipka.frame_limit)
+			pnm_sipka.frame_ofs = 0;
+
+		update = true;
+	}
+	
+	// get ref. unit
+	auto* unit = GetSelectedUnit();
+	if(!unit)
+		return(0);
+
+	if(unit_path_state >= 0)
+	{			
+		unit_path_lock.lock();
+
+		if(unit_path_state == 0)
+		{
+			// initiate movement:
+			
+			// play move sound (async)
+			unit->PlayMove();
+
+			// start animation
+			unit->frame = -1;
+			unit->in_animation = unit->unit->gr_base;
+		}
+
+		auto this_pos = unit->coor;
+
+		int ap_prev = 0;
+		if(unit_path_state)
+			ap_prev = unit_path[unit_path_state-1].g_cost;
+
+		auto next_pos = unit_path[unit_path_state++];
+
+		unit->action_points -= (next_pos.g_cost - ap_prev);
+		unit->coor = next_pos.pos;
+		unit->was_moved = true;
+
+		double azimuth = this_pos.Angle(next_pos.pos);				
+		unit->azimuth = unit->unit->gr_base->GetAnimAzim(azimuth);
+
+		unit->frame++;
+		if(unit->frame >= unit->in_animation->anim.frames)
+			unit->frame = 0;
+		
+		SortUnits();		
+
+		if(unit_path_state >= unit_path.size())
+		{
+			// movemenet done:
+			unit_path_state = UNIT_PATH_IDLE;
+			unit_path.clear();
+
+			// stop move sound (async - this is just flag to shut donw in next sound frame)
+			unit->PlayStop();
+
+			// stop animation (switch to static)
+			unit->in_animation = NULL;
+			unit->azimuth = unit->unit->gr_base->GetStaticAzim(azimuth);
+			unit->frame = 0;
+		}
+
+		unit_path_lock.unlock();
+
+		update = true;
+	}
+	else if(unit->in_animation && unit_path_state == UNIT_PATH_IDLE)
+	{
+		// play animation
+		
+		unit->frame++;
+		if(unit->frame >= unit->frame_stop)
+		{
+			unit->in_animation = NULL;
+			unit->frame = 0;
+			unit->azimuth = unit->unit->gr_base->GetStaticAzim(unit->azimuth_angle);
+		}
+
+		update = true;
+	}
 
 	// repaint
-	return(1);
+	return(update);
 }
 
 

@@ -180,12 +180,14 @@ SpellDefSection *SpellDEF::GetSection(std::string section)
 // class SpellData
 //=============================================================================
 
-SpellData::SpellData(wstring &data_path,wstring& spec_path)
+SpellData::SpellData(wstring &data_path,wstring& cd_data_path,wstring& spec_path)
 {
 	font = NULL;
 	font7 = NULL;
 	units = NULL;
 	units_fsu = NULL;
+	info = NULL;
+	sounds = NULL;
 	
 	// store path
 	spell_data_root = data_path;
@@ -268,13 +270,16 @@ SpellData::SpellData(wstring &data_path,wstring& spec_path)
 	// hard assign some PNM links
 	pnm_sipka = GetPNM("SIPKA");
 
+	// load sound stuff
+	sounds = new SpellSounds(data_path);
+
 	// load JEDNOTKY.DEF units definition file
 	if (common->GetFile("JEDNOTKY.DEF", &data, &size))
 	{
 		delete common;
 		throw runtime_error("JEDNOTKY.DEF not found in COMMON.FS!");
 	}
-	units = new SpellUnits(data, size, units_fsu, &gres);
+	units = new SpellUnits(data, size, units_fsu, &gres, sounds);
 
 	// load font file
 	if(common->GetFile("FONT_001.FNT",&data,&size))
@@ -287,6 +292,11 @@ SpellData::SpellData(wstring &data_path,wstring& spec_path)
 
 	// close common.fs
 	delete common;
+
+	// load INFO.FS (units art)
+	path = cd_data_path + L"\\INFO.FS";
+	info = new FSarchive(path);
+	
 
 	// load special tiles
 	LoadSpecialLand(spec_path);
@@ -327,6 +337,10 @@ SpellData::~SpellData()
 		delete font;
 	if(font7)
 		delete font7;
+	if(info)
+		delete info;
+	if(sounds)
+		delete sounds;
 }
 
 // find loaded PNM animation
@@ -405,47 +419,62 @@ int SpellData::LoadAuxGraphics(FSarchive *fs)
 			// units icons, fized width 60
 			is_lzw = true;
 			lzw->Decode(data, data_end, &data, &flen);			
-			gres.AddRaw(data, flen, 60, flen/60, name);		
+			gres.AddRaw(data, flen, 60, flen/60, name, (uint8_t*)terrain[0]->pal);
 		}
 		else if(strcmp(name, "LISTA_0.LZ") == 0 || strcmp(name,"LISTA_1.LZ") == 0)
 		{
 			// war map bottom panel
 			is_lzw = true;
 			lzw->Decode(data,data_end,&data,&flen);
-			gres.AddRaw(data,flen,640,flen/640,name);
+			gres.AddRaw(data,flen,640,flen/640,name,(uint8_t*)terrain[0]->pal);
 		}
 		else if(strcmp(name,"LISTA_0B.LZ0") == 0)
 		{
 			// war map right panel overlay
 			is_lzw = true;
 			lzw->Decode(data,data_end,&data,&flen);
-			gres.AddRaw(data,flen,160,flen/160,name);
+			gres.AddRaw(data,flen,160,flen/160,name,(uint8_t*)terrain[0]->pal);
 		}
 		else if(strcmp(name,"LISTAPAT.LZ") == 0)
 		{
 			// war map bottom panel side filling
 			is_lzw = true;
 			lzw->Decode(data,data_end,&data,&flen);
-			gres.AddRaw(data,flen,32,flen/32,name);
+			gres.AddRaw(data,flen,32,flen/32,name,(uint8_t*)terrain[0]->pal);
 		}
 		else if(strcmp(name,"LEV_GFK.LZ") == 0)
 		{
 			// experience mark
 			is_lzw = true;
 			lzw->Decode(data,data_end,&data,&flen);
-			gres.AddRaw(data,flen,9,flen/9,name);
+			gres.AddRaw(data,flen,9,flen/9,name,(uint8_t*)terrain[0]->pal);
 		}
 		else if(strcmp(name,"M_ACCOMP.LZ") == 0 || strcmp(name,"M_FAILED.LZ") == 0)
 		{
 			// war map end title
 			is_lzw = true;
 			lzw->Decode(data,data_end,&data,&flen);
-			gres.AddRaw(data,flen,340,flen/340,name);
+			gres.AddRaw(data,flen,340,flen/340,name,(uint8_t*)terrain[0]->pal);
 		}
 		else if(wildcmp("*.ICO",name) || wildcmp("*.BTN",name))
 		{
-			// ICO files (compression line in PNM files)			
-			gres.AddICO(data, flen, name);
+			// ICO files (compression like in PNM files)			
+			gres.AddICO(data, flen, name,(uint8_t*)terrain[0]->pal);
+		}
+		else if(wildcmp("*.CUR",name))
+		{
+			// CUR files (simple bitmaps with dimensions and transparencies)
+			gres.AddCUR(data,flen,name,(uint8_t*)terrain[0]->pal);
+		}
+		else if(wildcmp("*.GFK",name))
+		{
+			// GFK projection files: fixed 21x21 pixel with transparencies
+			gres.AddRaw(data,flen,21,21,name,(uint8_t*)terrain[0]->pal,true);
+		}
+		else if(wildcmp("*.PNM",name))
+		{
+			// PNM animations:
+			gres.AddPNM(data,flen,name);
 		}
 
 		if(is_lzw)
@@ -453,9 +482,9 @@ int SpellData::LoadAuxGraphics(FSarchive *fs)
 	}
 
 	// make round LED indicators for mission HUD
-	gres.AddLED(204,"RLED_OFF");
-	gres.AddLED(253,"RLED_ON");
-	gres.AddLED(229,"YLED_ON");
+	gres.AddLED(204,"RLED_OFF",(uint8_t*)terrain[0]->pal);
+	gres.AddLED(253,"RLED_ON",(uint8_t*)terrain[0]->pal);
+	gres.AddLED(229,"YLED_ON",(uint8_t*)terrain[0]->pal);
 	
 	// --- DO NOT ADD ANYTHING TO LIST FROM HERE!!! it would change memory locations!
 
@@ -493,9 +522,9 @@ int SpellData::LoadAuxGraphics(FSarchive *fs)
 	gres.wm_glyph_end_placement = gres.GetResource("UKONCEN");
 	gres.wm_glyph_info = gres.GetResource("UNITINFO");
 	
-
+	// order projectiles
+	gres.SortProjectiles();
 	
-
 	// loose LZW decoder
 	delete lzw;
 

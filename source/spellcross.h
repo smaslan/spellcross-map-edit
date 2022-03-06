@@ -18,6 +18,7 @@
 #include "spell_units.h"
 #include "spell_font.h"
 #include "spell_graphics.h"
+#include "spell_sound.h"
 
 using namespace std;
 
@@ -90,8 +91,12 @@ public:
 	vector<AnimPNM*> pnms;
 	// last path
 	wstring spell_data_root;
+	// info.fs
+	FSarchive* info;
+	// sound stuff
+	SpellSounds* sounds;
 
-	SpellData(wstring &data_path, wstring& spec_path);
+	SpellData(wstring& data_path,wstring& cd_data_path,wstring& spec_path);
 	~SpellData();	
 	Terrain* GetTerrain(const char* name);
 	Terrain* GetTerrain(int index);

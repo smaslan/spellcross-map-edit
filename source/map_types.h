@@ -8,6 +8,9 @@
 #pragma once
 
 #include <tuple>
+#include <cmath>
+
+#define M_PI 3.141592653589793238463
 
 class MapXY
 {
@@ -34,6 +37,18 @@ public:
 		int xx2 = x * 2 + (((y & 1) != 0) ? 0 : 1);
 		int yy2 = y * 1;
 		return tuple(0.707106*(double)(xx1-xx2),0.707106*(double)(yy1-yy2));
+	};
+	// angle of <xx,yy> from this pos
+	double Angle(MapXY mxy) {return Angle(mxy.x, mxy.y);};
+	double Angle(int xx, int yy)
+	{
+		int xx1 = xx * 2 + (((yy & 1) != 0) ? 0 : 1);
+		int yy1 = yy * 1;
+		int xx2 = x * 2 + (((y & 1) != 0) ? 0 : 1);
+		int yy2 = y * 1;
+		if(xx == x && yy == y)
+			return(0);
+		return atan2(yy2 - yy1, xx1 - xx2)*180.0/M_PI;
 	};
 	
 	MapXY operator + (MapXY par)

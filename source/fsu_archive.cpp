@@ -300,6 +300,9 @@ int FSUarchive::LoadResource(uint8_t *data, int rid, FSU_resource *res, LZWexpan
 		// store new sprite
 		res->list.push_back(sprite);
 	}
+
+	/*if(strcmp(res->name,"SRANG") == 0)
+		i++;*/
 	
 	
 	// ====== analyze sprite names ======
@@ -353,8 +356,13 @@ int FSUarchive::LoadResource(uint8_t *data, int rid, FSU_resource *res, LZWexpan
 	else
 	{
 		// === single image group ===
+		
+		/*int azims[13];
+		memset(azims,0,13*sizeof(int));
+		for(i = 0; i < res->tot_sprites; i++)
+			if(res->list[0]->name[1] != '0')*/		
 		for (i = 0; i < res->tot_sprites; i++)
-			if(res->list[0]->name[1] != '0')
+			if(res->list[i]->name[1] != '0')
 				break;
 		if(i != res->tot_sprites)
 		{
@@ -454,6 +462,19 @@ FSU_resource::~FSU_resource()
 	for(unsigned k = 0; k < list.size(); k++)
 		delete list[k];
 	list.clear();
+}
+
+// get azimuth index for fiven angle
+int FSU_resource::GetAnimAzim(double angle)
+{
+	angle = remainder(angle, 360.0);
+	return ((int)round((360.0 + 90.0 - angle)/360.0*(double)anim.azimuths)) % anim.azimuths;	
+}
+// get azimuth index for fiven angle
+int FSU_resource::GetStaticAzim(double angle)
+{
+	angle = remainder(angle,360.0);
+	return ((int)round((360.0 + 90.0 - angle)/360.0*(double)stat.azimuths)) % stat.azimuths;
 }
 
 
