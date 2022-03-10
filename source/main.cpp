@@ -199,7 +199,7 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
 
     m_timer.SetOwner(this);
     this->Connect(wxEVT_TIMER,wxTimerEventHandler(MyFrame::OnTimer),NULL,this);
-    m_timer.Start(33);
+    m_timer.Start(10);
 
 
     // main sizer 
@@ -1035,9 +1035,6 @@ void MyFrame::OnCanvasLMouseDown(wxMouseEvent& event)
         else
         {
             // try select/move unit:
-
-            if(spell_map->isUnitMoving())
-                return;
 
             auto select = spell_map->GetSelection(m_buffer,&scroll);
             auto* cur_unit = spell_map->GetCursorUnit(m_buffer,&scroll);

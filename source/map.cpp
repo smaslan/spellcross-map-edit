@@ -241,8 +241,6 @@ SpellMap::SpellMap()
 
 	unit_range_view_mode = UNIT_RANGE_NONE;
 	unit_range_view_mode_lock = false;
-
-	unit_path_state = UNIT_PATH_IDLE;
 }
 
 SpellMap::~SpellMap()
@@ -1622,7 +1620,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 	
 	
 	MapUnit* unit = GetSelectedUnit();	
-	if((units_moved || unit_changed) && !isUnitMoving())
+	if((units_moved || unit_changed || !unit) && !unit->isMoving())
 	{
 		// initialize unit view recalculation
 		FindUnitRange(unit);
@@ -1895,6 +1893,9 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 
 	// --- Render Layer 2 - Objects ---
 	// --- Redner Units ---
+	MapXY attack_pos;
+	MapXY target_pos;
+	MapUnit *attacker = NULL;
 	for (m = 0; m < ys_size; m++)
 	{
 		if (m + ys_ofs * 2 >= y_size)
@@ -1943,6 +1944,22 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 					if ((pass == 0 && unit->unit->isAir()) || pass == 2)
 					{
 						int top_y_ofs = unit->Render(terrain, pic, pic_end, mxx, myy, pic_x_size, filter, sid, w_unit_hud);
+						
+						// store attack-target positions in buffer (for projectile trajectory calculation)
+						if(unit->isAttacker())
+						{
+							attacker = unit;
+							attack_pos = MapXY(mxx + 40, myy + top_y_ofs/2);
+						}
+						if(unit->isTarget())
+							target_pos = MapXY(mxx + 40, myy + top_y_ofs/2);
+
+						// render hit PNM animation
+						if(unit->attack_state == MapUnit::ATTACK_STATE_HIT && unit->attack_hit_pnm)
+						{
+							auto *frame = unit->attack_hit_pnm->frames[unit->attack_hit_frame];
+							frame->Render(pic,pic_end,mxx,myy,pic_x_size,filter);
+						}
 
 						// render selection pointer for selected unit
 						if(unit_selection && unit_selection->coor.IsEqual(n + xs_ofs,m + ys_ofs * 2))
@@ -1962,6 +1979,20 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 					sid2->Render(pic, pic_end, mxx, myy + sid->y_ofs, pic_x_size, filter);
 			}
 		}
+	}
+
+	// render projectile
+	if(attacker && attacker->attack_state == MapUnit::ATTACK_STATE_FLIGHT && attacker->unit->projectile && attack_pos.IsSelected() && target_pos.IsSelected())
+	{
+		double angle = attack_pos.Angle(target_pos);
+		auto glyph = attacker->unit->projectile->GetGlyph(angle);
+		
+		int dx = target_pos.x - attack_pos.x;
+		int dy = target_pos.y - attack_pos.y;
+		int mxx = attack_pos.x + dx*attacker->attack_proj_step/attacker->attack_proj_delay - glyph->x_size/2;
+		int myy = attack_pos.y + dy*attacker->attack_proj_step/attacker->attack_proj_delay - glyph->y_size/2;
+			
+		glyph->Render(pic, pic_end, pic_x_size, mxx, myy);
 	}
 		
 
@@ -2536,21 +2567,23 @@ int SpellMap::SetUnitRangeViewMode(int mode)
 // move unit (in game mode)
 int SpellMap::MoveUnit(MapXY target)
 {	
-	unit_path_lock.lock();
-	unit_path_state = UNIT_PATH_IDLE;
-	unit_path.clear();
-	unit_path_lock.unlock();
-	
-
-	if(!target.IsSelected())
-		return(1);
-	int t_mxy = ConvXY(target);
 
 	// selected unit
 	auto* unit = GetSelectedUnit();
 	if(!unit)
 		return(1);
 
+	// clear last move
+	unit_action_lock.lock();
+	unit->move_state = MapUnit::MOVE_STATE_IDLE;
+	unit->move_nodes.clear();
+	unit_action_lock.unlock();
+	
+	//  check target
+	if(!target.IsSelected())
+		return(1);
+	int t_mxy = ConvXY(target);
+	
 	// skip if outside move range
 	if(unit_ap_left[t_mxy] < 0)
 		return(1);
@@ -2562,25 +2595,24 @@ int SpellMap::MoveUnit(MapXY target)
 	// find path
 	auto path = FindUnitPath(unit, target);
 	
-	unit_path_lock.lock();
+	unit_action_lock.lock();
 
 	// build path
 	for(int nid = 1; nid < path.size(); nid++)
-		unit_path.push_back(path[nid]);
-	// init path move
-	if(!unit_path.empty())
-	unit_path_state = 0;
+		unit->move_nodes.push_back(path[nid]);
 
-	unit_path_lock.unlock();
+	// init path move
+	if(!unit->move_nodes.empty())
+	{
+		unit->move_state = MapUnit::MOVE_STATE_TURRET;
+		unit->move_step = 0;
+	}
+
+	unit_action_lock.unlock();
 		
 	return(0);
 }
 
-// is unit in movement?
-int SpellMap::isUnitMoving()
-{
-	return(unit_path_state != UNIT_PATH_IDLE);
-}
 
 // reset AP of all units
 int SpellMap::ResetUnitsAP()
@@ -2631,21 +2663,21 @@ int SpellMap::AttackUnit(MapUnit *target)
 		frame_stop = unit->unit->anim_atack_air_frames;
 	}
 	else
-		return(1);
+		return(1);	
 
-	// play shot sound (async)
-	unit->PlayFire(target->unit);
-
-	if(fsu_anim)
+	//if(fsu_anim)
 	{
-		// play FSU animation
+		// play FSU animation	
+		unit->attack_target = target;
 		unit->in_animation = fsu_anim;
 		unit->frame = 0;		
 		unit->frame_stop = frame_stop;
 		unit->azimuth_angle = unit->coor.Angle(target_pos);
-		unit->azimuth = fsu_anim->GetAnimAzim(unit->azimuth_angle);
+		unit->attack_dist = unit->coor.Distance(target_pos);
+		unit->attack_state = MapUnit::ATTACK_STATE_TURN;
 	}
 
+	return(0);
 }
 
 
@@ -2823,15 +2855,28 @@ int SpellMap::RenderHUD(uint8_t *buf,uint8_t* buf_end,int buf_x_size,MapXY *curs
 		// pos a: 109,83
 		int attack_light = unit->unit->alig;
 		font->Render(buf,buf_end,buf_x_size,hud_left+px_ref+109,hud_top+83,string_format("%02d",attack_light),232,254,SpellFont::RIGHT_DOWN);
+		if(pid == 0 && cursor_unit && cursor_unit->unit->isLight())
+			RenderHUDrect(buf, buf_end, buf_x_size,hud_left+px_ref+109-11,hud_top+83,27,15,253);
+
 		// pos a: 145,83
 		int attack_heavy = unit->unit->aarm;
 		font->Render(buf,buf_end,buf_x_size,hud_left+px_ref+145,hud_top+83,string_format("%02d",attack_heavy),232,254,SpellFont::RIGHT_DOWN);
+		if(pid == 0 && cursor_unit && cursor_unit->unit->isHeavy())
+			RenderHUDrect(buf,buf_end,buf_x_size,hud_left+px_ref+145-20,hud_top+83,37,15,253);
+
 		// pos a: 181,83
 		int attack_air = unit->unit->aair;
 		font->Render(buf,buf_end,buf_x_size,hud_left+px_ref+181,hud_top+83,string_format("%02d",attack_air),232,254,SpellFont::RIGHT_DOWN);
+		if(pid == 0 && cursor_unit && cursor_unit->unit->isAir())
+			RenderHUDrect(buf,buf_end,buf_x_size,hud_left+px_ref+181-20,hud_top+83,36,15,253);
+
 		// pos a: 216,83
 		int defense = unit->unit->def;
 		font->Render(buf,buf_end,buf_x_size,hud_left+px_ref+216,hud_top+83,string_format("%02d",defense),232,254,SpellFont::RIGHT_DOWN);
+		if(pid == 1 && cursor_unit)
+			RenderHUDrect(buf,buf_end,buf_x_size,hud_left+px_ref+216-14,hud_top+83,31,15,253);
+
+
 				
 
 		// render dig level
@@ -2883,12 +2928,12 @@ int SpellMap::RenderHUD(uint8_t *buf,uint8_t* buf_end,int buf_x_size,MapXY *curs
 		int ap_left = 0;
 		if(cursor->IsSelected() && unit_ap_left[ConvXY(cursor)] >= 0)
 			ap_left = unit_ap_left[ConvXY(cursor)];
-		int fire_count = unit->GetFireCount(ap_left);
+		int fire_count = unit->GetFireCount();
 		int max_fire_count = unit->GetMaxFireCount();
 		for(int k = 0; k < max_fire_count; k++)
 		{
 			auto pos = &fire_pos[k];
-			if(k <= fire_count)
+			if(k < fire_count)
 				gres.red_led_on->Render(buf,buf_end,buf_x_size,hud_left+px_ref+pos->x,hud_top+pos->y);
 			else
 				gres.red_led_off->Render(buf,buf_end,buf_x_size,hud_left+px_ref+pos->x,hud_top+pos->y);
@@ -2966,6 +3011,21 @@ int SpellMap::RenderHUD(uint8_t *buf,uint8_t* buf_end,int buf_x_size,MapXY *curs
 	last_cursor_unit = cursor_unit;
 	last_selected_unit = unit_selection;
 
+	return(0);
+}
+
+// render simple rectangle frame
+int SpellMap::RenderHUDrect(uint8_t* buf,uint8_t* buf_end,int buf_x_size,int x1,int y1,int w, int h, uint8_t color)
+{
+	if(&buf[x1 + y1*buf_x_size] >= buf_end || &buf[x1+w-1 + (y1+h-1)*buf_x_size] >= buf_end)
+		return(1);
+	memset(&buf[x1 + y1*buf_x_size],color,w);
+	memset(&buf[x1 + (y1+h-1)*buf_x_size],color,w);
+	for(int y = y1+1; y < y1+h-1;y++)
+	{
+		buf[x1+0 + y*buf_x_size] = color;
+		buf[x1+w-1 + y*buf_x_size] = color;
+	}
 	return(0);
 }
 
@@ -3270,16 +3330,23 @@ int SpellMap::ClearUnitsView(int to_unseen)
 	{
 		// all to never seen state
 		units_view.assign(x_size*y_size, 0);
+		units_view_flags.assign(x_size*y_size,0);
 	}
 	else
 	{
 		// all seen to currently invisible
 		if(units_view.size() != x_size*y_size)
+		{
 			units_view.resize(x_size*y_size,0);
+			units_view_flags.resize(x_size*y_size,0);
+		}
 		else
+		{
 			for(auto & pos : units_view)
 				if(pos == 2)
 					pos = 1;
+			units_view_flags.assign(x_size*y_size,0);
+		}
 	}		
 
 	return(0);
@@ -3289,7 +3356,10 @@ int SpellMap::ClearUnitsView(int to_unseen)
 int SpellMap::AddUnitView(MapUnit *unit)
 {
 	if(!unit)
-		return(1);
+		return(0);
+
+	// no new contact
+	int new_contact = false;
 
 	// get unit view range in tiles
 	int ref_view = unit->unit->sdir;
@@ -3407,6 +3477,17 @@ int SpellMap::AddUnitView(MapUnit *unit)
 					{
 						// target reached: mark tile as visible and done
 						units_view[next_mxy] = 5;
+
+						// check new enemy contact
+						if(Lunit)
+						{
+							if(!units_view_flags[next_mxy] && Lunit[next_mxy] && Lunit[next_mxy]->is_enemy)
+							{
+								new_contact = true;
+								units_view_flags[next_mxy] = 1;
+							}
+						}							
+
 						break;
 					}
 					// at least one pixel of crossed tile must be visible
@@ -3465,6 +3546,15 @@ int SpellMap::AddUnitView(MapUnit *unit)
 
 				// mark as seen
 				units_view[hnext_mxy] = 5;
+				// check new enemy contact
+				if(Lunit)
+				{
+					if(!units_view_flags[next_mxy] && Lunit[next_mxy] && Lunit[next_mxy]->is_enemy)
+					{
+						new_contact = true;
+						units_view_flags[next_mxy] = 1;
+					}
+				}
 
 				// proceed to next position
 				hdir.push_back(0);
@@ -3483,19 +3573,19 @@ int SpellMap::AddUnitView(MapUnit *unit)
 		if(tile > 2)
 			tile -= 3;
 
-	return(count);
+	return(new_contact);
 }
 
 // add view range of all moved units of given type, clear moved flags
-int SpellMap::AddUnitsView(int unit_type, int clear)
+int SpellMap::AddUnitsView(int unit_type, int clear,MapUnit* except_unit)
 {
 	for(auto & unit : units)
 	{
 		// filter unit types to view
 		if(unit->is_enemy && !(unit_type & UNIT_TYPE_OS) || !unit->is_enemy && !(unit_type & UNIT_TYPE_ALIANCE))
 			continue;
-		/*if(!unit->was_moved)
-			continue;*/
+		if(except_unit == unit)
+			continue;
 		if(clear)
 			unit->was_moved = false;
 		
@@ -3505,6 +3595,25 @@ int SpellMap::AddUnitsView(int unit_type, int clear)
 	return(0);
 }
 
+// store/restore units view to mem
+int SpellMap::StoreUnitsView()
+{
+	units_view_mem = units_view;
+	return(0);
+}
+int SpellMap::RestoreUnitsView()
+{
+	if(units_view_mem.size() == units_view.size())
+	{
+		for(int tid = 0; tid < units_view_mem.size(); tid++)
+		{
+			if(units_view[tid] >= 1 && !units_view_mem[tid])
+				units_view_mem[tid] = 1;			
+		}
+		units_view = units_view_mem;
+	}
+	return(0);
+}
 
 
 // initialize unit attack range calculator
@@ -3732,9 +3841,21 @@ int SpellMap::Tick()
 
 	static int tick_100ms_div;
 	tick_100ms_div++;
-	if(tick_100ms_div >= 3)
+	if(tick_100ms_div >= 10)
 		tick_100ms_div = 0;
 	int tick_100ms = (tick_100ms_div == 0);
+
+	static int tick_40ms_div;
+	tick_40ms_div++;
+	if(tick_40ms_div >= 4)
+		tick_40ms_div = 0;
+	int tick_40ms = (tick_40ms_div == 0);
+
+	static int tick_30ms_div;
+	tick_30ms_div++;
+	if(tick_30ms_div >= 3)
+		tick_30ms_div = 0;
+	int tick_30ms = (tick_30ms_div == 0);
 
 	if(tick_100ms)
 	{
@@ -3778,75 +3899,289 @@ int SpellMap::Tick()
 	if(!unit)
 		return(0);
 
-	if(unit_path_state >= 0)
+	if(unit->move_state != MapUnit::MOVE_STATE_IDLE)
 	{			
-		unit_path_lock.lock();
+		// === UNIT MOVEMENT ===
 
-		if(unit_path_state == 0)
+		unit_action_lock.lock();
+
+		if(unit->move_state == MapUnit::MOVE_STATE_TURRET)
 		{
-			// initiate movement:
+			// turret allign:
+			if(unit->unit->hasTurret())
+			{
+				// has turret: align it first with rest of vehicle
 			
-			// play move sound (async)
-			unit->PlayMove();
+				// rotate turrent the shortest way to align it with tank
+				int azim_count = unit->unit->gr_base->stat.azimuths;
+				int delta_azim = (unit->azimuth - unit->azimuth_turret + azim_count/2) % azim_count - azim_count/2;
+				if(delta_azim == 0)
+				{
+					// aligned: done
+					unit->move_state = MapUnit::MOVE_STATE_MOVE;
+					unit->move_step = 0;
+				}
+				else if(delta_azim > 0)
+					unit->azimuth_turret++;
+				else
+					unit->azimuth_turret--;
+				if(unit->azimuth_turret < 0)
+					unit->azimuth_turret += azim_count;
+				else if(unit->azimuth_turret >= azim_count)
+					unit->azimuth_turret -= azim_count;
 
-			// start animation
-			unit->frame = -1;
-			unit->in_animation = unit->unit->gr_base;
+			}
+			else
+			{
+				// no turret: skip step
+				unit->move_state = MapUnit::MOVE_STATE_MOVE;
+				unit->move_step = 0;
+			}
+
 		}
-
-		auto this_pos = unit->coor;
-
-		int ap_prev = 0;
-		if(unit_path_state)
-			ap_prev = unit_path[unit_path_state-1].g_cost;
-
-		auto next_pos = unit_path[unit_path_state++];
-
-		unit->action_points -= (next_pos.g_cost - ap_prev);
-		unit->coor = next_pos.pos;
-		unit->was_moved = true;
-
-		double azimuth = this_pos.Angle(next_pos.pos);				
-		unit->azimuth = unit->unit->gr_base->GetAnimAzim(azimuth);
-
-		unit->frame++;
-		if(unit->frame >= unit->in_animation->anim.frames)
-			unit->frame = 0;
-		
-		SortUnits();		
-
-		if(unit_path_state >= unit_path.size())
+		else if(unit->move_state == MapUnit::MOVE_STATE_MOVE)
 		{
-			// movemenet done:
-			unit_path_state = UNIT_PATH_IDLE;
-			unit_path.clear();
+			// movement:
 
-			// stop move sound (async - this is just flag to shut donw in next sound frame)
-			unit->PlayStop();
+			if(unit->move_step == 0)
+			{
+				// first step:
+				
+				// play move sound (async)
+				unit->PlayMove();
 
-			// stop animation (switch to static)
-			unit->in_animation = NULL;
-			unit->azimuth = unit->unit->gr_base->GetStaticAzim(azimuth);
-			unit->frame = 0;
+				// start animation
+				unit->frame = -1;
+				if(unit->unit->gr_base->anim.frames)
+					unit->in_animation = unit->unit->gr_base;
+
+				// update view of all but this unit:
+				ClearUnitsView();
+				AddUnitsView(UNIT_TYPE_ALIANCE, true, unit);
+				StoreUnitsView();
+				AddUnitView(unit);
+			}
+			
+			auto this_pos = unit->coor;
+
+			int ap_prev = 0;
+			if(unit->move_step)
+				ap_prev = unit->move_nodes[unit->move_step-1].g_cost;
+
+			auto next_pos = unit->move_nodes[unit->move_step++];
+
+			unit->action_points -= (next_pos.g_cost - ap_prev);
+			unit->coor = next_pos.pos;
+			//unit->was_moved = true; // not needed, this would trigger full view recalc in renderer
+			
+			double azimuth = this_pos.Angle(next_pos.pos);
+
+			// resort units in map
+			SortUnits();
+			
+			// update this unit view
+			RestoreUnitsView();
+			int new_contact = AddUnitView(unit);
+
+			if(new_contact)
+			{
+				// enemy contact event:
+				unit->PlayContact();
+			}
+			
+			if(unit->in_animation)
+			{
+				// animated move
+				unit->azimuth = unit->unit->gr_base->GetAnimAzim(azimuth);
+				unit->frame++;
+				if(unit->frame >= unit->in_animation->anim.frames)
+					unit->frame = 0;
+			}
+			else
+			{
+				// static
+				unit->azimuth = unit->unit->gr_base->GetStaticAzim(azimuth);
+			}
+			unit->azimuth_turret = unit->azimuth;
+
+			
+
+			if(new_contact || unit->move_step >= unit->move_nodes.size())
+			{
+				// movemenet done:
+				unit->move_state = MapUnit::MOVE_STATE_IDLE;
+				unit->move_nodes.clear();
+				unit->was_moved = true; // this will force range recalculation
+
+				// stop move sound (async - this is just flag to shut donw in next sound frame)
+				unit->PlayStop();
+
+				// stop animation (switch to static)
+				unit->in_animation = NULL;
+				unit->azimuth = unit->unit->gr_base->GetStaticAzim(azimuth);
+				unit->frame = 0;
+			}
+
 		}
+		
 
-		unit_path_lock.unlock();
+		unit_action_lock.unlock();
 
 		update = true;
 	}
-	else if(unit->in_animation && unit_path_state == UNIT_PATH_IDLE)
+	else if(unit->attack_state != MapUnit::ATTACK_STATE_IDLE)
 	{
-		// play animation
-		
-		unit->frame++;
-		if(unit->frame >= unit->frame_stop)
-		{
-			unit->in_animation = NULL;
-			unit->frame = 0;
-			unit->azimuth = unit->unit->gr_base->GetStaticAzim(unit->azimuth_angle);
-		}
+		// === UNIT ATTACK ===
 
-		update = true;
+		// target unit
+		MapUnit* target = unit->attack_target;
+
+		if(unit->attack_state == MapUnit::ATTACK_STATE_TURN)
+		{
+			// turning unit or turret to direction:
+
+			// turret allign:
+			if(unit->unit->hasTurret())
+			{
+				// has turret:
+
+				// rotate turrent to the target				
+				int target_azimuth = unit->unit->gr_aux->GetStaticAzim(unit->azimuth_angle);								
+				int azim_count = unit->unit->gr_base->stat.azimuths;
+				int delta_azim = (target_azimuth - unit->azimuth_turret + azim_count/2) % azim_count - azim_count/2;
+				if(delta_azim == 0)
+				{
+					// aligned: done
+					unit->attack_state = MapUnit::ATTACK_STATE_SHOT;
+				}
+				else if(delta_azim > 0)
+					unit->azimuth_turret++;
+				else
+					unit->azimuth_turret--;			
+				if(unit->azimuth_turret < 0)
+					unit->azimuth_turret += azim_count;
+				else if(unit->azimuth_turret >= azim_count)
+					unit->azimuth_turret -= azim_count;
+
+			}
+			else
+			{
+				// no turret: rotate whole unit
+
+				// rotate turrent to the target				
+				int target_azimuth = unit->unit->gr_base->GetStaticAzim(unit->azimuth_angle);
+				int azim_count = unit->unit->gr_base->stat.azimuths;
+				int delta_azim = (target_azimuth - unit->azimuth + azim_count/2) % azim_count - azim_count/2;
+				if(delta_azim == 0)
+				{
+					// aligned: done
+					unit->attack_state = MapUnit::ATTACK_STATE_SHOT;
+				}
+				else if(delta_azim > 0)
+					unit->azimuth++;
+				else
+					unit->azimuth--;
+				if(unit->azimuth < 0)
+					unit->azimuth += azim_count;
+				else if(unit->azimuth >= azim_count)
+					unit->azimuth -= azim_count;
+				
+			}
+
+			update = true;
+		}
+		else if(unit->attack_state == MapUnit::ATTACK_STATE_SHOT && tick_30ms)
+		{
+			// shot anim running:
+							
+			if(unit->frame == 0)
+			{
+				// start shot animation:
+				if(unit->in_animation)
+					unit->azimuth = unit->in_animation->GetAnimAzim(unit->azimuth_angle);
+
+				// play shot sound (async)
+				unit->PlayFire(unit->attack_target->unit);
+
+				// mark target unit
+				target->is_target = true;
+
+				// reduce AP by single shot
+				unit->UpdateFireAP();
+				unit->was_moved = true; // this will force range recalculation
+			}
+
+			// next frame
+			unit->frame++;
+			if(unit->frame >= unit->frame_stop || !unit->in_animation)
+			{
+				// stop anim
+				unit->in_animation = NULL;
+				unit->frame = 0;
+				/*if(!unit->unit->hasTurret())
+					unit->azimuth = unit->unit->gr_base->GetStaticAzim(unit->azimuth_angle);*/
+				
+				// start projectile flight
+				unit->attack_proj_step = 0;
+				if(unit->unit->projectile)
+					unit->attack_proj_delay = (int)(0.04*unit->attack_dist/0.02);
+				else
+					unit->attack_proj_delay = (int)(0.01*unit->attack_dist/0.02);
+				unit->attack_state = MapUnit::ATTACK_STATE_FLIGHT;				
+			}			
+
+			update = true;
+		}
+		else if(unit->attack_state == MapUnit::ATTACK_STATE_FLIGHT)
+		{
+			// projectile flight:
+
+			unit->attack_proj_step++;
+			if(unit->attack_proj_step >= unit->attack_proj_delay)
+			{
+				// projectile flight done:
+				unit->attack_state = MapUnit::ATTACK_STATE_HIT;												
+
+				// play hit sound
+				unit->PlayHit(unit->attack_target->unit);
+				// play target hit sound
+				target->PlayBeingHit();
+
+				if(unit->unit->pnm_light_shot)
+				{
+					target->attack_state = MapUnit::ATTACK_STATE_HIT;
+					target->attack_hit_pnm = unit->unit->pnm_light_shot;
+					target->attack_hit_frame = 0;
+				}
+				else
+				{
+					unit->attack_state = MapUnit::ATTACK_STATE_IDLE;
+					
+					// unmark target unit
+					target->is_target = false;
+				}
+			}
+
+			update = true;
+		}
+		else if(unit->attack_state == MapUnit::ATTACK_STATE_HIT && tick_40ms)
+		{
+			// hit animation:
+			target->attack_hit_frame++;
+			if(target->attack_hit_frame >= target->attack_hit_pnm->frames.size())
+			{
+				// hit anim done:
+				target->attack_state = MapUnit::ATTACK_STATE_IDLE;
+				target->attack_hit_pnm = NULL;
+				unit->attack_state = MapUnit::ATTACK_STATE_IDLE;
+
+				// unmark target unit
+				target->is_target = false;
+			}
+
+			update = true;
+		}
+		
 	}
 
 	// repaint

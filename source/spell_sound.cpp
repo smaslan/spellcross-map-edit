@@ -262,6 +262,20 @@ SpellAttackSound* SpellSounds::GetAttackClass(int index)
     SpellAttackSound* sound = new SpellAttackSound(channels,&attack_sounds[index]);
     return(sound);
 }
+SpellSound* SpellSounds::GetHitClass(int index)
+{
+    if(index >= hit_sounds.size())
+        return(NULL);
+    SpellSound* sound = new SpellSound(channels,hit_sounds[index].items[0]);
+    return(sound);
+}
+SpellSound* SpellSounds::GetDieClass(int index)
+{
+    if(index >= hit_sounds.size())
+        return(NULL);
+    SpellSound* sound = new SpellSound(channels,hit_sounds[index].items[1]);
+    return(sound);
+}
 
 
 

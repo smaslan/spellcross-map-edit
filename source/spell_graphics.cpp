@@ -371,6 +371,15 @@ int SpellProjectile::Check()
 	return(1);
 }
 
+// get projectile by angle
+SpellGraphicItem* SpellProjectile::GetGlyph(double angle)
+{
+	angle = remainder(angle,360.0);
+	int azim = ((int)round((360.0 + 90.0 - angle)/360.0*(double)16.0)) % 16;
+	return(glyphs[azim]);
+}
+
+
 // search projectile resources and order them per type
 int SpellGraphics::SortProjectiles()
 {
@@ -419,4 +428,6 @@ SpellProjectile* SpellGraphics::GetProjectile(char* name)
 			return(&proj);
 	return(NULL);
 }
+
+
 

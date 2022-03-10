@@ -479,7 +479,6 @@ int FSU_resource::GetStaticAzim(double angle)
 
 
 
-
 // FSU sprite constructor
 FSU_sprite::FSU_sprite()
 {

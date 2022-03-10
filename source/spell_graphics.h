@@ -31,6 +31,7 @@ public:
 	SpellProjectile(SpellGraphicItem &glyph);
 	int Insert(SpellGraphicItem &glyph);
 	int Check();
+	SpellGraphicItem* GetGlyph(double angle);
 };
 
 // generic graphic resource

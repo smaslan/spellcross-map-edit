@@ -79,6 +79,8 @@ class SpellUnitRec
 		SpellSound* sound_move;
 		SpellSound* sound_report;
 		SpellSound* sound_contact;		
+		SpellSound* sound_hit;
+		SpellSound* sound_die;
 		SpellAttackSound* sound_attack_light;
 		SpellAttackSound* sound_attack_armor;
 		SpellAttackSound* sound_attack_air;
@@ -151,7 +153,7 @@ class SpellUnitRec
 		SpellUnitRec();
 		~SpellUnitRec();
 		tuple<int,int> Render(uint8_t* buffer, uint8_t* buf_end, int buf_x_pos, int buf_y_pos, int buf_x_size,
-			uint8_t* filter,uint8_t* shadow_filter, Sprite *sprt, int azim, int frame,FSU_resource* fsu_anim=NULL);
+			uint8_t* filter,uint8_t* shadow_filter, Sprite *sprt, int azim,int azim_turret, int frame,FSU_resource* fsu_anim=NULL);
 
 		vector<string> GetArtList(FSarchive* info_fs);
 		int GetArtCount(FSarchive* info_fs);

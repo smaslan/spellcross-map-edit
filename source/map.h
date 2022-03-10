@@ -64,6 +64,18 @@ public:
 	~MapLayer4();
 };
 
+class AStarNode {
+public:
+	MapXY pos;
+	MapXY parent_pos;
+	int g_cost;
+	int h_cost;
+	int f_cost;
+	int closed;
+	AStarNode();
+	static constexpr int INIT_COST = 1<<30;
+};
+
 
 /*class MapXY
 {
@@ -155,21 +167,56 @@ public:
 	int assigned;
 
 	// unit rendering state
+	vector<AStarNode> move_nodes;
+	int move_state;
+	int move_step;
+	int isMoving() { return(move_state != MOVE_STATE_IDLE); };
 	FSU_resource *in_animation;
 	int azimuth;
+	int azimuth_turret;
 	int frame;
 	int frame_stop;
 	double azimuth_angle;
+	double attack_dist;
+	int attack_proj_step;
+	int attack_proj_delay;
+	int attack_state;
+	int attack_hit_frame;
+	AnimPNM *attack_hit_pnm;
+	MapUnit *attack_target;
+	int is_target;
+	int isAttacker() {return(attack_state != ATTACK_STATE_IDLE);};
+	int isTarget() {return(is_target);};
+
+	static constexpr int ATTACK_STATE_IDLE = 0;
+	static constexpr int ATTACK_STATE_TURN = 1;
+	static constexpr int ATTACK_STATE_SHOT = 2;
+	static constexpr int ATTACK_STATE_FLIGHT = 3;
+	static constexpr int ATTACK_STATE_HIT = 4;
+
+	static constexpr int MOVE_STATE_IDLE = 0;
+	static constexpr int MOVE_STATE_TURRET = 1;
+	static constexpr int MOVE_STATE_MOVE = 2;
+
+
 
 	int PlayReport();
-	SpellSound *sound_report;
+	SpellSound* sound_report;
+	int PlayContact();
+	SpellSound* sound_contact;
 	int PlayMove();
 	int PlayStop();
 	SpellSound* sound_move;
-	int PlayFire(SpellUnitRec *unit);
+	int PlayFire(SpellUnitRec * target);
+	int PlayHit(SpellUnitRec *target);
 	SpellAttackSound* sound_attack_light;
 	SpellAttackSound* sound_attack_armor;
 	SpellAttackSound* sound_attack_air;
+	int PlayDie();
+	SpellSound* sound_die;
+	int PlayBeingHit();
+	SpellSound* sound_hit;
+
 
 
 	MapUnit();
@@ -182,6 +229,8 @@ public:
 	int GetWalkAP();
 	int GetFireCount(int ext_ap=-1);
 	int GetMaxFireCount();
+	int UpdateFireAP();
+	int GetAPperFire();
 };
 
 // Scroller
@@ -228,18 +277,6 @@ typedef struct{
 }TTileElevMod;
 
 
-class AStarNode {
-public:
-	MapXY pos;
-	MapXY parent_pos;
-	int g_cost;
-	int h_cost;
-	int f_cost;
-	int closed;
-	AStarNode();
-	static constexpr int INIT_COST = 1<<30;
-};
-
 class SpellMap
 {
 	private:
@@ -281,10 +318,10 @@ class SpellMap
 		// temp layers for debug mostly
 		vector<MapXY> dbg_ord;
 
-		static constexpr int UNIT_PATH_IDLE = -1;
-		int unit_path_state;
-		mutex unit_path_lock;
-		vector<AStarNode> unit_path;		
+		//static constexpr int UNIT_PATH_IDLE = -1;
+		//int unit_path_state;
+		mutex unit_action_lock;
+		//vector<AStarNode> unit_path;		
 
 		// currently selected unit
 		MapUnit *unit_selection;
@@ -292,6 +329,9 @@ class SpellMap
 		int unit_sel_land_preference;
 		// current view state of map tiles
 		vector<int> units_view;
+		vector<int> units_view_mem; /* this is copy used to keep view of all but selected unit */
+		vector<int> units_view_flags;
+		vector<int> units_view_flags_mem;		
 		// units view mask map
 		vector<uint8_t> units_view_mask; // mask with objects
 		vector<uint8_t> units_view_mask_0; // mask without object
@@ -441,6 +481,7 @@ class SpellMap
 		int GetHUDstate();
 		int SetHUDstate(int state);
 		int RenderHUD(uint8_t* buf,uint8_t* buf_end,int buf_x_size,MapXY* cursor,MapUnit *cursor_unit,std::function<void(void)> hud_buttons_cb=NULL);
+		int RenderHUDrect(uint8_t* buf,uint8_t* buf_end,int buf_x_size,int x1,int y1,int w,int h,uint8_t color);
 		SpellBtnHUD* CreateHUDbutton(SpellGraphicItem* glyph,t_xypos& hud_pos,t_xypos &pos,uint8_t* buf,uint8_t* buf_end,int buf_x_size,
 			int action_id,std::function<void(void)> cb_press,std::function<void(void)> cb_hover);
 		SpellBtnHUD *GetHUDbutton(int id);
@@ -466,13 +507,14 @@ class SpellMap
 		wxBitmap *ExportUnitsViewZmap();
 		int ClearUnitsView(int to_unseen=false);
 		int AddUnitView(MapUnit* unit);
-		int AddUnitsView(int unit_type=UNIT_TYPE_ALIANCE,int clear=true);
+		int AddUnitsView(int unit_type=UNIT_TYPE_ALIANCE,int clear=true,MapUnit *except_unit=NULL);
+		int StoreUnitsView();
+		int RestoreUnitsView();
 		void InvalidateUnitsView();
 		vector<AStarNode> FindUnitPath(MapUnit* unit,MapXY target);
 		int FindUnitRange(MapUnit* unit);
 		int SetUnitRangeViewMode(int mode);
 		int MoveUnit(MapXY target);
-		int isUnitMoving();
 		int ResetUnitsAP();
 		static constexpr int UNIT_RANGE_NONE = 0x00;
 		static constexpr int UNIT_RANGE_MOVE = 0x01;

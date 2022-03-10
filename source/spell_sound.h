@@ -143,6 +143,8 @@ public:
     SpellSound* GetReportClass(int index);
     SpellSound* GetContactClass(int index);
     SpellAttackSound* GetAttackClass(int index);
+    SpellSound* GetHitClass(int index);
+    SpellSound* GetDieClass(int index);
         
 };
 
