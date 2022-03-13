@@ -13,7 +13,9 @@
 
 #include "spell_sound.h"
 #include "fs_archive.h"
+#include "LZ_spell.h"
 #include "other.h"
+#include "cvt_xmi2mid.hpp"
 
 
 #include "RtAudio.h"
@@ -162,21 +164,40 @@ SpellSounds::SpellSounds(wstring& fs_data_path, int count)
 
 
 
-    /*RtAudio dac;
-    int devs = dac.getDeviceCount();
+    // load sound.fs (samples)
+    wstring music_fs_path = fs_data_path + L"\\music.fs";
+    FSarchive* music_fs = new FSarchive(music_fs_path);
 
-    RtAudio::StreamParameters parameters;
-    parameters.deviceId = dac.getDefaultOutputDevice()+1;
-    parameters.nChannels = samples[0].channels;
-    parameters.firstChannel = 0;
-    unsigned int sampleRate = samples[0].fs;
-    unsigned int bufferFrames = 256; // 256 sample frames
-    samples[0].pos = 0;
+    LZWexpand *lzw = new LZWexpand(1000000);
 
-    dac.openStream(&parameters,NULL,RTAUDIO_SINT16,sampleRate,&bufferFrames,&scb,(void*)&samples[0]);
-    dac.startStream();
-    
-    Sleep(3000);*/
+    for(int fid = 0; fid < music_fs->Count(); fid++)
+    {
+        // get file
+        char* name;
+        uint8_t* lz_data;
+        int lz_size;
+        music_fs->GetFile(fid,&lz_data,&lz_size,&name);
+        // delz
+        uint8_t *data;
+        int size;
+        lzw->Decode(lz_data, &lz_data[lz_size], &data, &size); 
+        // convert XMI to standard MIDI
+        uint8_t *mid_data;
+        uint32_t mid_size;
+        int ret = Convert_xmi2midi(data,size,&mid_data,&mid_size,XMIDI_CONVERT_NOCONVERSION);
+        delete data;
+
+        /*string mid_name = "c:\\data\\spellcross\\" + string(name) + ".mid";
+        ofstream *fw = new ofstream(mid_name,ios::out | ios::binary);
+        fw->write((char*)mid_data, mid_size);
+        fw->close();*/
+
+        free(mid_data);
+
+    }
+    delete music_fs;
+
+    delete lzw;
 
 
     // load common.fs

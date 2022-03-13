@@ -42,6 +42,7 @@
     <ClCompile Include="sprites.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="cvt_xmi2mid.hpp" />
     <ClInclude Include="form_gr_view.h" />
     <ClInclude Include="form_new_object.h" />
     <ClInclude Include="form_objects.h" />
