@@ -173,6 +173,8 @@ class SpellUnitRec
 		int isMLRS();
 		int hasProjectile(SpellUnitRec *target);
 		int usingTeleportMove();
+		int isFlashAndBones();
+		int isMetal();
 
 		int canAttack(SpellUnitRec* target);
 		int canAttackObject();

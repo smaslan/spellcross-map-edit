@@ -735,7 +735,12 @@ int SpellSound::Play(bool auto_delete, bool loop)
         sub_id = std::rand()%samples.size();
         smpl = samples[sub_id];
         if(!smpl)
+        {
+            // no sound defined
+            if(auto_delete)
+                delete this; // note: this is scary, but legal-ish???
             return(1);
+        }
         fs = smpl->fs;
         channels = smpl->channels;    
     }

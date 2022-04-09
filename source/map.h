@@ -245,23 +245,23 @@ public:
 
 	int AreSoundsDone();
 	int PlayReport();
-	SpellSound* sound_report;
+	//SpellSound* sound_report;
 	int PlayContact();
-	SpellSound* sound_contact;
+	//SpellSound* sound_contact;
 	int PlayMove();
 	int PlayStop();
 	SpellSound* sound_move;
 	int PlayFire(MapUnit* target);
-	int PlayHit(MapUnit* target);
-	SpellAttackSound* sound_attack_light;
-	SpellAttackSound* sound_attack_armor;
-	SpellAttackSound* sound_attack_air;
+	int PlayHit(MapUnit* target,bool missed=false);
+	//SpellAttackSound* sound_attack_light;
+	//SpellAttackSound* sound_attack_armor;
+	//SpellAttackSound* sound_attack_air;
 	int PlayDie();
-	SpellSound* sound_die;
+	//SpellSound* sound_die;
 	int PlayBeingHit();
-	SpellSound* sound_hit;
+	//SpellSound* sound_hit;
 	int PlayAction();
-	SpellSound* sound_action;
+	//SpellSound* sound_action;
 
 
 

@@ -441,6 +441,16 @@ int SpellUnitRec::isMLRS()
 {
 	return(!!(fire_flags & FIRE_MLRS));
 }
+int SpellUnitRec::isFlashAndBones()
+{
+	return(!!(utype & UTYPE_FLAHS));
+}
+int SpellUnitRec::isMetal()
+{
+	// ###todo: maybe not correct?
+	return(!isFlashAndBones());
+}
+
 // uses projectile when shooting to target unit?
 int SpellUnitRec::hasProjectile(SpellUnitRec* target)
 {
@@ -854,15 +864,7 @@ MapUnit::MapUnit()
 	child = NULL;
 
 	// sound refs
-	sound_report = NULL;
-	sound_contact = NULL;
 	sound_move = NULL;
-	sound_hit = NULL;
-	sound_die = NULL;
-	sound_attack_light = NULL;
-	sound_attack_armor = NULL;
-	sound_attack_air = NULL;
-	sound_action = NULL;
 
 	radar_up = false;
 	altitude = 100;
@@ -880,33 +882,9 @@ MapUnit::MapUnit()
 // clear sound refs
 int MapUnit::ClearSounds()
 {
-	if(sound_report)
-		delete sound_report;
-	if(sound_contact)
-		delete sound_contact;
 	if(sound_move)
 		delete sound_move;
-	if(sound_hit)
-		delete sound_hit;
-	if(sound_die)
-		delete sound_die;
-	if(sound_attack_light)
-		delete sound_attack_light;
-	if(sound_attack_armor)
-		delete sound_attack_armor;
-	if(sound_attack_air)
-		delete sound_attack_air;	
-	if(sound_action)
-		delete sound_action;
-	sound_report = NULL;
-	sound_contact = NULL;
 	sound_move = NULL;
-	sound_hit = NULL;
-	sound_die = NULL;
-	sound_attack_light = NULL;
-	sound_attack_armor = NULL;
-	sound_attack_air = NULL;
-	sound_action = NULL;
 	return(0);
 }
 MapUnit::~MapUnit()
@@ -930,15 +908,7 @@ MapUnit::~MapUnit()
 MapUnit::MapUnit(MapUnit &obj)
 {
 	*this = obj;
-	sound_report = NULL;
-	sound_contact = NULL;
 	sound_move = NULL;
-	sound_hit = NULL;
-	sound_die = NULL;
-	sound_attack_light = NULL;
-	sound_attack_armor = NULL;
-	sound_attack_air = NULL;
-	sound_action = NULL;
 
 	parent = NULL;
 	child = NULL;
@@ -1302,35 +1272,8 @@ tuple<int,int> MapUnit::GetFirePNMorigin(MapUnit* target, double azimuth)
 // check if all unit sounds are stoped (e.g. test before sounds clear when morphing unit)
 int MapUnit::AreSoundsDone()
 {	
-	if(sound_report)
-		if(!sound_report->isDone())
-			return(false);
-	if(sound_contact)
-		if(!sound_contact->isDone())
-			return(false);
-	if(sound_hit)
-		if(!sound_hit->isDone())
-			return(false);
-	if(sound_die)
-		if(!sound_die->isDone())
-			return(false);	
 	if(sound_move)
 		if(!sound_move->isDone())
-			return(false);
-	if(sound_move)
-		if(!sound_move->isDone())
-			return(false);
-	if(sound_attack_light)
-		if(!sound_attack_light->isDone())
-			return(false);
-	if(sound_attack_armor)
-		if(!sound_attack_armor->isDone())
-			return(false);
-	if(sound_attack_air)
-		if(!sound_attack_air->isDone())
-			return(false);
-	if(sound_action)
-		if(!sound_action->isDone())
 			return(false);
 	return(true);
 }
@@ -1338,36 +1281,32 @@ int MapUnit::AreSoundsDone()
 // play report sound
 int MapUnit::PlayReport()
 {
-	if(!sound_report)
-		sound_report = new SpellSound(*unit->sound_report);
-	sound_report->Play();
+	auto sound_report = new SpellSound(*unit->sound_report);
+	sound_report->Play(true);
 	return(0);
 }
 
 // play contact sound
 int MapUnit::PlayContact()
 {
-	if(!sound_contact)
-		sound_contact = new SpellSound(*unit->sound_contact);
-	sound_contact->Play();
+	auto sound_contact = new SpellSound(*unit->sound_contact);
+	sound_contact->Play(true);
 	return(0);
 }
 
 // play being hit sound
 int MapUnit::PlayBeingHit()
 {
-	if(!sound_hit)
-		sound_hit = new SpellSound(*unit->sound_hit);
-	sound_hit->Play();
+	auto sound_hit = new SpellSound(*unit->sound_hit);
+	sound_hit->Play(true);
 	return(0);
 }
 
 // play die sound
 int MapUnit::PlayDie()
 {
-	if(!sound_die)
-		sound_die = new SpellSound(*unit->sound_die);
-	sound_die->Play();
+	auto sound_die = new SpellSound(*unit->sound_die);
+	sound_die->Play(true);
 	return(0);
 }
 
@@ -1389,52 +1328,51 @@ int MapUnit::PlayStop()
 // play fire sound to given unit type
 int MapUnit::PlayFire(MapUnit* target)
 {
-	// make local copy of sound objects (because of polyphony for multiple units)
-	if(!sound_attack_light)
-		sound_attack_light = new SpellAttackSound(*unit->sound_attack_light);
-	if(!sound_attack_armor)
-		sound_attack_armor = new SpellAttackSound(*unit->sound_attack_armor);
-	if(!sound_attack_air)
-		sound_attack_air = new SpellAttackSound(*unit->sound_attack_air);
-
-	// play shot sound
+	SpellSound *sound = NULL;
 	if(target->unit->isLight())
-		sound_attack_light->shot->Play();
+		sound = new SpellSound(*unit->sound_attack_light->shot);
 	else if(target->unit->isArmored())
-		sound_attack_armor->shot->Play();
+		sound = new SpellSound(*unit->sound_attack_armor->shot);
 	else if(target->unit->isAir())
-		sound_attack_air->shot->Play();
+		sound = new SpellSound(*unit->sound_attack_air->shot);
+	if(sound)
+		sound->Play(true);
 
 	return(0);
 }
 
 // play target hit sound to given unit type
-int MapUnit::PlayHit(MapUnit* target)
-{
-	// make local copy of sound objects (because of polyphony for multiple units)
-	if(!sound_attack_light)
-		sound_attack_light = new SpellAttackSound(*unit->sound_attack_light);
-	if(!sound_attack_armor)
-		sound_attack_armor = new SpellAttackSound(*unit->sound_attack_armor);
-	if(!sound_attack_air)
-		sound_attack_air = new SpellAttackSound(*unit->sound_attack_air);
-
-	// play shot sound
+int MapUnit::PlayHit(MapUnit* target, bool missed)
+{	
+	SpellAttackSound *attack = NULL;
 	if(target->unit->isLight())
-		sound_attack_light->hit_flash->Play();
+		attack = unit->sound_attack_light;
 	else if(target->unit->isArmored())
-		sound_attack_armor->hit_flash->Play();
+		attack = unit->sound_attack_armor;
 	else if(target->unit->isAir())
-		sound_attack_air->hit_flash->Play();
+		attack = unit->sound_attack_air;
+	if(!attack)
+		return(1);
 
+	SpellSound* sound = NULL;
+	if(missed)
+		sound = attack->hit_miss;
+	else if(target->unit->isFlashAndBones())
+		sound = attack->hit_flash;
+	else if(target->unit->isMetal())
+		sound = attack->hit_armor;	
+	if(!sound)
+		return(1);
+
+	sound = new SpellSound(*sound);
+	sound->Play(true);
 	return(0);
 }
 
 // play report sound
 int MapUnit::PlayAction()
 {
-	if(!sound_action)
-		sound_action = new SpellSound(*unit->sound_action);
-	sound_action->Play();
+	auto sound_action = new SpellSound(*unit->sound_action);
+	sound_action->Play(true);
 	return(0);
 }
