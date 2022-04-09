@@ -29,6 +29,6 @@ class FSarchive
 	private:
 		vector<uint8_t*> data;
 		vector<char*> names;
-		vector<int> sizes;
+		vector<uint32_t> sizes;
 };
 

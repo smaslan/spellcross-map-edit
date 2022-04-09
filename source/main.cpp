@@ -42,9 +42,13 @@ bool MyApp::OnInit()
     wstring spellcd_path = char2wstring(ini.GetValue("SPELCROS","spellcd_path",""));
     // special data folder
     wstring spec_folder = char2wstring(ini.GetValue("DATA","spec_data_path",""));
+    // units aux data path
+    wstring units_aux_data_path = char2wstring(ini.GetValue("DATA","units_aux_data_path",""));
 
     // try load spellcross data
     spell_data = new SpellData(spelldata_path, spellcd_path, spec_folder);
+    // try load units.fsu aux metadata
+    spell_data->units_fsu->LoadAuxData(units_aux_data_path);
 
     // for each terrain load tile context
     for(int k = 0; k < spell_data->GetTerrainCount(); k++)
@@ -108,6 +112,7 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     form_units = NULL;
     form_pal = NULL;
     form_tools = NULL;
+    form_unit_opts = NULL;
 
 
     // view scroller
@@ -129,7 +134,7 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     
     
     // View menu
-    wxMenu* menuView = new wxMenu;
+    menuView = new wxMenu;
     menuView->Append(ID_ViewTer,"Layer 1: Terrain\tF1","",wxITEM_CHECK);
     menuView->FindItem(ID_ViewTer)->Check(true);
     menuView->Append(ID_ViewObj,"Layer 2: Objects\tF2","",wxITEM_CHECK);
@@ -142,6 +147,10 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     menuView->FindItem(ID_ViewUnt)->Check(true);
     menuView->Append(ID_ViewStTa,"Layer 6: Start/Target\tF6","",wxITEM_CHECK);
     menuView->FindItem(ID_ViewStTa)->Check(true);
+    menuView->Append(ID_ViewSoundLoops,"Layer 7: Sound loops\tF7","",wxITEM_CHECK);
+    menuView->FindItem(ID_ViewSoundLoops)->Check(false);
+    menuView->Append(ID_ViewSounds,"Layer 8: Sounds\tF8","",wxITEM_CHECK);
+    menuView->FindItem(ID_ViewSounds)->Check(false);
     menuView->Append(ID_ViewHUD,"Show mission HUD panel\tCtrl+H","",wxITEM_CHECK);
     menuView->FindItem(ID_ViewHUD)->Check(spell_map->GetHUDstate());    
     menuView->Append(wxID_ANY,"","",wxITEM_SEPARATOR);
@@ -224,6 +233,7 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     canvas->SetDoubleBuffered(true);
     
 
+    canvas->Bind(wxEVT_CLOSE_WINDOW,&MyFrame::OnClose,this);
     canvas->Bind(wxEVT_PAINT,&MyFrame::OnPaintCanvas,this);
     canvas->Bind(wxEVT_RIGHT_DOWN,&MyFrame::OnCanvasRMouse,this);
     canvas->Bind(wxEVT_RIGHT_UP,&MyFrame::OnCanvasRMouse,this);
@@ -259,6 +269,8 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     Bind(wxEVT_MENU,&MyFrame::OnViewLayer,this,ID_ViewUnt);
     Bind(wxEVT_MENU,&MyFrame::OnViewLayer,this,ID_ViewStTa);
     Bind(wxEVT_MENU,&MyFrame::OnViewLayer,this,ID_ViewHUD);
+    Bind(wxEVT_MENU,&MyFrame::OnViewLayer,this,ID_ViewSounds);
+    Bind(wxEVT_MENU,&MyFrame::OnViewLayer,this,ID_ViewSoundLoops);
 
     Bind(wxEVT_MENU,&MyFrame::OnSetGamma,this,ID_SetGamma);
     Bind(wxEVT_MENU,&MyFrame::OnViewSprites,this,ID_ViewSprites);
@@ -289,6 +301,10 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     canvas->SetSizer(sizer2);
     canvas->SetAutoLayout(true);
     canvas->Layout();*/
+
+    //SetCursor(spelldata->gres.GetResource("DOJAZD.CUR")->Render(true)->ConvertToImage());
+    
+    //SetCursor(*spelldata->gres.ico_attack_up_down);
 
     
     
@@ -353,6 +369,13 @@ void MyFrame::OnClose(wxCloseEvent& ev)
         
         form_units->Destroy();
     }
+    else if(ev.GetId() == ID_UNIT_MODE_WIN)
+    {
+        // unit multi-action menu
+        form_unit_opts->ResultCallback(); // exec result callback (calling it from here to have in this thread)
+        delete form_unit_opts;
+        form_unit_opts = NULL;
+    }
     else
         ev.Skip();
 }
@@ -364,6 +387,13 @@ void MyFrame::OnSwitchGameMode(wxCommandEvent& event)
     auto is_game = GetMenuBar()->FindItem(ID_mmGameMode)->IsChecked();
     spell_map->SetGameMode(is_game);
     canvas->Refresh();
+    if(is_game)
+    {
+        ribbonBar->HidePanels();        
+        menuView->FindItem(ID_ViewSoundLoops)->Check(false);
+        menuView->FindItem(ID_ViewSounds)->Check(false);
+        OnViewLayer(event);
+    }
 }
 
 // on reset view range in game mode
@@ -430,6 +460,9 @@ void MyFrame::CreateHUDbuttons()
     int button_id = ID_HUD_BASE;
     for(auto & btn : *spell_map->GetHUDbuttons())
     {        
+        if(!btn->IsValid())
+            continue;
+
         // try to find existing button
         int skip = false;
         for(auto& pan : hud_buttons)
@@ -477,10 +510,10 @@ void MyFrame::OnPaintHUDbutton(wxPaintEvent& event)
     auto* btn = spell_map->GetHUDbutton(pan->GetId());
     if(btn)
     {                
-        wxPaintDC pdc(pan);
-        if(btn->is_press)
+        wxPaintDC pdc(pan);        
+        if(btn->is_press && !btn->is_disabled)
             pdc.DrawBitmap(*btn->bmp_press,wxPoint(0,0));
-        else if(btn->is_hover)
+        else if(btn->is_hover && !btn->is_disabled)
             pdc.DrawBitmap(*btn->bmp_hover,wxPoint(0,0));
         else
             pdc.DrawBitmap(*btn->bmp_idle,wxPoint(0,0));
@@ -499,6 +532,9 @@ void MyFrame::OnHUDbuttonsMouseEnter(wxMouseEvent& event)
         if(btn->is_hover && btn->cb_hover)
             btn->cb_hover();
     }
+
+    // default game cursor
+    SetCursor(*spell_data->gres.cur_pointer);
 }
 void MyFrame::OnHUDbuttonsLeave(wxMouseEvent& event)
 {
@@ -514,7 +550,7 @@ void MyFrame::OnHUDbuttonsClick(wxMouseEvent& event)
 {
     wxPanel* pan = (wxPanel*)event.GetEventObject();
     auto* btn = spell_map->GetHUDbutton(pan->GetId());
-    if(btn)
+    if(btn && !btn->is_disabled)
     {
         btn->is_press = (event.GetEventType() == wxEVT_LEFT_DOWN);        
         pan->Refresh();
@@ -541,7 +577,9 @@ void MyFrame::OnViewLayer(wxCommandEvent& event)
     bool wL4 = GetMenuBar()->FindItem(ID_ViewPnm)->IsChecked();
     bool wL5 = GetMenuBar()->FindItem(ID_ViewUnt)->IsChecked();
     bool wSS = GetMenuBar()->FindItem(ID_ViewStTa)->IsChecked();
-    spell_map->SetRender(wL1,wL2,wL3,wL4,wSS,wL5);
+    bool wSound = GetMenuBar()->FindItem(ID_ViewSounds)->IsChecked();
+    bool wSoundLoop = GetMenuBar()->FindItem(ID_ViewSoundLoops)->IsChecked();
+    spell_map->SetRender(wL1,wL2,wL3,wL4,wSS,wL5,wSound,wSoundLoop);
     bool hud = GetMenuBar()->FindItem(ID_ViewHUD)->IsChecked();
     spell_map->SetHUDstate(hud);
     Refresh();
@@ -887,6 +925,9 @@ void MyFrame::OnMoveUnit(wxCommandEvent& event)
 // --- scrolling control ---
 void MyFrame::OnCanvasRMouse(wxMouseEvent& event)
 {    
+    if(inUnitOptions())
+        return;
+    
     if(event.RightDown())
         scroll.SetRef(event.GetX(), event.GetY());
     else if(event.RightUp())
@@ -903,16 +944,68 @@ void MyFrame::OnCanvasRMouse(wxMouseEvent& event)
 }
 void MyFrame::OnCanvasMouseEnter(wxMouseEvent& event)
 {
+    if(inUnitOptions())
+        return;
+
     canvas->SetFocus();
 }
 void MyFrame::OnCanvasMouseLeave(wxMouseEvent& event)
 {
+    SetCursor(*wxSTANDARD_CURSOR);
+    
+    if(inUnitOptions())
+        return;
+
     spell_map->SetUnitRangeViewMode(SpellMap::UNIT_RANGE_NONE);
     scroll.Idle();
 }
 void MyFrame::OnCanvasMouseMove(wxMouseEvent& event)
 {
-    scroll.Move(event.GetX(), event.GetY());
+    if(inUnitOptions())
+        return;
+    
+    static int last_in_hud = false;
+
+    int hud_top = spell_map->GetHUDtop(event.GetX());
+    if(event.GetY() >= hud_top)
+    {
+        // mouse in HUD area - kill scroll
+        spell_map->SetUnitRangeViewMode(SpellMap::UNIT_RANGE_NONE);
+        if(!last_in_hud)
+            spell_map->InvalidateHUDbuttons();
+        scroll.Idle();
+        last_in_hud = true;
+
+        // default game cursor
+        SetCursor(*spell_data->gres.cur_pointer);
+    }
+    else  
+    {
+        scroll.Move(event.GetX(), event.GetY());
+        last_in_hud = false;
+
+        // resolve cursor
+        auto options = spell_map->GetUnitOptions(m_buffer, &scroll);
+        wxCursor *cur = spell_data->gres.cur_pointer;
+        if(!spell_map->isGameMode())
+            cur = spell_data->gres.cur_pointer;
+        else if(!options)
+            cur = spell_data->gres.cur_pointer;
+        else if(options == SpellMap::UNIT_OPT_MOVE)
+            cur = spell_data->gres.cur_move;
+        else if(options == SpellMap::UNIT_OPT_SELECT)
+            cur = spell_data->gres.cur_select;
+        else if(options == SpellMap::UNIT_OPT_LOWER)
+            cur = spell_data->gres.cur_attack_down;
+        else if(options == SpellMap::UNIT_OPT_UPPER)
+            cur = spell_data->gres.cur_attack_up;
+        else if(options == (SpellMap::UNIT_OPT_UPPER | SpellMap::UNIT_OPT_LOWER))
+            cur = spell_data->gres.cur_attack_up_down;
+        else
+            cur = spell_data->gres.cur_question;
+        SetCursor(*cur);
+    }
+    
     
     // update map selection
     MapXY mxy = spell_map->GetSelection(m_buffer,&scroll);
@@ -1017,9 +1110,15 @@ void MyFrame::OnInvalidateSelection(wxCommandEvent& event)
 }
 
 
+
+
+
 // canvas left click
 void MyFrame::OnCanvasLMouseDown(wxMouseEvent& event)
 {
+    if(inUnitOptions())
+        return;
+    
     // get selection
     auto xy_list = spell_map->GetSelections(m_buffer,&scroll);
 
@@ -1036,35 +1135,65 @@ void MyFrame::OnCanvasLMouseDown(wxMouseEvent& event)
         {
             // try select/move unit:
 
-            auto select = spell_map->GetSelection(m_buffer,&scroll);
-            auto* cur_unit = spell_map->GetCursorUnit(m_buffer,&scroll);
-            auto* sel_unit = spell_map->GetSelectedUnit();
-            if(!spell_map->isGameMode() && cur_unit && cur_unit == sel_unit)
+            select_pos = spell_map->GetSelection(m_buffer,&scroll);
+            sel_unit = spell_map->GetSelectedUnit();
+            cur_unit = spell_map->GetCursorUnit(m_buffer,&scroll);
+            if(!spell_map->isGameMode())
             {
-                // move/place unit
-                sel_unit->in_placement = !sel_unit->in_placement;
+                if(cur_unit && cur_unit == sel_unit)
+                {
+                    // move/place unit
+                    sel_unit->in_placement = !sel_unit->in_placement;
+                }
+                else if(cur_unit)
+                {
+                    // try select unit (if on cursor)
+                    spell_map->SelectUnit(cur_unit);
+                }
             }
-            else if(spell_map->isGameMode() && sel_unit && !sel_unit->is_enemy && cur_unit && cur_unit->is_enemy)
+            else
             {
-                // game mode: attack unit
-                spell_map->AttackUnit(cur_unit);
+                // game mode:
+                int options = spell_map->GetUnitOptions(m_buffer,&scroll);
+                
+                // reduce attack options if only one target is possible
+                if(!!(options & SpellMap::UNIT_OPT_LOWER) != !!(options & SpellMap::UNIT_OPT_UPPER))
+                    options = (options & ~(SpellMap::UNIT_OPT_LOWER | SpellMap::UNIT_OPT_LOWER)) | SpellMap::UNIT_OPT_ATTACK;
+
+                if(options)
+                {
+                    // show optional menu (or directly call callback) to resolve options
+                    wxPoint pos = event.GetPosition();
+                    form_unit_opts = new FormUnitOpts(canvas,ID_UNIT_MODE_WIN,pos,spell_data,options,bind(&MyFrame::OnUnitClick_cb,this,placeholders::_1));
+                }
             }
-            else if(cur_unit)
-            {
-                // try select unit (if on cursor)
-                spell_map->SelectUnit(cur_unit);
-            }
-            else if(spell_map->isGameMode() && select.IsSelected())
-            {
-                // game mode: move unit
-                spell_map->MoveUnit(select);
-            }
-            
         }
     }
 
     canvas->Refresh();
 }
+void MyFrame::OnUnitClick_cb(int option)
+{
+    if(option & SpellMap::UNIT_OPT_SELECT)
+    {
+        // select unit
+        auto unit = spell_map->CanSelectUnit(select_pos);
+        spell_map->SelectUnit(unit);
+    }
+    else if(option & SpellMap::UNIT_OPT_MOVE)
+    {
+        // move
+        spell_map->MoveUnit(select_pos);
+    }
+    else if(option & SpellMap::UNIT_OPT_ATTACK || option & SpellMap::UNIT_OPT_LOWER || option & SpellMap::UNIT_OPT_UPPER)
+    {
+        // attack (unit or object)
+        int is_upper = option & SpellMap::UNIT_OPT_UPPER;
+        spell_map->Attack(select_pos, is_upper);
+    }
+}
+
+
 
 // tool selected
 void MyFrame::OnToolBtnClick(wxRibbonButtonBarEvent& event)

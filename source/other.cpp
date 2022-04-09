@@ -187,11 +187,26 @@ int ostream_write_u32(ofstream& fw,uint32_t val)
     return(0);
 }
 
+// write i32 value
+int ostream_write_i32(ofstream& fw,int32_t val)
+{
+    fw.write((char*)&val,sizeof(int32_t));
+    return(0);
+}
+
 // read uint32_t
 uint32_t istream_read_u32(ifstream& fr)
 {
     uint32_t val;
     fr.read((char*)&val,sizeof(uint32_t));
+    return(val);
+}
+
+// read int32_t
+int32_t istream_read_i32(ifstream& fr)
+{
+    int32_t val;
+    fr.read((char*)&val,sizeof(int32_t));
     return(val);
 }
 
@@ -221,4 +236,17 @@ void plot_line(uint8_t* buffer,uint8_t* buf_end,int buf_x,int buf_y,int x_size,u
         if(e2 >= dy) { err += dy; x0 += sx; } /* e_xy+e_x > 0 */
         if(e2 <= dx) { err += dx; y0 += sy; } /* e_xy+e_y < 0 */
     }
+}
+
+// apply gamma to given palette
+void apply_gamma(uint8_t *pal, double gamma)
+{
+    for(int k = 0; k < 256*3; k++)
+        *pal++ = (uint8_t)(pow((double)*pal / 255.0,1.0 / gamma) * 255.0);
+}
+
+
+int mod(int x, int y) {
+    if(y == -1) return 0;
+    return x - y * (x / y - (x % y && (x ^ y) < 0));
 }

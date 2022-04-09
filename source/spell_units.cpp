@@ -29,6 +29,7 @@ SpellUnitRec::SpellUnitRec()
 	pnm_light_shot = NULL;
 	pnm_armored_shot = NULL;
 	pnm_air_shot = NULL;
+	action_button_glyph = NULL;
 
 	sound_move = NULL;
 	sound_report = NULL;
@@ -58,6 +59,24 @@ SpellUnitRec::~SpellUnitRec()
 		delete sound_attack_armor;
 	if(sound_attack_air)
 		delete sound_attack_air;
+	if(sound_action)
+		delete sound_action;
+}
+
+// copy resource name string ignoring trailing '_'
+int GetNameStr(char *name, uint8_t* data, int count)
+{
+	int trail = false;
+	for(int k = 0; k < count; k++)
+	{
+		if(data[k] == '_')
+			trail = true;
+		if(!trail)
+			*name++ = data[k];
+		else
+			*name++ = '\0';
+	}
+	return(0);
 }
 
 // decode units def file
@@ -106,16 +125,10 @@ SpellUnits::SpellUnits(uint8_t* data, int dlen, FSUarchive *fsu, SpellGraphics *
 		rdsc(unit->info, rec + 0x1C, 9);
 
 		// unit graphics resource
-		rdsc(unit->gra, rec + 0x25, 6);
-		for (int k = 5; k; k--)
-			if (unit->gra[k] == '_')
-				unit->gra[k] = '\0';
+		GetNameStr(unit->gra, rec + 0x25,6);
 
 		// unit aditional graphics resource (tank turrets or so)
-		rdsc(unit->grb, rec + 0x2B, 6);
-		for (int k = 5; k; k--)
-			if (unit->grb[k] == '_')
-				unit->grb[k] = '\0';
+		GetNameStr(unit->grb,rec + 0x2B, 6);
 
 		// unit icon
 		rdsc(unit->icon, rec + 0x31, 9);
@@ -143,19 +156,19 @@ SpellUnits::SpellUnits(uint8_t* data, int dlen, FSUarchive *fsu, SpellGraphics *
 		unit->cnt = rdu8(rec + 0x3E);
 
 		// attack to light units
-		unit->alig = rdu8(rec + 0x3F);
+		unit->attack_light = rdu8(rec + 0x3F);
 
 		// attack to armored units
-		unit->aarm = rdu8(rec + 0x40);
+		unit->attack_armored = rdu8(rec + 0x40);
 
 		// attack to air units
-		unit->aair = rdu8(rec + 0x41);
+		unit->attack_air = rdu8(rec + 0x41);
 
 		// attack to objects
-		unit->aobj = rdu8(rec + 0x42);
+		unit->attack_objects = rdu8(rec + 0x42);
 
 		// unit defence
-		unit->def = rdu8(rec + 0x43);
+		unit->defence = rdu8(rec + 0x43);
 
 		// some probability???
 		unit->res2 = rdu8(rec + 0x44);
@@ -192,7 +205,8 @@ SpellUnits::SpellUnits(uint8_t* data, int dlen, FSUarchive *fsu, SpellGraphics *
 		rdsc(unit->pnm_light_hit_name, rec + 0x49, 9);
 
 		// light attack unit animation resource (*.fsu resource)
-		rdsc(unit->anim_atack_light_name, rec + 0x52, 6);
+		GetNameStr(unit->anim_atack_light_name,rec + 0x52,6);
+		
 		// used frames count
 		unit->anim_atack_light_frames = rdu8(rec + 0x61);
 
@@ -203,7 +217,7 @@ SpellUnits::SpellUnits(uint8_t* data, int dlen, FSUarchive *fsu, SpellGraphics *
 		rdsc(unit->pnm_armored_hit_name, rec + 0x62, 9);
 
 		// armored attack unit animation resource (*.fsu resource)
-		rdsc(unit->anim_atack_armor_name, rec + 0x6B, 6);
+		GetNameStr(unit->anim_atack_armor_name,rec + 0x6B,6);
 		// used frames count
 		unit->anim_atack_armor_frames = rdu8(rec + 0x7A);
 
@@ -214,7 +228,7 @@ SpellUnits::SpellUnits(uint8_t* data, int dlen, FSUarchive *fsu, SpellGraphics *
 		rdsc(unit->pnm_air_hit_name, rec + 0x7B, 9);
 
 		// air attack unit animation resource (*.fsu content)
-		rdsc(unit->anim_atack_air_name, rec + 0x84, 6);
+		GetNameStr(unit->anim_atack_air_name,rec + 0x84,6);
 		// used frames count
 		unit->anim_atack_air_frames = rdu8(rec + 0x93);
 
@@ -222,7 +236,7 @@ SpellUnits::SpellUnits(uint8_t* data, int dlen, FSUarchive *fsu, SpellGraphics *
 		rdsc(unit->pnm_air_shot_name, rec + 0x8A, 9);
 
 		// projectile visibility flags (0x01-light, 0x02-armored, 0x04-air attacks)
-		unit->prjf = rdu8(rec + 0x94);
+		unit->projectile_visible = rdu8(rec + 0x94);
 
 		// projectile resource (*.grf files)
 		rdsc(unit->projetile_name, rec + 0x95, 13);
@@ -244,25 +258,20 @@ SpellUnits::SpellUnits(uint8_t* data, int dlen, FSUarchive *fsu, SpellGraphics *
 		// 15 - kamize attack
 		// 16 - transform to fortres (par3-unit to transform to)
 		// 17 - transform from fortres (par3-unit to transfrom to)
-		unit->said = rdu8(rec + 0xA2);
+		unit->action_id = rdu8(rec + 0xA2);
 
 		// special action animation resource (*.fsu content)
-		rdsc(unit->saan, rec + 0xA4, 6);
+		GetNameStr(unit->action_fsu_name,rec + 0xA4,6);
 		// frames count
-		unit->saanf = rdu8(rec + 0xAA);
+		unit->action_fsu_frames = rdu8(rec + 0xAA);
 
 		// ap per special action
-		unit->saap = rdu8(rec + 0xAB);
+		unit->action_ap = rdu8(rec + 0xAB);
 
-		// special action parameter 1
-		unit->sap1 = rdu8(rec + 0xAC);
-
-		// special action parameter 2
-		unit->sap2 = rdu8(rec + 0xAD);
-
-		// special action parameter 3
-		unit->sap3 = rdu8(rec + 0xAE);
-
+		// special action parameters
+		unit->action_params[0] = rdu8(rec + 0xAC);
+		unit->action_params[1] = rdu8(rec + 0xAD);
+		unit->action_params[2] = rdu8(rec + 0xAE);
 
 		// die action
 		unit->daid = rdu8(rec + 0xBB);
@@ -277,9 +286,9 @@ SpellUnits::SpellUnits(uint8_t* data, int dlen, FSUarchive *fsu, SpellGraphics *
 		unit->dap3 = rdu8(rec + 0xBD);
 
 		// die action animation resource (*.fsu content)
-		rdsc(unit->daan, rec + 0xB2, 6);
+		GetNameStr(unit->die_anim_name,rec + 0xB2,6);
 		// frames count
-		unit->daanf = rdu8(rec + 0xB8);
+		unit->die_anim_frames = rdu8(rec + 0xB8);
 
 
 		// direct sight
@@ -307,7 +316,7 @@ SpellUnits::SpellUnits(uint8_t* data, int dlen, FSUarchive *fsu, SpellGraphics *
 		unit->shit = rdu8(rec + 0xC3);
 
 		// unit special sound class
-		unit->sspc = rdu8(rec + 0xC4);
+		unit->snd_action_id = rdu8(rec + 0xC4);
 
 		// unit selection/report sound class
 		unit->ssel = rdu8(rec + 0xC5);
@@ -326,6 +335,8 @@ SpellUnits::SpellUnits(uint8_t* data, int dlen, FSUarchive *fsu, SpellGraphics *
 			unit->gr_attack_light = fsu->GetResource(unit->anim_atack_light_name);
 			unit->gr_attack_armor = fsu->GetResource(unit->anim_atack_armor_name);
 			unit->gr_attack_air = fsu->GetResource(unit->anim_atack_air_name);
+			unit->gr_action = fsu->GetResource(unit->action_fsu_name);
+			unit->gr_die = fsu->GetResource(unit->die_anim_name);
 		}
 
 		// --- assign aux graphics
@@ -343,7 +354,30 @@ SpellUnits::SpellUnits(uint8_t* data, int dlen, FSUarchive *fsu, SpellGraphics *
 			unit->pnm_light_hit = graphics->GetPNM(unit->pnm_light_hit_name);
 			unit->pnm_light_shot = graphics->GetPNM(unit->pnm_light_shot_name);
 			unit->pnm_armored_hit = graphics->GetPNM(unit->pnm_armored_hit_name);
-			unit->pnm_armored_shot = graphics->GetPNM(unit->pnm_armored_shot_name);			
+			unit->pnm_armored_shot = graphics->GetPNM(unit->pnm_armored_shot_name);
+
+			// assign special action button glyph
+			if(unit->isActionTurretUp())
+				unit->action_button_glyph = graphics->wm_glyph_up;
+			else if(unit->isActionTurretDown())
+				unit->action_button_glyph = graphics->wm_glyph_down;
+			else if(unit->isActionToggleRadar())
+			{
+				unit->action_button_glyph = graphics->wm_glyph_radar_up;
+				unit->action_button_glyph_b = graphics->wm_glyph_radar_down;
+			}
+			else if(unit->isActionTakeOff())
+				unit->action_button_glyph = graphics->wm_glyph_up;
+			else if(unit->isActionLand())
+				unit->action_button_glyph = graphics->wm_glyph_down;
+			else if(unit->isActionToFortres())
+				unit->action_button_glyph = graphics->wm_glyph_down;
+			else if(unit->isActionFromFortres())
+				unit->action_button_glyph = graphics->wm_glyph_up;
+			else if(unit->isActionCreateUnit())
+				unit->action_button_glyph = graphics->wm_glyph_place_unit;
+
+
 		}
 
 		// --- assign sounds
@@ -356,7 +390,8 @@ SpellUnits::SpellUnits(uint8_t* data, int dlen, FSUarchive *fsu, SpellGraphics *
 			unit->sound_die = sounds->GetDieClass(unit->shit);
 			unit->sound_attack_light = sounds->GetAttackClass(unit->slig);
 			unit->sound_attack_armor = sounds->GetAttackClass(unit->sarm);
-			unit->sound_attack_air = sounds->GetAttackClass(unit->sair);
+			unit->sound_attack_air = sounds->GetAttackClass(unit->sair);			
+			unit->sound_action = sounds->GetSpecialClass(unit->snd_action_id);
 		}
 
 		// store unit to list
@@ -374,9 +409,13 @@ int SpellUnitRec::isLight()
 {
 	return((utype & UTYPE_TYPE_MASK) == UTYPE_TYPE_LIGHT);
 }
-int SpellUnitRec::isHeavy()
+int SpellUnitRec::isArmored()
 {
 	return((utype & UTYPE_TYPE_MASK) == UTYPE_TYPE_ARMORED);
+}
+int SpellUnitRec::isLand()
+{
+	return(isLight() || isArmored());
 }
 int SpellUnitRec::hasTurret()
 {
@@ -397,6 +436,89 @@ int SpellUnitRec::isHover()
 int SpellUnitRec::isTank()
 {
 	return(!isWalk() && !isFly());
+}
+int SpellUnitRec::isMLRS()
+{
+	return(!!(fire_flags & FIRE_MLRS));
+}
+// uses projectile when shooting to target unit?
+int SpellUnitRec::hasProjectile(SpellUnitRec* target)
+{
+	int has = target->isLight() && (projectile_visible & PROJECTILE_LIGHT) || 
+		target->isArmored() && (projectile_visible & PROJECTILE_ARMOR) ||
+		target->isAir() && (projectile_visible & PROJECTILE_AIR);
+	return(has);
+}
+// uses teleport move (demon, hell cavallery)?
+int SpellUnitRec::usingTeleportMove()
+{
+	return(action_id == SPEC_ACT_FIRE_TELEPORT);
+}
+// has unit special action? (excluding teleport move), returns non-zero action ID if exist
+int SpellUnitRec::hasSpecAction()
+{
+	if(action_id == SPEC_ACT_FIRE_TELEPORT)
+		return(0);
+	return(action_id);
+}
+int SpellUnitRec::isActionTurretUp()
+{
+	return(action_id == SPEC_ACT_SHOW_TURRET);
+}
+int SpellUnitRec::isActionTurretDown()
+{
+	return(action_id == SPEC_ACT_HIDE_TURRET);
+}
+int SpellUnitRec::isActionToggleRadar()
+{
+	return(action_id == SPEC_ACT_TOGGLE_RADAR);
+}
+int SpellUnitRec::isActionLand()
+{
+	return(action_id == SPEC_ACT_AIRCRAFT_DOWN);
+}
+int SpellUnitRec::isActionTakeOff()
+{
+	return(action_id == SPEC_ACT_AIRCRAFT_UP);
+}
+int SpellUnitRec::isActionToFortres()
+{
+	return(action_id == SPEC_ACT_TRANSFORM_TO_FORTRES);
+}
+int SpellUnitRec::isActionFromFortres()
+{
+	return(action_id == SPEC_ACT_TRANSFORM_FROM_FORTRES);
+}
+int SpellUnitRec::isActionCreateUnit()
+{
+	return(action_id == SPEC_ACT_CREATE_UNIT);
+}
+int SpellUnitRec::isActionKamikaze()
+{
+	return(action_id == SPEC_ACT_KAMIZAZE);
+}
+
+SpellGraphicItem *SpellUnitRec::GetActionBtnGlyph(int alt)
+{
+	if(alt)
+		return(action_button_glyph_b);
+	return(action_button_glyph);
+}
+
+// can unit attack target?
+int SpellUnitRec::canAttack(SpellUnitRec* target)
+{
+	if(target->isLight() && !attack_light)
+		return(false);
+	if(target->isArmored() && !attack_armored)
+		return(false);
+	if(target->isAir() && !attack_air)
+		return(false);
+	return(true);
+}
+int SpellUnitRec::canAttackObject()
+{	
+	return(attack_objects > 0);
 }
 
 
@@ -430,9 +552,12 @@ vector<SpellUnitRec*> &SpellUnits::GetUnits()
 }
 
 
-// render unit (complete, i.e. group of man or tank with turret) and stick for air units
+// render unit (complete, i.e. group of man or tank with turret) and stick for air units:
+//   frame - animation frame if applicable
+//   *fsu_anim - animation override
+//   flight_alt - air unit flight altitute in percent
 tuple<int,int> SpellUnitRec::Render(uint8_t* buffer, uint8_t* buf_end, int buf_x_pos, int buf_y_pos, int buf_x_size,
-	uint8_t* filter, uint8_t* shadow_filter, ::Sprite *sprt, int azim, int azim_turret, int frame, FSU_resource *fsu_anim)
+	uint8_t* filter, uint8_t* shadow_filter, ::Sprite *sprt, int azim, int azim_turret, int frame, FSU_resource *fsu_anim, int flight_alt)
 {
 	// tile slope
 	char slope = sprt->name[2];
@@ -526,6 +651,9 @@ tuple<int,int> SpellUnitRec::Render(uint8_t* buffer, uint8_t* buf_end, int buf_x
 	int y_status_bar = 2^30;
 	int x_status_bar = 0;
 
+	// flight altitute (in pixels)
+	flight_alt = (flight_alt>=0)?(AIR_UNIT_FLY_HEIGHT*flight_alt/100):AIR_UNIT_FLY_HEIGHT;
+
 	// --- repeat for each man:
 	for (int uid = 0; uid < man; uid++)
 	{
@@ -540,7 +668,8 @@ tuple<int,int> SpellUnitRec::Render(uint8_t* buffer, uint8_t* buf_end, int buf_x
 			}
 		}
 		uofs[man_id] = 1;
-				
+		
+		int was_anim = false;
 		for (int part = 0; part < 2; part++)
 		{
 			FSU_resource* res;
@@ -566,12 +695,17 @@ tuple<int,int> SpellUnitRec::Render(uint8_t* buffer, uint8_t* buf_end, int buf_x
 			if(fsu_anim && frame >= 0 && frame < fsu_anim->anim.frames)
 			{
 				// custom animation resource
-				spr = fsu_anim->anim.lists[res_azim][frame];
+				if(fsu_anim->anim.azimuths)
+					spr = fsu_anim->anim.lists[res_azim][frame];
+				else
+					spr = fsu_anim->anim.lists[slope - 'A'][frame];
+				was_anim = true;
 			}
 			else if (frame >= 0 && res->anim.frames)
 			{
 				// animate
 				spr = res->anim.lists[res_azim][frame];
+				was_anim = true;
 			}
 			else
 				spr = res->stat.lists[slope-'A'][res_azim];
@@ -593,7 +727,7 @@ tuple<int,int> SpellUnitRec::Render(uint8_t* buffer, uint8_t* buf_end, int buf_x
 			if (isAir())
 			{
 				// air unit - shift unit up
-				y_pos -= AIR_UNIT_FLY_HEIGHT;
+				y_pos -= flight_alt;
 			}
 
 			// store unit highest pixel offset
@@ -603,6 +737,10 @@ tuple<int,int> SpellUnitRec::Render(uint8_t* buffer, uint8_t* buf_end, int buf_x
 
 			// render man of unit			
 			spr->Render(buffer, buf_end, x_pos, y_pos, buf_x_size, shadow_filter, filter);
+
+			// this should prevent rendering turret when animating
+			if(was_anim)
+				break;
 		}
 	}
 
@@ -613,7 +751,7 @@ tuple<int,int> SpellUnitRec::Render(uint8_t* buffer, uint8_t* buf_end, int buf_x
 
 		// top of the stick
 		x_pos = buf_x_pos + 40;
-		y_pos = buf_y_pos - AIR_UNIT_FLY_HEIGHT + spr->y_ofs - 128 + spr->y_size + sprt->y_ofs;
+		y_pos = buf_y_pos - flight_alt + spr->y_ofs - 128 + spr->y_size + sprt->y_ofs;
 		if (y_pos < 0)
 			y_pos = 0;
 
@@ -701,12 +839,19 @@ MapUnit::MapUnit()
 	action_points = 1;
 	// unit active (set except insertion time)
 	is_active = 0;
+	// unit visible?
+	is_visible = true;
 	// enemy?
 	is_enemy = 0;
 	// unit being placed?
 	in_placement = false;
 	// moved
 	was_moved = true;
+
+
+	next = NULL;
+	parent = NULL;
+	child = NULL;
 
 	// sound refs
 	sound_report = NULL;
@@ -717,6 +862,10 @@ MapUnit::MapUnit()
 	sound_attack_light = NULL;
 	sound_attack_armor = NULL;
 	sound_attack_air = NULL;
+	sound_action = NULL;
+
+	radar_up = false;
+	altitude = 100;
 
 	// FSU sprite index
 	in_animation = NULL;
@@ -726,8 +875,10 @@ MapUnit::MapUnit()
 
 	move_state = MapUnit::MOVE_STATE_IDLE;
 	attack_state = MapUnit::ATTACK_STATE_IDLE;
+	action_state = MapUnit::ACTION_STATE_IDLE;
 }
-MapUnit::~MapUnit()
+// clear sound refs
+int MapUnit::ClearSounds()
 {
 	if(sound_report)
 		delete sound_report;
@@ -744,8 +895,38 @@ MapUnit::~MapUnit()
 	if(sound_attack_armor)
 		delete sound_attack_armor;
 	if(sound_attack_air)
-		delete sound_attack_air;
+		delete sound_attack_air;	
+	if(sound_action)
+		delete sound_action;
+	sound_report = NULL;
+	sound_contact = NULL;
+	sound_move = NULL;
+	sound_hit = NULL;
+	sound_die = NULL;
+	sound_attack_light = NULL;
+	sound_attack_armor = NULL;
+	sound_attack_air = NULL;
+	sound_action = NULL;
+	return(0);
 }
+MapUnit::~MapUnit()
+{
+	ClearSounds();
+
+	if(child)
+	{
+		// unlink from child unit
+		child->parent = NULL;
+		child = NULL;
+	}
+	if(parent)
+	{
+		// unlink from parent unit
+		parent->child = NULL;
+		parent = NULL;
+	}
+}
+// copy without sound refs because delete would loose the sounds for source object!
 MapUnit::MapUnit(MapUnit &obj)
 {
 	*this = obj;
@@ -757,8 +938,59 @@ MapUnit::MapUnit(MapUnit &obj)
 	sound_attack_light = NULL;
 	sound_attack_armor = NULL;
 	sound_attack_air = NULL;
+	sound_action = NULL;
+
+	parent = NULL;
+	child = NULL;
+
+	action_state = ACTION_STATE_IDLE;
+	move_state = MOVE_STATE_IDLE;
+	attack_state = ATTACK_STATE_IDLE;
+}
+// morph unit type to target (used e.g. for land/take off action)
+int MapUnit::MorphUnit(SpellUnitRec* target, int health)
+{
+	// adapth health
+	int org_max_count = unit->cnt;
+	if(unit->cnt == 1)
+		org_max_count = 100;
+	int new_max_count = target->cnt;
+	if(target->cnt == 1)
+		new_max_count = 100;
+	if(health)
+	{
+		man = man*health/100;
+		wounded = 0;
+	}
+	else
+	{		
+		man = man*new_max_count/org_max_count;
+		wounded = wounded*new_max_count/org_max_count;
+	}
+
+	// change unit type
+	unit = target;
+
+	radar_up = false;
+	if(unit->isAir())
+	{
+		dig_level = 0;
+	}
+
+	// reset sound refs so engine loads new sounds for new unit type
+	if(AreSoundsDone())
+		ClearSounds();
+
+	return(0);
 }
 
+// set full health
+int MapUnit::ResetHealth()
+{
+	wounded = 0;
+	man = unit->cnt;
+	return(0);
+}
 
 // action points for this level of experience
 int MapUnit::GetMaxAP()
@@ -773,6 +1005,12 @@ int MapUnit::GetMaxAP()
 		ap += unit->apw;
 
 	return(ap);
+}
+
+// has unit full AP?
+int MapUnit::HasMaxAP()
+{
+	return(action_points == GetMaxAP());
 }
 
 // reset unit action points
@@ -801,6 +1039,8 @@ int MapUnit::GetFireCount(int ext_ap)
 	int ap_per_fire = GetAPperFire();
 	if(!ap_per_fire)
 		return(0);
+	if(unit->isActionKamikaze())
+		return(action_points != 0);
 	
 	// actual fires count
 	if(ext_ap >= 0)		
@@ -812,6 +1052,8 @@ int MapUnit::GetFireCount(int ext_ap)
 int MapUnit::GetMaxFireCount()
 {
 	// get max fires count
+	if(unit->isActionKamikaze())
+		return(1);
 	int ap = GetMaxAP();
 	if(!unit->aps)
 		return(0);
@@ -845,8 +1087,32 @@ int MapUnit::GetWalkAP()
 	return(GetMaxAP()/(move_range-1));
 }
 
+// has unit wounded men?
+int MapUnit::HasWounded()
+{
+	return(wounded);
+}
+
+// heal unit
+int MapUnit::Heal()
+{
+	wounded = max(wounded - man,0);
+	return(wounded);
+}
+
+// can do special action (if enough AP)
+int MapUnit::CanSpecAction()
+{
+	if(!unit->hasSpecAction())
+		return(false);
+	return(action_points >= unit->action_ap);
+}
+
 int MapUnit::Render(Terrain* data,uint8_t* buffer,uint8_t* buf_end,int buf_x_pos,int buf_y_pos,int buf_x_size,uint8_t *filter,Sprite* sprt,int show_hud)
 {
+	if(!is_visible)
+		return(0);	
+	
 	// filter for shadow rendering
 	auto shadow_filter = data->filter.darker;
 	
@@ -855,7 +1121,7 @@ int MapUnit::Render(Terrain* data,uint8_t* buffer,uint8_t* buf_end,int buf_x_pos
 		loc_frame = -1; // static unit resource
 
 	// render unit
-	auto [x_status_bar,y_status_bar] = unit->Render(buffer, buf_end, buf_x_pos, buf_y_pos, buf_x_size,filter,shadow_filter, sprt, azimuth, azimuth_turret, loc_frame, in_animation);
+	auto [x_status_bar,y_status_bar] = unit->Render(buffer, buf_end, buf_x_pos, buf_y_pos, buf_x_size,filter,shadow_filter, sprt, azimuth, azimuth_turret, loc_frame, in_animation, altitude);
 	
 	if(!filter)
 		filter = data->filter.nullpal;
@@ -967,6 +1233,108 @@ int MapUnit::Render(Terrain* data,uint8_t* buffer,uint8_t* buf_end,int buf_x_pos
 }
 
 
+
+// return unit animation associated with attack to particular unit
+FSU_resource *MapUnit::GetShotAnim(MapUnit *target, int *frame_stop)
+{	
+	FSU_resource *fsu_anim = NULL;
+	int frames = 0;
+	if(target->unit->isLight())
+	{
+		fsu_anim = unit->gr_attack_light;
+		frames = unit->anim_atack_light_frames;
+	}
+	else if(target->unit->isArmored())
+	{
+		fsu_anim = unit->gr_attack_armor;
+		frames = unit->anim_atack_armor_frames;
+	}
+	else if(target->unit->isAir())
+	{
+		fsu_anim = unit->gr_attack_air;
+		frames = unit->anim_atack_air_frames;
+	}
+	if(frame_stop)
+		*frame_stop = frames;
+	return(fsu_anim);
+}
+
+// return target hit animation if exist
+AnimPNM *MapUnit::GetTargetHitPNM(MapUnit *target)
+{
+	AnimPNM *pnm = NULL;
+	if(target->unit->isLight())
+		pnm = unit->pnm_light_shot;
+	else if(target->unit->isArmored())
+		pnm = unit->pnm_armored_shot;
+	else if(target->unit->isAir())
+		pnm = unit->pnm_air_shot;
+	return(pnm);
+}
+
+// return shot animation if exist (this is used to animate e.g. cannon fireball)
+AnimPNM* MapUnit::GetFirePNM(MapUnit* target)
+{
+	AnimPNM* pnm = NULL;
+	if(target->unit->isLight())
+		pnm = unit->pnm_light_hit;
+	else if(target->unit->isArmored())
+		pnm = unit->pnm_armored_hit;
+	else if(target->unit->isAir())
+		pnm = unit->pnm_air_hit;
+	return(pnm);
+}
+// return shot animation if exist (this is used to animate e.g. cannon fireball)
+tuple<int,int> MapUnit::GetFirePNMorigin(MapUnit* target, double azimuth)
+{
+	AnimPNM* pnm = GetFirePNM(target);
+	/*if(!pnm)
+		return tuple(0,0);*/
+	if(pnm && unit->gr_aux)
+		azimuth = round(azimuth/(double)unit->gr_aux->stat.azimuths)*(double)unit->gr_aux->stat.azimuths;
+
+	int x = (int)(+cos(azimuth/180.0*M_PI)*SpellUnitRec::FIRE_RING_DIAMETER);
+	int y = (int)(-sin(azimuth/180.0*M_PI)*SpellUnitRec::FIRE_RING_DIAMETER*cos(Sprite::PROJECTION_ANGLE/180.0*M_PI));
+	return tuple(x,y);
+}
+
+
+// check if all unit sounds are stoped (e.g. test before sounds clear when morphing unit)
+int MapUnit::AreSoundsDone()
+{	
+	if(sound_report)
+		if(!sound_report->isDone())
+			return(false);
+	if(sound_contact)
+		if(!sound_contact->isDone())
+			return(false);
+	if(sound_hit)
+		if(!sound_hit->isDone())
+			return(false);
+	if(sound_die)
+		if(!sound_die->isDone())
+			return(false);	
+	if(sound_move)
+		if(!sound_move->isDone())
+			return(false);
+	if(sound_move)
+		if(!sound_move->isDone())
+			return(false);
+	if(sound_attack_light)
+		if(!sound_attack_light->isDone())
+			return(false);
+	if(sound_attack_armor)
+		if(!sound_attack_armor->isDone())
+			return(false);
+	if(sound_attack_air)
+		if(!sound_attack_air->isDone())
+			return(false);
+	if(sound_action)
+		if(!sound_action->isDone())
+			return(false);
+	return(true);
+}
+
 // play report sound
 int MapUnit::PlayReport()
 {
@@ -1019,7 +1387,7 @@ int MapUnit::PlayStop()
 }
 
 // play fire sound to given unit type
-int MapUnit::PlayFire(SpellUnitRec* target)
+int MapUnit::PlayFire(MapUnit* target)
 {
 	// make local copy of sound objects (because of polyphony for multiple units)
 	if(!sound_attack_light)
@@ -1030,18 +1398,18 @@ int MapUnit::PlayFire(SpellUnitRec* target)
 		sound_attack_air = new SpellAttackSound(*unit->sound_attack_air);
 
 	// play shot sound
-	if(target->isLight())
+	if(target->unit->isLight())
 		sound_attack_light->shot->Play();
-	else if(target->isHeavy())
+	else if(target->unit->isArmored())
 		sound_attack_armor->shot->Play();
-	else if(target->isAir())
+	else if(target->unit->isAir())
 		sound_attack_air->shot->Play();
 
 	return(0);
 }
 
 // play target hit sound to given unit type
-int MapUnit::PlayHit(SpellUnitRec* target)
+int MapUnit::PlayHit(MapUnit* target)
 {
 	// make local copy of sound objects (because of polyphony for multiple units)
 	if(!sound_attack_light)
@@ -1052,12 +1420,21 @@ int MapUnit::PlayHit(SpellUnitRec* target)
 		sound_attack_air = new SpellAttackSound(*unit->sound_attack_air);
 
 	// play shot sound
-	if(target->isLight())
+	if(target->unit->isLight())
 		sound_attack_light->hit_flash->Play();
-	else if(target->isHeavy())
+	else if(target->unit->isArmored())
 		sound_attack_armor->hit_flash->Play();
-	else if(target->isAir())
+	else if(target->unit->isAir())
 		sound_attack_air->hit_flash->Play();
 
+	return(0);
+}
+
+// play report sound
+int MapUnit::PlayAction()
+{
+	if(!sound_action)
+		sound_action = new SpellSound(*unit->sound_action);
+	sound_action->Play();
 	return(0);
 }

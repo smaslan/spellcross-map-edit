@@ -130,7 +130,7 @@ class FormTools : public wxFrame
 
 	public:
 
-		FormTools( wxWindow* parent, SpellData *spelldata, wxWindowID id = wxID_ANY, const wxString& title = wxT("Tools editor"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 870,450 ), long style = wxDEFAULT_FRAME_STYLE|wxTAB_TRAVERSAL| wxSTAY_ON_TOP);
+		FormTools( wxWindow* parent, SpellData *spelldata, wxWindowID id = wxID_ANY, const wxString& title = wxT("Tools editor"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 870,450 ), long style = wxDEFAULT_FRAME_STYLE|wxTAB_TRAVERSAL| wxFRAME_FLOAT_ON_PARENT);
 		~FormTools();
 
 		void SetMap(SpellMap* map);

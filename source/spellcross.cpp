@@ -218,10 +218,7 @@ SpellData::SpellData(wstring &data_path,wstring& cd_data_path,wstring& spec_path
 	path = data_path + L"\\COMMON.FS";
 	common = new FSarchive(path);
 	uint8_t* data;
-	int size;
-
-	// load generic graphic resources
-	LoadAuxGraphics(common);
+	int size;	
 	
 	// load UNITS.PAL palette chunk and merge with terrain palette chunk
 	if (common->GetFile("UNITS.PAL", &data, &size))
@@ -245,6 +242,9 @@ SpellData::SpellData(wstring &data_path,wstring& cd_data_path,wstring& spec_path
 		std::memcpy((void*)&this->terrain[k]->pal[224][0], (void*)data, 32 * 3);
 		std::memcpy((void*)&this->terrain[k]->pal[240][0], (void*)temp, 10 * 3);
 	}
+
+	// load generic graphic resources
+	LoadAuxGraphics(common);
 
 	// processing all other common files
 	for(int fid = 0; fid < common->Count(); fid++)
@@ -306,7 +306,12 @@ SpellData::SpellData(wstring &data_path,wstring& cd_data_path,wstring& spec_path
 	font7_path.append("font_spellcross_7pix.fnt");
 	font7 = new SpellFont(font7_path.wstring());
 
-	
+	// load aux 14pix font and merge it to spellcross font
+	std::filesystem::path font14_path = spec_path;
+	font14_path.append("font_spellcross_14pix.fnt");
+	SpellFont font14_aux(font14_path.wstring());
+	font->Merge(font14_aux);
+		
 
 	// copy some global stuff to terrains
 	for(const auto & terr : terrain)
@@ -471,6 +476,16 @@ int SpellData::LoadAuxGraphics(FSarchive *fs)
 			// GFK projection files: fixed 21x21 pixel with transparencies
 			gres.AddRaw(data,flen,21,21,name,(uint8_t*)terrain[0]->pal,true);
 		}
+		else if(strcmp(name,"I_ATTACK") == 0 || strcmp(name,"I_LOWER") == 0 || strcmp(name,"I_MOVE") == 0 || strcmp(name,"I_UPPER") == 0 || strcmp(name,"I_SELECT") == 0)
+		{
+			// raw icon files
+			gres.AddRaw(data,flen,20,20,name,(uint8_t*)terrain[0]->pal,false,true);
+		}
+		else if(strcmp(name,"I_TAB") == 0)
+		{
+			// raw icon files
+			gres.AddRaw(data,flen,60,45,name,(uint8_t*)terrain[0]->pal,false,true);
+		}
 		else if(wildcmp("*.PNM",name))
 		{
 			// PNM animations:
@@ -507,6 +522,8 @@ int SpellData::LoadAuxGraphics(FSarchive *fs)
 	gres.wm_btn_press = gres.GetResource("MAINB__P");
 	gres.wm_glyph_air = gres.GetResource("AIRUNIT");
 	gres.wm_glyph_center_unit = gres.GetResource("CENTRUNIT");
+	gres.wm_glyph_down = gres.GetResource("DOWN");
+	gres.wm_glyph_up = gres.GetResource("UP");
 	gres.wm_glyph_radar_down = gres.GetResource("RADAROFF");
 	gres.wm_glyph_radar_up = gres.GetResource("RADARON");
 	gres.wm_glyph_end_turn = gres.GetResource("ENDTURN");
@@ -521,6 +538,23 @@ int SpellData::LoadAuxGraphics(FSarchive *fs)
 	gres.wm_glyph_retreat = gres.GetResource("RETREAT");
 	gres.wm_glyph_end_placement = gres.GetResource("UKONCEN");
 	gres.wm_glyph_info = gres.GetResource("UNITINFO");
+	gres.wm_glyph_place_unit = gres.GetResource("UKONCEN");
+	gres.wm_sel_tab = gres.GetResource("I_TAB");
+	gres.wm_sel_attack = gres.GetResource("I_ATTACK");
+	gres.wm_sel_move = gres.GetResource("I_MOVE");
+	gres.wm_sel_upper = gres.GetResource("I_UPPER");
+	gres.wm_sel_lower = gres.GetResource("I_LOWER");
+	gres.wm_sel_select = gres.GetResource("I_SELECT");
+
+	// render cursors
+	gres.cur_pointer = gres.RenderCUR("SIPKA.CUR");
+	gres.cur_wait = gres.RenderCUR("WAIT.CUR");
+	gres.cur_select = gres.RenderCUR("SELECT.CUR");
+	gres.cur_question = gres.RenderCUR("OTAZNIK.CUR");
+	gres.cur_move = gres.RenderCUR("DOJAZD.CUR");
+	gres.cur_attack_down = gres.RenderCUR("TARGT_D.CUR");
+	gres.cur_attack_up = gres.RenderCUR("TARGT_U.CUR");
+	gres.cur_attack_up_down = gres.RenderCUR("OTAZNIK.CUR");
 	
 	// order projectiles
 	gres.SortProjectiles();

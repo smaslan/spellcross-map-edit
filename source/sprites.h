@@ -212,11 +212,13 @@ class Sprite
 		// tile elevation step in pixels
 		static constexpr double TILE_ELEVATION = 22.5;
 
+		// tile projection angle (degrees)
+		static constexpr double PROJECTION_ANGLE = 37.0;
+
 	private:
 		int MaskHasTransp(uint8_t* mask);
 		
-		// tile projection angle (degrees)
-		static constexpr double PROJECTION_ANGLE = 37.0;
+		
 
 		// sprite context stuff:
 		// quadrant lists of allowed tile neighbors [quadrant, tile_type]

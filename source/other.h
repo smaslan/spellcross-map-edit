@@ -24,10 +24,16 @@ int ostream_write_string(ofstream& fw,std::string str);
 int ostream_write_string(ofstream& fw,const char* str);
 std::string istream_read_string(ifstream& fr);
 int ostream_write_u32(ofstream& fw,uint32_t val);
+int ostream_write_i32(ofstream& fw,int32_t val);
 uint32_t istream_read_u32(ifstream& fr);
+int32_t istream_read_i32(ifstream& fr);
 
 
 void plot_line(uint8_t* buffer,uint8_t* buf_end,int buf_x,int buf_y,int x_size,uint8_t color,int x0,int y0,int x1,int y1);
+
+void apply_gamma(uint8_t* pal,double gamma);
+
+int mod(int x,int y);
 
 
 /*template <class charT,class Traits>

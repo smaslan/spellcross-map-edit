@@ -72,7 +72,7 @@ protected:
 
 public:
 
-	FormGResView(wxWindow* parent,SpellData* spell_data,wxWindowID id = wxID_ANY,const wxString& title = wxT("Graphics resource viewer"),const wxPoint& pos = wxDefaultPosition,const wxSize& size = wxSize(875,513),long style = wxDEFAULT_FRAME_STYLE|wxTAB_TRAVERSAL|wxSTAY_ON_TOP);
+	FormGResView(wxWindow* parent,SpellData* spell_data,wxWindowID id = wxID_ANY,const wxString& title = wxT("Graphics resource viewer"),const wxPoint& pos = wxDefaultPosition,const wxSize& size = wxSize(875,513),long style = wxDEFAULT_FRAME_STYLE|wxTAB_TRAVERSAL|wxFRAME_FLOAT_ON_PARENT);
 
 	~FormGResView();
 

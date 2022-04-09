@@ -120,7 +120,7 @@ class FormObjects : public wxFrame
 	public:
 
 		//FormObjects( wxWindow* parent,SpellData* spell_data, wxWindowID id = wxID_ANY, const wxString& title = "Objects viewer", const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 400,600 ), long style = wxDEFAULT_FRAME_STYLE|wxTAB_TRAVERSAL|wxSTAY_ON_TOP);
-		FormObjects(wxWindow* parent,SpellData* spell_data,wxWindowID id = wxID_ANY,const wxString& title = wxT("Objects viewer"),const wxPoint& pos = wxDefaultPosition,const wxSize& size = wxSize(1000,600),long style = wxDEFAULT_FRAME_STYLE|wxTAB_TRAVERSAL|wxSTAY_ON_TOP);
+		FormObjects(wxWindow* parent,SpellData* spell_data,wxWindowID id = wxID_ANY,const wxString& title = wxT("Objects viewer"),const wxPoint& pos = wxDefaultPosition,const wxSize& size = wxSize(1000,600),long style = wxDEFAULT_FRAME_STYLE|wxTAB_TRAVERSAL|wxFRAME_FLOAT_ON_PARENT);
 		~FormObjects();
 
 		void SetMap(SpellMap *map);

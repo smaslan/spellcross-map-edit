@@ -153,6 +153,8 @@ public:
 	int action_points;
 	// unit active (set except insertion time)
 	int is_active;
+	// unit visible?
+	int is_visible;
 	// enemy?
 	int is_enemy;
 	// morale level
@@ -166,6 +168,11 @@ public:
 	MapUnit* next;
 	int assigned;
 
+	// link s between parent and child unit
+	MapUnit* parent;
+	MapUnit* child;
+
+
 	// unit rendering state
 	vector<AStarNode> move_nodes;
 	int move_state;
@@ -176,30 +183,67 @@ public:
 	int azimuth_turret;
 	int frame;
 	int frame_stop;
-	double azimuth_angle;
+	double unit_angle; /* angle in 3D view */
+	double attack_angle; /* angle in projected 2D view */
+	//double projectile_angle;
 	double attack_dist;
 	int attack_proj_step;
 	int attack_proj_delay;
 	int attack_state;
 	int attack_hit_frame;
-	AnimPNM *attack_hit_pnm;
+	AnimPNM* attack_hit_pnm;
+	AnimPNM* attack_fire_pnm;
+	int attack_fire_x_org;
+	int attack_fire_y_org;
+	int attack_fire_frame;
 	MapUnit *attack_target;
 	int is_target;
 	int isAttacker() {return(attack_state != ATTACK_STATE_IDLE);};
 	int isTarget() {return(is_target);};
 
+	// unit radar state
+	int radar_up;
+	// unit flight altitude [%]
+	int altitude;
+
+	int action_state;
+	int action_step;
+
+	static constexpr int ACTION_STATE_IDLE = 0;
+	static constexpr int ACTION_STATE_AIR_LAND = 1;
+	static constexpr int ACTION_STATE_AIR_TAKEOFF = 2;
+	static constexpr int ACTION_STATE_AIR_FINISH = 3;
+	static constexpr int ACTION_STATE_TURRET_DOWN = 4;
+	static constexpr int ACTION_STATE_TURRET_FINISH = 5;
+	static constexpr int ACTION_STATE_RADAR_UP = 6;
+	static constexpr int ACTION_STATE_RADAR_DOWN = 7;
+	static constexpr int ACTION_STATE_TO_FORT = 8;	
+	static constexpr int ACTION_STATE_FROM_FORT = 9;
+	static constexpr int ACTION_STATE_FROM_FORT_TURRET = 10;
+	static constexpr int ACTION_STATE_CREATE_UNIT = 11;
+	static constexpr int ACTION_STATE_KAMIKAZE = 12;
+	static constexpr int ACTION_STATE_KAMIKAZE_EXPLOSION = 13;
+
 	static constexpr int ATTACK_STATE_IDLE = 0;
-	static constexpr int ATTACK_STATE_TURN = 1;
-	static constexpr int ATTACK_STATE_SHOT = 2;
-	static constexpr int ATTACK_STATE_FLIGHT = 3;
-	static constexpr int ATTACK_STATE_HIT = 4;
+	static constexpr int ATTACK_STATE_DIR = 1;
+	static constexpr int ATTACK_STATE_TURN = 2;
+	static constexpr int ATTACK_STATE_SHOT = 3;
+	static constexpr int ATTACK_STATE_FLIGHT = 4;
+	static constexpr int ATTACK_STATE_HIT = 5;	
 
 	static constexpr int MOVE_STATE_IDLE = 0;
 	static constexpr int MOVE_STATE_TURRET = 1;
 	static constexpr int MOVE_STATE_MOVE = 2;
+	static constexpr int MOVE_STATE_TELEPORT_IN = 3;
+	static constexpr int MOVE_STATE_TELEPORT_OUT = 4;
 
+	
+	FSU_resource* GetShotAnim(MapUnit* target,int* frame_stop=NULL);
+	AnimPNM* GetTargetHitPNM(MapUnit* target);
+	AnimPNM* GetFirePNM(MapUnit* target);
+	tuple<int,int> GetFirePNMorigin(MapUnit* target,double azimuth);
 
-
+	int AreSoundsDone();
 	int PlayReport();
 	SpellSound* sound_report;
 	int PlayContact();
@@ -207,8 +251,8 @@ public:
 	int PlayMove();
 	int PlayStop();
 	SpellSound* sound_move;
-	int PlayFire(SpellUnitRec * target);
-	int PlayHit(SpellUnitRec *target);
+	int PlayFire(MapUnit* target);
+	int PlayHit(MapUnit* target);
 	SpellAttackSound* sound_attack_light;
 	SpellAttackSound* sound_attack_armor;
 	SpellAttackSound* sound_attack_air;
@@ -216,22 +260,68 @@ public:
 	SpellSound* sound_die;
 	int PlayBeingHit();
 	SpellSound* sound_hit;
+	int PlayAction();
+	SpellSound* sound_action;
 
 
 
 	MapUnit();
 	MapUnit(MapUnit& obj);
+	int MorphUnit(SpellUnitRec *target,int health=0);
+	int ClearSounds();
 	~MapUnit();
 	int Render(Terrain* data,uint8_t* buffer,uint8_t* buf_end,int buf_x_pos,int buf_y_pos,int buf_x_size,uint8_t* filter,Sprite* sprt,int show_hud);
 
 	int ResetAP();
 	int GetMaxAP();
+	int HasMaxAP();
 	int GetWalkAP();
 	int GetFireCount(int ext_ap=-1);
 	int GetMaxFireCount();
 	int UpdateFireAP();
 	int GetAPperFire();
+	int CanSpecAction();
+	int HasWounded();
+	int Heal();
+	int ResetHealth();
 };
+
+// map sounds
+class MapSound
+{	
+private:
+	SpellSample* m_sample;
+	MapXY m_pos;
+public:
+		
+	MapSound(MapXY pos, SpellSample *sample);
+	const char *GetName();
+	MapXY GetPosition();
+	SpellSample* GetSample();
+};
+
+// map ambient loop sounds
+class MapLoopSounds
+{
+private:
+	int x_size;
+	int y_size;
+public:
+	// list unique map sounds
+	vector<SpellSound*> list;
+	// list of map loop sound
+	vector<MapSound> sounds;
+	// map of volumes per sound [sound_id][MapXY]
+	vector<vector<int8_t>> maps;
+
+	MapLoopSounds(int x_size,int y_size);	
+	~MapLoopSounds();
+	int UpdateMaps();
+	tuple<double,double> GetViewVolume(int index,int x0,int y0,int x_sz,int y_sz);
+	int UpdateVolumes(int xs_ofs,int ys_ofs,int xs_size,int ys_size);
+};
+
+
 
 // Scroller
 class TScroll
@@ -289,12 +379,13 @@ class SpellMap
 		int last_surf_y;
 		int surf_modified;		
 		int surf_x_origin; /* surface origin in raster buffer */
-		int surf_y_origin;
+		int surf_y_origin;		
 		// indexed raster buffer		
 		int pic_x_size;
 		int pic_y_size;
 		uint8_t* pic;
 		uint8_t* pic_end; /* buffer end */
+		vector<int> pic_y_buffer; /* used to find top most rendered pixel of HUD to cut off mouse area */
 		// scroll and surface range in tiles
 		int xs_size;
 		int ys_size;
@@ -380,8 +471,13 @@ class SpellMap
 		vector<SpellBtnHUD*> hud_buttons;
 		int hud_enabled;
 
+
+		// sound stuff
+		
+
 		// layer visibility flags
 		bool wL1, wL2, wL3, wL4, wSTCI, wUnits;
+		bool wSound, wSoundLoop;
 		int w_unit_hud;
 
 		// last gamma
@@ -451,6 +547,10 @@ class SpellMap
 		uint32_t *L1_flags; // terrain class flags array
 		// list of units
 		vector<MapUnit*> units;
+		// map sounds
+		vector<MapSound> sounds;
+		// looping sounds
+		MapLoopSounds *sound_loops;
 
 		
 		SpellMap();
@@ -473,6 +573,7 @@ class SpellMap
 		void SelectTiles(int mode);
 		int IvalidateTiles(vector<MapXY> tiles,std::function<void(std::string)> status_cb=NULL);
 		int RenderPrepare(wxBitmap& bmp, TScroll* scroll);
+		vector<MapXY> GetVisibleTiles();
 		tuple<int,int> GetMapSurfaceSize();
 		int isRenderSurfModified();
 		int CommitRenderSurfModified();		
@@ -482,10 +583,12 @@ class SpellMap
 		int SetHUDstate(int state);
 		int RenderHUD(uint8_t* buf,uint8_t* buf_end,int buf_x_size,MapXY* cursor,MapUnit *cursor_unit,std::function<void(void)> hud_buttons_cb=NULL);
 		int RenderHUDrect(uint8_t* buf,uint8_t* buf_end,int buf_x_size,int x1,int y1,int w,int h,uint8_t color);
+		int GetHUDtop(int surf_x_pos);
 		SpellBtnHUD* CreateHUDbutton(SpellGraphicItem* glyph,t_xypos& hud_pos,t_xypos &pos,uint8_t* buf,uint8_t* buf_end,int buf_x_size,
-			int action_id,std::function<void(void)> cb_press,std::function<void(void)> cb_hover);
+			int action_id,std::function<void(void)> cb_press,std::function<void(void)> cb_hover,int disabled_glyph=false);
 		SpellBtnHUD *GetHUDbutton(int id);
-		void ClearHUDbuttons();
+		void ClearHUDbuttons(bool only_invalidate=false);
+		void CleanupInvalidHUDbuttons();
 		void InvalidateHUDbuttons();
 		vector<SpellBtnHUD*> *GetHUDbuttons();
 		
@@ -493,13 +596,20 @@ class SpellMap
 		void OnHUDnextUnfinishedUnit();
 		void OnHUDswitchAirLand();
 		void OnHUDswitchUnitHUD();
-		void OnHUDswitchenTurn();
-
+		void OnHUDswitchEndTurn();
+		void OnHUDhealUnit();
+		void OnHUDturretToggle();
+		void OnHUDradarToggle();
+		void OnHUDairLandTakeOff();
+		void OnHUDfortresToggle();
+		void OnHUDcreateUnit();
 		
 
-
+		int RemoveUnit(MapUnit* unit);
+		int CreateUnit(MapUnit* parent,SpellUnitRec* new_type);
 		void SortUnits();
 		MapUnit *GetCursorUnit(wxBitmap& bmp,TScroll* scroll);
+		MapUnit* CanSelectUnit(MapXY pos);
 		MapUnit *SelectUnit(MapUnit* new_unit);
 		int UnitChanged(int clear=false);
 		MapUnit* GetSelectedUnit();
@@ -514,16 +624,32 @@ class SpellMap
 		vector<AStarNode> FindUnitPath(MapUnit* unit,MapXY target);
 		int FindUnitRange(MapUnit* unit);
 		int SetUnitRangeViewMode(int mode);
-		int MoveUnit(MapXY target);
+		int CanUnitMove(MapXY target);
+		int MoveUnit(MapXY target);		
 		int ResetUnitsAP();
 		static constexpr int UNIT_RANGE_NONE = 0x00;
 		static constexpr int UNIT_RANGE_MOVE = 0x01;
 		static constexpr int UNIT_RANGE_ATTACK = 0x02;
 		static constexpr int UNIT_RANGE_INCREMENT = -1;
+		int CanUnitAttack(MapUnit* target);
+		MapUnit* CanUnitAttackLand(MapXY pos);
+		MapUnit* CanUnitAttackAir(MapXY pos);
+		int CanUnitAttackObject(MapXY pos);
+		int Attack(MapXY pos,int prefer_air);
 		int AttackUnit(MapUnit* target);
+		tuple<int,int> GetPosOrigin(MapXY pos);
+		double GetUnitsAngle(MapUnit* ref,MapUnit* target);
+		int GetUnitOptions(wxBitmap& bmp,TScroll* scroll);
+		enum {
+			UNIT_OPT_UPPER = 1,
+			UNIT_OPT_LOWER = 2,
+			UNIT_OPT_MOVE = 4,
+			UNIT_OPT_SELECT = 8,
+			UNIT_OPT_ATTACK = 16
+		};
+		
 
-
-		void SetRender(bool wL1, bool wL2, bool wL3, bool wL4, bool wSECI, bool wUnits);
+		void SetRender(bool wL1, bool wL2, bool wL3, bool wL4, bool wSECI, bool wUnits, bool wSound, bool wSoundLoop);
 		void SetGamma(double gamma);
 		int Tick();
 		wstring GetTopPath();
@@ -552,6 +678,7 @@ class SpellMap
 			HUD_ACTION_MINIMAP = 1000
 		};
 
+		MapSound* GetRandomSound(double* left=NULL,double* right=NULL);
 		
 };
 

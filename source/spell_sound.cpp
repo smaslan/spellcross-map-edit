@@ -14,6 +14,7 @@
 #include "spell_sound.h"
 #include "fs_archive.h"
 #include "LZ_spell.h"
+#include "map.h"
 #include "other.h"
 #include "cvt_xmi2mid.hpp"
 
@@ -28,6 +29,8 @@
 #include <filesystem>
 #include <sstream>
 #include <future>
+#include <chrono>
+#include <thread>
 
 using namespace std;
 
@@ -46,7 +49,16 @@ SoundChannels::~SoundChannels()
 {
     // loose all stream channels
     for(auto& chn : channels)
+    {
+        // signalize stop to eventually running callback
+        chn->setStreamTime(FAKE_STOP_TIME_MARK*2.0);
+        // wait to actually stop
+        while(chn->isStreamRunning())
+            this_thread::sleep_for(10ms);
+        chn->closeStream();
+        // delete it
         delete chn;
+    }
     channels.clear();
 }
 // get first available channel
@@ -86,10 +98,10 @@ RtAudio* SoundChannels::GetChannel()
 // cleanup sounds
 SpellSounds::~SpellSounds()
 {
-    samples.clear();
-
     if(channels)
-        delete channels; 
+        delete channels;
+
+    samples.clear();
 }
 
 // load sound stuff from spellcross fs data folder
@@ -164,12 +176,10 @@ SpellSounds::SpellSounds(wstring& fs_data_path, int count)
 
 
 
-    // load sound.fs (samples)
+    // load music.fs (samples)
     wstring music_fs_path = fs_data_path + L"\\music.fs";
     FSarchive* music_fs = new FSarchive(music_fs_path);
-
     LZWexpand *lzw = new LZWexpand(1000000);
-
     for(int fid = 0; fid < music_fs->Count(); fid++)
     {
         // get file
@@ -193,10 +203,8 @@ SpellSounds::SpellSounds(wstring& fs_data_path, int count)
         fw->close();*/
 
         free(mid_data);
-
     }
     delete music_fs;
-
     delete lzw;
 
 
@@ -236,25 +244,16 @@ SpellSounds::SpellSounds(wstring& fs_data_path, int count)
 
 
     // init stream channels
-    channels = new SoundChannels();
-
-    
-    /*for(int k = 0; k < move_sounds.size(); k++)
-    {
-        SpellSound snd(channels, move_sounds[k]);
-
-        snd.Play();
-        Sleep(3000);    
-        snd.StopMove();
-
-        while(!snd.isDone())
-            Sleep(50);
-    }*/
+    channels = new SoundChannels(16);
 
     delete common_fs;    
 }
 
-
+SpellSound* SpellSounds::GetSound(const char *name)
+{
+    SpellSound* sound = new SpellSound(channels,GetSample(name));
+    return(sound);
+}
 SpellSound* SpellSounds::GetMoveClass(int index)
 {
     if(index >= move_sounds.size())
@@ -297,7 +296,13 @@ SpellSound* SpellSounds::GetDieClass(int index)
     SpellSound* sound = new SpellSound(channels,hit_sounds[index].items[1]);
     return(sound);
 }
-
+SpellSound* SpellSounds::GetSpecialClass(int index)
+{
+    if(index >= spec_sounds.size())
+        return(NULL);
+    SpellSound* sound = new SpellSound(channels,spec_sounds[index].items[0]);
+    return(sound);
+}
 
 
 void SpellSounds::ParseSoundClasses2(FSarchive* fs, const char *name, vector<SpellSoundClassFile> *cls)
@@ -396,13 +401,17 @@ SpellAttackSound::SpellAttackSound(SpellAttackSound &ref)
     hit_armor = new SpellSound(*ref.hit_armor);
     hit_miss = new SpellSound(*ref.hit_miss);
 }
-
 SpellAttackSound::~SpellAttackSound()
 {
     delete shot;
     delete hit_flash;
     delete hit_armor;
     delete hit_miss;
+}
+// all possible sounds done (or idle)?
+int SpellAttackSound::isDone()
+{
+    return(shot->isDone() && hit_flash->isDone() && hit_armor->isDone() && hit_miss->isDone());
 }
 
 
@@ -427,6 +436,10 @@ void SpellSound::SpellSoundInit()
             fs = smpl->fs;
         }
     }
+    left_vol = 65535;
+    right_vol = 65535;
+    force_loop = false;
+    auto_delete = false;
 }
 // define movement sound (start-move-stop)
 SpellSound::SpellSound(SoundChannels* channels,SpellSoundClassFile &move_class)
@@ -465,9 +478,13 @@ SpellSound::SpellSound(SpellSound& ref)
     channels = ref.channels;
     count = ref.count;
     fs = ref.fs;
+    left_vol = 65535;
+    right_vol = 65535;
+    force_loop = ref.force_loop;
     dac = NULL;
     sub_id = samples.size();
     control = CTRL_IDLE;
+    is_playing = false;
 }
 
 // stream callback
@@ -475,13 +492,37 @@ int SpellSound_RtCallback(void* outputBuffer,void* inputBuffer,unsigned int nBuf
     double streamTime,RtAudioStreamStatus status,void* userData)
 {
     SpellSound* data = (SpellSound*)userData;
-    return(data->cb_GetFrame((int16_t*)outputBuffer,nBufferFrames));
+    int stop = data->cb_GetFrame((int16_t*)outputBuffer,nBufferFrames);
+    
+    // force stop signalization?
+    if(streamTime >= SoundChannels::FAKE_STOP_TIME_MARK)
+        stop = 1;
+    
+    // automatic object delete?
+    if(stop != 0 && data->isAutoDelete())
+        delete data;
+    else if(stop != 0)
+        data->cb_DoneFlag();
+
+    return(stop);
+}
+
+
+int SpellSound::isAutoDelete()
+{
+    return(auto_delete);
+}
+
+// signalize playback is done
+void SpellSound::cb_DoneFlag()
+{
+    is_playing = false;
 }
 
 // copy sample data to DAC frame
 int SpellSound::cb_GetFrame(int16_t *buffer, int count)
 {
-    SpellSample *smpl;
+    //SpellSample *smpl;
     int smpl_size = cb_GetSmplSize();
     while(count)
     {
@@ -489,7 +530,7 @@ int SpellSound::cb_GetFrame(int16_t *buffer, int count)
         {
             // immediate stop
             sub_id = samples.size();
-            memset(buffer,0,count*smpl_size);
+            memset(buffer,0,count*2);            
             return(1);
         }
 
@@ -498,15 +539,23 @@ int SpellSound::cb_GetFrame(int16_t *buffer, int count)
             // single sample mode:
             if(pos >= samples[sub_id]->samples)
             {
-                // finito: fill with zeros
-                memset(buffer,0,count*smpl_size);
-                count = 0;
-                sub_id = samples.size();
-                return(1);
+                if(force_loop)
+                {
+                    // reset position to loop
+                    pos = 0;
+                }
+                else
+                {
+                    // finito: fill with zeros
+                    memset(buffer,0,count*2);
+                    count = 0;
+                    sub_id = samples.size();
+                    return(1);
+                }
             }
 
-            int smpl_count = min(count, samples[sub_id]->samples - pos);
-            memcpy(buffer,cb_GetSmplData(smpl_count),smpl_count*smpl_size*sizeof(int16_t));
+            int smpl_count = min(count, samples[sub_id]->samples - pos);            
+            buffer = cb_GetSmplData(buffer, smpl_count);
             count -= smpl_count;
             continue;
         }
@@ -516,7 +565,7 @@ int SpellSound::cb_GetFrame(int16_t *buffer, int count)
             if(sub_id >= samples.size())
             {
                 // finito: fill with zeros
-                memset(buffer,0,count*smpl_size);
+                memset(buffer,0,count*2);
                 count = 0;
                 return(1);
             }
@@ -556,7 +605,7 @@ int SpellSound::cb_GetFrame(int16_t *buffer, int count)
                 if(!samples[sub_id])
                 {
                     // loop silence:
-                    memset(buffer,0,count*smpl_size);
+                    memset(buffer,0,count*2);
                     count = 0;
                     return(0);
                 }
@@ -575,7 +624,7 @@ int SpellSound::cb_GetFrame(int16_t *buffer, int count)
                 if(!samples[sub_id] || pos >= samples[sub_id]->samples)
                 {
                     // terminate:
-                    memset(buffer,0,count*smpl_size);
+                    memset(buffer,0,count*2);
                     count = 0;
                     sub_id++;
                     return(1);
@@ -585,7 +634,7 @@ int SpellSound::cb_GetFrame(int16_t *buffer, int count)
 
             int smpl_count = min(count,samples[sub_id]->samples - pos);
             if(smpl_count)
-                memcpy(buffer,cb_GetSmplData(smpl_count),smpl_count*smpl_size*sizeof(int16_t));
+                buffer = cb_GetSmplData(buffer,smpl_count);
             count -= smpl_count;
             continue;
 
@@ -595,14 +644,34 @@ int SpellSound::cb_GetFrame(int16_t *buffer, int count)
     return(0);
 }
 
-int16_t *SpellSound::cb_GetSmplData(int count)
+int16_t *SpellSound::cb_GetSmplData(int16_t* buffer, int count)
 {
     SpellSample* smpl = samples[sub_id];
     if(!smpl)
         return(NULL);
     auto *data = &smpl->data[smpl->channels*pos];
     pos += count;
-    return(data);
+
+    if(smpl->channels == 1)
+    {
+        // one source channel, two output channels
+        for(int k = 0; k < count; k++)
+        {
+            int32_t smpl = *data++;
+            *buffer++ = (int16_t)((left_vol * smpl)>>16);
+            *buffer++ = (int16_t)((right_vol * smpl)>>16);
+        }
+    }
+    else
+    {
+        // two source channels, two output channels
+        for(int k = 0; k < count; k++)
+        {
+            *buffer++ = (int16_t)((left_vol * ((int32_t)*data++))>>16);
+            *buffer++ = (int16_t)((right_vol * ((int32_t)*data++))>>16);
+        }
+    }
+    return(buffer);
 }
 
 int SpellSound::cb_GetSmplSize()
@@ -622,10 +691,27 @@ int SpellSound::cb_GetSmplLeft()
     return(left);
 }
 
+// get spellcross sample
+SpellSample* SpellSound::GetSample(int id)
+{
+    if(id >= samples.size())
+        return(NULL);
+    return(samples[id]);
+}
 
-int SpellSound::Play()
+// set relative volume of left/right channel
+int SpellSound::SetPanning(double left_vol,double right_vol)
+{
+    this->left_vol = (int)(65534.0*max(min(left_vol,1.0),0.0));
+    this->right_vol = (int)(65534.0*max(min(right_vol,1.0),0.0));
+    return(0);
+}
+
+int SpellSound::Play(bool auto_delete, bool loop)
 {    
-    
+    // automatically delete object after playaback?
+    this->auto_delete = auto_delete;
+    force_loop = loop;
 
     //control = CTRL_STOP;
     if(!isDone())
@@ -639,6 +725,7 @@ int SpellSound::Play()
     
     // get some stream channel
     dac = streams->GetChannel();
+    
 
     // pick first (or random) substream
     sub_id = 0;
@@ -656,12 +743,13 @@ int SpellSound::Play()
         return(1);*/
     pos = 0;
     control = CTRL_IDLE;
+    is_playing = true;
 
     // init stream params
     RtAudio::StreamParameters parameters;
     parameters.deviceId = dac->getDefaultOutputDevice();
     parameters.firstChannel = 0;
-    parameters.nChannels = channels;
+    parameters.nChannels = 2;
     unsigned int sampleRate = fs;
     unsigned int bufferFrames = 256;
 
@@ -679,12 +767,48 @@ int SpellSound::StopMove()
     return(0);
 }
 
+// send stop command
+int SpellSound::Stop()
+{
+    control = CTRL_STOP;
+    return(0);
+}
+
 // check if playback is done
 int SpellSound::isDone()
 {
+    /*if(dac == NULL)
+        return(true);
     if(mode == MODE_RAND && sub_id >= samples.size())
         return(true);
     if(mode == MODE_MOVE && sub_id >= samples.size())
-        return(true);
-    return(false);
+        return(true);*/
+    return(!is_playing);
+}
+
+
+
+
+
+//-----------------------------------------------------------------------------
+// Map sound object (header in map.h)
+//-----------------------------------------------------------------------------
+MapSound::MapSound(MapXY pos,SpellSample* sample)
+{
+    m_pos = pos;
+    m_sample = sample;
+}
+const char* MapSound::GetName()
+{
+    if(!m_sample)
+        return(NULL);
+    return(m_sample->name);
+}
+MapXY MapSound::GetPosition()
+{
+    return(m_pos);
+}
+SpellSample *MapSound::GetSample()
+{
+    return(m_sample);
 }

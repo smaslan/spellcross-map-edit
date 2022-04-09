@@ -16,6 +16,9 @@
 
 SpellGraphics::SpellGraphics()
 {
+	vector<wxCursor*> curs ={cur_pointer, cur_wait, cur_select, cur_question, cur_move, cur_attack_down, cur_attack_up, cur_attack_up_down};
+	for(auto& cur : curs)
+		cur = NULL;
 }
 
 SpellGraphics::~SpellGraphics()
@@ -24,10 +27,15 @@ SpellGraphics::~SpellGraphics()
 	for(auto & pnm : pnms)
 		delete pnm;
 	pnms.clear();
+
+	vector<wxCursor*> curs = {cur_pointer, cur_wait, cur_select, cur_question, cur_move, cur_attack_down, cur_attack_up, cur_attack_up_down};
+	for(auto & cur : curs)
+		if(cur)
+			delete cur;
 }
 
 // load raw bitmap of known size
-int SpellGraphics::AddRaw(uint8_t* data,int dlen,int x_size,int y_size,char *name,uint8_t *pal,int with_ext)
+int SpellGraphics::AddRaw(uint8_t* data,int dlen,int x_size,int y_size,char *name,uint8_t *pal,int with_ext,int fix_black)
 {	
 	// make new record
 	items.emplace_back();	
@@ -42,6 +50,12 @@ int SpellGraphics::AddRaw(uint8_t* data,int dlen,int x_size,int y_size,char *nam
 	// copy pixel data	
 	grp.pixels.resize(dlen);
 	memcpy(&grp.pixels[0],data,dlen);
+	
+	// convert #0 color to solid black?
+	if(fix_black)
+		for(auto & pix : grp.pixels)
+			if(pix == 0)
+				pix = 254;
 
 	// store size
 	grp.x_size = x_size;
@@ -162,7 +176,7 @@ int SpellGraphics::AddCUR(uint8_t* data,int dlen,char* name,uint8_t* pal)
 	memcpy(&grp.pixels[0],data,x_size*y_size);
 
 	// store name (loose extension)
-	strcpy_noext(grp.name,name);
+	strcpy_s(grp.name,sizeof(grp.name),name);
 
 	return(0);
 }
@@ -223,8 +237,10 @@ uint8_t* SpellGraphicItem::GetPixels(int y,int x)
 }
 
 // render image to buffer position with range checking and transparency
-int SpellGraphicItem::Render(uint8_t* buf,uint8_t* buf_end,int buf_x_size,int x_pos,int y_pos)
+int SpellGraphicItem::Render(uint8_t* buf,uint8_t* buf_end,int buf_x_size,int x_pos,int y_pos,int in_black,int* y_buffer)
 {	
+	int *y_buf = NULL;
+	int y_buf_pos = -1;
 	for(int y = 0; y < y_size; y++)
 	{
 		uint8_t* pic = &buf[x_pos + this->x_ofs + (y_pos+this->y_ofs+y)*buf_x_size];
@@ -232,6 +248,12 @@ int SpellGraphicItem::Render(uint8_t* buf,uint8_t* buf_end,int buf_x_size,int x_
 			continue;
 		if(pic >= buf_end)
 			continue;
+		if(y_buffer)
+		{
+			y_buf = &y_buffer[x_pos + this->x_ofs];
+			y_buf_pos = y_pos+this->y_ofs+y;
+		}
+
 		uint8_t* src = GetPixels(y);
 		int x = 0;
 		if(x_pos < 0)
@@ -239,27 +261,50 @@ int SpellGraphicItem::Render(uint8_t* buf,uint8_t* buf_end,int buf_x_size,int x_
 			pic += -x_pos;
 			src += -x_pos;
 			x = -x_pos;
+			if(y_buffer)
+				y_buf += -x_pos;
 		}
-		for(; x < x_size; x++)
+		if(in_black)
 		{
-			if(*src)
-				*pic = *src;
-			src++;
-			pic++;
+			for(; x < x_size; x++)
+			{
+				if(*src && *src != 0xFE)
+					*pic = 0xFE;
+				src++;
+				pic++;
+			}
+		}
+		else
+		{
+			for(; x < x_size; x++)
+			{
+				if(*src)
+					*pic = *src;
+				if(*src && y_buf && *y_buf < 0)
+					*y_buf = y_buf_pos;
+				if(y_buf)
+					y_buf++;
+				src++;
+				pic++;
+			}
 		}
 	}
 	return(0);
 }
 
 // render glyph to bmp
-wxBitmap *SpellGraphicItem::Render(int surf_x, int surf_y, int transparent)
+wxBitmap* SpellGraphicItem::Render(bool transparent)
+{
+	return(Render(-1,-1,transparent));
+}
+wxBitmap *SpellGraphicItem::Render(int surf_x, int surf_y, bool transparent)
 {
 	if(surf_x < 0 || surf_y < 0)
 	{
 		surf_x = x_size;
 		surf_y = y_size;
 	}
-	wxBitmap *bmp = new wxBitmap(surf_x,surf_y, 24);
+	wxBitmap *bmp = new wxBitmap(surf_x,surf_y,(transparent)?32:24);
 	bmp->UseAlpha(transparent);
 
 	// leave if surface not big enough
@@ -273,38 +318,136 @@ wxBitmap *SpellGraphicItem::Render(int surf_x, int surf_y, int transparent)
 	int x_ofs = (surf_x - x_size)/2;
 	int y_ofs = (surf_y - y_size)/2;
 
-	// render 24bit RGB data to raw bmp buffer
-	uint8_t* buf = &pixels[0];
-	wxNativePixelData pdata(*bmp);
-	wxNativePixelData::Iterator p(pdata);
-	for(int y = 0; y < surf_y; y++)
+	if(transparent)
 	{
-		uint8_t* scan = p.m_ptr;
-		for(int x = 0; x < surf_x; x++)
+		// render 32bit RGBA data to raw bmp buffer
+		uint8_t* buf = &pixels[0];
+		typedef wxPixelData<wxBitmap,wxAlphaPixelFormat> PixelData;
+		PixelData data(*bmp);
+		PixelData::Iterator p(data);
+		for(int y = 0; y < surf_y; ++y)
 		{
-			int is_visible = y >= y_ofs && y < y_ofs+y_size && x >= x_ofs && x < x_ofs+x_size && buf < end;
-			if(is_visible && *buf)
+			uint8_t* scan = p.m_ptr;
+			for(int x = 0; x < surf_x; x++)
 			{
+				int is_visible = y >= y_ofs && y < y_ofs+y_size && x >= x_ofs && x < x_ofs+x_size && buf < end;
+				// visible area
 				*scan++ = pal[*buf*3+2];
 				*scan++ = pal[*buf*3+1];
 				*scan++ = pal[*buf*3+0];
+				*scan++ = (*buf != 0 && is_visible)*255; // alpha channel
 				buf++;
 			}
-			else
-			{
-				uint8_t checkers = (!(x&32) == !(y&32))?0x88:0xAA;
-				*scan++ = checkers;
-				*scan++ = checkers;
-				*scan++ = checkers;
-				if(is_visible)
-					buf++;
-			}
+			p.OffsetY(data,1);
 		}
-		p.OffsetY(pdata,1);
+	}
+	else
+	{
+		// render 24bit RGB data to raw bmp buffer
+		uint8_t* buf = &pixels[0];
+		wxNativePixelData pdata(*bmp);
+		wxNativePixelData::Iterator p(pdata);
+		for(int y = 0; y < surf_y; y++)
+		{
+			uint8_t* scan = p.m_ptr;
+			for(int x = 0; x < surf_x; x++)
+			{
+				int is_visible = y >= y_ofs && y < y_ofs+y_size && x >= x_ofs && x < x_ofs+x_size && buf < end;
+				if(is_visible && *buf)
+				{
+					*scan++ = pal[*buf*3+2];
+					*scan++ = pal[*buf*3+1];
+					*scan++ = pal[*buf*3+0];
+					buf++;
+				}
+				else
+				{
+					uint8_t checkers = (!(x&32) == !(y&32))?0x88:0xAA;
+					*scan++ = checkers;
+					*scan++ = checkers;
+					*scan++ = checkers;
+					if(is_visible)
+						buf++;
+				}
+			}
+			p.OffsetY(pdata,1);
+		}
 	}
 
-
 	return(bmp);
+}
+
+
+wxCursor* SpellGraphicItem::RenderCUR(bool is_grayscale)
+{
+	wxCursor* cursor;
+
+	if(is_grayscale)
+	{
+		// grayscale mode (it works at least in Windows, dunno if in Linux/Mac...)
+
+		auto bmp = Render(true);
+		cursor = new wxCursor(bmp->ConvertToImage());
+		delete bmp;
+
+	}
+	else
+	{
+		// use BW mode
+		uint8_t bits[32][32/8];
+		uint8_t mask[32][32/8];
+		memset(bits, 0xFF, sizeof(bits));
+		memset(mask, 0xFF, sizeof(mask));
+
+		if(x_size > 32 || y_size > 32)
+			return(NULL);
+
+		uint8_t* buf = &pixels[0];
+		for(int y = 0; y < y_size; ++y)
+		{
+			int x_pos = 0;
+			int pix8pos = 0;
+			for(int x = 0; x < x_size; x++)
+			{
+				uint8_t pix = pal[(int)*buf*3+0];
+				bits[y][x_pos] &= ~((uint8_t)(pix > 50u)<<pix8pos);
+				mask[y][x_pos] &= ~((uint8_t)(*buf != 0)<<pix8pos);
+				buf++;
+				pix8pos++;
+				if(pix8pos >= 8)
+				{				
+					pix8pos = 0;
+					x_pos++;
+				}
+			}
+		}
+	
+
+		#ifdef __WXMSW__
+			wxBitmap bmp_data((char*)&bits[0][0],32,32);
+			wxBitmap bmp_mask((char*)&mask[0][0],32,32);
+			bmp_data.SetMask(new wxMask(bmp_mask));
+			wxImage image = bmp_data.ConvertToImage();
+			image.SetOption(wxIMAGE_OPTION_CUR_HOTSPOT_X,0);
+			image.SetOption(wxIMAGE_OPTION_CUR_HOTSPOT_Y,0);
+			cursor = new wxCursor(image);
+		#elif defined(__WXGTK__) or defined(__WXMOTIF__)
+			cursor = new wxCursor(bmp_data,32,32,0,0,
+				bmp_mask,wxWHITE,wxBLACK);
+		#endif
+	}
+	
+	return(cursor);
+}
+
+
+// render cursor file (with transparency)
+wxCursor *SpellGraphics::RenderCUR(const char *name)
+{
+	auto resource = GetResource(name);
+	if(!resource)
+		return(NULL);
+	return(resource->RenderCUR(true));
 }
 
 
@@ -360,6 +503,7 @@ int SpellProjectile::Insert(SpellGraphicItem& glyph)
 
 	// store glyph
 	glyphs[direction] = &glyph;
+	return(0);
 }
 
 // check if projectile is complete (true)

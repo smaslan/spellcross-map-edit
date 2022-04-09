@@ -4,6 +4,7 @@
 #include <vector>
 #include "cstdint"
 
+#include <wx/rawbmp.h>
 
 using namespace std;
 
@@ -19,8 +20,10 @@ public:
 	uint8_t *pal;
 
 	uint8_t *GetPixels(int y = 0, int x = 0);
-	int Render(uint8_t *buf,uint8_t* buf_end,int buf_x_size,int x_pos,int y_pos);
-	wxBitmap* Render(int x_size=-1,int y_size=-1,int transparent=false);
+	int Render(uint8_t *buf,uint8_t* buf_end,int buf_x_size,int x_pos,int y_pos,int in_black=false,int* y_buffer=NULL);
+	wxBitmap* Render(int x_size=-1,int y_size=-1,bool transparent=false);
+	wxBitmap* Render(bool transparent);
+	wxCursor* RenderCUR(bool is_grayscale=true);
 };
 
 class SpellProjectile
@@ -44,13 +47,14 @@ private:
 public:
 	SpellGraphics();
 	~SpellGraphics();
-	int AddRaw(uint8_t *data, int dlen, int x_size, int y_size, char *name,uint8_t *pal,int with_ext=0);
+	int AddRaw(uint8_t *data, int dlen, int x_size, int y_size, char *name,uint8_t *pal,int with_ext=0,int fix_black=false);
 	int AddICO(uint8_t* data,int dlen,char* name,uint8_t* pal);
 	int AddCUR(uint8_t* data,int dlen,char* name,uint8_t* pal);
 	int AddLED(int color,const char* name,uint8_t* pal);
 	int Count();
 	SpellGraphicItem *GetResource(int index);
 	SpellGraphicItem *GetResource(const char *name);
+	wxCursor* RenderCUR(const char* name);
 
 	// PNM animations	
 	int AddPNM(uint8_t* data,int dlen,char* name);
@@ -73,6 +77,8 @@ public:
 	SpellGraphicItem* wm_btn_press;
 	SpellGraphicItem* wm_glyph_air;
 	SpellGraphicItem* wm_glyph_center_unit;
+	SpellGraphicItem* wm_glyph_down;
+	SpellGraphicItem* wm_glyph_up;
 	SpellGraphicItem* wm_glyph_radar_down;
 	SpellGraphicItem* wm_glyph_radar_up;
 	SpellGraphicItem* wm_glyph_end_turn;
@@ -87,6 +93,23 @@ public:
 	SpellGraphicItem* wm_glyph_retreat;
 	SpellGraphicItem* wm_glyph_end_placement;
 	SpellGraphicItem* wm_glyph_info;
+	SpellGraphicItem* wm_glyph_place_unit;
+
+	SpellGraphicItem* wm_sel_tab;
+	SpellGraphicItem* wm_sel_attack;
+	SpellGraphicItem* wm_sel_move;
+	SpellGraphicItem* wm_sel_upper;
+	SpellGraphicItem* wm_sel_lower;
+	SpellGraphicItem* wm_sel_select;
+
+	wxCursor* cur_pointer;
+	wxCursor* cur_wait;
+	wxCursor* cur_move;
+	wxCursor* cur_select;
+	wxCursor* cur_question;
+	wxCursor* cur_attack_down;
+	wxCursor* cur_attack_up;
+	wxCursor* cur_attack_up_down;
 
 	// projectile lists
 	int SortProjectiles();

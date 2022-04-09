@@ -9,13 +9,14 @@
 // Distributed under MIT license, https://opensource.org/licenses/MIT.
 //=============================================================================
 #include "fsu_archive.h"
+#include "sprites.h"
 #include "LZ_spell.h"
+#include "other.h"
 
 #include "cstdint"
 #include <fstream>
 #include <vector>
 #include <stdexcept>
-
 #include <thread>
 
 using namespace std;
@@ -234,7 +235,13 @@ int FSUarchive::LoadResource(uint8_t *data, int rid, FSU_resource *res, LZWexpan
 				lxmin = ofs;
 
 			// read full parts
-			std::memcpy((void*)img, (void*)sd, ful*4);
+			for(int k = 0; k < ful*4; k++)
+			{
+				if(sd[k])
+					img[k] = sd[k];
+				else
+					img[k] = 254; // swap 0 to other black because of transparencies
+			}			
 			img += ful*4;
 			sd += ful*4;
 			uint8_t *md = sd+4;
@@ -250,7 +257,10 @@ int FSUarchive::LoadResource(uint8_t *data, int rid, FSU_resource *res, LZWexpan
 						*img++ = 0x00;
 					else
 					{
-						*img++ = sd[m];
+						if(sd[m])
+							*img++ = sd[m];
+						else
+							*img++ = 254; // swap 0 to other black because of transparencies
 						imge = img;
 					}
 				}
@@ -320,6 +330,8 @@ int FSUarchive::LoadResource(uint8_t *data, int rid, FSU_resource *res, LZWexpan
 		// make list of standing sprites, one for each azimuth		
 		res->stat.lists[0] = new FSU_sprite*[res->stat.azimuths];
 		memcpy((void*)res->stat.lists[0], (void*)&res->list[i], res->stat.azimuths * sizeof(FSU_sprite*));
+		// make default fire azimuths
+		res->stat.fire_origin[0].assign(res->stat.azimuths,{0,0});
 		
 
 		// --- movement group ---
@@ -333,6 +345,8 @@ int FSUarchive::LoadResource(uint8_t *data, int rid, FSU_resource *res, LZWexpan
 			
 			// azimuths count
 			res->anim.azimuths = j;
+			// slopes count
+			res->anim.slopes = 0;
 			// frames count
 			res->anim.frames = i / j;
 			// make list of azimuths
@@ -344,6 +358,8 @@ int FSUarchive::LoadResource(uint8_t *data, int rid, FSU_resource *res, LZWexpan
 				for (int k=0; k < res->anim.frames; k++)
 					res->anim.lists[azid][k] = res->list[azid + k*res->anim.azimuths];
 			}
+			// make default fire azimuths
+			res->anim.fire_origin.assign(res->anim.azimuths,{0,0});
 		}
 		else
 		{
@@ -357,14 +373,33 @@ int FSUarchive::LoadResource(uint8_t *data, int rid, FSU_resource *res, LZWexpan
 	{
 		// === single image group ===
 		
-		/*int azims[13];
-		memset(azims,0,13*sizeof(int));
-		for(i = 0; i < res->tot_sprites; i++)
-			if(res->list[0]->name[1] != '0')*/		
 		for (i = 0; i < res->tot_sprites; i++)
 			if(res->list[i]->name[1] != '0')
 				break;
-		if(i != res->tot_sprites)
+
+		if(strcmp(res->name,"DPEKJ") == 0)
+		{
+			// --- animation with single azimuth, but more slopes (hell cavallery)
+
+			// azimuths count
+			res->anim.azimuths = 0;
+			// slopes count
+			res->anim.slopes = 13;
+			// frames count
+			res->anim.frames = res->tot_sprites / 13;
+			// make list of azimuths
+			res->anim.lists = new FSU_sprite * *[res->anim.slopes];
+			// for each azimuth:
+			for(int azid = 0; azid < res->anim.slopes; azid++)
+			{
+				res->anim.lists[azid] = new FSU_sprite *[res->anim.frames];
+				for(int k = 0; k < res->anim.frames; k++)
+					res->anim.lists[azid][k] = res->list[k + azid*res->anim.frames];
+			}
+			// make default fire azimuths
+			res->anim.fire_origin.assign(res->anim.slopes,{0,0});
+		}
+		else if(i != res->tot_sprites)
 		{
 			// --- it's animation ---
 		
@@ -376,6 +411,8 @@ int FSUarchive::LoadResource(uint8_t *data, int rid, FSU_resource *res, LZWexpan
 
 			// azimuths count
 			res->anim.azimuths = j;
+			// slopes count
+			res->anim.slopes = 0;
 			// frames count
 			res->anim.frames = res->tot_sprites / j;
 			// make list of azimuths
@@ -387,7 +424,8 @@ int FSUarchive::LoadResource(uint8_t *data, int rid, FSU_resource *res, LZWexpan
 				for (int k = 0; k < res->anim.frames; k++)
 					res->anim.lists[azid][k] = res->list[azid + k*res->anim.azimuths];
 			}
-
+			// make default fire azimuths
+			res->anim.fire_origin.assign(res->anim.azimuths,{0,0});			
 		}
 		else
 		{
@@ -408,6 +446,8 @@ int FSUarchive::LoadResource(uint8_t *data, int rid, FSU_resource *res, LZWexpan
 			{
 				res->stat.lists[sid] = new FSU_sprite * [res->stat.azimuths];
 				memcpy((void*)res->stat.lists[sid], (void*)&res->list[sid* res->stat.azimuths], res->stat.azimuths*sizeof(FSU_sprite*));
+				// make default fire azimuths
+				res->stat.fire_origin[sid].assign(res->stat.azimuths,{0,0});
 			}
 		}
 	}
@@ -416,13 +456,161 @@ int FSUarchive::LoadResource(uint8_t *data, int rid, FSU_resource *res, LZWexpan
 }
 
 // get graphic resource by name
-FSU_resource *FSUarchive::GetResource(char* name)
+FSU_resource *FSUarchive::GetResource(const char* name)
 {
 	for (unsigned k = 0; k < list.size(); k++)
 		if (_strcmpi(list[k]->name, name) == 0)
 			return(list[k]);
 	return(NULL);
 }
+
+// get count of resources
+int FSUarchive::GetCount()
+{
+	return(list.size());
+}
+
+// save auxiliary data asociated to FSU archive
+int FSUarchive::SaveAuxData(std::wstring path)
+{
+	// create file
+	ofstream fw(path,ios::out | ios::binary);
+	if(!fw.is_open())
+		return(1);
+
+	// store last path
+	aux_data_path = path;
+
+	// store version string
+	const char ver[] = "SpellFSUcontextV1.0";
+	fw.write(ver,sizeof(ver));
+
+	// store resource count
+	ostream_write_i32(fw,GetCount());
+
+	// store list of resource names
+	for(auto & res : list)
+		ostream_write_string(fw,res->name);
+	
+	// store resouce data for each:
+	for(auto& res : list)
+	{
+		// static data:
+		auto &stat = res->stat;
+		ostream_write_i32(fw,stat.slopes);
+		for(int sid = 0; sid < stat.slopes; sid++)
+		{
+			auto &forg = stat.fire_origin[sid];
+			ostream_write_i32(fw,forg.size());
+			for(auto & aorg : forg)
+			{
+				ostream_write_i32(fw,aorg.x);
+				ostream_write_i32(fw,aorg.y);
+			}
+			ostream_write_i32(fw,stat.fire_center[sid].x);
+			ostream_write_i32(fw,stat.fire_center[sid].y);
+		}
+
+		// animation data:
+		auto& anim = res->anim;
+		ostream_write_i32(fw,anim.fire_origin.size());
+		for(auto& aorg : anim.fire_origin)
+		{
+			ostream_write_i32(fw,aorg.x);
+			ostream_write_i32(fw,aorg.y);
+		}
+		ostream_write_i32(fw,anim.fire_center.x);
+		ostream_write_i32(fw,anim.fire_center.y);
+	}
+
+	// close file
+	fw.close();
+
+	return(0);
+}
+
+// save auxiliary data asociated to FSU archive
+int FSUarchive::LoadAuxData(std::wstring path)
+{
+	// create file
+	ifstream fr(path,ios::in | ios::binary);
+	if(!fr.is_open())
+		return(1);
+
+	// store last path
+	aux_data_path = path;
+
+	// check version
+	const char ver_ref[] = "SpellFSUcontextV1.0";
+	char ver[sizeof(ver_ref)];
+	fr.read(ver,sizeof(ver_ref));
+	if(memcmp(ver,ver_ref,sizeof(ver_ref)))
+	{
+		fr.close();
+		return(1);
+	}
+
+	// get aux resouce count
+	uint32_t count = istream_read_u32(fr);
+
+	// load list of resources
+	vector<string> names;
+	for(int uid = 0; uid < count; uid++)
+	{
+		// resource name
+		string name = istream_read_string(fr);
+		names.push_back(name);
+	}
+
+	// load aux data for each unit graphic resource
+	for(auto & rname : names)
+	{
+		// try to find matching resource
+		auto *res = GetResource(rname.c_str());
+
+		// load statics
+		int stat_slopes = istream_read_i32(fr);
+		for(int sid = 0; sid < stat_slopes; sid++)
+		{
+			int stat_azims = istream_read_i32(fr);			
+			for(int aid = 0; aid < stat_azims; aid++)
+			{
+				int x = istream_read_i32(fr);
+				int y = istream_read_i32(fr);
+				if(res && sid < res->stat.slopes && aid < res->stat.azimuths)
+					res->stat.fire_origin[sid][aid] = FSU_resource::Txy(x,y);				
+			}
+			int x = istream_read_i32(fr);
+			int y = istream_read_i32(fr);
+			if(res && sid < res->stat.slopes)
+				res->stat.fire_center[sid] = FSU_resource::Txy(x,y);
+		}
+
+		// load animations
+		uint32_t anim_azims = istream_read_i32(fr);
+		for(int aid = 0; aid < anim_azims; aid++)
+		{
+			int x = istream_read_i32(fr);
+			int y = istream_read_i32(fr);
+			if(res && aid < res->anim.azimuths)
+				res->anim.fire_origin[aid] = FSU_resource::Txy(x,y);
+		}		
+		int x = istream_read_i32(fr);
+		int y = istream_read_i32(fr);
+		if(res)
+			res->anim.fire_center = FSU_resource::Txy(x,y);
+	}
+
+	// close file
+	fr.close();
+
+	return(0);
+}
+
+
+
+
+
 
 
 // single resource constructor
@@ -453,6 +641,9 @@ FSU_resource::~FSU_resource()
 		for (int k = 0; k < anim.azimuths; k++)
 			if (anim.lists[k])
 				delete[] anim.lists[k];
+		for(int k = 0; k < anim.slopes; k++)
+			if(anim.lists[k])
+				delete[] anim.lists[k];
 		delete[] anim.lists;
 	}
 	anim.azimuths = 0;
@@ -467,16 +658,120 @@ FSU_resource::~FSU_resource()
 // get azimuth index for fiven angle
 int FSU_resource::GetAnimAzim(double angle)
 {
-	angle = remainder(angle, 360.0);
-	return ((int)round((360.0 + 90.0 - angle)/360.0*(double)anim.azimuths)) % anim.azimuths;	
+	if(!anim.azimuths)
+		return(0);
+	int azim = round((90.0 - angle)/360.0*(double)anim.azimuths);
+	while(azim < 0)
+		azim += anim.azimuths;
+	azim = azim % anim.azimuths;
+	return(azim);
+}
+// get azimuth angle (deg for fiven azimuth index
+double FSU_resource::GetAnimAngle(int azim)
+{
+	if(azim < 0 || azim >= anim.azimuths)
+		return(0.0);
+	double angle = 90.0 - (double)azim*360.0/(double)anim.azimuths;
+	return(angle);
 }
 // get azimuth index for fiven angle
 int FSU_resource::GetStaticAzim(double angle)
 {
-	angle = remainder(angle,360.0);
-	return ((int)round((360.0 + 90.0 - angle)/360.0*(double)stat.azimuths)) % stat.azimuths;
+	if(!stat.azimuths)
+		return(0);
+	int azim = round((90.0 - angle)/360.0*(double)stat.azimuths);
+	while(azim < 0)
+		azim += stat.azimuths;
+	azim = azim % stat.azimuths;
+	return(azim);
+}
+// get azimuth angle (deg for fiven azimuth index
+double FSU_resource::GetStaticAngle(int azim)
+{
+	if(azim < 0 || azim >= stat.azimuths)
+		return(0.0);	
+	double angle = 90.0 - (double)azim*360.0/(double)stat.azimuths;
+	return(angle);
 }
 
+// get azimuth index for fiven angle using fire angles
+int FSU_resource::GetStaticFireAzim(int slope,double angle)
+{
+	if(stat.slopes == 1)
+		slope = 0;
+	auto &origins = stat.fire_origin[slope];
+	double angle_min = 1e9;
+	int azimuth_id = 0;
+	auto xy0 = GetStatFireOriginMean(slope);
+	for(int aid = 0; aid < stat.azimuths; aid++)
+	{
+		auto &org = origins[aid];
+		double dx = org.x - xy0.x;
+		double dy = org.y - xy0.y;
+		double da = abs(atan2(-dy,dx)*180.0/M_PI - angle);
+		if(da < angle_min)
+		{
+			angle_min = da;
+			azimuth_id = aid;
+		}
+	}
+	return(azimuth_id);
+}
+// get azimuth index for fiven angle using fire angles
+int FSU_resource::GetAnimFireAzim(double angle)
+{
+	auto& origins = anim.fire_origin;
+	double angle_min = 1e9;
+	int azimuth_id = 0;
+	auto xy0 = GetAnimFireOriginMean();
+	for(int aid = 0; aid < anim.azimuths; aid++)
+	{
+		auto& org = origins[aid];
+		double dx = org.x - xy0.x;
+		double dy = org.y - xy0.y;
+		double da = abs(atan2(-dy,dx)*180.0/M_PI - angle);
+		if(da < angle_min)
+		{
+			angle_min = da;
+			azimuth_id = aid;
+		}
+	}
+	return(azimuth_id);
+}
+
+// get mean origin of firing
+FSU_resource::Txy FSU_resource::GetStatFireOriginMean(int slope)
+{
+	if(slope >= stat.slopes)
+		return(Txy(0,0));
+	int x = 0;
+	int y = 0;
+	for(auto & org : stat.fire_origin[slope])
+	{
+		x += org.x;
+		y += org.y;
+	}
+	x = x/stat.azimuths;
+	y = y/stat.azimuths;		
+	return(Txy(x,y));
+}
+
+// get mean origin of firing
+FSU_resource::Txy FSU_resource::GetAnimFireOriginMean()
+{
+	int x = 0;
+	int y = 0;
+	int count = 0;
+	for(auto& org : anim.fire_origin)
+	{
+		x += org.x;
+		y += org.y;
+		count++;
+	}
+	x = x/count;
+	y = y/count;
+	return(Txy(x,y));
+}
 
 
 // FSU sprite constructor
@@ -493,13 +788,13 @@ FSU_sprite::~FSU_sprite()
 }
 
 // render sprite to target buffer, buffer is sprite origin, x_size is buffer width
-void FSU_sprite::Render(uint8_t* buffer, uint8_t* buf_end, int buf_x_pos, int buf_y_pos, int buf_x_size,uint8_t* shadow_filter,uint8_t* filter)
+void FSU_sprite::Render(uint8_t* buffer, uint8_t* buf_end, int buf_x_pos, int buf_y_pos, int buf_x_size,uint8_t* shadow_filter,uint8_t* filter,int zoom)
 {
 	// source data
 	uint8_t* data = this->data;
 
 	// initial xy-position
-	uint8_t *dest = &buffer[buf_x_pos + (buf_y_pos + y_ofs - 128) * buf_x_size];
+	uint8_t *dest = &buffer[buf_x_pos + (buf_y_pos + (y_ofs - 128)*zoom) * buf_x_size];
 	// check valid write range
 	if (dest < buffer)
 		return;
@@ -511,152 +806,59 @@ void FSU_sprite::Render(uint8_t* buffer, uint8_t* buf_end, int buf_x_pos, int bu
 		// pixels count
 		int count = *(int*)data; data += sizeof(int);
 
-		// initial pixel in destination buffer
-		uint8_t* scan = &dest[offset];
-		// check safe range
-		if (scan + count > buf_end)
-			break;
-		// render line
-		if(filter)
+		uint8_t *line_data = data;
+		for(int z = 0; z < zoom; z++)
 		{
-			for(int x = 0; x < count; x++)
+			// init line data position
+			data = line_data;
+			// initial pixel in destination buffer
+			uint8_t* scan = &dest[offset*zoom];
+			// check safe range
+			if (scan + count*zoom > buf_end)
+				break;
+			// render line
+			if(filter)
 			{
-				if(*data == 0xFD && shadow_filter)
+				for(int x = 0; x < count; x++)
 				{
-					// shadow it is - convert original color using filter
-					*scan = filter[shadow_filter[*scan]];
+					if(*data == 0xFD && shadow_filter)
+					{
+						// shadow it is - convert original color using filter
+						*scan = filter[shadow_filter[*scan]];
+					}
+					else if(*data)
+					{
+						// normal visible pixel
+						*scan = filter[*data];
+					}
+					data++;
+					scan++;
 				}
-				else if(*data)
-				{
-					// normal visible pixel
-					*scan = filter[*data];
-				}
-				data++;
-				scan++;
 			}
-		}
-		else
-		{
-			for (int x = 0; x < count; x++)
+			else
 			{
-				if (*data == 0xFD && shadow_filter)
+				for (int x = 0; x < count; x++)
 				{
-					// shadow it is - convert original color using filter
-					*scan = shadow_filter[*scan];
+					for(int zx = 0; zx < zoom; zx++)
+					{
+						if(*data == 0xFD && shadow_filter)
+						{
+							// shadow it is - convert original color using filter
+							*scan = shadow_filter[*scan];
+						}
+						else if (*data)
+						{
+							// normal visible pixel
+							*scan = *data;
+						}
+						scan++;
+					}
+					data++;
 				}
-				else if (*data)
-				{
-					// normal visible pixel
-					*scan = *data;
-				}
-				data++;
-				scan++;
 			}
-		}
-		// move to next buffer line
-		dest += buf_x_size;
+			// move to next buffer line
+			dest += buf_x_size;
+		}		
 	}
 }
 
-
-//---------------------------------------------------------------------------
-// get image name
-//---------------------------------------------------------------------------
-/*int FSUarchive::GetImageName(int fid,char **name)
-{
-	if(!ulst || fid>=imgs || !name)
-		return(1);
-
-	// return poitner
-	*name=ulst[fid].name;
-
-	return(0);
-}*/
-
-//---------------------------------------------------------------------------
-// Draw item image bitmap
-//---------------------------------------------------------------------------
-/*int FSUarchive::DrawBmpImage(int fid,Graphics::TBitmap *bmp,int zoom,uchar bcid,uchar scid)
-{
-	int i,j,k;
-
-
-	if(!ulst || fid>=imgs || !bmp)
-		return(1);
-
-	// sprite to draw
-	TUSpr *spr=&ulst[fid];
-
-	// sprite data
-	uchar *sd=sprd+spr->dpos;
-
-	// vertical offset
-	int vofs=spr->yofs-ymin;
-
-	// set bmp size if not defined
-	if(!bmp->Width)
-		bmp->Width=(xmax-xmin)*(zoom+1);
-	if(!bmp->Height)
-		bmp->Height=(ymax-ymin)*(zoom+1);
-	int xs=bmp->Width;
-	int ys=bmp->Height;
-
-	// clear bitmap
-	for(i=0;i<ys;i++)
-		memset((void*)bmp->ScanLine[i],bcid,xs);
-
-	// draw to dest bitmap
-	for(i=vofs;i<vofs+spr->ys;i++)
-	{
-		if(i*(zoom+1)>=ys)
-			break;
-
-		// line pointer
-		uchar *sp=(uchar*)bmp->ScanLine[i*(zoom+1)+0];
-		uchar *spe=sp+xs;
-
-		// get line offset
-		uchar ofs=*sd++;
-		ofs-=xmin;
-		sp+=(unsigned int)ofs*(zoom+1);
-
-		// get line len
-		uchar len=*sd++;
-
-		// write line
-		for(j=0;j<len;j++)
-		{
-			register uchar pix=*sd++;
-			if(sp<spe)
-			{
-				if(pix==0xFD)
-					*sp=scid;
-				else if(pix!=0xFE)
-					*sp=pix;
-				if(zoom)
-					sp[1]=*sp++;
-				sp++;
-			}
-		}
-
-		if(zoom && i*(zoom+1)+1<ys)
-			memcpy((void*)bmp->ScanLine[i*(zoom+1)+1],(void*)bmp->ScanLine[i*(zoom+1)+0],xs);
-	}
-
-	return(0);
-}
-
-//---------------------------------------------------------------------------
-// Draw item image into TImage
-//---------------------------------------------------------------------------
-int FSUarchive::DrawImage(int fid,TImage *img,int zoom,uchar bcid,uchar scid)
-{
-	Graphics::TBitmap *bmp=img->Picture->Bitmap;
-
-	// set size to image
-	bmp->Width=img->Width;
-	bmp->Height=img->Height;
-
-	// draw into it's bitmap
-	return(DrawBmpImage(fid,bmp,zoom,bcid,scid));
-}*/

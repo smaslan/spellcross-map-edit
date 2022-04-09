@@ -120,6 +120,15 @@ int SpellFontSymbol::GetWidth()
 		return(pixels[0].size());
 	return(0);
 }
+// is symbol blank?
+int SpellFontSymbol::IsBlank()
+{	
+	for(auto & row : pixels)
+		for(auto & pix : row)
+			if(pix)
+				return(false);
+	return(true);
+}
 
 // decode spellcross font file (load into vector)
 SpellFont::SpellFont(uint8_t* data, int len)
@@ -229,6 +238,30 @@ SpellFont::SpellFont(std::wstring font_path)
 
 	// symbol spacing
 	symbol_gap_x = 1;
+}
+
+// merge font to current font (only blanks can be replaced by source font)
+int SpellFont::Merge(SpellFont &font)
+{
+	if(font.m_max_y != m_max_y)
+		return(1);
+	
+	for(int k = 0; k < font.m_symbols.size(); k++)
+	{
+		auto src = &font.m_symbols[k];
+		if(src->IsBlank())
+			continue;
+
+		// fill gap if needed
+		while(k > m_symbols.size())
+			m_symbols.emplace_back();
+		if(!m_symbols[k].IsBlank())
+			continue;
+
+		// replace symbol
+		m_symbols[k] = *src;
+	}
+	return(1);
 }
 
 

@@ -12,6 +12,7 @@
 #include "form_gr_view.h"
 #include "form_units.h"
 #include "form_new_object.h"
+#include "form_unit_options.h"
 
 #include <wx/ribbon/buttonbar.h>
 #include <wx/ribbon/panel.h>
@@ -107,18 +108,25 @@ private:
     void OnCanvasMouseWheel(wxMouseEvent& event);
     void OnCanvasKeyDown(wxKeyEvent& event);
     void OnCanvasLMouseDown(wxMouseEvent& event);
+    void OnUnitClick_cb(int action);
     wxBitmap m_buffer;
     
     wxPanel* canvas;
+    wxMenu* menuView;
     
     wxBoxSizer* sizer;
     wxRibbonBar* ribbonBar = NULL;
     
-
     SpellMap* spell_map;
     SpellData* spell_data;
 
     SpellTool spell_tool;
+
+    // last target selection
+    MapXY select_pos;
+    MapUnit* cur_unit;
+    MapUnit* sel_unit;
+    int inUnitOptions() {return(form_unit_opts != NULL);};
 
     
     wxTimer m_timer;
@@ -130,6 +138,7 @@ private:
     FormPalView* form_pal;
     FormGResView* form_gres;
     FormUnits* form_units;
+    FormUnitOpts *form_unit_opts;
     
     void OnPaintHUDbutton(wxPaintEvent& event);
     void OnHUDbuttonsMouseEnter(wxMouseEvent& event);
@@ -146,7 +155,8 @@ private:
         ID_PAL_WIN,
         ID_GRES_WIN,
         ID_UNITS_WIN,
-        ID_MINIMAP_WIN
+        ID_MINIMAP_WIN,
+        ID_UNIT_MODE_WIN
     };
     static constexpr int ID_HUD_BASE = 3000;
     static constexpr int ID_TOOL_BASE = 10000;
@@ -185,6 +195,8 @@ enum
     ID_ViewUnt,
     ID_ViewStTa,
     ID_ViewHUD,
+    ID_ViewSounds,
+    ID_ViewSoundLoops,
     ID_ViewVoxZ,
     ID_ViewMiniMap,
     ID_ExportVoxZ,

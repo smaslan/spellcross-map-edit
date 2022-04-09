@@ -12,8 +12,10 @@
 #define fsu_archiveH
 //---------------------------------------------------------------------------
 #include "LZ_spell.h"
+#include "sprites.h"
 #include <vector>
 #include <fstream>
+#include <string>
 
 class FSU_sprite
 {
@@ -29,7 +31,7 @@ public:
 
 	FSU_sprite();
 	~FSU_sprite();
-	void Render(uint8_t* buffer, uint8_t* buf_end, int buf_x_pos, int buf_y_pos, int buf_x_size, uint8_t* shadow_filter,uint8_t* filter=NULL);
+	void Render(uint8_t* buffer, uint8_t* buf_end, int buf_x_pos, int buf_y_pos, int buf_x_size, uint8_t* shadow_filter,uint8_t* filter=NULL,int zoom=1);
 };
 
 class FSU_resource
@@ -44,6 +46,14 @@ public:
 	// sprite list
 	std::vector<FSU_sprite*> list;
 
+	class Txy{
+	public:
+		int x;
+		int y;
+		Txy() {x = 0; y = 0;};
+		Txy(int xx, int yy) {x=xx;y=yy;};
+	};
+	
 	// --- sorted sprites groups (standing, moving, animation, ...)
 	struct {
 		// slopes available (only for tanks, otherwise 1)
@@ -52,6 +62,10 @@ public:
 		int azimuths;
 		// standing unit (flesh ones) or tanks (no animations) [slope][azimuth]
 		FSU_sprite** lists['M' - 'A' + 1];
+		// fire origin [slope][azimuth]
+		vector<Txy> fire_origin['M' - 'A' + 1];
+		// turret (unit) center for fire azimuth calculation
+		Txy fire_center['M' - 'A' + 1];
 	} stat;
 	
 	struct {
@@ -59,12 +73,23 @@ public:
 		int frames;
 		// azimuths count
 		int azimuths;
-		// lists of sprites [azimuth][frame]
+		int slopes; /* alternative to azimuths, used only for hell cavalery */
+		// lists of sprites [azimuth/slope][frame]
 		FSU_sprite*** lists;
+		// fire origin [azimuth/slope]
+		vector<Txy> fire_origin;
+		// turret (unit) center for fire azimuth calculation
+		Txy fire_center;
 	} anim;	
 
+	Txy GetStatFireOriginMean(int slope);
+	Txy GetAnimFireOriginMean();
 	int GetAnimAzim(double angle);
+	double GetAnimAngle(int azim);
 	int GetStaticAzim(double angle);
+	double GetStaticAngle(int azim);
+	int GetStaticFireAzim(int slope,double angle);
+	int GetAnimFireAzim(double angle);
 
 	FSU_resource();
 	~FSU_resource();
@@ -73,14 +98,13 @@ public:
 
 class FSUarchive{
 	private:
-
-		// LZW decoder
-		//LZWexpand *delz;
 		// graphics resource list
 		std::vector<FSU_resource*> list;		
 		
 		int LoadResource(uint8_t* data, int rid, FSU_resource* res, LZWexpand* delz);
 		int LoadResourceGroup(uint8_t* data, int first, int count, int step, std::vector<FSU_resource*> *list);
+
+		std::wstring aux_data_path;
 
 	public:
 		int xmin;
@@ -88,15 +112,14 @@ class FSUarchive{
 		int ymin;
 		int ymax;
 
-		/*int FillItemsList(TListBox *lb);
-		int LoadUnit(int uid);
-		int GetImageName(int fid,char **name);
-		int DrawBmpImage(int fid,Graphics::TBitmap *bmp,int zoom,uchar bcid,uchar scid);
-		int FSUarchive::DrawImage(int fid,TImage *img,int zoom,uchar bcid,uchar scid);*/
+		int GetCount();
+		std::wstring GetAuxDataPath() {return(aux_data_path);};
 
 		FSUarchive(std::wstring &path);
 		~FSUarchive();
-		FSU_resource* GetResource(char* name);
+		FSU_resource* GetResource(const char* name);
+		int SaveAuxData(std::wstring path);
+		int LoadAuxData(std::wstring path);
 };
 
 
