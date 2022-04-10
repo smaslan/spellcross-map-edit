@@ -38,6 +38,7 @@
     <ClCompile Include="spellcross.cpp" />
     <ClCompile Include="spell_font.cpp" />
     <ClCompile Include="spell_hud_buttons.cpp" />
+    <ClCompile Include="spell_map_event.cpp" />
     <ClCompile Include="spell_sound.cpp" />
     <ClCompile Include="spell_units.cpp" />
     <ClCompile Include="sprites.cpp" />
@@ -54,6 +55,7 @@
     <ClInclude Include="form_unit_options.h" />
     <ClInclude Include="fsu_archive.h" />
     <ClInclude Include="fs_archive.h" />
+    <ClInclude Include="spell_map_event.h" />
     <ClInclude Include="RtAudio.h" />
     <ClInclude Include="spell_graphics.h" />
     <ClInclude Include="map_types.h" />

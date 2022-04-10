@@ -61,7 +61,7 @@ class SpellUnitRec
 		int apfw;
 
 		// dig
-		int dig;
+		int dig_turns;
 
 		// rank
 		int ramin;
@@ -178,7 +178,7 @@ class SpellUnitRec
 
 		int canAttack(SpellUnitRec* target);
 		int canAttackObject();
-		
+		int GetMaxDig();		
 		
 		SpellGraphicItem* action_button_glyph;
 		SpellGraphicItem* action_button_glyph_b;
@@ -253,3 +253,227 @@ public:
 	vector<SpellUnitRec*> &GetUnits();
 };
 
+
+
+
+class AStarNode
+{
+public:
+	MapXY pos;
+	MapXY parent_pos;
+	int g_cost;
+	int h_cost;
+	int f_cost;
+	int closed;
+	AStarNode();
+	static constexpr int INIT_COST = 1<<30;
+};
+
+
+class MapUnitType
+{
+public:
+	enum Values : int
+	{
+		Unknown,
+		PatrolUnit,
+		WaitForContact,
+		NormalUnit,
+		ToughDefence,
+		SpecUnit,
+		MissionUnit
+	};
+	MapUnitType() = default;
+	constexpr MapUnitType(Values type) : value(type) { }
+
+	constexpr bool operator==(MapUnitType type) const { return value == type.value; }
+	constexpr bool operator!=(MapUnitType type) const { return value != type.value; }
+	void operator=(const char* type) {
+		if(_strcmpi(type,"PatrolUnit") == 0)
+			value = Values::NormalUnit;
+		else if(_strcmpi(type,"WaitForContact") == 0)
+			value = Values::WaitForContact;
+		else if(_strcmpi(type,"NormalUnit") == 0)
+			value = Values::NormalUnit;
+		else if(_strcmpi(type,"ToughDefence") == 0)
+			value = Values::ToughDefence;
+		else if(_strcmpi(type,"MissionUnit") == 0)
+			value = Values::MissionUnit;
+		else if(_strcmpi(type,"SpecUnit1") == 0)
+			value = Values::SpecUnit;
+		else if(_strcmpi(type,"SpecUnit2") == 0)
+			value = Values::SpecUnit;
+		else
+			value = Values::Unknown;
+	}
+
+private:
+	Values value;
+};
+
+
+class MapUnit
+{
+public:
+	// unit idnetifier index within map
+	int id;
+	// unit type ID
+	int type_id;
+	SpellUnitRec* unit;
+	// position
+	MapXY coor;
+	// experience
+	int experience;
+	// man count (health)
+	int man;
+	int wounded;
+	// unit type/behaviour
+	MapUnitType type;
+	// custom name
+	char name[100];
+	// commander id or zero	
+	int commander_id;
+	int is_commander;
+	// dig in
+	int dig_level;
+	// dig turns counter
+	int dig_turns;
+	// turns count since last action
+	int idle_turns;
+	// action points
+	int action_points;
+	// unit active (set except insertion time)
+	int is_active;
+	// unit visible?
+	int is_visible;
+	// enemy?
+	int is_enemy;
+	// event created?
+	int is_event;
+	// morale level
+	int morale;
+	// unit in placement (selected and moving)
+	int in_placement;
+	// unit moved flag (cleared when rendered)
+	int was_moved;
+
+	// pointer to next unit to draw (for correct render order)
+	MapUnit* next;
+	int assigned;
+
+	// link s between parent and child unit
+	MapUnit* parent;
+	MapUnit* child;
+
+
+	// unit rendering state
+	vector<AStarNode> move_nodes;
+	int move_state;
+	int move_step;
+	int isMoving() { return(move_state != MOVE_STATE_IDLE); };
+	FSU_resource* in_animation;
+	int azimuth;
+	int azimuth_turret;
+	int frame;
+	int frame_stop;
+	double unit_angle; /* angle in 3D view */
+	double attack_angle; /* angle in projected 2D view */
+	//double projectile_angle;
+	double attack_dist;
+	int attack_proj_step;
+	int attack_proj_delay;
+	int attack_state;
+	int attack_hit_frame;
+	AnimPNM* attack_hit_pnm;
+	AnimPNM* attack_fire_pnm;
+	int attack_fire_x_org;
+	int attack_fire_y_org;
+	int attack_fire_frame;
+	MapUnit* attack_target;
+	int is_target;
+	int isAttacker() { return(attack_state != ATTACK_STATE_IDLE); };
+	int isTarget() { return(is_target); };
+
+	// unit radar state
+	int radar_up;
+	// unit flight altitude [%]
+	int altitude;
+
+	int action_state;
+	int action_step;
+
+	static constexpr int ACTION_STATE_IDLE = 0;
+	static constexpr int ACTION_STATE_AIR_LAND = 1;
+	static constexpr int ACTION_STATE_AIR_TAKEOFF = 2;
+	static constexpr int ACTION_STATE_AIR_FINISH = 3;
+	static constexpr int ACTION_STATE_TURRET_DOWN = 4;
+	static constexpr int ACTION_STATE_TURRET_FINISH = 5;
+	static constexpr int ACTION_STATE_RADAR_UP = 6;
+	static constexpr int ACTION_STATE_RADAR_DOWN = 7;
+	static constexpr int ACTION_STATE_TO_FORT = 8;
+	static constexpr int ACTION_STATE_FROM_FORT = 9;
+	static constexpr int ACTION_STATE_FROM_FORT_TURRET = 10;
+	static constexpr int ACTION_STATE_CREATE_UNIT = 11;
+	static constexpr int ACTION_STATE_KAMIKAZE = 12;
+	static constexpr int ACTION_STATE_KAMIKAZE_EXPLOSION = 13;
+
+	static constexpr int ATTACK_STATE_IDLE = 0;
+	static constexpr int ATTACK_STATE_DIR = 1;
+	static constexpr int ATTACK_STATE_TURN = 2;
+	static constexpr int ATTACK_STATE_SHOT = 3;
+	static constexpr int ATTACK_STATE_FLIGHT = 4;
+	static constexpr int ATTACK_STATE_HIT = 5;
+
+	static constexpr int MOVE_STATE_IDLE = 0;
+	static constexpr int MOVE_STATE_TURRET = 1;
+	static constexpr int MOVE_STATE_MOVE = 2;
+	static constexpr int MOVE_STATE_TELEPORT_IN = 3;
+	static constexpr int MOVE_STATE_TELEPORT_OUT = 4;
+
+
+	FSU_resource* GetShotAnim(MapUnit* target,int* frame_stop=NULL);
+	AnimPNM* GetTargetHitPNM(MapUnit* target);
+	AnimPNM* GetFirePNM(MapUnit* target);
+	tuple<int,int> GetFirePNMorigin(MapUnit* target,double azimuth);
+
+	int AreSoundsDone();
+	int PlayReport();
+	int PlayContact();
+	int PlayMove();
+	int PlayStop();
+	SpellSound* sound_move;
+	int PlayFire(MapUnit* target);
+	int PlayHit(MapUnit* target,bool missed=false);
+	int PlayDie();
+	int PlayBeingHit();
+	int PlayAction();
+
+
+
+	MapUnit();
+	MapUnit(MapUnit& obj);
+	int MorphUnit(SpellUnitRec* target,int health=0);
+	int ClearSounds();
+	~MapUnit();
+	int Render(Terrain* data,uint8_t* buffer,uint8_t* buf_end,int buf_x_pos,int buf_y_pos,int buf_x_size,uint8_t* filter,Sprite* sprt,int show_hud);
+
+	int ResetAP();
+	int GetMaxAP();
+	int HasMaxAP();
+	int GetWalkAP();
+	int GetFireCount(int ext_ap=-1);
+	int GetMaxFireCount();
+	int UpdateFireAP();
+	int GetAPperFire();
+	int CanSpecAction();
+	int HasWounded();
+	int Heal();
+	int ResetHealth();
+	int UpdateDigLevel();
+	void ClearDigLevel();
+	void ResetTurnsCounter();
+	void IncrementTurnsCounter();
+	void ActivateUnit();
+	int isActive();
+
+};

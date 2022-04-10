@@ -81,6 +81,9 @@
     <ClCompile Include="form_unit_options.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="spell_map_event.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="fs_archive.h">
@@ -156,6 +159,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="form_unit_options.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="spell_map_event.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

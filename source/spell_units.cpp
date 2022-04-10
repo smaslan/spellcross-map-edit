@@ -298,7 +298,7 @@ SpellUnits::SpellUnits(uint8_t* data, int dlen, FSUarchive *fsu, SpellGraphics *
 		unit->vis = rdu8(rec + 0xB0);
 
 		// rounds per dig level
-		unit->dig = rdu8(rec + 0xB1);
+		unit->dig_turns = rdu8(rec + 0xB1);
 
 		// unit movement sound class
 		unit->smov = rdu8(rec + 0xBF);
@@ -530,6 +530,19 @@ int SpellUnitRec::canAttackObject()
 {	
 	return(attack_objects > 0);
 }
+// get maximum dig level
+int SpellUnitRec::GetMaxDig()
+{
+	if(isAir())
+		return(0);
+	if(!dig_turns)
+		return(0);
+	if(isLight())
+		return(6);
+	else
+		return(2);
+}
+
 
 
 
@@ -845,6 +858,9 @@ MapUnit::MapUnit()
 	is_commander = 0;
 	// dig in
 	dig_level = 0;
+	dig_turns = 0;
+	// turns since last activity
+	idle_turns = 0;
 	// action points
 	action_points = 1;
 	// unit active (set except insertion time)
@@ -857,6 +873,8 @@ MapUnit::MapUnit()
 	in_placement = false;
 	// moved
 	was_moved = true;
+	// created by event?
+	is_event = false;
 
 
 	next = NULL;
@@ -953,6 +971,47 @@ int MapUnit::MorphUnit(SpellUnitRec* target, int health)
 
 	return(0);
 }
+
+// try update dig level if possible (call before end of turn)
+int MapUnit::UpdateDigLevel()
+{
+	if(dig_level >= unit->GetMaxDig())
+		return(0);
+	if(dig_turns < unit->dig_turns)
+		return(0);
+	dig_level++;
+	dig_turns = 0;
+	return(1);
+}
+// clear dig level
+void MapUnit::ClearDigLevel()
+{
+	dig_level = 0;
+	dig_turns = 0;
+}
+// clears unit idle and dig counters
+void MapUnit::ResetTurnsCounter()
+{
+	dig_turns = 0;
+	idle_turns = 0;
+}
+// increment turns counetrs
+void MapUnit::IncrementTurnsCounter()
+{
+	dig_turns++;
+	idle_turns++;
+}
+// activate unit (after runtime creation)
+void MapUnit::ActivateUnit()
+{
+	is_active = true;
+}
+// is unit active (after runtime creation)
+int MapUnit::isActive()
+{
+	return(!!is_active);
+}
+
 
 // set full health
 int MapUnit::ResetHealth()
@@ -1156,7 +1215,7 @@ int MapUnit::Render(Terrain* data,uint8_t* buffer,uint8_t* buf_end,int buf_x_pos
 	int type_color = 0;
 	if(type == MapUnitType::MissionUnit)
 		type_color = 230;
-	else if(type == MapUnitType::SpecUnit1)
+	else if(type == MapUnitType::SpecUnit)
 		type_color = 253;
 	for(int y = 9; y < bar_h; y+=2)
 	{

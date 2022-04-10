@@ -389,10 +389,19 @@ void MyFrame::OnSwitchGameMode(wxCommandEvent& event)
     canvas->Refresh();
     if(is_game)
     {
+        // switch to game mode
         ribbonBar->HidePanels();        
         menuView->FindItem(ID_ViewSoundLoops)->Check(false);
         menuView->FindItem(ID_ViewSounds)->Check(false);
-        OnViewLayer(event);
+        OnViewLayer(event);        
+        // exec initial events
+        spell_map->events->ResetEvents();
+        spell_map->MissionStartEvent();
+    }
+    else
+    {
+        // switch to editor mode
+        spell_map->ResetUnitEvents();
     }
 }
 
@@ -1028,18 +1037,7 @@ void MyFrame::OnCanvasMouseMove(wxMouseEvent& event)
         unit->was_moved = true;
 
         // force recalculation of units view map
-        spell_map->InvalidateUnitsView();
-
-        //auto start = std::chrono::high_resolution_clock::now();
-        /*spell_map->ClearUnitsView(false);
-        spell_map->AddUnitsView();        
-        spell_map->ClearUnitsView(true);
-        int count = spell_map->AddUnitView(unit);
-        //auto stop = std::chrono::high_resolution_clock::now();
-        //auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-        //StatusStringCallback(string_format("%d",duration));
-        StatusStringCallback(string_format("%d",count));*/
-        
+        spell_map->InvalidateUnitsView();         
     }
     
     canvas->Refresh();

@@ -38,7 +38,7 @@ public:
 		int yy1 = yy * 1;
 		int xx2 = x * 2 + (((y & 1) != 0) ? 0 : 1);
 		int yy2 = y * 1;
-		return tuple(0.707106*(double)(xx1-xx2),0.707106*(double)(yy1-yy2));
+		return std::tuple(0.707106*(double)(xx1-xx2),0.707106*(double)(yy1-yy2));
 	};
 	// angle of <xx,yy> from this pos
 	double Angle(MapXY mxy) {return Angle(mxy.x, mxy.y);};

@@ -243,6 +243,8 @@ SpellMap::SpellMap()
 	unit_range_view_mode_lock = false;
 
 	sound_loops = NULL;
+
+	events = NULL;
 }
 
 SpellMap::~SpellMap()
@@ -344,6 +346,11 @@ void SpellMap::Close()
 	pic = NULL;
 	pic_y_buffer.clear();
 
+	// delete events 
+	if(events)
+		delete events;
+	events = NULL;
+
 	ClearHUDbuttons();
 
 	unit_sel_land_preference = true;
@@ -394,7 +401,9 @@ int SpellMap::Create(SpellData* spelldata, const char *terr_name, int x, int y)
 	
 	// filter mask
 	filter.resize(x_size*y_size);
-	
+
+	// create events
+	events = new SpellMapEvents(x_size, y_size);
 
 	// generate plain map
 	for(int k = 0; k < (x_size * y_size); k++)
@@ -879,6 +888,8 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 	// init unit pointer PNM
 	pnm_sipka = MapLayer4(spelldata->pnm_sipka);
 
+	// create events list
+	events = new SpellMapEvents(x_size,y_size);
 
 	//////////////////////////
 	///// Load DEF stuff /////
@@ -965,11 +976,10 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 				// initial action points
 				unit->ResetAP();
 
-				unit->dig_level = rand()%7;
+				unit->dig_level = 0;
 				unit->commander_id = rand()%9;
 				unit->is_commander = rand()%2;
 				unit->morale = 1 + rand()%100;
-
 
 				// add unit to list
 				units.push_back(unit);
@@ -977,113 +987,9 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 			else if (cmd->name.compare("AddSpecialEvent") == 0)
 			{
 				// --- Event definitions: AddSpecialEvent(type, position, index, probability) ---
-				
-				int index;
-				int probab;
-				if(cmd->parameters->at(0).compare("SeePlace") == 0)
-				{				
-					// event position xy
-					MapXY coor;					
-					int xy = atoi(cmd->parameters->at(1).c_str());
-					coor.y = (xy / x_size);
-					coor.x = xy - coor.y * x_size;
-				
-					// event index
-					index = atoi(cmd->parameters->at(2).c_str());
 
-					// probability
-					probab = atoi(cmd->parameters->at(3).c_str());
-				}
-				else if(cmd->parameters->at(0).compare("MissionStart") == 0)
-				{
-					// event index
-					index = atoi(cmd->parameters->at(1).c_str());
-
-					// probability
-					probab = atoi(cmd->parameters->at(2).c_str());
-				}
-				else
-					continue;
-				
-				// parse event data
-				string event_data_header = "EventData(" + std::to_string(index) + ")";
-				SpellDefSection *event_data = def->GetSection(event_data_header);
-
-				// for each item in event:
-				for (int evid = 0; evid < event_data->Size(); evid++)
-				{
-					SpellDefCmd* evcmd = (*event_data)[evid];
-
-					if (evcmd->name.compare("AddSpecialUnit") == 0)
-					{
-						// --- AddSpecialUnit(unit_order, unit_id, position, experience, man_count, name) ---				
-						MapUnit* unit = new MapUnit();
-
-						// unit index within map (identifier)
-						unit->id = last_unit_index++;
-
-						// decode unit type
-						if(evcmd->parameters->at(0).compare("EnemyUnit") == 0)
-						{
-							unit->is_enemy = 1;
-						}
-						else if(evcmd->parameters->at(0).compare("MissionUnit") == 0)
-						{
-							unit->type = MapUnitType::MissionUnit;
-						}
-						else if(evcmd->parameters->at(0).compare("SpecUnit1") == 0)
-						{
-							unit->type = MapUnitType::SpecUnit1;
-						}
-						
-						// unit type index
-						unit->type_id = atoi((*evcmd->parameters)[1].c_str());
-
-						// position
-						int xy = atoi((*evcmd->parameters)[2].c_str());
-						unit->coor.y = (xy / x_size);
-						unit->coor.x = xy - unit->coor.y * x_size;
-
-						// experience
-						unit->experience = atoi((*evcmd->parameters)[3].c_str());
-
-						// man count
-						unit->man = atoi((*evcmd->parameters)[4].c_str());						
-
-						// unit active (to change in game mode)
-						unit->is_active = 1;
-
-						// try fetch unit record from spelldata
-						unit->unit = spelldata->units->GetUnit(unit->type_id);
-						if (!unit->unit)
-						{
-							delete event_data;
-							delete unit;
-							return(1);
-						}
-
-						// copy unit name
-						strcpy_s(unit->name, sizeof(unit->name),unit->unit->name);
-						auto& custom_name = evcmd->parameters->at(5);
-						if(custom_name.size() && custom_name.compare("-")!=0)
-							strcpy_s(unit->name,sizeof(unit->name),custom_name.c_str());
-
-						// default action points
-						unit->ResetAP();
-
-						unit->dig_level = rand()%7;
-						unit->commander_id = rand()%9;
-						unit->is_commander = rand()%2;
-						unit->morale = 1 + rand()%100;
-
-
-						// add unit to list
-						units.push_back(unit);
-					}
-				}
-				// clear parsed event data
-				delete event_data;
-
+				// decode event
+				events->AddEvent(spelldata, def, cmd);
 			}
 		}
 		delete mission_data;
@@ -1091,9 +997,15 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 		
 	}
 
+	// initialize events
+	events->ResetEvents();
+
 	// select some unit
 	if(units.size())
 		unit_selection = units[0];
+
+	// initial sorting of units to map
+	SortUnits();
 
 	// clear units view range map
 	PrepareUnitsViewMask();
@@ -1825,10 +1737,6 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 	{
 		uint8_t* src = &pic[surf_x_origin + (surf_y_origin + y)*pic_x_size];		
 		std::memset((void*)src,MAP_BACK_COLOR,min(surf_x,pic_x_size - surf_x_origin));
-		/*int rend_x = surf_x;
-		if(&src[surf_x] > pic_end)
-			rend_x = pic_end - src;		
-		std::memset((void*)src,MAP_BACK_COLOR,rend_x);*/
 	}
 
 	// edit tool pre-processing:
@@ -2530,7 +2438,6 @@ int SpellMap::FindUnitRange(MapUnit* unit)
 		unit_range_th_unit = MapUnit(*unit);
 	else
 		unit_range_th_unit.coor = {-1,-1};
-
 	
 	// start calculation
 	unit_range_th_control = UNIT_RANGE_TH_RUN;
@@ -2920,6 +2827,10 @@ int SpellMap::CanUnitMove(MapXY target)
 	auto* unit = GetSelectedUnit();
 	if(!unit)
 		return(false);
+
+	// runtime created unit cannot move until activated (next turn)
+	if(!unit->isActive())
+		return(false);
 	
 	// deployed radar cannot move
 	if(unit->radar_up)
@@ -2968,10 +2879,6 @@ int SpellMap::MoveUnit(MapXY target)
 	if(unit_ap_left[t_mxy] < 0)
 		return(1);
 	
-	// skip if not discovered map
-	/*if(units_view[t_mxy] < 1)
-		return(1);*/
-	
 	// find path
 	auto path = FindUnitPath(unit, target);
 	
@@ -2986,6 +2893,9 @@ int SpellMap::MoveUnit(MapXY target)
 	{
 		unit->move_state = MapUnit::MOVE_STATE_TURRET;
 		unit->move_step = 0;
+		
+		unit->ClearDigLevel();
+		unit->ResetTurnsCounter();
 	}
 
 	unit_action_lock.unlock();
@@ -3040,7 +2950,7 @@ int SpellMap::ResetUnitsAP()
 	return(0);
 }
 
-// attack enemy unit
+// attack target (unit or object)
 int SpellMap::Attack(MapXY pos, int prefer_air)
 {
 	if(!pos.IsSelected())
@@ -3066,9 +2976,9 @@ int SpellMap::Attack(MapXY pos, int prefer_air)
 		return(1);
 
 	// todo: implement object attack
+	unit->ResetTurnsCounter();
 	return(0);
 }
-
 int SpellMap::AttackUnit(MapUnit *target)
 {
 	// get target position
@@ -3101,6 +3011,7 @@ int SpellMap::AttackUnit(MapUnit *target)
 		// play attack sound (if exist)
 		unit->PlayFire(target);
 
+		unit->ResetTurnsCounter();
 		return(0);
 	}
 			
@@ -3113,6 +3024,7 @@ int SpellMap::AttackUnit(MapUnit *target)
 	unit->frame_stop = frame_stop;
 	unit->attack_state = MapUnit::ATTACK_STATE_DIR;
 
+	unit->ResetTurnsCounter();
 	return(0);
 }
 
@@ -3167,8 +3079,7 @@ MapUnit* SpellMap::SelectUnit(MapUnit* new_unit)
 			}
 		}
 	}
-	else if(new_unit)
-		unit_selection = new_unit;
+	unit_selection = new_unit;
 	// unit selected
 	unit_selection_mod = true;
 
@@ -3582,7 +3493,10 @@ void SpellMap::OnHUDswitchUnitHUD()
 }
 void SpellMap::OnHUDswitchEndTurn()
 {
+	
+	FinishUnits();
 	ResetUnitsAP();
+	
 	// todo: replace by something that will trigger range recalculation
 	unit_selection_mod = true;
 	InvalidateHUDbuttons();
@@ -3619,6 +3533,7 @@ void SpellMap::OnHUDturretToggle()
 		// show turret:
 		unit->action_state = MapUnit::ACTION_STATE_TURRET_FINISH;
 	}
+	unit->ResetTurnsCounter();
 }
 
 // radar toggle HUD button pressed
@@ -3652,7 +3567,7 @@ void SpellMap::OnHUDradarToggle()
 		unit->frame = 0;
 		unit->action_state = MapUnit::ACTION_STATE_RADAR_UP;
 	}
-		
+	unit->ResetTurnsCounter();
 }
 
 // aircraft land/takeoff HUD button pressed
@@ -3673,7 +3588,7 @@ void SpellMap::OnHUDairLandTakeOff()
 	{
 		// land:
 		unit->altitude = 100;
-		unit->action_state = MapUnit::ACTION_STATE_AIR_LAND;
+		unit->action_state = MapUnit::ACTION_STATE_AIR_LAND;		
 	}
 	else
 	{
@@ -3688,7 +3603,10 @@ void SpellMap::OnHUDairLandTakeOff()
 	unit->in_animation = unit->unit->gr_base;
 	unit->frame_stop = unit->in_animation->anim.frames;	
 	unit->frame = 0;
-	unit->azimuth = unit->in_animation->GetAnimAzim(unit->in_animation->GetStaticAngle(unit->azimuth));	
+	unit->azimuth = unit->in_animation->GetAnimAzim(unit->in_animation->GetStaticAngle(unit->azimuth));
+
+	unit->ClearDigLevel();
+	unit->ResetTurnsCounter();
 }
 
 // switch to/from fortres HUD button callback
@@ -3720,6 +3638,8 @@ void SpellMap::OnHUDfortresToggle()
 		unit->frame = unit->frame_stop - 1;
 		unit->action_state = MapUnit::ACTION_STATE_FROM_FORT_TURRET;
 	}
+
+	unit->ResetTurnsCounter();
 }
 
 // create new unit HUD button pressed
@@ -3745,6 +3665,8 @@ void SpellMap::OnHUDcreateUnit()
 	unit->frame = 0;
 	unit->azimuth = unit->in_animation->GetAnimAzim(unit->unit->gr_base->GetStaticAngle(unit->azimuth));
 	unit->action_state = MapUnit::ACTION_STATE_CREATE_UNIT;	
+
+	unit->ResetTurnsCounter();
 }
 
 
@@ -4069,8 +3991,8 @@ int SpellMap::ClearUnitsView(int to_unseen)
 	return(0);
 }
 
-// calculate unit view range
-int SpellMap::AddUnitView(MapUnit *unit)
+// calculate unit view range, returns true if new contact detected and returns activated events list
+int SpellMap::AddUnitView(MapUnit *unit, vector<SpellMapEventRec*>* event_list)
 {
 	if(!unit)
 		return(0);
@@ -4214,8 +4136,13 @@ int SpellMap::AddUnitView(MapUnit *unit)
 								new_contact = true;
 								units_view_flags[next_mxy] = 1;
 							}
-						}							
-
+						}
+						if(event_list && events->CheckEvent(next_mxy))
+						{
+							// possibly some event here: get all undone events							
+							auto list = events->GetEvents(next_mxy, true);
+							event_list->insert(event_list->end(), list.begin(), list.end());
+						}
 						break;
 					}
 					// at least one pixel of crossed tile must be visible
@@ -4235,7 +4162,7 @@ int SpellMap::AddUnitView(MapUnit *unit)
 			}
 		}
 
-		// -- expand viewto entire objects (houses)
+		// -- expand view to entire objects (houses)
 		vector<int> hdir;
 		vector<MapXY> hpos;
 		hdir.push_back(0);
@@ -4283,6 +4210,12 @@ int SpellMap::AddUnitView(MapUnit *unit)
 						units_view_flags[next_mxy] = 1;
 					}
 				}
+				if(event_list && events->CheckEvent(next_mxy))
+				{
+					// possibly some event here: get all undone events
+					auto list = events->GetEvents(next_mxy,true);
+					event_list->insert(event_list->end(),list.begin(),list.end());
+				}
 
 				// proceed to next position
 				hdir.push_back(0);
@@ -4307,6 +4240,9 @@ int SpellMap::AddUnitView(MapUnit *unit)
 // add view range of all moved units of given type, clear moved flags
 int SpellMap::AddUnitsView(int unit_type, int clear,MapUnit* except_unit)
 {
+	SpellMapEventsList events;
+	int new_contact = false;
+
 	for(auto & unit : units)
 	{
 		// filter unit types to view
@@ -4318,8 +4254,24 @@ int SpellMap::AddUnitsView(int unit_type, int clear,MapUnit* except_unit)
 			unit->was_moved = false;
 		
 		// add view mask
-		AddUnitView(unit);
+		SpellMapEventsList events_batch;
+		new_contact |= AddUnitView(unit, &events_batch);
+		
+		// collect events
+		events.insert(events.end(), events_batch.begin(), events_batch.end());
 	}
+
+	if(new_contact)
+	{
+		// play contact sound
+		auto unit = GetSelectedUnit();
+		if(unit && !unit->is_enemy)
+			unit->PlayContact();
+	}
+
+	// process events
+	ProcEventsList(events);
+
 	return(0);
 }
 
@@ -4625,8 +4577,24 @@ int SpellMap::CalcUnitAttackRange(MapUnit *unit)
 	return(0);
 }
 
+// finish units action before end of turn (dig levels, morale, ...)
+int SpellMap::FinishUnits()
+{
+	for(auto & unit : units)
+	{
+		// update dig level
+		unit->UpdateDigLevel();
 
+		// activate runtime crated units
+		unit->ActivateUnit();
 
+		// todo: update morale (long inactivity)
+
+		// update idle counters for next round
+		unit->IncrementTurnsCounter();
+	}
+	return(0);
+}
 
 
 
@@ -4857,13 +4825,14 @@ int SpellMap::Tick()
 
 					// update this unit view
 					RestoreUnitsView();
-					int new_contact = AddUnitView(unit);					
-
-					// enemy contact event?
+					SpellMapEventsList events;
+					int new_contact = AddUnitView(unit, &events);
 					if(new_contact)
 					{
 						unit->PlayContact();
 					}
+					// exec detected events
+					ProcEventsList(events);
 
 					// done					
 					unit->in_animation = NULL;
@@ -4888,25 +4857,6 @@ int SpellMap::Tick()
 			
 					unit->move_state = MapUnit::MOVE_STATE_MOVE;
 					unit->move_step = 0;
-
-					// rotate turrent the shortest way to align it with tank
-					/*int azim_count = unit->unit->gr_base->stat.azimuths;
-					int delta_azim = mod(unit->azimuth - unit->azimuth_turret + azim_count/2,azim_count) - azim_count/2;
-					if(delta_azim == 0)
-					{
-						// aligned: done
-						unit->move_state = MapUnit::MOVE_STATE_MOVE;
-						unit->move_step = 0;
-					}
-					else if(delta_azim > 0)
-						unit->azimuth_turret++;
-					else
-						unit->azimuth_turret--;
-					if(unit->azimuth_turret < 0)
-						unit->azimuth_turret += azim_count;
-					else if(unit->azimuth_turret >= azim_count)
-						unit->azimuth_turret -= azim_count;*/
-
 				}
 				else
 				{
@@ -4959,13 +4909,15 @@ int SpellMap::Tick()
 			
 				// update this unit view
 				RestoreUnitsView();
-				int new_contact = AddUnitView(unit);
-
+				SpellMapEventsList events;
+				int new_contact = AddUnitView(unit, &events);
 				if(new_contact)
 				{
 					// enemy contact event:
 					unit->PlayContact();
 				}
+				// process events
+				ProcEventsList(events);
 			
 				if(unit->in_animation)
 				{
@@ -4984,9 +4936,9 @@ int SpellMap::Tick()
 
 			
 
-				if(new_contact || unit->move_step >= unit->move_nodes.size())
+				if(new_contact || !events.empty() || unit->move_step >= unit->move_nodes.size())
 				{
-					// movemenet done:
+					// movement done:
 					unit->move_state = MapUnit::MOVE_STATE_IDLE;
 					unit->move_nodes.clear();
 					unit->was_moved = true; // this will force range recalculation
@@ -5395,6 +5347,7 @@ int SpellMap::Tick()
 				// create new unit
 				auto new_type = spelldata->units->GetUnit(unit->unit->action_params[2]);
 				CreateUnit(unit, new_type);
+				unit->action_points = 0;
 								
 				air_done = true;
 			}
@@ -5479,12 +5432,15 @@ int SpellMap::Tick()
 			SortUnits();
 			// update this unit view
 			RestoreUnitsView();
-			int new_contact = AddUnitView(unit);
+			SpellMapEventsList events;
+			int new_contact = AddUnitView(unit, &events);
 			if(new_contact)
 			{
 				// enemy contact event:
 				unit->PlayContact();
 			}
+			ProcEventsList(events);
+
 			InvalidateHUDbuttons();
 		}		
 
@@ -5522,23 +5478,46 @@ int SpellMap::CreateUnit(MapUnit *parent, SpellUnitRec *new_type)
 	// morhp to new type
 	unit->MorphUnit(new_type,100);
 
+	// set some initial parameters
+	unit->type = MapUnitType::MissionUnit;
+	unit->ResetAP();
+	unit->ClearDigLevel();
+	unit->ResetHealth();
+
+	// try place unit to map
+	if(PlaceUnit(unit))
+	{
+		delete unit;
+		return(1);
+	}
+
+	// make link between parent and child
+	unit->parent = parent;
+	parent->child = unit;		
+	
+	return(0);
+}
+
+// try to place new unit to map (looks for nearest suitable place)
+int SpellMap::PlaceUnit(MapUnit* unit)
+{
 	// resort units map for fast colision checks
 	SortUnits();
-		
-	vector<int> used(x_size*y_size, 0);	
+
+	vector<int> used(x_size*y_size,0);
 	vector<MapXY> cand_list;
-	cand_list.push_back(parent->coor);		
+	cand_list.push_back(unit->coor);
 	while(true)
 	{
 		int placed = false;
-		for(auto & cand : cand_list)
+		for(auto& cand : cand_list)
 		{
 			auto pos_mxy = ConvXY(cand);
 			// mark as tested position
 			used[pos_mxy] = 1;
-			
+
 			// check colision with other untis
-			MapUnit *obst = Lunit[pos_mxy];
+			MapUnit* obst = Lunit[pos_mxy];
 			int fail = false;
 			while(obst)
 			{
@@ -5567,7 +5546,7 @@ int SpellMap::CreateUnit(MapUnit *parent, SpellUnitRec *new_type)
 		}
 		if(placed)
 			break;
-		
+
 		// not found yet: look around
 		auto cand_temp = cand_list;
 		cand_list.clear();
@@ -5585,30 +5564,17 @@ int SpellMap::CreateUnit(MapUnit *parent, SpellUnitRec *new_type)
 		if(cand_list.empty())
 		{
 			// not suitable place found in whole map
-			delete unit;
-			return(1);			
+			return(1);
 		}
 	}
 
-	// some initial parameters
-	unit->action_points = 0;
-	unit->dig_level = 0;
-	unit->ResetHealth();
-
-	// make link between parent and child
-	unit->parent = parent;
-	parent->child = unit;
-	
 	// store new unit
 	units.push_back(unit);
-		
-	// resort units in map
-	SortUnits();
 	
+	// resort units map
+	SortUnits();
 	return(0);
 }
-
-
 
 // get pixel position of position origin in rendered map
 tuple<int,int> SpellMap::GetPosOrigin(MapXY pos)
@@ -5648,6 +5614,107 @@ double SpellMap::GetUnitsAngle(MapUnit *ref, MapUnit *target)
 	return atan2(y_ref - y_targ,x_targ - x_ref)*180.0/M_PI;
 }
 
+
+// ----------------------------------------------------------------------------
+// Events handling
+// ----------------------------------------------------------------------------
+
+// remove event created units from list
+int SpellMap::ResetUnitEvents()
+{
+	// remove event units
+	auto sel_unit = GetSelectedUnit();
+	for(int k = units.size()-1; k > 0; k--)
+	{
+		auto unit = units[k];
+		if(unit->is_event)
+		{
+			if(sel_unit == unit)
+				SelectUnit(NULL);
+			delete unit;
+			units.erase(units.begin() + k);
+		}
+	}
+
+	// resort untis map
+	SortUnits();
+		
+	// try select some unit if not selected
+	if(GetSelectedUnit())
+		return(0);
+	for(auto& unit : units)
+		if(!unit->is_enemy)
+		{
+			SelectUnit(unit);
+			return(0);
+		}
+	if(!units.empty())
+		SelectUnit(units[0]);
+
+	return(0);
+}
+
+// place mission start event units (if not done yet)
+int SpellMap::MissionStartEvent()
+{
+	if(!isGameMode())
+		return(1);
+	
+	// get list of events
+	auto list = events->GetMissionStartEvent(true);
+	if(list.empty())
+		return(0);
+
+	// process all events:
+	int is_selected = false;
+	for(auto & evt : list)
+	{
+		if(evt->units.empty())
+			continue;
+
+		// for each unit to place:
+		for(auto & unit : evt->units)
+		{
+			// make new unit
+			MapUnit *new_unit = new MapUnit(*unit);
+			
+			if(PlaceUnit(new_unit))
+			{
+				delete new_unit;
+				continue;
+			}
+			if(!is_selected)
+			{
+				// select first unit, because Aliance unints in map can be only placed via events, so no valid initial selection is possible before this point
+				is_selected = true;
+				SelectUnit(new_unit);
+			}
+		}		
+	}
+	return(0);
+}
+
+// execute list of events (SeePlace())
+int SpellMap::ProcEventsList(SpellMapEventsList &list)
+{
+	if(!isGameMode())
+		return(1);
+
+	for(auto & evt : list)
+	{
+		for(auto & unit : evt->units)
+		{
+			// make new unit
+			MapUnit* new_unit = new MapUnit(*unit);
+			if(PlaceUnit(new_unit))
+			{
+				delete new_unit;
+				continue;
+			}
+		}
+	}
+	return(0);
+}
 
 
 
