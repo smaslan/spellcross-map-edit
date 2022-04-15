@@ -313,6 +313,17 @@ class SpellMap
 		static constexpr int SELECT_CLEAR = 2;
 		static constexpr int SELECT_XOR = 3;
 
+		// message box stuff
+		typedef std::function<void(SpellTextRec*,bool,std::function<void(bool)>)> SpellMessageCraeteFunPtr;
+		typedef std::function<bool(void)> SpellMessagePollingFunPtr;
+		int ShowMessage(SpellTextRec *msg, bool is_yesno, std::function<void(bool)> callback);
+		void SetMessageInterface(SpellMessageCraeteFunPtr create_msg,SpellMessagePollingFunPtr msg_checker);
+		SpellMessageCraeteFunPtr m_msg_creator;
+		SpellMessagePollingFunPtr m_msg_checker;
+		
+		
+
+
 		// this map path
 		wstring map_path;
 		wstring def_path;
@@ -370,6 +381,7 @@ class SpellMap
 		int isRenderSurfModified();
 		int CommitRenderSurfModified();		
 		int Render(wxBitmap &bmp, TScroll* scroll,SpellTool* tool=NULL,std::function<void(void)> hud_buttons_cb=NULL);
+		int GetRender(uint8_t* buf, int x_size, int y_size, int x_pos, int y_pos);
 		
 		int GetHUDstate();
 		int SetHUDstate(int state);
@@ -443,6 +455,7 @@ class SpellMap
 		int FinishUnits();
 
 		// events stuff
+		SpellMapEventsList event_list; // pending events
 		int ResetUnitEvents();
 		int MissionStartEvent();
 		int ProcEventsList(SpellMapEventsList &list);

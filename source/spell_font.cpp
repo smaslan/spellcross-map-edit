@@ -7,6 +7,7 @@
 //=============================================================================
 
 #include "spell_font.h"
+#include "other.h"
 #include <vector>
 #include <fstream>
 #include <stdexcept>
@@ -324,6 +325,10 @@ int SpellFont::Render(uint8_t* buffer,uint8_t* buf_end,int buf_x_size,int x_pos,
 }
 
 // render text
+int SpellFont::Render(uint8_t* buffer,uint8_t* buf_end,int buf_x_size,int x_pos,int y_pos,std::wstring text,int color,int bg_color,FontShadow shadow)
+{
+	return(Render(buffer, buf_end, buf_x_size, x_pos, y_pos,wstring2stringCP895(text),color, bg_color, shadow));
+}
 int SpellFont::Render(uint8_t* buffer,uint8_t* buf_end,int buf_x_size,int x_pos,int y_pos,std::string text,int color,int bg_color,FontShadow shadow)
 {
 	int end_x_pos = 0;	
@@ -375,6 +380,16 @@ int SpellFont::Render(uint8_t* buffer,uint8_t* buf_end,int buf_x_size,int x_pos,
 	return(end_x_pos);
 }
 
-
-
+// get width of symbol + space
+int SpellFont::GetSymbolWidth(wchar_t sym)
+{
+	int code = (uint8_t)wchar2charCP895(sym);
+	if(code >= m_symbols.size())
+		return(0);
+	return(m_symbols[code].GetWidth() + symbol_gap_x);
+}
+int SpellFont::GetHeight()
+{
+	return(m_max_y);
+}
 	

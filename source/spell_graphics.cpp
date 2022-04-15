@@ -255,18 +255,20 @@ int SpellGraphicItem::Render(uint8_t* buf,uint8_t* buf_end,int buf_x_size,int x_
 		}
 
 		uint8_t* src = GetPixels(y);
-		int x = 0;
+		int x_sz = x_size;
 		if(x_pos < 0)
 		{
 			pic += -x_pos;
 			src += -x_pos;
-			x = -x_pos;
+			x_sz -= -x_pos;
 			if(y_buffer)
 				y_buf += -x_pos;
 		}
+		x_sz = min(buf_x_size - max(x_pos,0), x_sz);
+		
 		if(in_black)
 		{
-			for(; x < x_size; x++)
+			for(int x = 0; x < x_sz; x++)
 			{
 				if(*src && *src != 0xFE)
 					*pic = 0xFE;
@@ -276,7 +278,7 @@ int SpellGraphicItem::Render(uint8_t* buf,uint8_t* buf_end,int buf_x_size,int x_
 		}
 		else
 		{
-			for(; x < x_size; x++)
+			for(int x = 0; x < x_sz; x++)
 			{
 				if(*src)
 					*pic = *src;

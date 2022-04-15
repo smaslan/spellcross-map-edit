@@ -19,6 +19,7 @@
 #include "spell_font.h"
 #include "spell_graphics.h"
 #include "spell_sound.h"
+#include "spell_texts.h"
 
 using namespace std;
 
@@ -95,6 +96,8 @@ public:
 	FSarchive* info;
 	// sound stuff
 	SpellSounds* sounds;
+	// texts.fs
+	SpellTexts* texts;
 
 	SpellData(wstring& data_path,wstring& cd_data_path,wstring& spec_path);
 	~SpellData();	

@@ -102,6 +102,10 @@ public:
 	SpellGraphicItem* wm_sel_lower;
 	SpellGraphicItem* wm_sel_select;
 
+	SpellGraphicItem* wm_frame_horz;
+	SpellGraphicItem* wm_frame_vert;
+	SpellGraphicItem* wm_frame_corner;
+
 	wxCursor* cur_pointer;
 	wxCursor* cur_wait;
 	wxCursor* cur_move;

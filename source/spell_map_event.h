@@ -5,6 +5,22 @@
 #include "other.h"
 #include "spell_units.h"
 
+class SpellMapEventUnitRec
+{
+public:
+    MapUnit *unit;
+    int is_placed;
+    SpellMapEventUnitRec(MapUnit *unit) {this->unit = unit; is_placed = false;};
+};
+class SpellMapEventMessageRec
+{
+public:
+    SpellTextRec* text;
+    int is_done;
+    SpellMapEventMessageRec(SpellTextRec *text) {this->text = text; is_done = false;};
+};
+
+
 class SpellMapEventRec
 {
 private:
@@ -33,12 +49,16 @@ public:
     SpellMapEventRec *next;
 
     // event new units list
-    vector<MapUnit*> units;
+    vector<SpellMapEventUnitRec> units;
+
+    // event invoked text message(s) (there should be just one, but you never know...)
+    vector<SpellMapEventMessageRec> texts;
 
     SpellMapEventRec();
     ~SpellMapEventRec();
     int isMissionStart();
     int isSeePlace();
+    int isDone();
 };
 
 typedef vector<SpellMapEventRec*> SpellMapEventsList;

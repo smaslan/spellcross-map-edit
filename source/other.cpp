@@ -71,6 +71,35 @@ std::wstring char2wstringCP895(const char* str)
     return(result);
 }
 
+// convert unicode symbol to char using CP895 table
+char wchar2charCP895(wchar_t sym)
+{
+    wstring codes = {L"ČüéďäĎŤčěĚĹÍľĺÄÁ"
+                     L"ÉžŽôöÓůÚýÖÜŠĽÝŘť"
+                     L"áíóúňŇŮÔšřŕŔ¼§«»"
+                     L"░▒▓│┤╡╢╖╕╣║╗╝╜╛┐"
+                     L"└┴┬├─┼╞╟╚╔╩╦╠═╬╧"
+                     L"╨╤╥╙╘╒╓╫╪┘┌█▄▌▐▀"
+                     L"αßΓπΣσµτΦΘΩδ∞φε∩"
+                     L"≡±≥≤⌠⌡÷≈°∙·√ⁿ²■ "};
+    if(sym < 128)
+        return(sym);
+    int unisym = codes.find(sym);
+    if(unisym == wstring::npos)
+        return(' ');
+    return(128 + unisym);
+}
+
+// convert wstring using CZ CP895 encoding to string
+std::string wstring2stringCP895(std::wstring str)
+{
+    string result;
+    result.assign(str.size(),'\0');
+    for(int k = 0; k < str.size(); k++)        
+        result[k] = wchar2charCP895(str[k]);
+    return(result);
+}
+
 
 // compare wildcard string to string
 int wildcmp(const char* wild,const char* string)

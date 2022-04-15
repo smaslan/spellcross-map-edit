@@ -13,6 +13,8 @@ std::wstring char2wstring(const char* str);
 std::string wstring2string(const std::wstring& str);
 std::wstring char2wstringCP852(const char* str);
 std::wstring char2wstringCP895(const char* str);
+char wchar2charCP895(wchar_t sym);
+std::string wstring2stringCP895(std::wstring str);
 std::string string_format(const std::string fmt,...);
 
 int wildcmp(const char* wild,const char* string);

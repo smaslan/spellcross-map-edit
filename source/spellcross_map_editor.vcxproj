@@ -20,6 +20,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="form_gr_view.cpp" />
+    <ClCompile Include="form_message_box.cpp" />
     <ClCompile Include="form_new_object.cpp" />
     <ClCompile Include="form_objects.cpp" />
     <ClCompile Include="form_pal_view.cpp" />
@@ -34,6 +35,7 @@
     <ClCompile Include="map.cpp" />
     <ClCompile Include="other.cpp" />
     <ClCompile Include="RtAudio.cpp" />
+    <ClCompile Include="spell_texts.cpp" />
     <ClCompile Include="spell_graphics.cpp" />
     <ClCompile Include="spellcross.cpp" />
     <ClCompile Include="spell_font.cpp" />
@@ -46,6 +48,7 @@
   <ItemGroup>
     <ClInclude Include="cvt_xmi2mid.hpp" />
     <ClInclude Include="form_gr_view.h" />
+    <ClInclude Include="form_message_box.h" />
     <ClInclude Include="form_new_object.h" />
     <ClInclude Include="form_objects.h" />
     <ClInclude Include="form_pal_view.h" />
@@ -55,6 +58,7 @@
     <ClInclude Include="form_unit_options.h" />
     <ClInclude Include="fsu_archive.h" />
     <ClInclude Include="fs_archive.h" />
+    <ClInclude Include="spell_texts.h" />
     <ClInclude Include="spell_map_event.h" />
     <ClInclude Include="RtAudio.h" />
     <ClInclude Include="spell_graphics.h" />

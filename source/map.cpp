@@ -1712,6 +1712,37 @@ vector<uint8_t> SpellMap::GetFlags(vector<MapXY>& selection)
 	return(list);
 }
 
+// get rect portion of last rendered buffer (indexed map color)
+int SpellMap::GetRender(uint8_t* buf, int x_size, int y_size, int x_pos, int y_pos)
+{
+	// clear buffer
+	memset(buf, 0x00, x_size*y_size);
+
+	// copy visible part of surface only
+	for(int y = 0; y < y_size; y++)
+	{
+		int ys = y + y_pos;		
+		if(ys < 0 || ys >= surf_y)
+			continue;
+		
+		int x = 0;
+		if(x_pos < 0)
+			x = -x_pos;
+		int xn = x_size - x;
+
+		int xs = 0;
+		if(x_pos > 0)
+			xs = x_pos;
+		xn = min(surf_x - xs, xn);
+				
+		uint8_t* src = &pic[surf_x_origin + xs + (surf_y_origin + ys)*pic_x_size];
+		uint8_t* dst = &buf[x + y*x_size];
+		memcpy(dst, src, xn);
+	}
+	
+	return(0);
+}
+
 // render frame
 int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::function<void(void)> hud_buttons_cb)
 {
@@ -2474,7 +2505,7 @@ int SpellMap::FindUnitRange_th()
 		unit_ap_left.assign(x_size*y_size,-1);
 		unit_fire_left.assign(x_size*y_size,-1);
 
-		if(!unit->coor.IsSelected() || unit->radar_up)
+		if(!unit->coor.IsSelected() || unit->radar_up || !unit->isActive())
 		{
 			FindUnitRangeLock(true);
 			this->unit_ap_left = unit_ap_left;
@@ -4318,7 +4349,7 @@ int SpellMap::CanUnitAttack(MapUnit *target)
 		return(false);
 
 	// has some attacks left?
-	if(!unit_fire_left[pos])
+	if(!unit->GetFireCount())
 		return(false);
 
 	// allowed attack target?
@@ -4383,7 +4414,7 @@ int SpellMap::CanUnitAttackObject(MapXY pos)
 		return(false);
 
 	// has some attacks left?
-	if(!unit_fire_left[pxy])
+	if(!unit->GetFireCount())
 		return(false);
 
 	// allowed attack target?
@@ -4832,7 +4863,8 @@ int SpellMap::Tick()
 						unit->PlayContact();
 					}
 					// exec detected events
-					ProcEventsList(events);
+					event_list.insert(event_list.end(), events.begin(), events.end());
+					//ProcEventsList(events);
 
 					// done					
 					unit->in_animation = NULL;
@@ -4917,7 +4949,8 @@ int SpellMap::Tick()
 					unit->PlayContact();
 				}
 				// process events
-				ProcEventsList(events);
+				//ProcEventsList(events);
+				event_list.insert(event_list.end(),events.begin(),events.end());
 			
 				if(unit->in_animation)
 				{
@@ -5439,15 +5472,26 @@ int SpellMap::Tick()
 				// enemy contact event:
 				unit->PlayContact();
 			}
-			ProcEventsList(events);
+			//ProcEventsList(events);
+			event_list.insert(event_list.end(),events.begin(),events.end());
 
 			InvalidateHUDbuttons();
 		}		
 
 	}
 
+	// try process pending events
+	ProcEventsList(event_list);
+
 	// repaint
 	return(update);
+}
+
+// call this to set function inteface for creating message and polling state
+void SpellMap::SetMessageInterface(SpellMessageCraeteFunPtr create_msg,SpellMessagePollingFunPtr msg_checker)
+{
+	m_msg_creator = create_msg;
+	m_msg_checker = msg_checker;
 }
 
 
@@ -5676,7 +5720,8 @@ int SpellMap::MissionStartEvent()
 		for(auto & unit : evt->units)
 		{
 			// make new unit
-			MapUnit *new_unit = new MapUnit(*unit);
+			MapUnit *new_unit = new MapUnit(*unit.unit);
+			unit.is_placed = true;
 			
 			if(PlaceUnit(new_unit))
 			{
@@ -5689,32 +5734,72 @@ int SpellMap::MissionStartEvent()
 				is_selected = true;
 				SelectUnit(new_unit);
 			}
-		}		
+		}
+
+		// check if everything is done and mark it as done eventually
+		evt->isDone();
 	}
 	return(0);
 }
 
-// execute list of events (SeePlace())
+// execute list of given events, remove finished from the list
 int SpellMap::ProcEventsList(SpellMapEventsList &list)
 {
 	if(!isGameMode())
 		return(1);
 
-	for(auto & evt : list)
-	{
+	while(!list.empty())
+	{		
+		auto evt = list.back();
+		
+		// place units:
 		for(auto & unit : evt->units)
 		{
-			// make new unit
-			MapUnit* new_unit = new MapUnit(*unit);
+			// skip if already placed
+			if(unit.is_placed)
+				continue;
+			
+			// make new unit						
+			MapUnit* new_unit = new MapUnit(*unit.unit);
+			unit.is_placed = true;
 			if(PlaceUnit(new_unit))
 			{
 				delete new_unit;
 				continue;
 			}
 		}
+
+		// show messages
+		for(auto & text : evt->texts)
+		{
+			// skip processed
+			if(text.is_done)
+				continue;
+			
+			// skip if message interface is still busy (previous message)
+			if(m_msg_checker())
+				continue;
+
+			// show info message (no user interaction)
+			m_msg_creator(text.text, false, NULL);
+			text.is_done = true;
+		}
+
+
+		if(evt->isDone())
+		{
+			// entire event is done: remove it from pending list
+			list.pop_back();
+		}
+		else
+			break;
 	}
+
 	return(0);
 }
+
+
+
 
 
 

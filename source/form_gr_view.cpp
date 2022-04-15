@@ -122,12 +122,13 @@ void FormGResView::LoadFileList()
 	lboxFiles->Clear();
 	for(int k = 0; k < common->Count(); k++)
 	{
-		std::filesystem::path name = string(common->GetFileName(k));
+		std::filesystem::path name = string(common->GetFileName(k));		
 
 		if( name.extension().compare(".LZ") == 0 ||
 			name.extension().compare(".LZ0") == 0 ||
 			name.extension().compare(".ICO") == 0 ||
-			name.extension().compare(".BTN") == 0)
+			name.extension().compare(".BTN") == 0 || 
+			wildcmp("RAM*.DTA",name.string().c_str()))
 		{
 			lboxFiles->Append(name.string());
 		}

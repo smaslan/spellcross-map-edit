@@ -14,7 +14,7 @@ SpellMapEventRec::SpellMapEventRec()
 SpellMapEventRec::~SpellMapEventRec()
 {
 	for(auto & unit : units)
-		delete unit;
+		delete unit.unit;
 	units.clear();
 }
 int SpellMapEventRec::isMissionStart()
@@ -24,6 +24,19 @@ int SpellMapEventRec::isMissionStart()
 int SpellMapEventRec::isSeePlace()
 {
 	return(evt_type == EVT_SEE_PLACE);
+}
+int SpellMapEventRec::isDone()
+{
+	if(is_done)
+		return(is_done);
+	for(auto & unit : units)
+		if(!unit.is_placed)
+			return(false);
+	for(auto& text : texts)
+		if(!text.is_done)
+			return(false);
+	is_done = true;
+	return(is_done);
 }
 
 
@@ -201,7 +214,10 @@ int SpellMapEvents::AddEvent(SpellData *data, SpellDEF* def, SpellDefCmd* cmd)
 				delete event_data;
 				delete unit;
 				if(is_new_event)
+				{
+					events.pop_back();
 					delete evt;
+				}
 				return(1);
 			}
 
@@ -222,7 +238,36 @@ int SpellMapEvents::AddEvent(SpellData *data, SpellDEF* def, SpellDefCmd* cmd)
 			unit->is_active = evt->isMissionStart();
 
 			// add unit to list
-			evt->units.push_back(unit);
+			evt->units.emplace_back(unit);
+		}
+		else if(evcmd->name.compare("EventText") == 0)
+		{
+			// --- EventText(text_fs_name) ---
+			if(evcmd->parameters->size() < 1)
+			{
+				delete event_data;
+				if(is_new_event)
+				{
+					events.pop_back();
+					delete evt;
+				}
+				return(1);
+			}
+			
+			// try to find text in string list
+			auto text_name = evcmd->parameters->at(0);
+			auto text = data->texts->GetText(text_name);
+			if(!text)
+			{
+				delete event_data;
+				if(is_new_event)
+				{
+					events.pop_back();
+					delete evt;
+				}
+				return(1);
+			}
+			evt->texts.emplace_back(text);
 		}
 	}
 	delete event_data;
@@ -245,6 +290,10 @@ void SpellMapEvents::ResetEvents()
 		evt->is_done = false;
 		evt->next = NULL;
 		evt->hide = evt->probability < rand()%101;
+		for(auto & text : evt->texts)
+			text.is_done = false;
+		for(auto& unit : evt->units)
+			unit.is_placed = false;
 	}
 	
 	// make map of events

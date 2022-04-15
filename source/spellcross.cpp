@@ -11,6 +11,7 @@
 #include "fsu_archive.h"
 #include "spell_units.h"
 #include "LZ_spell.h"
+#include "spell_texts.h"
 #include "other.h"
 #include "map.h"
 
@@ -188,6 +189,7 @@ SpellData::SpellData(wstring &data_path,wstring& cd_data_path,wstring& spec_path
 	units_fsu = NULL;
 	info = NULL;
 	sounds = NULL;
+	texts = NULL;
 	
 	// store path
 	spell_data_root = data_path;
@@ -293,6 +295,14 @@ SpellData::SpellData(wstring &data_path,wstring& cd_data_path,wstring& spec_path
 	// close common.fs
 	delete common;
 
+
+	// load TEXTS.FS
+	wstring texts_path = (filesystem::path(data_path) / filesystem::path(L"TEXTS.FS")).wstring();
+	FSarchive* texts_fs = new FSarchive(texts_path);
+	texts = new SpellTexts(texts_fs, SpellLang::CZE, sounds); // ###todo: decode language somehow?
+	delete texts_fs;
+
+	
 	// load INFO.FS (units art)
 	path = cd_data_path + L"\\INFO.FS";
 	info = new FSarchive(path);
@@ -346,6 +356,8 @@ SpellData::~SpellData()
 		delete info;
 	if(sounds)
 		delete sounds;
+	if(texts)
+		delete texts;
 }
 
 // find loaded PNM animation
@@ -461,6 +473,13 @@ int SpellData::LoadAuxGraphics(FSarchive *fs)
 			lzw->Decode(data,data_end,&data,&flen);
 			gres.AddRaw(data,flen,340,flen/340,name,(uint8_t*)terrain[0]->pal);
 		}
+		else if(strcmp(name,"OPT_BAR.LZ") == 0)
+		{
+			// window frame
+			is_lzw = true;
+			lzw->Decode(data,data_end,&data,&flen);
+			gres.AddRaw(data,flen,10,flen/10,name,(uint8_t*)terrain[0]->pal);
+		}
 		else if(wildcmp("*.ICO",name) || wildcmp("*.BTN",name))
 		{
 			// ICO files (compression like in PNM files)			
@@ -485,6 +504,16 @@ int SpellData::LoadAuxGraphics(FSarchive *fs)
 		{
 			// raw icon files
 			gres.AddRaw(data,flen,60,45,name,(uint8_t*)terrain[0]->pal,false,true);
+		}
+		else if(wildcmp("RAM?HORZ.DTA",name))
+		{
+			// frame part
+			gres.AddRaw(data,flen,76,flen/76,name,(uint8_t*)terrain[0]->pal,true);
+		}
+		else if(wildcmp("RAM*.DTA",name))
+		{
+			// frame part
+			gres.AddRaw(data,flen,10,flen/10,name,(uint8_t*)terrain[0]->pal,true);
 		}
 		else if(wildcmp("*.PNM",name))
 		{
@@ -545,6 +574,9 @@ int SpellData::LoadAuxGraphics(FSarchive *fs)
 	gres.wm_sel_upper = gres.GetResource("I_UPPER");
 	gres.wm_sel_lower = gres.GetResource("I_LOWER");
 	gres.wm_sel_select = gres.GetResource("I_SELECT");
+	gres.wm_frame_horz = gres.GetResource("RAM2HORZ.DTA");
+	gres.wm_frame_vert = gres.GetResource("RAM2VERT.DTA");
+	gres.wm_frame_corner = gres.GetResource("RAM2ROH.DTA");
 
 	// render cursors
 	gres.cur_pointer = gres.RenderCUR("SIPKA.CUR");

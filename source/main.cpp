@@ -24,6 +24,7 @@
 #include "simpleini.h"
 #include "spellcross.h"
 #include "map.h"
+#include "form_message_box.h"
 
 
 
@@ -113,6 +114,7 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     form_pal = NULL;
     form_tools = NULL;
     form_unit_opts = NULL;
+    form_message = NULL;
 
 
     // view scroller
@@ -292,6 +294,9 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     Bind(wxEVT_MENU,&MyFrame::OnMoveUnit,this,ID_MoveUnit);
 
 
+
+    spell_map->SetMessageInterface(bind(&MyFrame::ShowMessage,this,placeholders::_1,placeholders::_2,placeholders::_3), bind(&MyFrame::CheckMessageState,this));
+
     // main sizer 
     /*auto sizer2 = new wxBoxSizer(wxVERTICAL);
 
@@ -375,6 +380,13 @@ void MyFrame::OnClose(wxCloseEvent& ev)
         form_unit_opts->ResultCallback(); // exec result callback (calling it from here to have in this thread)
         delete form_unit_opts;
         form_unit_opts = NULL;
+    }
+    else if(ev.GetId() == ID_MSG_WIN && form_message)
+    {
+        // unit multi-action menu
+        form_message->ResultCallback(); // exec result callback (calling it from here to have in this thread)
+        delete form_message;
+        form_message = NULL;
     }
     else
         ev.Skip();
@@ -956,7 +968,7 @@ void MyFrame::OnCanvasMouseEnter(wxMouseEvent& event)
     if(inUnitOptions())
         return;
 
-    canvas->SetFocus();
+    //canvas->SetFocus();
 }
 void MyFrame::OnCanvasMouseLeave(wxMouseEvent& event)
 {
@@ -1115,8 +1127,8 @@ void MyFrame::OnInvalidateSelection(wxCommandEvent& event)
 void MyFrame::OnCanvasLMouseDown(wxMouseEvent& event)
 {
     if(inUnitOptions())
-        return;
-    
+        return;    
+       
     // get selection
     auto xy_list = spell_map->GetSelections(m_buffer,&scroll);
 
@@ -1189,6 +1201,20 @@ void MyFrame::OnUnitClick_cb(int option)
         int is_upper = option & SpellMap::UNIT_OPT_UPPER;
         spell_map->Attack(select_pos, is_upper);
     }
+}
+
+
+
+// show message function wrapper
+void MyFrame::ShowMessage(SpellTextRec *message,bool is_yesno,std::function<void(bool)> exit_cb)
+{
+    //auto text = spell_data->texts->GetText("u0101_07");
+    form_message = new FormMsgBox(canvas, ID_MSG_WIN, spell_data, spell_map, message, (is_yesno)?(FormMsgBox::SpellMsgOptions::YESNO):(FormMsgBox::SpellMsgOptions::NONE), exit_cb);
+}
+// return true if some message still exist
+bool MyFrame::CheckMessageState()
+{
+    return(form_message != NULL);    
 }
 
 

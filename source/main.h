@@ -5,6 +5,7 @@
 #include "spellcross.h"
 #include "map.h"
 #include "spell_hud_buttons.h"
+#include "spell_texts.h"
 #include "form_objects.h"
 #include "form_tools.h"
 #include "form_sprite_view.h"
@@ -13,6 +14,7 @@
 #include "form_units.h"
 #include "form_new_object.h"
 #include "form_unit_options.h"
+#include "form_message_box.h"
 
 #include <wx/ribbon/buttonbar.h>
 #include <wx/ribbon/panel.h>
@@ -126,7 +128,10 @@ private:
     MapXY select_pos;
     MapUnit* cur_unit;
     MapUnit* sel_unit;
-    int inUnitOptions() {return(form_unit_opts != NULL);};
+    int inUnitOptions() {return(form_unit_opts != NULL || form_message != NULL);};
+
+    void ShowMessage(SpellTextRec *message, bool is_yesno, std::function<void(bool)> exit_cb=NULL);
+    bool CheckMessageState();
 
     
     wxTimer m_timer;
@@ -139,6 +144,7 @@ private:
     FormGResView* form_gres;
     FormUnits* form_units;
     FormUnitOpts *form_unit_opts;
+    FormMsgBox *form_message;
     
     void OnPaintHUDbutton(wxPaintEvent& event);
     void OnHUDbuttonsMouseEnter(wxMouseEvent& event);
@@ -156,7 +162,8 @@ private:
         ID_GRES_WIN,
         ID_UNITS_WIN,
         ID_MINIMAP_WIN,
-        ID_UNIT_MODE_WIN
+        ID_UNIT_MODE_WIN,
+        ID_MSG_WIN
     };
     static constexpr int ID_HUD_BASE = 3000;
     static constexpr int ID_TOOL_BASE = 10000;
@@ -165,6 +172,7 @@ private:
     // maximum size of minimap panel
     static constexpr int MAX_MINIMAP_X = 1000;
     static constexpr int MAX_MINIMAP_Y = 400;
+
 };
 
 

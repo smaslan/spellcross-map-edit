@@ -153,8 +153,18 @@ SpellSounds::SpellSounds(wstring& fs_data_path, int count)
         }
         else if(wildcmp("U*",name))
         {
-            // 16-bit signed, 11025Hz, mono (with RIFF WAVE header)
-
+            // 8-bit unsigned, 11025Hz, mono (with RIFF WAVE header)
+            //   schmutzig solution ###todo: use actual RIFF loader            
+            samples.emplace_back();
+            SpellSample* smpl = &samples.back();
+            strcpy_s(smpl->name,sizeof(smpl->name),name);
+            smpl->fs = 11025;
+            smpl->channels = 1;
+            smpl->samples = *(uint32_t*)&data[40];
+            smpl->data.resize(smpl->samples);
+            uint8_t* ptr = (uint8_t*)&data[44];
+            for(int k = 0; k < smpl->samples; k++)
+                smpl->data[k] = (int16_t)((((uint16_t)*ptr++)<<8) - (uint16_t)0x8000u);
         }
         else if(wildcmp("M*",name))
         {
