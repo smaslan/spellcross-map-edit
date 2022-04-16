@@ -35,8 +35,9 @@ private:
     vector<SpellFontSymbol> m_symbols;
     int m_max_y;
     int m_max_x;
-    int symbol_gap_x;
+    int m_symbol_gap_x;
     string m_font_name;
+    uint8_t *m_filter;
 
 public:    
     enum FontShadow : int
@@ -46,17 +47,21 @@ public:
         RIGHT_DOWN,
         DIAG2,
         DIAG3,
+        SOLID
     };
     
     SpellFont(uint8_t* data,int len);
     SpellFont(std::wstring font_path);
+    void SetFilter(uint8_t *filter);
     int Merge(SpellFont& font);
-    int RenderSymbol(uint8_t* buffer,uint8_t* buf_end,int buf_x_size,int x_pos,int y_pos,int code,int color,int bg_color=-1);
+    int RenderSymbol(uint8_t* buffer,uint8_t* buf_end,int buf_x_size,int x_pos,int y_pos,int code,int color,int bg_color=-1);    
     int Render(uint8_t* buffer,uint8_t* buf_end,int buf_x_size,int x_pos,int y_pos,std::wstring text,int color,int bg_color=-1,FontShadow shadow=NONE);
     int Render(uint8_t *buffer, uint8_t *buf_end, int buf_x_size, int x_pos, int y_pos, std::string text, int color, int bg_color=-1,FontShadow shadow=NONE);
+    int Render(uint8_t* buffer,uint8_t* buf_end,int buf_x_size,int x_pos,int y_pos,int x_limit,int y_limit,vector<std::string> text,int color,int bg_color,FontShadow shadow);
     int Render(uint8_t* buffer,uint8_t* buf_end,int buf_x_size,int x_pos,int y_pos,int x_limit,int y_limit,std::string text,int color,int bg_color,FontShadow shadow);
     int GetHeight();
     int GetSymbolWidth(wchar_t sym);
+    int GetTextWidth(string &text);
 
     
 };

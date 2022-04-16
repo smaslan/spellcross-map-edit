@@ -205,6 +205,7 @@ enum
     ID_ViewHUD,
     ID_ViewSounds,
     ID_ViewSoundLoops,
+    ID_ViewEvents,
     ID_ViewVoxZ,
     ID_ViewMiniMap,
     ID_ExportVoxZ,

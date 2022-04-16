@@ -149,6 +149,9 @@ int SpellMapEvents::AddEvent(SpellData *data, SpellDEF* def, SpellDefCmd* cmd)
 		events.push_back(evt);
 	}
 	
+	// event type name
+	evt->type_name = cmd->parameters->at(0);
+	
 
 	// try parse event data
 	string event_data_header = "EventData(" + std::to_string(event_data_index) + ")";
@@ -360,6 +363,11 @@ SpellMapEventsList SpellMapEvents::GetEvents(int pos,bool clear)
 		evt = evt->next;
 	}		
 	return(list);
+}
+// get all events list
+vector<SpellMapEventRec*>& SpellMapEvents::GetEvents()
+{
+	return(events);
 }
 
 // returns list of events associated with mission start, eventually clears them, is skips executed ones or below probability ones

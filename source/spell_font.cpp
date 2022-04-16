@@ -176,7 +176,10 @@ SpellFont::SpellFont(uint8_t* data, int len)
 	}
 
 	// symbol spacing
-	symbol_gap_x = 2;
+	m_symbol_gap_x = 2;
+
+	// default semitransparent filter
+	m_filter = NULL;
 }
 
 
@@ -238,7 +241,10 @@ SpellFont::SpellFont(std::wstring font_path)
 	}	
 
 	// symbol spacing
-	symbol_gap_x = 1;
+	m_symbol_gap_x = 1;
+
+	// default semitransparent filter
+	m_filter = NULL;
 }
 
 // merge font to current font (only blanks can be replaced by source font)
@@ -265,6 +271,11 @@ int SpellFont::Merge(SpellFont &font)
 	return(1);
 }
 
+// set spellcross filter for text background (semi-transparent)
+void SpellFont::SetFilter(uint8_t* filter)
+{
+	m_filter = filter;
+}
 
 
 // render symbol
@@ -301,6 +312,18 @@ int SpellFont::RenderSymbol(uint8_t* buffer,uint8_t* buf_end,int buf_x_size,int 
 }
 
 // render centered text
+int SpellFont::Render(uint8_t* buffer,uint8_t* buf_end,int buf_x_size,int x_pos,int y_pos,int x_limit,int y_limit,vector<std::string> text,int color,int bg_color,FontShadow shadow)
+{
+	int tot_y = text.size()*m_max_y;
+	y_pos = y_pos + y_limit/2 - tot_y/2 - 0*m_max_y/2;
+	int x_end;
+	for(auto & txt : text)
+	{
+		x_end = max(x_end, Render(buffer,buf_end,buf_x_size,x_pos,y_pos,x_limit,m_max_y,txt,color,bg_color,shadow));
+		y_pos += m_max_y;
+	}
+	return(x_end);
+}
 int SpellFont::Render(uint8_t* buffer,uint8_t* buf_end,int buf_x_size,int x_pos,int y_pos,int x_limit, int y_limit, std::string text,int color,int bg_color,FontShadow shadow)
 {
 	// get text size
@@ -312,9 +335,9 @@ int SpellFont::Render(uint8_t* buffer,uint8_t* buf_end,int buf_x_size,int x_pos,
 		int sym_w = m_symbols[sym].GetWidth();
 		// move to next symbol
 		x_shift += sym_w;
-		x_shift += symbol_gap_x;
+		x_shift += m_symbol_gap_x;
 	}
-	x_shift -= symbol_gap_x;
+	x_shift -= m_symbol_gap_x;
 	
 	// update render position to center the text
 	x_pos += (x_limit - x_shift)/2;
@@ -359,8 +382,21 @@ int SpellFont::Render(uint8_t* buffer,uint8_t* buf_end,int buf_x_size,int x_pos,
 		{
 			y_shift += 1;
 		}
+		if(sid == 0 && shadow == SOLID && m_filter)
+		{
+			// optional solid background
+			int x_size_txt = GetTextWidth(text);
+			for(int y = y_pos; y < y_pos + m_max_y; y++)
+			{
+				uint8_t* pix = &buffer[max(x_pos,0) + y*buf_x_size];
+				if(y < 0 || pix >= buf_end)
+					continue;
+				for(int x = max(x_pos,0); x < min(x_pos + x_size_txt,buf_x_size); x++)
+					*pix++ = m_filter[*pix];
+			}
+		}
 		else if(sid == 0 || sid == 1)
-			continue;
+			continue;				
 
 		for(int k = 0; k < text.size(); k++)
 		{
@@ -372,7 +408,7 @@ int SpellFont::Render(uint8_t* buffer,uint8_t* buf_end,int buf_x_size,int x_pos,
 
 			// move to next symbol
 			x_shift += sym_w;
-			x_shift += symbol_gap_x;
+			x_shift += m_symbol_gap_x;
 		}
 		if(sid == 2)
 			end_x_pos = x_shift;
@@ -386,8 +422,25 @@ int SpellFont::GetSymbolWidth(wchar_t sym)
 	int code = (uint8_t)wchar2charCP895(sym);
 	if(code >= m_symbols.size())
 		return(0);
-	return(m_symbols[code].GetWidth() + symbol_gap_x);
+	return(m_symbols[code].GetWidth() + m_symbol_gap_x);
 }
+
+
+// get width of text
+int SpellFont::GetTextWidth(string &text)
+{
+	int x_size = 0;
+	for(int k = 0; k < text.size(); k++)
+	{
+		// put symbol
+		int sym = (int)(unsigned char)text[k];
+		int sym_w = m_symbols[sym].GetWidth();		
+		x_size += sym_w;
+		x_size += m_symbol_gap_x;
+	}
+	return(x_size);
+}
+
 int SpellFont::GetHeight()
 {
 	return(m_max_y);

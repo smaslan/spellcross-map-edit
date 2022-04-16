@@ -216,7 +216,6 @@ SpellMap::SpellMap()
 	L2 = NULL;
 	elev = NULL;
 	flags = NULL;
-	Lunit = NULL;
 	select = NULL;
 	pic = NULL;
 	L1_flags = NULL;
@@ -325,9 +324,7 @@ void SpellMap::Close()
 	start.clear();
 	escape.clear();
 	// loose units layer
-	if(Lunit)
-		delete[] Lunit;
-	Lunit = NULL;
+	Lunit.clear();
 	// loose units list
 	for(k = 0; k < units.size(); k++)
 		delete units[k];
@@ -1057,6 +1054,19 @@ int SpellMap::UnitsMoved(int clear)
 		if(clear)
 			unit->was_moved = false;
 	}
+	if(!isGameMode())
+	{
+		for(auto & evt : events->GetEvents())
+		{			
+			for(auto& unit : evt->units)
+			{
+				if(unit.unit->was_moved)
+					moved = true;
+				if(clear)
+					unit.unit->was_moved = false;
+			}
+		}
+	}	
 	return(moved);
 }
 
@@ -1065,6 +1075,12 @@ void SpellMap::InvalidateUnitsView()
 {
 	for(auto& unit : units)
 		unit->was_moved = true;
+	if(!isGameMode())
+	{
+		for(auto& evt : events->GetEvents())
+			for(auto& unit : evt->units)
+				unit.unit->was_moved = true;
+	}
 }
 
 // this sorts units list for proper render order, call after load or units changes
@@ -1072,27 +1088,32 @@ void SpellMap::SortUnits()
 {
 	int k;
 		
-	// allocate units layer array
-	if (!Lunit)
-		Lunit = new MapUnit*[x_size * y_size];
-	
 	// clear units layer array
-	std::memset((void*)Lunit, NULL, sizeof(MapUnit*)*x_size*y_size);
+	Lunit.assign(x_size*y_size, NULL);
+
+	// make full list of visible units
+	auto units_list = units;
+	units_list.reserve(100);
+	if(!isGameMode())
+	{
+		// in editor mode show event untis too!
+		for(auto & evt : events->GetEvents())
+			for(auto & unit : evt->units)
+				units_list.push_back(unit.unit);
+	}
 
 	// clear render chain pointers
-	for (k = 0; k < units.size(); k++)
+	for(auto & unit : units_list)
 	{
-		units[k]->next = NULL;
-		units[k]->assigned = 0;
+		unit->next = NULL;
+		unit->assigned = 0;
 	}
 
 	// --- sort render order, ie. first unit pointer to layer array, next unit pointer to unit record themselves	
 	for (int ut = 0; ut < 2; ut++)
 	{		
-		for (k = 0; k < units.size(); k++)
+		for (auto & new_unit : units_list)
 		{
-			MapUnit* new_unit = units[k];
-
 			// int first pass go for air units only because they have to go first
 			int allowed = 1;
 			if (ut == 0)
@@ -2227,6 +2248,8 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 	bool sound_enabled[] = {wSound, wSoundLoop};
 	for(int sid = 0; sid < 2; sid++)
 	{
+		terrain->font->SetFilter(terrain->filter.darker);
+
 		if(sound_enabled[sid])
 		{
 			auto sound_list = sound_groups[sid];
@@ -2256,9 +2279,76 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 					glyph += " \x1E";
 					color = 214;//217;
 				}
-				terrain->font->Render(pic,pic_end,pic_x_size,mxx,myy + spr->y_ofs - 7,80,spr->y_size,glyph,color,254,SpellFont::RIGHT_DOWN);
+				terrain->font->Render(pic,pic_end,pic_x_size,mxx,myy + spr->y_ofs - 7,80,spr->y_size,glyph,color,254,SpellFont::SOLID);
 				string hstr = string(sound.GetName());
-				terrain->font->Render(pic,pic_end,pic_x_size,mxx,myy + spr->y_ofs + 7,80,spr->y_size,hstr,color,254,SpellFont::RIGHT_DOWN);
+				terrain->font->Render(pic,pic_end,pic_x_size,mxx,myy + spr->y_ofs + 7,80,spr->y_size,hstr,color,254,SpellFont::SOLID);
+			}
+		}
+	}
+	
+
+	// --- Events:
+	if(wEvents)
+	{
+		terrain->font->SetFilter(terrain->filter.darker);
+		
+		// render event-unit connection lines:
+		for(auto & evt : events->GetEvents())
+		{
+			if(!evt->isSeePlace())
+				continue;
+
+			// event position in surface
+			Sprite* spr = L1[ConvXY(evt->position)];
+			auto [mxx,myy] = GetSurfPos(evt->position);
+			mxx += 40;
+			myy += spr->y_ofs + spr->y_size/2;
+
+			for(auto & unit : evt->units)
+			{
+				// unit position in surface
+				Sprite* spr = L1[ConvXY(unit.unit->coor)];
+				auto [mxx2,myy2] = GetSurfPos(unit.unit->coor);
+				mxx2 += 40;
+				myy2 += spr->y_ofs + spr->y_size/2;
+				if(unit.unit->unit->isAir())
+					myy2 += SpellUnitRec::AIR_UNIT_FLY_HEIGHT;
+
+				plot_line(pic,pic_end,0,0,pic_x_size,252, mxx,myy, mxx2,myy2);
+			}
+		}		
+		
+		// render event marks:
+		for(m = 0; m < ys_size; m++)
+		{
+			if(m + ys_ofs * 2 >= y_size)
+				break;
+			for(n = 0; n < xs_size; n++)
+			{
+				if(n + xs_ofs >= x_size)
+					break;
+				int x_pos = n + xs_ofs;
+				int y_pos = m + ys_ofs*2;
+				int mxy = ConvXY(x_pos,y_pos);
+
+				if(!events->CheckEvent(mxy))
+					continue;
+
+				// get tile
+				Sprite* spr = L1[mxy];
+				int sof = elev[mxy];
+				int mxx = n * 80 + (((m & 1) != 0) ? 0 : 40);
+				int myy = m * 24 - sof * 18 + MSYOFS + 50 + spr->y_ofs;
+
+				vector<string> labels;
+				auto list = events->GetEvents(mxy);
+				for(auto & evt : list)
+				{										
+					labels.push_back("\x1C" + evt->type_name);
+				}
+
+				int color = 252;
+				terrain->font->Render(pic,pic_end,pic_x_size,mxx,myy,80,spr->y_size,labels,color,254,SpellFont::SOLID);
 			}
 		}
 	}
@@ -2398,6 +2488,19 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 	CommitRenderSurfModified();
 
 	return(0);
+}
+
+tuple<int,int> SpellMap::GetSurfPos(MapXY& pos)
+{
+	// relative pos in visibel part of surface
+	int x_pos = pos.x - xs_ofs;
+	int y_pos = pos.y - ys_ofs*2;
+	auto mxy = ConvXY(pos);
+	Sprite* spr = L1[mxy];
+	int sof = elev[mxy];
+	int mxx = x_pos * 80 + (((y_pos & 1) != 0) ? 0 : 40);
+	int myy = y_pos * 24 - sof * 18 + MSYOFS + 50;
+	return tuple(mxx,myy);
 }
 
 
@@ -3100,7 +3203,19 @@ MapUnit* SpellMap::SelectUnit(MapUnit* new_unit)
 	if(unit_selection && unit_selection == new_unit)
 	{
 		// selection of already selected unit: detect if there is air-land pair and swap selection
-		for(auto & unit : units)
+
+		// make full list of visible units
+		auto units_list = units;
+		units_list.reserve(100);
+		if(!isGameMode())
+		{
+			// in editor mode show event untis too!
+			for(auto& evt : events->GetEvents())
+				for(auto& unit : evt->units)
+					units_list.push_back(unit.unit);
+		}
+
+		for(auto & unit : units_list)
 		{
 			if(unit != new_unit && unit->coor == new_unit->coor)
 			{
@@ -3146,6 +3261,16 @@ MapUnit *SpellMap::GetCursorUnit(wxBitmap& bmp,TScroll* scroll)
 		if(unit->coor == pos)
 			return(unit); // found match
 	}
+	if(!isGameMode())
+	{
+		for(auto & evt : events->GetEvents())
+			for(auto & unit : evt->units)
+			{
+				if(unit.unit->coor == pos)
+					return(unit.unit); // found match
+			}
+	}
+
 	return(NULL);
 }
 
@@ -4160,7 +4285,7 @@ int SpellMap::AddUnitView(MapUnit *unit, vector<SpellMapEventRec*>* event_list)
 						units_view[next_mxy] = 5;
 
 						// check new enemy contact
-						if(Lunit)
+						if(!Lunit.empty())
 						{
 							if(!units_view_flags[next_mxy] && Lunit[next_mxy] && Lunit[next_mxy]->is_enemy)
 							{
@@ -4233,7 +4358,7 @@ int SpellMap::AddUnitView(MapUnit *unit, vector<SpellMapEventRec*>* event_list)
 				// mark as seen
 				units_view[hnext_mxy] = 5;
 				// check new enemy contact
-				if(Lunit)
+				if(!Lunit.empty())
 				{
 					if(!units_view_flags[next_mxy] && Lunit[next_mxy] && Lunit[next_mxy]->is_enemy)
 					{
@@ -4645,7 +4770,7 @@ bool SpellMap::TileIsVisible(int x, int y)
 }
 
 // configure map elements visibility
-void SpellMap::SetRender(bool wL1, bool wL2, bool wL3, bool wL4, bool wSTCI, bool wUnits,bool wSound,bool wSoundLoop)
+void SpellMap::SetRender(bool wL1, bool wL2, bool wL3, bool wL4, bool wSTCI, bool wUnits,bool wSound,bool wSoundLoop,bool wEvents)
 {
 	this->wL1 = wL1;
 	this->wL2 = wL2;
@@ -4655,7 +4780,7 @@ void SpellMap::SetRender(bool wL1, bool wL2, bool wL3, bool wL4, bool wSTCI, boo
 	this->wUnits = wUnits;
 	this->wSound = wSound;
 	this->wSoundLoop = wSoundLoop;
-
+	this->wEvents = wEvents;
 }
 
 // set gamma correction for rendering

@@ -153,6 +153,8 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     menuView->FindItem(ID_ViewSoundLoops)->Check(false);
     menuView->Append(ID_ViewSounds,"Layer 8: Sounds\tF8","",wxITEM_CHECK);
     menuView->FindItem(ID_ViewSounds)->Check(false);
+    menuView->Append(ID_ViewEvents,"Show events\tF9","",wxITEM_CHECK);
+    menuView->FindItem(ID_ViewEvents)->Check(false);
     menuView->Append(ID_ViewHUD,"Show mission HUD panel\tCtrl+H","",wxITEM_CHECK);
     menuView->FindItem(ID_ViewHUD)->Check(spell_map->GetHUDstate());    
     menuView->Append(wxID_ANY,"","",wxITEM_SEPARATOR);
@@ -273,6 +275,7 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     Bind(wxEVT_MENU,&MyFrame::OnViewLayer,this,ID_ViewHUD);
     Bind(wxEVT_MENU,&MyFrame::OnViewLayer,this,ID_ViewSounds);
     Bind(wxEVT_MENU,&MyFrame::OnViewLayer,this,ID_ViewSoundLoops);
+    Bind(wxEVT_MENU,&MyFrame::OnViewLayer,this,ID_ViewEvents);
 
     Bind(wxEVT_MENU,&MyFrame::OnSetGamma,this,ID_SetGamma);
     Bind(wxEVT_MENU,&MyFrame::OnViewSprites,this,ID_ViewSprites);
@@ -600,7 +603,8 @@ void MyFrame::OnViewLayer(wxCommandEvent& event)
     bool wSS = GetMenuBar()->FindItem(ID_ViewStTa)->IsChecked();
     bool wSound = GetMenuBar()->FindItem(ID_ViewSounds)->IsChecked();
     bool wSoundLoop = GetMenuBar()->FindItem(ID_ViewSoundLoops)->IsChecked();
-    spell_map->SetRender(wL1,wL2,wL3,wL4,wSS,wL5,wSound,wSoundLoop);
+    bool wEvents = GetMenuBar()->FindItem(ID_ViewEvents)->IsChecked();
+    spell_map->SetRender(wL1,wL2,wL3,wL4,wSS,wL5,wSound,wSoundLoop,wEvents);
     bool hud = GetMenuBar()->FindItem(ID_ViewHUD)->IsChecked();
     spell_map->SetHUDstate(hud);
     Refresh();

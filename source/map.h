@@ -267,7 +267,7 @@ class SpellMap
 
 		// layer visibility flags
 		bool wL1, wL2, wL3, wL4, wSTCI, wUnits;
-		bool wSound, wSoundLoop;
+		bool wSound, wSoundLoop, wEvents;
 		int w_unit_hud;
 
 		// last gamma
@@ -343,7 +343,7 @@ class SpellMap
 		vector<MapLayer4*> L4; // PNM list				
 		vector<MapXY> start; // start tiles list
 		vector<MapXY> escape; // escape tiles list
-		MapUnit** Lunit; // units layer array
+		vector<MapUnit*> Lunit; // units layer array
 		uint8_t *select; // selection flags array
 		uint32_t *L1_flags; // terrain class flags array
 		// list of units
@@ -365,6 +365,7 @@ class SpellMap
 		int Load(wstring &path, SpellData* spelldata);		
 		int IsLoaded();
 		bool TileIsVisible(int x, int y);
+		tuple<int,int> GetSurfPos(MapXY &pos);
 		
 		MapXY GetSelection(wxBitmap& bmp,TScroll* scroll);
 		vector<MapXY> &GetSelections(wxBitmap& bmp, TScroll* scroll);
@@ -462,7 +463,7 @@ class SpellMap
 		
 		
 
-		void SetRender(bool wL1, bool wL2, bool wL3, bool wL4, bool wSECI, bool wUnits, bool wSound, bool wSoundLoop);
+		void SetRender(bool wL1, bool wL2, bool wL3, bool wL4, bool wSECI, bool wUnits, bool wSound, bool wSoundLoop, bool wEvents);
 		void SetGamma(double gamma);
 		int Tick();
 		wstring GetTopPath();

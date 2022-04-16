@@ -38,10 +38,10 @@ public:
     int evt_type;
     MapXY position;
     int probability;
+    string type_name;
 
     // event is below probability (will not be excuted)
     int hide;
-
     // event executed?
     int is_done;
 
@@ -94,6 +94,7 @@ public:
     int CheckEvent(int pos);
     SpellMapEventsList GetEvents(MapXY pos,bool clear=false);
     SpellMapEventsList GetEvents(int pos,bool clear=false);
+    vector<SpellMapEventRec*> &GetEvents();
     SpellMapEventsList GetMissionStartEvent(bool clear=false);
 
 };
