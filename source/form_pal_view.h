@@ -20,6 +20,7 @@
 #include <wx/settings.h>
 #include <wx/stattext.h>
 #include <wx/panel.h>
+#include <wx/slider.h>
 #include <wx/sizer.h>
 #include <wx/statusbr.h>
 #include <wx/timer.h>
@@ -28,6 +29,7 @@
 #include "spellcross.h"
 #include "sprites.h"
 #include "map.h"
+#include "spell_filter.h"
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -45,19 +47,26 @@ class FormPalView : public wxFrame
 		int sel_pos_x;
 		int relative_time;
 
+		SpellFilterRec *filter;
+
 		static constexpr int TERR_ID0 = 990;
+		static constexpr int FILTER_ID0 = 900;
 
 		void OnClose(wxCloseEvent& ev);
 		void OnCloseClick(wxCommandEvent& event);
 		void OnPaintCanvas(wxPaintEvent& event);
 		void OnPaintColor(wxPaintEvent& event);
 		void OnTerrainChange(wxCommandEvent& event);
+		void OnFilterChange(wxCommandEvent& event);
 		void OnCanvasMouseMove(wxMouseEvent& event);
 		void OnCanvasMouseLeave(wxMouseEvent& event);
 		void OnTimer(wxTimerEvent& event);
+		void OnChangeFilterRGB(wxCommandEvent& event);
+		void OnSaveFilterFile(wxCommandEvent& event);
 
 		Terrain* FindTerrain();
-		void SelectTerrain();
+		//void SelectTerrain();
+		void ListFilters();
 
 
 	protected:
@@ -79,12 +88,18 @@ class FormPalView : public wxFrame
 		wxPanel* canvas;
 		wxStaticText* m_staticText29;
 		wxPanel* color;
+		wxStaticText* txtFilterRed;
+		wxSlider* slideRed;
+		wxStaticText* txtFilterGreen;
+		wxSlider* slideGreen;
+		wxStaticText* txtFilterBlue;
+		wxSlider* slideBlue;
 		wxStatusBar* sbar;
 		wxTimer timer;
 
 	public:
 
-		FormPalView(wxWindow* parent,SpellData* spell_data,wxWindowID id = wxID_FRM_PAL_VIEW,const wxString& title = wxT("Spellcross palette viewer"),const wxPoint& pos = wxDefaultPosition,const wxSize& size = wxSize(974,286),long style = wxDEFAULT_FRAME_STYLE|wxTAB_TRAVERSAL|wxFRAME_FLOAT_ON_PARENT);
+		FormPalView(wxWindow* parent,SpellData* spell_data,wxWindowID id = wxID_FRM_PAL_VIEW,const wxString& title = wxT("Spellcross palette viewer"),const wxPoint& pos = wxDefaultPosition,const wxSize& size = wxSize(950,300),long style = wxDEFAULT_FRAME_STYLE|wxTAB_TRAVERSAL|wxFRAME_FLOAT_ON_PARENT);
 		~FormPalView();
 
 		void SetMap(SpellMap* map);

@@ -1045,8 +1045,15 @@ void MyFrame::OnCanvasMouseMove(wxMouseEvent& event)
     auto [flags,height,code] = spell_map->GetTileFlags(m_buffer,&scroll);
     SetStatusText(wxString::Format(wxT("(0x%02X)"),code),6);
 
+    auto sel_evt = spell_map->GetSelectEvent();
     auto* unit = spell_map->GetSelectedUnit();
-    if(unit && unit->in_placement && mxy.IsSelected())
+    if(sel_evt && sel_evt->in_placement && mxy.IsSelected())
+    {
+        // change event position
+        sel_evt->position = mxy;
+        spell_map->events->ResetEvents();
+    }
+    else if(unit && unit->in_placement && mxy.IsSelected())
     {
         // change unit position
         unit->coor = mxy;
@@ -1147,14 +1154,33 @@ void MyFrame::OnCanvasLMouseDown(wxMouseEvent& event)
         }
         else
         {
-            // try select/move unit:
+            // try select/move unit:            
 
             select_pos = spell_map->GetSelection(m_buffer,&scroll);
             sel_unit = spell_map->GetSelectedUnit();
             cur_unit = spell_map->GetCursorUnit(m_buffer,&scroll);
+            auto sel_evt = spell_map->GetSelectEvent();
+            auto cur_evt = spell_map->GetCursorEvent(m_buffer,&scroll);
             if(!spell_map->isGameMode())
             {
-                if(cur_unit && cur_unit == sel_unit)
+                int wEvents = GetMenuBar()->FindItem(ID_ViewEvents)->IsChecked(); // ###todo: optimize?
+
+                if(wEvents && sel_evt && cur_unit && event.ControlDown())
+                {
+                    // try add/remove unit to event
+                    spell_map->UpdateEventUnit(sel_evt, cur_unit);
+                }
+                else if(wEvents && cur_evt && cur_evt == sel_evt)
+                {
+                    // move/place event           
+                    cur_evt->in_placement = !cur_evt->in_placement;                    
+                }
+                else if(wEvents && cur_evt)
+                {
+                    // select event
+                    spell_map->SelectEvent(cur_evt);
+                }                
+                else if(cur_unit && cur_unit == sel_unit)
                 {
                     // move/place unit
                     sel_unit->in_placement = !sel_unit->in_placement;

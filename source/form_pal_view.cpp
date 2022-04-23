@@ -10,6 +10,8 @@
 #include "other.h"
 
 //#include <filesystem>
+#include <wx/stdpaths.h>
+#include <wx/filedlg.h>
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -20,7 +22,7 @@ FormPalView::FormPalView(wxWindow* parent,SpellData* spell_data,wxWindowID id,co
 
 	// === AUTO GENERATED START ===	
 
-	this->SetSizeHints(wxSize(300,200),wxDefaultSize);
+	this->SetSizeHints(wxSize(950,300),wxDefaultSize);
 	this->SetForegroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOWTEXT));
 	this->SetBackgroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_MENU));
 
@@ -59,6 +61,51 @@ FormPalView::FormPalView(wxWindow* parent,SpellData* spell_data,wxWindowID id,co
 
 	szCanvas->Add(color,1,wxEXPAND|wxBOTTOM|wxRIGHT|wxLEFT,5);
 
+	wxBoxSizer* szFilter;
+	szFilter = new wxBoxSizer(wxHORIZONTAL);
+
+	wxBoxSizer* szRed;
+	szRed = new wxBoxSizer(wxVERTICAL);
+
+	txtFilterRed = new wxStaticText(this,wxID_ANY,wxT("Red:"),wxDefaultPosition,wxDefaultSize,0);
+	txtFilterRed->Wrap(-1);
+	szRed->Add(txtFilterRed,0,wxTOP|wxRIGHT|wxLEFT,5);
+
+	slideRed = new wxSlider(this,wxID_ANY,50,0,100,wxDefaultPosition,wxDefaultSize,wxSL_AUTOTICKS|wxSL_HORIZONTAL);
+	szRed->Add(slideRed,0,wxEXPAND|wxTOP|wxBOTTOM,5);
+
+
+	szFilter->Add(szRed,1,wxEXPAND,5);
+
+	wxBoxSizer* szGreen;
+	szGreen = new wxBoxSizer(wxVERTICAL);
+
+	txtFilterGreen = new wxStaticText(this,wxID_ANY,wxT("Green:"),wxDefaultPosition,wxDefaultSize,0);
+	txtFilterGreen->Wrap(-1);
+	szGreen->Add(txtFilterGreen,0,wxTOP|wxRIGHT|wxLEFT,5);
+
+	slideGreen = new wxSlider(this,wxID_ANY,50,0,100,wxDefaultPosition,wxDefaultSize,wxSL_AUTOTICKS|wxSL_HORIZONTAL);
+	szGreen->Add(slideGreen,0,wxEXPAND|wxTOP|wxBOTTOM,5);
+
+
+	szFilter->Add(szGreen,1,wxEXPAND,5);
+
+	wxBoxSizer* szBlue;
+	szBlue = new wxBoxSizer(wxVERTICAL);
+
+	txtFilterBlue = new wxStaticText(this,wxID_ANY,wxT("Blue:"),wxDefaultPosition,wxDefaultSize,0);
+	txtFilterBlue->Wrap(-1);
+	szBlue->Add(txtFilterBlue,0,wxTOP|wxRIGHT|wxLEFT,5);
+
+	slideBlue = new wxSlider(this,wxID_ANY,50,0,100,wxDefaultPosition,wxDefaultSize,wxSL_AUTOTICKS|wxSL_HORIZONTAL);
+	szBlue->Add(slideBlue,0,wxEXPAND|wxTOP|wxBOTTOM,5);
+
+
+	szFilter->Add(szBlue,1,wxEXPAND,5);
+
+
+	szCanvas->Add(szFilter,0,wxEXPAND,5);
+
 
 	this->SetSizer(szCanvas);
 	this->Layout();
@@ -78,6 +125,7 @@ FormPalView::FormPalView(wxWindow* parent,SpellData* spell_data,wxWindowID id,co
 		mmTerrain->Append(TERR_ID0 + k,terr->name,wxEmptyString,wxITEM_RADIO);
 		Bind(wxEVT_MENU,&FormPalView::OnTerrainChange,this,TERR_ID0 + k);
 	}
+	ListFilters();
 
 	Bind(wxEVT_CLOSE_WINDOW, &FormPalView::OnClose, this, this->m_windowId);
 	Bind(wxEVT_MENU,&FormPalView::OnCloseClick,this,wxID_MM_CLOSE);
@@ -95,6 +143,11 @@ FormPalView::FormPalView(wxWindow* parent,SpellData* spell_data,wxWindowID id,co
 	Connect(wxEVT_TIMER,wxTimerEventHandler(FormPalView::OnTimer),NULL,this);
 	relative_time = 0;
 	timer.Start(200);
+
+	Bind(wxEVT_COMMAND_SLIDER_UPDATED,&FormPalView::OnChangeFilterRGB,this);
+
+	// defaulf filter
+	filter = NULL;
 
 	// default map
 	SetMap(NULL);
@@ -150,9 +203,72 @@ Terrain* FormPalView::FindTerrain()
 }
 
 
+void FormPalView::ListFilters()
+{
+	auto terr = FindTerrain();
+	
+	// loose old list
+	for(int k = mmFilter->GetMenuItemCount(); k-- > 0;)
+		mmFilter->Delete(FILTER_ID0 + k);
+	filter = NULL;
+
+	// make list of filters
+	for(int k = 0; k < terr->filter.list.size(); k++)
+	{
+		auto filter = terr->filter.list[k];
+		mmFilter->Append(FILTER_ID0 + k, wxString(filter->name),wxEmptyString,wxITEM_RADIO);
+		Bind(wxEVT_MENU,&FormPalView::OnFilterChange,this,FILTER_ID0 + k);
+	}
+	if(terr->filter.list.size())
+		mmFilter->Check(FILTER_ID0, true);
+
+	mmFilter->Append(wxID_ANY,wxEmptyString,wxEmptyString,wxITEM_SEPARATOR);
+	mmFilter->Append(FILTER_ID0 + terr->filter.list.size(),wxString("Save New Filter"),wxEmptyString,wxITEM_NORMAL);
+	Bind(wxEVT_MENU,&FormPalView::OnSaveFilterFile,this,FILTER_ID0 + terr->filter.list.size());
+}
+
+// save current temp filter
+void FormPalView::OnSaveFilterFile(wxCommandEvent& event)
+{
+	if(!filter)
+		return;
+	
+	// split path to folder and file
+	std::filesystem::path last_path = wxStandardPaths::Get().GetExecutablePath().ToStdWstring();
+	wstring dir = last_path.parent_path() / L"";
+	wstring name = last_path.filename();
+
+	// show save dialog
+	wxFileDialog saveFileDialog(this,_("Save Spellcross filter file"),dir,name,"Filter file (*.pal)|*.pal",wxFD_SAVE);
+	if(saveFileDialog.ShowModal() == wxID_CANCEL)
+		return;
+	wstring path = wstring(saveFileDialog.GetPath().ToStdWstring());
+
+	// try save
+	filter->SaveFilter(path);	
+}
+
+void FormPalView::OnFilterChange(wxCommandEvent& event)
+{	
+	auto terr = FindTerrain();
+	int filter_id = event.GetId() - FILTER_ID0;
+	filter = terr->filter.list[filter_id];	
+	canvas->Refresh();
+}
+
+void FormPalView::OnChangeFilterRGB(wxCommandEvent& event)
+{
+	auto terr = FindTerrain();
+	auto filter = terr->filter.GetTempFilter();		
+	if(filter)
+		filter->SetFilter(&terr->pal[0][0], "New Filter *",(double)slideRed->GetValue()*0.02,(double)slideGreen->GetValue()*0.02,(double)slideBlue->GetValue()*0.02);
+	canvas->Refresh();
+}
+
 
 void FormPalView::OnTerrainChange(wxCommandEvent& event)
 {
+	ListFilters();
 	canvas->Refresh();
 }
 
@@ -167,9 +283,12 @@ void FormPalView::OnPaintCanvas(wxPaintEvent& event)
 	// get this terrain
 	Terrain* terrain = FindTerrain();
 	if(terrain)
-	{
+	{		
 		// render palette
-		terrain->RenderPalette(bmp, relative_time);
+		uint8_t* fil = NULL;
+		if(filter)
+			fil = filter->filter;
+		terrain->RenderPalette(bmp, fil, relative_time);
 	}
 	
 	// blit to screen
@@ -202,7 +321,10 @@ void FormPalView::OnPaintColor(wxPaintEvent& event)
 	if(terrain)
 	{
 		// render palette
-		int color = terrain->RenderPaletteColor(bmp, canvas->GetClientSize().GetWidth(),sel_pos_x);		
+		uint8_t* fil = NULL;
+		if(filter)
+			fil = filter->filter;
+		int color = terrain->RenderPaletteColor(bmp, canvas->GetClientSize().GetWidth(),sel_pos_x,fil);
 		if(color >= 0)
 			state = string_format("Color = #%d (0x%02X), R = %d, G = %d, B = %d, RGB = 0x%02X%02X%02X", color, color,
 				terrain->pal[color][0],terrain->pal[color][1],terrain->pal[color][2],

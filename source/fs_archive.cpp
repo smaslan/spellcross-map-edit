@@ -18,37 +18,46 @@ using namespace std;
 // load entire archive file
 FSarchive::FSarchive(wstring &path)
 {
+	names.clear();
+	data.clear();
+	sizes.clear();
+	Append(path);
+}
+
+// load more data to FS archive object
+void FSarchive::Append(wstring& path)
+{
 	// try to open FS archive
-	ifstream fr(path, ios::in | ios::binary);
+	ifstream fr(path,ios::in | ios::binary);
 	if(!fr)
 		throw runtime_error(string_format("Cannot open \"%s\"!",path));
 
 	// get count of files in archive
 	uint32_t count;
-	fr.read((char*)&count, sizeof(uint32_t));
+	fr.read((char*)&count,sizeof(uint32_t));
 
-	for (int i = 0; i < count; i++)
+	for(int i = 0; i < count; i++)
 	{
 		//read file name
 		char* name = new char[14];
-		memset(name, '\0', 14);
-		fr.read(name, 13);
+		memset(name,'\0',14);
+		fr.read(name,13);
 
 		// get file offset
 		uint32_t afofs;
-		fr.read((char*)&afofs, sizeof(uint32_t));
-		
+		fr.read((char*)&afofs,sizeof(uint32_t));
+
 		// get file len
 		uint32_t aflen;
-		fr.read((char*)&aflen, sizeof(uint32_t));
+		fr.read((char*)&aflen,sizeof(uint32_t));
 
 		// copy file data to new buffer
 		uint8_t* file_data = new uint8_t[aflen];
 		streampos next = fr.tellg();
 		fr.seekg(afofs);
-		fr.read((char*)file_data, aflen);
+		fr.read((char*)file_data,aflen);
 		fr.seekg(next);
-		
+
 		// store file name to list
 		this->names.push_back(name);
 
@@ -58,11 +67,11 @@ FSarchive::FSarchive(wstring &path)
 		// store file size
 		this->sizes.push_back(aflen);
 	}
-	
+
 	// close file
 	fr.close();
-	
 }
+
 
 // clear archive data
 FSarchive::~FSarchive()

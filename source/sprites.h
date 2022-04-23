@@ -22,6 +22,7 @@
 #include "fsu_archive.h"
 #include "map_types.h"
 #include "spell_font.h"
+#include "spell_filter.h"
 
 #include "wx/dcbuffer.h"
 
@@ -378,15 +379,7 @@ public:
 	// color palette
 	uint8_t pal[256][3];
 	// filters
-	struct {
-		uint8_t nullpal[256];
-		uint8_t darkpal[256];
-		uint8_t darkpal2[256];
-		uint8_t darker[256];
-		uint8_t bluepal[256];
-		uint8_t dbluepal[256];
-		uint8_t redpal[256];
-	} filter;
+	SpellFilters filter;	
 	// fonts
 	SpellFont *font;
 	SpellFont *font7;
@@ -396,7 +389,7 @@ public:
 	// void contructor
 	Terrain();
 	~Terrain();
-	int Load(wstring &path);
+	int Load(wstring &path, wstring &aux_path);
 	Sprite* GetSprite(const char* name);
 	Sprite* GetSprite(int index);
 	int GetSpriteID(Sprite *spr);
@@ -451,8 +444,8 @@ public:
 	wxBitmap* RenderToolSetItemImage(int tool_id, int item_id, double gamma=1.30, int x_size=-1, int y_size=-1, bool no_zoom=true);
 	tuple<int, int> GetToolSetItemImageSize(int tool_id, int item_id);
 
-	int RenderPalette(wxBitmap& bmp,int relative_time=0);
-	int RenderPaletteColor(wxBitmap& bmp,int x_size,int x_pos);
+	int RenderPalette(wxBitmap& bmp,uint8_t* filter=NULL,int relative_time=0);
+	int RenderPaletteColor(wxBitmap& bmp,int x_size,int x_pos,uint8_t* filter=NULL);
 	
 
 	static constexpr int RENDER_CENTER = 0x01;

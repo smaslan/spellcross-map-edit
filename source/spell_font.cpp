@@ -316,7 +316,7 @@ int SpellFont::Render(uint8_t* buffer,uint8_t* buf_end,int buf_x_size,int x_pos,
 {
 	int tot_y = text.size()*m_max_y;
 	y_pos = y_pos + y_limit/2 - tot_y/2 - 0*m_max_y/2;
-	int x_end;
+	int x_end = 0;
 	for(auto & txt : text)
 	{
 		x_end = max(x_end, Render(buffer,buf_end,buf_x_size,x_pos,y_pos,x_limit,m_max_y,txt,color,bg_color,shadow));

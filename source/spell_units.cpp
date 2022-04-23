@@ -1137,7 +1137,7 @@ int MapUnit::CanSpecAction()
 	return(action_points >= unit->action_ap);
 }
 
-int MapUnit::Render(Terrain* data,uint8_t* buffer,uint8_t* buf_end,int buf_x_pos,int buf_y_pos,int buf_x_size,uint8_t *filter,Sprite* sprt,int show_hud)
+int MapUnit::Render(Terrain* data,uint8_t* buffer,uint8_t* buf_end,int buf_x_pos,int buf_y_pos,int buf_x_size,uint8_t *filter,uint8_t* hud_filter,Sprite* sprt,int show_hud)
 {
 	if(!is_visible)
 		return(0);	
@@ -1152,8 +1152,8 @@ int MapUnit::Render(Terrain* data,uint8_t* buffer,uint8_t* buf_end,int buf_x_pos
 	// render unit
 	auto [x_status_bar,y_status_bar] = unit->Render(buffer, buf_end, buf_x_pos, buf_y_pos, buf_x_size,filter,shadow_filter, sprt, azimuth, azimuth_turret, loc_frame, in_animation, altitude);
 	
-	if(!filter)
-		filter = data->filter.nullpal;
+	if(!hud_filter)
+		hud_filter = data->filter.nullpal;
 
 	// -- make status bar
 	if(!show_hud)
@@ -1171,7 +1171,7 @@ int MapUnit::Render(Terrain* data,uint8_t* buffer,uint8_t* buf_end,int buf_x_pos
 	{
 		uint8_t* buf = &psb[y*buf_x_size];
 		for(int x = 0; x < bar_w; x++)
-			buf[x] = filter[shadow_filter[buf[x]]];
+			buf[x] = hud_filter[shadow_filter[buf[x]]];
 	}
 
 	// hitpoints bar size
@@ -1196,7 +1196,7 @@ int MapUnit::Render(Terrain* data,uint8_t* buffer,uint8_t* buf_end,int buf_x_pos
 		{
 			uint8_t* buf = &psb[y*buf_x_size];
 			for(int x = 1; x <= ap; x++)
-				buf[x] = filter[ap_color];
+				buf[x] = hud_filter[ap_color];
 		}
 	}
 	
@@ -1208,7 +1208,7 @@ int MapUnit::Render(Terrain* data,uint8_t* buffer,uint8_t* buf_end,int buf_x_pos
 	{
 		uint8_t* buf = &psb[y*buf_x_size];
 		for(int x = 1; x <= hp; x++)
-			buf[x] = filter[hp_color];
+			buf[x] = hud_filter[hp_color];
 	}
 
 	// render special unit type mark
@@ -1221,7 +1221,7 @@ int MapUnit::Render(Terrain* data,uint8_t* buffer,uint8_t* buf_end,int buf_x_pos
 	{
 		uint8_t* buf = &psb[y*buf_x_size];
 		for(int x = bar_w-3; x < bar_w-1; x++)
-			buf[x] = filter[type_color];
+			buf[x] = hud_filter[type_color];
 	}
 
 	// render fire count
@@ -1231,9 +1231,9 @@ int MapUnit::Render(Terrain* data,uint8_t* buffer,uint8_t* buf_end,int buf_x_pos
 		for(int k = 0; k < fires; k++)
 		{		
 			uint8_t* buf = &psb[9*buf_x_size + 1 + k*4];
-			buf[0] = filter[253]; buf[1] = filter[253]; buf[2] = filter[202];
+			buf[0] = hud_filter[253]; buf[1] = hud_filter[253]; buf[2] = hud_filter[202];
 			buf += buf_x_size;
-			buf[0] = filter[253]; buf[1] = filter[202]; buf[2] = filter[202];
+			buf[0] = hud_filter[253]; buf[1] = hud_filter[202]; buf[2] = hud_filter[202];
 		}
 	}
 
@@ -1241,19 +1241,19 @@ int MapUnit::Render(Terrain* data,uint8_t* buffer,uint8_t* buf_end,int buf_x_pos
 	for(int k = 0; k < dig_level; k++)
 	{
 		uint8_t* buf = &psb[12*buf_x_size + 1 + k*4];
-		buf[0] = filter[252]; buf[1] = filter[252]; buf[2] = filter[214];
+		buf[0] = hud_filter[252]; buf[1] = hud_filter[252]; buf[2] = hud_filter[214];
 		buf += buf_x_size;
-		buf[0] = filter[252]; buf[1] = filter[214]; buf[2] = filter[214];
+		buf[0] = hud_filter[252]; buf[1] = hud_filter[214]; buf[2] = hud_filter[214];
 	}
 
 	if(commander_id && !is_enemy)
 	{
 		// render commander id
-		data->font7->RenderSymbol(psb, psb_end, buf_x_size, 19, 1, '0'+commander_id,filter[232]);
+		data->font7->RenderSymbol(psb, psb_end, buf_x_size, 19, 1, '0'+commander_id,hud_filter[232]);
 
 		// render commander mark
 		if(is_commander)
-			data->font7->RenderSymbol(psb,psb_end,buf_x_size,24,1,31,filter[232]);
+			data->font7->RenderSymbol(psb,psb_end,buf_x_size,24,1,31,hud_filter[232]);
 
 	}
 	

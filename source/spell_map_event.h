@@ -34,11 +34,13 @@ public:
         EVT_SEE_PLACE
     };
 
+    int in_placement;
+
     // event trigger parameters
     int evt_type;
     MapXY position;
     int probability;
-    string type_name;
+    string type_name;    
 
     // event is below probability (will not be excuted)
     int hide;
@@ -54,6 +56,8 @@ public:
     // event invoked text message(s) (there should be just one, but you never know...)
     vector<SpellMapEventMessageRec> texts;
 
+    int AddUnit(MapUnit *unit);
+    MapUnit *ExtractUnit(MapUnit* unit);
     SpellMapEventRec();
     ~SpellMapEventRec();
     int isMissionStart();
@@ -70,6 +74,8 @@ private:
     // map size
     int x_size;
     int y_size;
+    // game mode?
+    int &is_game_mode;
     // unit index (only for loading)
     int next_index;
     // list of events
@@ -85,7 +91,7 @@ private:
 
 public:
 
-    SpellMapEvents(int x_size, int y_size);
+    SpellMapEvents(int x_size, int y_size, int& game_mode);
     ~SpellMapEvents();
     int AddEvent(SpellData* data, SpellDEF* def, SpellDefCmd* cmd);
     void ResetEvents();

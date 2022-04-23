@@ -35,6 +35,8 @@
     <ClCompile Include="map.cpp" />
     <ClCompile Include="other.cpp" />
     <ClCompile Include="RtAudio.cpp" />
+    <ClCompile Include="Source.cpp" />
+    <ClCompile Include="spell_filter.cpp" />
     <ClCompile Include="spell_texts.cpp" />
     <ClCompile Include="spell_graphics.cpp" />
     <ClCompile Include="spellcross.cpp" />
@@ -58,6 +60,7 @@
     <ClInclude Include="form_unit_options.h" />
     <ClInclude Include="fsu_archive.h" />
     <ClInclude Include="fs_archive.h" />
+    <ClInclude Include="spell_filter.h" />
     <ClInclude Include="spell_texts.h" />
     <ClInclude Include="spell_map_event.h" />
     <ClInclude Include="RtAudio.h" />

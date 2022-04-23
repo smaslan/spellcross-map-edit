@@ -234,6 +234,7 @@ SpellMap::SpellMap()
 
 	unit_selection = NULL;
 	hud_enabled = true;
+	selected_event = NULL;
 
 	unit_range_th = NULL;
 	unit_range_th_control = UNIT_RANGE_TH_IDLE;
@@ -350,6 +351,7 @@ void SpellMap::Close()
 
 	ClearHUDbuttons();
 
+	selected_event = NULL;
 	unit_sel_land_preference = true;
 	w_unit_hud = true;
 	units_view_mask.clear();
@@ -400,7 +402,7 @@ int SpellMap::Create(SpellData* spelldata, const char *terr_name, int x, int y)
 	filter.resize(x_size*y_size);
 
 	// create events
-	events = new SpellMapEvents(x_size, y_size);
+	events = new SpellMapEvents(x_size, y_size, game_mode);
 
 	// generate plain map
 	for(int k = 0; k < (x_size * y_size); k++)
@@ -886,7 +888,7 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 	pnm_sipka = MapLayer4(spelldata->pnm_sipka);
 
 	// create events list
-	events = new SpellMapEvents(x_size,y_size);
+	events = new SpellMapEvents(x_size,y_size,game_mode);
 
 	//////////////////////////
 	///// Load DEF stuff /////
@@ -1085,9 +1087,7 @@ void SpellMap::InvalidateUnitsView()
 
 // this sorts units list for proper render order, call after load or units changes
 void SpellMap::SortUnits()
-{
-	int k;
-		
+{	
 	// clear units layer array
 	Lunit.assign(x_size*y_size, NULL);
 
@@ -1822,8 +1822,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 		// update view mask (this should be probably somewhere else?)
 		ClearUnitsView(false);
 		AddUnitsView();				
-	}
-	
+	}	
 	
 	MapUnit* unit = GetSelectedUnit();	
 	if((units_moved || unit_changed || !unit) && !unit->isMoving())
@@ -1835,7 +1834,8 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 		CalcUnitAttackRange(unit);
 	}
 
-	
+	// check unit on cursor
+	MapUnit* cursor_unit = GetCursorUnit(bmp,scroll);
 
 	// lock stuff while rendering
 	FindUnitRangeLock(true);
@@ -2135,7 +2135,6 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 				continue;
 			else if(hide_units)
 				filter = terrain->filter.darkpal;
-			
 
 			// render origin
 			int mxx = n * 80 + (((m & 1) != 0) ? 0 : 40);
@@ -2149,7 +2148,11 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 				{
 					if ((pass == 0 && unit->unit->isAir()) || pass == 2)
 					{
-						int top_y_ofs = unit->Render(terrain, pic, pic_end, mxx, myy, pic_x_size, filter, sid, w_unit_hud);
+						// render unit
+						uint8_t* filter_unit = NULL;
+						if(cursor_unit == unit && !game_mode)
+							filter_unit = terrain->filter.goldpal;
+						int top_y_ofs = unit->Render(terrain, pic, pic_end, mxx, myy, pic_x_size,filter_unit, filter, sid, w_unit_hud);
 						
 						// store attack-target positions in buffer (for projectile trajectory calculation)
 						if(unit->isAttacker())
@@ -2313,8 +2316,12 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 				myy2 += spr->y_ofs + spr->y_size/2;
 				if(unit.unit->unit->isAir())
 					myy2 += SpellUnitRec::AIR_UNIT_FLY_HEIGHT;
+				
+				int is_selected = (cursor_unit == unit.unit || evt == GetSelectEvent());
 
-				plot_line(pic,pic_end,0,0,pic_x_size,252, mxx,myy, mxx2,myy2);
+				const struct {int x;int y;int color;} ofs[] = {{0,0,252},{0,1,253},{0,-1,253},{1,0,253},{-1,0,253}};
+				for(int k = (is_selected*4); k >= 0 ; k--)
+					plot_line(pic,pic_end,0,0,pic_x_size, ofs[k].color, mxx+ofs[k].x,myy+ofs[k].y, mxx2+ofs[k].x,myy2+ofs[k].y);
 			}
 		}		
 		
@@ -2342,12 +2349,18 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 
 				vector<string> labels;
 				auto list = events->GetEvents(mxy);
+				int is_selected = false;
 				for(auto & evt : list)
 				{										
 					labels.push_back("\x1C" + evt->type_name);
+					if(!evt->units.empty())
+						labels.back() += "\x1A";
+					if(!evt->texts.empty())
+						labels.back() += "\x1B";
+					is_selected |= (GetSelectEvent() == evt && !evt->in_placement);
 				}
 
-				int color = 252;
+				int color = (is_selected && sel_blink_state)?214:252;
 				terrain->font->Render(pic,pic_end,pic_x_size,mxx,myy,80,spr->y_size,labels,color,254,SpellFont::SOLID);
 			}
 		}
@@ -2434,8 +2447,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 		terrain->font->Render(pic,pic_end,pic_x_size,surf_x_origin+surf_x-150,surf_y_origin+0,150,50,unit_view_string,255,254,SpellFont::RIGHT_DOWN);
 	
 	
-	// check unit on cursor
-	MapUnit* cursor_unit = GetCursorUnit(bmp, scroll);
+	
 		
 	// render HUD
 	RenderHUD(pic, pic_end, pic_x_size, &cursor, cursor_unit, hud_buttons_cb);
@@ -4799,6 +4811,12 @@ int SpellMap::Tick()
 
 	int update = false;
 
+	static int tick_250ms_div;
+	tick_250ms_div++;
+	if(tick_250ms_div >= 25)
+		tick_250ms_div = 0;
+	int tick_250ms = (tick_250ms_div == 0);
+
 	static int tick_100ms_div;
 	tick_100ms_div++;
 	if(tick_100ms_div >= 10)
@@ -4816,6 +4834,12 @@ int SpellMap::Tick()
 	if(tick_30ms_div >= 3)
 		tick_30ms_div = 0;
 	int tick_30ms = (tick_30ms_div == 0);
+
+	if(tick_250ms)
+	{
+		// selection blinking
+		sel_blink_state = !sel_blink_state;
+	}
 
 	if(tick_100ms)
 	{
@@ -5638,6 +5662,23 @@ int SpellMap::RemoveUnit(MapUnit* unit)
 	return(0);
 }
 
+// extracts unit from map units list, but not deletes it (used to move unit elsewhere)
+MapUnit* SpellMap::ExtractUnit(MapUnit* unit)
+{
+	// try find unit in the list
+	auto uid = find(units.begin(),units.end(),unit);
+	if(uid == units.end())
+		return(NULL); // not found
+	
+	// remove from list
+	units.erase(uid);
+	
+	// resort units
+	SortUnits();
+
+	return(unit);
+}
+
 // create new map unit (by parent unit)
 int SpellMap::CreateUnit(MapUnit *parent, SpellUnitRec *new_type)
 {
@@ -5664,6 +5705,13 @@ int SpellMap::CreateUnit(MapUnit *parent, SpellUnitRec *new_type)
 	unit->parent = parent;
 	parent->child = unit;		
 	
+	return(0);
+}
+
+// add unit to map list (assuming there is no conflict)
+int SpellMap::AddUnit(MapUnit* unit)
+{
+	units.push_back(unit);
 	return(0);
 }
 
@@ -5923,9 +5971,57 @@ int SpellMap::ProcEventsList(SpellMapEventsList &list)
 	return(0);
 }
 
+// get first event at cursor position or NULL if not found
+SpellMapEventRec* SpellMap::GetCursorEvent(wxBitmap& bmp,TScroll* scroll)
+{
+	// find selection tiles
+	auto msel = GetSelections(bmp,scroll);
 
+	// no selection?
+	if(!msel.size() || !msel[0].IsSelected())
+		return(NULL);
+	auto& pos = msel[0];
 
+	auto evt = events->GetEvent(pos);
+	return(evt);
+}
 
+// select/deselect event
+int SpellMap::SelectEvent(SpellMapEventRec* evt)
+{
+	selected_event = evt;
+	return(0);
+}
+SpellMapEventRec* SpellMap::GetSelectEvent()
+{
+	return(selected_event);
+}
+
+// moves unit from map list to event or back
+int SpellMap::UpdateEventUnit(SpellMapEventRec* evt,MapUnit* unit)
+{
+	// it the unit in map?
+	auto free_unit = ExtractUnit(unit);
+	if(free_unit)
+	{
+		// yaha: move unit from map to event
+		evt->AddUnit(unit);
+		SortUnits();
+		return(0);
+	}
+	
+	// nope: look for it in event	
+	free_unit = evt->ExtractUnit(unit);
+	if(free_unit)
+	{
+		AddUnit(free_unit);
+		SortUnits();
+		return(0);
+	}
+	
+	// unit is not found, most likely belongs to other event, do nothing
+	return(1);
+}
 
 
 

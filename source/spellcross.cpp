@@ -195,17 +195,19 @@ SpellData::SpellData(wstring &data_path,wstring& cd_data_path,wstring& spec_path
 	spell_data_root = data_path;
 
 	// load terrains
-	const wchar_t* terrain_list[] ={L"\\T11.FS",
+	const wchar_t* terrain_list[] ={ L"\\T11.FS",
 									 L"\\PUST.FS",
 									 L"\\DEVAST.FS"};
 	for(unsigned k = 0; k < sizeof(terrain_list)/sizeof(const wchar_t*); k++)
 	{
 		// terrain archive path
 		wstring path = data_path + terrain_list[k];
+		// aux terrain data path
+		wstring aux_path = spec_path + terrain_list[k];		
 
 		// load terrain
 		Terrain* new_terrain = new Terrain();
-		new_terrain->Load(path);
+		new_terrain->Load(path, aux_path);
 
 		// store to list
 		terrain.push_back(new_terrain);

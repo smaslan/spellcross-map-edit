@@ -19,6 +19,7 @@ class FSarchive
 	public:
 		FSarchive(wstring &path);
 		~FSarchive();
+		void Append(wstring& path);
 		int GetFile(const char* name, uint8_t** data, int* size);
 		int GetFile(int id, uint8_t** data, int* size, char** name=NULL);
 		string GetFile(const char* name);

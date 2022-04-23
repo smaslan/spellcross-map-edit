@@ -824,7 +824,8 @@ void FSU_sprite::Render(uint8_t* buffer, uint8_t* buf_end, int buf_x_pos, int bu
 					if(*data == 0xFD && shadow_filter)
 					{
 						// shadow it is - convert original color using filter
-						*scan = filter[shadow_filter[*scan]];
+						//*scan = filter[shadow_filter[*scan]];
+						*scan = shadow_filter[*scan];
 					}
 					else if(*data)
 					{

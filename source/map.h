@@ -300,6 +300,9 @@ class SpellMap
 		void SyncShading();
 		int CheckTileShading(MapXY& pos,Sprite* spr);
 
+		// stuff selection blink state
+		int sel_blink_state;
+
 		class t_xypos{
 		public:
 			int x;
@@ -411,6 +414,8 @@ class SpellMap
 		
 
 		int RemoveUnit(MapUnit* unit);
+		MapUnit *ExtractUnit(MapUnit* unit);
+		int AddUnit(MapUnit* unit);
 		int CreateUnit(MapUnit* parent,SpellUnitRec* new_type);
 		int PlaceUnit(MapUnit* unit);
 		void SortUnits();
@@ -457,9 +462,14 @@ class SpellMap
 
 		// events stuff
 		SpellMapEventsList event_list; // pending events
+		SpellMapEventRec *selected_event; // currently selected event (only in placement)		
 		int ResetUnitEvents();
 		int MissionStartEvent();
 		int ProcEventsList(SpellMapEventsList &list);
+		SpellMapEventRec *GetCursorEvent(wxBitmap& bmp,TScroll* scroll);
+		int SelectEvent(SpellMapEventRec *evt);
+		SpellMapEventRec* GetSelectEvent();
+		int UpdateEventUnit(SpellMapEventRec *evt, MapUnit* unit);
 		
 		
 

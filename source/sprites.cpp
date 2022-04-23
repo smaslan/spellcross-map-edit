@@ -1310,7 +1310,7 @@ Terrain::~Terrain()
 	tools.clear();
 }
 
-int Terrain::Load(wstring &path)
+int Terrain::Load(wstring &path, wstring& aux_path)
 {	
 	// store terrain tag name
 	const wchar_t *tag = wcsrchr(path.c_str(), '\\');
@@ -1328,6 +1328,11 @@ int Terrain::Load(wstring &path)
 	// try to load FS archive
 	FSarchive* fs;
 	fs = new FSarchive(path);
+	
+	// try load aux FS data
+	try{
+		fs->Append(aux_path);
+	}catch(...){};
 
 	// --- read files from archive:
 	int sprite_index = 0;
@@ -1456,19 +1461,8 @@ int Terrain::Load(wstring &path)
 					///// Filter /////
 					//////////////////
 					
-					// these are color reindexing filters, ie. 256 bytes represent new 256 colors, each points to some original color
-					if (!_strcmpi(full_name, "darkpal.pal"))
-						memcpy((void*)filter.darkpal, (void*)data, 256);
-					else if (!_strcmpi(full_name, "darkpal2.pal"))
-						memcpy((void*)filter.darkpal2, (void*)data, 256);
-					else if (!_strcmpi(full_name, "darker.pal"))
-						memcpy((void*)filter.darker, (void*)data, 256);
-					else if (!_strcmpi(full_name, "bluepal.pal"))
-						memcpy((void*)filter.bluepal, (void*)data, 256);
-					else if (!_strcmpi(full_name, "dbluepal.pal"))
-						memcpy((void*)filter.dbluepal, (void*)data, 256);
-					else if (!_strcmpi(full_name, "redpal.pal"))
-						memcpy((void*)filter.redpal, (void*)data, 256);
+					// these are color reindexing filters, ie. 256 bytes represent new 256 colors, each points to some original color					
+					filter.AddFilter(data,full_name);						
 
 					//st->Caption = "Loading " + N_terr + ": " + IntToStr(fcnt) + " - " + AnsiString(name);
 					fcnt++;
@@ -1476,10 +1470,6 @@ int Terrain::Load(wstring &path)
 			}
 		}
 	}
-
-	// generate neutral filter
-	for(unsigned k = 0; k < 256; k++)
-		filter.nullpal[k] = k;
 
 	// free archive
 	delete fs;
@@ -3306,7 +3296,7 @@ string Terrain::GetToolSetItem(int toolset_id, int tool_id)
 
 
 // render palette into bitmap (scale up as much as possible)
-int Terrain::RenderPalette(wxBitmap& bmp, int relative_time)
+int Terrain::RenderPalette(wxBitmap& bmp, uint8_t* filter, int relative_time)
 {
 	// canvas size
 	int surf_x = bmp.GetWidth();
@@ -3324,6 +3314,9 @@ int Terrain::RenderPalette(wxBitmap& bmp, int relative_time)
 		int src = (k + relative_time)%10 + 240;
 		std::memcpy((void*)&cpal[k][0],(void*)&pal[src][0],3);
 	}
+
+	// split vertically
+	int filter_y_limit = surf_y/2;
 		
 	// render 24bit RGB data to raw bmp buffer
 	wxNativePixelData data(bmp);
@@ -3342,6 +3335,8 @@ int Terrain::RenderPalette(wxBitmap& bmp, int relative_time)
 			else if(x >= x_ofs && x < x_end)
 			{
 				int color = (x - x_ofs)/x_color_width;
+				if(filter && y > filter_y_limit)
+					color = filter[color];
 				*scan++ = cpal[color][2];
 				*scan++ = cpal[color][1];
 				*scan++ = cpal[color][0];
@@ -3360,7 +3355,7 @@ int Terrain::RenderPalette(wxBitmap& bmp, int relative_time)
 	return(0);
 }
 // render palette color selection into canvas
-int Terrain::RenderPaletteColor(wxBitmap& bmp, int x_size, int x_pos)
+int Terrain::RenderPaletteColor(wxBitmap& bmp, int x_size, int x_pos, uint8_t *filter)
 {
 	// canvas size
 	int surf_x = bmp.GetWidth();
@@ -3373,6 +3368,8 @@ int Terrain::RenderPaletteColor(wxBitmap& bmp, int x_size, int x_pos)
 
 	int is_selected = x_pos >= x_ofs && x_pos < x_end;
 	int pal_id = (is_selected)?((x_pos - x_ofs)/x_color_width):-1;
+	if(filter)
+		pal_id = filter[pal_id];
 
 	// render 24bit RGB data to raw bmp buffer
 	wxNativePixelData data(bmp);

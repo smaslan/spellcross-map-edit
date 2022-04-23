@@ -1,6 +1,7 @@
 #include "spell_map_event.h"
 #include <stdexcept>
 #include <tuple>
+#include <algorithm>
 
 using namespace std;
 
@@ -10,12 +11,31 @@ SpellMapEventRec::SpellMapEventRec()
 	is_done = false;
 	next = NULL;
 	hide = false;
+	in_placement = false;
 }
 SpellMapEventRec::~SpellMapEventRec()
 {
 	for(auto & unit : units)
 		delete unit.unit;
 	units.clear();
+}
+int SpellMapEventRec::AddUnit(MapUnit* unit)
+{
+	units.push_back(unit);
+	return(0);
+}
+MapUnit *SpellMapEventRec::ExtractUnit(MapUnit* unit)
+{	
+	for(auto it = begin(units); it != end(units); it++)
+		if(it->unit == unit)
+		{
+			// remove from list, but not delete
+			units.erase(it);
+			// return unit
+			return(unit);
+		}
+	// not found
+	return(NULL);
 }
 int SpellMapEventRec::isMissionStart()
 {
@@ -41,11 +61,12 @@ int SpellMapEventRec::isDone()
 
 
 // create events list
-SpellMapEvents::SpellMapEvents(int x_size, int y_size)
+SpellMapEvents::SpellMapEvents(int x_size, int y_size, int &game_mode)
+	: is_game_mode(game_mode)
 {
     this->x_size = x_size;
-    this->y_size = y_size;
-	next_index = 0;
+    this->y_size = y_size;	
+	next_index = 0;	
 }
 // cleanup
 SpellMapEvents::~SpellMapEvents()
@@ -356,7 +377,7 @@ SpellMapEventsList SpellMapEvents::GetEvents(int pos,bool clear)
 	auto evt = events_map[pos];
 	while(evt)
 	{
-		if(!evt->is_done && evt->isSeePlace() && !evt->hide)
+		if(!evt->is_done && evt->isSeePlace() && (!evt->hide || !is_game_mode))
 			list.push_back(evt);
 		if(clear)
 			evt->is_done = true;
