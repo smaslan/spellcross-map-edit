@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="form_events.cpp" />
     <ClCompile Include="form_gr_view.cpp" />
     <ClCompile Include="form_message_box.cpp" />
     <ClCompile Include="form_new_object.cpp" />
@@ -35,7 +36,6 @@
     <ClCompile Include="map.cpp" />
     <ClCompile Include="other.cpp" />
     <ClCompile Include="RtAudio.cpp" />
-    <ClCompile Include="Source.cpp" />
     <ClCompile Include="spell_filter.cpp" />
     <ClCompile Include="spell_texts.cpp" />
     <ClCompile Include="spell_graphics.cpp" />
@@ -49,6 +49,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="cvt_xmi2mid.hpp" />
+    <ClInclude Include="form_events.h" />
     <ClInclude Include="form_gr_view.h" />
     <ClInclude Include="form_message_box.h" />
     <ClInclude Include="form_new_object.h" />

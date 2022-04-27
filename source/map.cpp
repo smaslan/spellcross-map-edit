@@ -1626,6 +1626,14 @@ MapXY SpellMap::GetSelection(wxBitmap& bmp,TScroll* scroll)
 	else
 		return(MapXY());
 }
+MapXY SpellMap::GetSelection()
+{
+	if(msel.empty() || !msel[0].IsSelected())
+		return(MapXY());
+	else
+		return(msel[0]);
+}
+
 // get selection elevation
 int SpellMap::GetElevation(wxBitmap& bmp,TScroll* scroll)
 {
@@ -2294,6 +2302,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 	if(wEvents)
 	{
 		terrain->font->SetFilter(terrain->filter.darker);
+		terrain->font7->SetFilter(terrain->filter.darker);
 		
 		// render event-unit connection lines:
 		for(auto & evt : events->GetEvents())
@@ -2325,6 +2334,8 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 			}
 		}		
 		
+		auto start_evts = events->GetMissionStartEvent();
+
 		// render event marks:
 		for(m = 0; m < ys_size; m++)
 		{
@@ -2338,30 +2349,70 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 				int y_pos = m + ys_ofs*2;
 				int mxy = ConvXY(x_pos,y_pos);
 
-				if(!events->CheckEvent(mxy))
-					continue;
-
 				// get tile
 				Sprite* spr = L1[mxy];
 				int sof = elev[mxy];
 				int mxx = n * 80 + (((m & 1) != 0) ? 0 : 40);
 				int myy = m * 24 - sof * 18 + MSYOFS + 50 + spr->y_ofs;
 
-				vector<string> labels;
-				auto list = events->GetEvents(mxy);
-				int is_selected = false;
-				for(auto & evt : list)
-				{										
-					labels.push_back("\x1C" + evt->type_name);
-					if(!evt->units.empty())
-						labels.back() += "\x1A";
-					if(!evt->texts.empty())
-						labels.back() += "\x1B";
-					is_selected |= (GetSelectEvent() == evt && !evt->in_placement);
+				if(events->CheckEvent(mxy))
+				{	
+					vector<string> labels;
+					auto list = events->GetEvents(mxy);
+					int is_selected = false;
+					for(auto & evt : list)
+					{										
+						labels.push_back("\x1C" + evt->type_name);
+						if(evt->probability != 100)
+							labels.back() += string_format("(%d%%)",evt->probability);
+						if(!evt->units.empty())
+							labels.back() += "\x1A";
+						if(!evt->texts.empty())
+							labels.back() += "\x1B";
+						is_selected |= (GetSelectEvent() == evt && !evt->in_placement);
+					}
+
+					int color = (is_selected && sel_blink_state)?214:252;
+					terrain->font->Render(pic,pic_end,pic_x_size,mxx,myy,80,spr->y_size,labels,color,254,SpellFont::SOLID);
+				}
+				else
+				{
+					// show MissionStart events associated to units:
+
+					auto unit = Lunit[mxy];
+					while(unit)
+					{
+						// very ineffective way of searching event associated to unit (some kind of back reference from MapUnit would be better...)
+						for(auto & evt : start_evts)
+						{
+							for(auto & ev_unit : evt->units)
+							{								
+								if(ev_unit.unit == unit)
+								{
+									// found matching event:
+								
+									// make label on top of unit
+									string label = /*"\x1C" + */evt->type_name;
+									if(evt->probability != 100)
+										label += string_format("(%d%%)",evt->probability);
+									//label += "\x1A";								
+
+									// plot it
+									int y_ofs = (unit->unit->isAir())?SpellUnitRec::AIR_UNIT_FLY_HEIGHT:0;
+									int color = 252;
+									terrain->font7->Render(pic,pic_end,pic_x_size,mxx,myy - y_ofs,80,spr->y_size,label,color,254,SpellFont::SOLID);
+
+									break;
+								}
+							}
+						}						
+
+						unit = unit->next;
+					}
 				}
 
-				int color = (is_selected && sel_blink_state)?214:252;
-				terrain->font->Render(pic,pic_end,pic_x_size,mxx,myy,80,spr->y_size,labels,color,254,SpellFont::SOLID);
+
+				
 			}
 		}
 	}

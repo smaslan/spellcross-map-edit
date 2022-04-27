@@ -45,6 +45,9 @@ public:
     
     SpellTexts(FSarchive *fs,SpellLang lang,SpellSounds *sounds=NULL);
     ~SpellTexts();
+    SpellTextRec* GetText(int index);
     SpellTextRec* GetText(const char* name);
     SpellTextRec *GetText(string &name);
+    vector<SpellTextRec*> &GetTexts();
+    int GetTextId(SpellTextRec* text);
 };

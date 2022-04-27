@@ -371,6 +371,7 @@ class SpellMap
 		tuple<int,int> GetSurfPos(MapXY &pos);
 		
 		MapXY GetSelection(wxBitmap& bmp,TScroll* scroll);
+		MapXY GetSelection();
 		vector<MapXY> &GetSelections(wxBitmap& bmp, TScroll* scroll);
 		vector<Sprite*> GetL1sprites(vector<MapXY> &selection);
 		vector<Sprite*> GetL2sprites(vector<MapXY>& selection);

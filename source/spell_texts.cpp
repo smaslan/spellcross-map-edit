@@ -175,3 +175,25 @@ SpellTextRec* SpellTexts::GetText(const char *name)
             return(txt);
     return(NULL);
 }
+// try get text by order index
+SpellTextRec* SpellTexts::GetText(int index)
+{
+    if(index < 0 || index >= list.size())
+        return(NULL);
+    return(list[index]);
+}
+
+// get index of text resource in the list by record pointer
+int SpellTexts::GetTextId(SpellTextRec* text)
+{
+    auto id = find(list.begin(), list.end(), text);
+    if(id == list.end())
+        return(-1);
+    return(id - list.begin());
+}
+
+// get full list of texts
+vector<SpellTextRec*>& SpellTexts::GetTexts()
+{
+    return(list);
+}

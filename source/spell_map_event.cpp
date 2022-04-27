@@ -8,10 +8,19 @@ using namespace std;
 SpellMapEventRec::SpellMapEventRec()
 {
 	evt_type = EVT_VOID;
+	type_name = EvtNames[evt_type];
 	is_done = false;
 	next = NULL;
 	hide = false;
 	in_placement = false;
+}
+SpellMapEventRec::SpellMapEventRec(SpellMapEventRec* rec)
+{
+	*this = *rec;
+	
+	// duplicate unit objects
+	for(auto& unit : units)
+		unit.unit = new MapUnit(*unit.unit);
 }
 SpellMapEventRec::~SpellMapEventRec()
 {
@@ -58,6 +67,26 @@ int SpellMapEventRec::isDone()
 	is_done = true;
 	return(is_done);
 }
+
+// return list of text names of event types
+vector<string> SpellMapEventRec::GetEventTypes()
+{
+	vector<string> list;
+	for(auto & type : EvtNames)
+		list.push_back(type);
+	return(list);
+}
+
+// set type (and modify type string)
+int SpellMapEventRec::SetType(int type_id)
+{
+	if(type_id < 0 || type_id >= sizeof(EvtNames))
+		return(1);
+	evt_type = type_id;
+	type_name = EvtNames[type_id];
+	return(0);
+}
+
 
 
 // create events list
@@ -111,6 +140,37 @@ SpellMapEventRec* SpellMapEvents::FindEvent(int type,int probab,MapXY pos)
 			return(evt);
 	}
 	return(NULL);
+}
+
+// inset new event to list
+SpellMapEventRec* SpellMapEvents::AddEvent(SpellMapEventRec* event)
+{
+	events.push_back(event);	
+
+	//###todo: check duplcites?
+
+	return(event);
+}
+
+// remove event (returns original object, user deletes it!)
+SpellMapEventRec* SpellMapEvents::RemoveEvent(SpellMapEventRec* event)
+{	
+	auto id = find(events.begin(), events.end(), event);
+	if(id == events.end())
+		return(NULL);
+
+	// remove from list, but not delete object (user must do it)
+	events.erase(id);
+	return(event);
+}
+
+// clear all events
+void SpellMapEvents::ClearEvents()
+{
+	events_map.assign(x_size*y_size,NULL);
+	for(auto& evt : events)
+		delete evt;
+	events.clear();
 }
 
 // parse and add given event

@@ -27,11 +27,17 @@ private:
 
 public:
 
-    enum
+    enum EvtTypes
     {
         EVT_VOID = 0,
         EVT_MISSION_START,
         EVT_SEE_PLACE
+    };
+    string EvtNames[3] = 
+    {
+        "Void",
+        "MissionStart",
+        "SeePlace"
     };
 
     int in_placement;
@@ -55,14 +61,18 @@ public:
 
     // event invoked text message(s) (there should be just one, but you never know...)
     vector<SpellMapEventMessageRec> texts;
-
+    
+    int SetType(int type_id);
     int AddUnit(MapUnit *unit);
     MapUnit *ExtractUnit(MapUnit* unit);
     SpellMapEventRec();
+    SpellMapEventRec(SpellMapEventRec* rec);
     ~SpellMapEventRec();
     int isMissionStart();
     int isSeePlace();
     int isDone();
+
+    vector<string> GetEventTypes();
 };
 
 typedef vector<SpellMapEventRec*> SpellMapEventsList;
@@ -94,6 +104,9 @@ public:
     SpellMapEvents(int x_size, int y_size, int& game_mode);
     ~SpellMapEvents();
     int AddEvent(SpellData* data, SpellDEF* def, SpellDefCmd* cmd);
+    SpellMapEventRec* AddEvent(SpellMapEventRec *event);
+    SpellMapEventRec* RemoveEvent(SpellMapEventRec* event);
+    void ClearEvents();
     void ResetEvents();
     SpellMapEventRec* GetEvent(MapXY pos);
     int CheckEvent(MapXY pos);

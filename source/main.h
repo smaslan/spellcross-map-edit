@@ -12,6 +12,7 @@
 #include "form_pal_view.h"
 #include "form_gr_view.h"
 #include "form_units.h"
+#include "form_events.h"
 #include "form_new_object.h"
 #include "form_unit_options.h"
 #include "form_message_box.h"
@@ -86,6 +87,7 @@ private:
     void OnViewPal(wxCommandEvent& event);
     void OnViewGrRes(wxCommandEvent& event);
     void OnEditUnit(wxCommandEvent& event);
+    void OnEditEvent(wxCommandEvent& event);
     void OnViewVoxZ(wxCommandEvent& event);
     void OnViewMiniMap(wxCommandEvent& event);
     void OnUpdateTileContext(wxCommandEvent& event);
@@ -143,6 +145,7 @@ private:
     FormPalView* form_pal;
     FormGResView* form_gres;
     FormUnits* form_units;
+    FormEvent* form_events;
     FormUnitOpts *form_unit_opts;
     FormMsgBox *form_message;
     
@@ -161,6 +164,7 @@ private:
         ID_PAL_WIN,
         ID_GRES_WIN,
         ID_UNITS_WIN,
+        ID_EVENT_WIN,
         ID_MINIMAP_WIN,
         ID_UNIT_MODE_WIN,
         ID_MSG_WIN
@@ -214,6 +218,7 @@ enum
     ID_ViewPal,
     ID_ViewGRes,
     ID_EditUnit,
+    ID_EditEvent,
     ID_UpdateSprContext,
     ID_SaveSprContext,
     ID_ViewObjects,

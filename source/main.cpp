@@ -181,6 +181,7 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     menuTools->Append(ID_ViewPal,"Palette viewer","",wxITEM_NORMAL);
     menuTools->Append(ID_ViewGRes,"Graphics viewer","",wxITEM_NORMAL);
     menuTools->Append(ID_EditUnit,"Units viewer/editor\tCtrl+U","",wxITEM_NORMAL);
+    menuTools->Append(ID_EditEvent,"Event viewer/editor\tCtrl+E","",wxITEM_NORMAL);
     menuTools->Append(wxID_ANY,"","",wxITEM_SEPARATOR);
     menuTools->Append(ID_ViewMiniMap,"View mini-map","",wxITEM_NORMAL);
     menuTools->Append(ID_ViewVoxZ,"View Z-map","",wxITEM_NORMAL);
@@ -284,6 +285,7 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     Bind(wxEVT_MENU,&MyFrame::OnViewPal,this,ID_ViewPal);
     Bind(wxEVT_MENU,&MyFrame::OnViewGrRes,this,ID_ViewGRes);
     Bind(wxEVT_MENU,&MyFrame::OnEditUnit,this,ID_EditUnit);
+    Bind(wxEVT_MENU,&MyFrame::OnEditEvent,this,ID_EditEvent);
     Bind(wxEVT_MENU,&MyFrame::OnViewVoxZ,this,ID_ViewVoxZ);
     Bind(wxEVT_MENU,&MyFrame::OnViewVoxZ,this,ID_ExportVoxZ);
     Bind(wxEVT_MENU,&MyFrame::OnViewMiniMap,this,ID_ViewMiniMap);
@@ -376,6 +378,13 @@ void MyFrame::OnClose(wxCloseEvent& ev)
         }
         
         form_units->Destroy();
+    }
+    else if(ev.GetId() == ID_EVENT_WIN)
+    {
+        // event editor closed        
+        spell_map->SortUnits();
+        canvas->Refresh();
+        form_events->Destroy();
     }
     else if(ev.GetId() == ID_UNIT_MODE_WIN)
     {
@@ -742,6 +751,17 @@ void MyFrame::OnEditUnit(wxCommandEvent& event)
         form_units->SetSpellData(spell_data);
         form_units->SetMapUnit(spell_map->GetSelectedUnit());
         form_units->Show();
+    }
+}
+
+// open events viewer/editor
+void MyFrame::OnEditEvent(wxCommandEvent& event)
+{
+    if(!FindWindowById(ID_EVENT_WIN))
+    {
+        form_events = new FormEvent(this,spell_data,ID_EVENT_WIN);
+        form_events->SetMap(spell_map);
+        form_events->Show();
     }
 }
 
