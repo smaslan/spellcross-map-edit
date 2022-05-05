@@ -876,10 +876,15 @@ MapUnit::MapUnit()
 	// created by event?
 	is_event = false;
 
-
+	// next unit (for sorted rendering)
 	next = NULL;
+	// creator unit (if created ingame)
 	parent = NULL;
+	// child unit (if created ingame)
 	child = NULL;
+
+	// link to event that creates the unit (if exists)
+	map_event = NULL;
 
 	// sound refs
 	sound_move = NULL;

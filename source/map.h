@@ -127,6 +127,8 @@ private:
 	int size;
 	// modified?
 	int modified;
+	// moved?
+	int moved;
 
 	static constexpr int MAX_SEL_SIZE = 8;
 
@@ -136,7 +138,7 @@ public:
 	void SetRef(int x, int y);
 	void Move(int x, int y);
 	void SetPos(int x,int y);
-	void Idle();
+	int Idle();
 	int ResizeSelection(int delta);
 	bool wasModified();
 	bool Commit();

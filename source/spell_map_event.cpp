@@ -20,7 +20,10 @@ SpellMapEventRec::SpellMapEventRec(SpellMapEventRec* rec)
 	
 	// duplicate unit objects
 	for(auto& unit : units)
+	{
 		unit.unit = new MapUnit(*unit.unit);
+		unit.unit->map_event = this;
+	}
 }
 SpellMapEventRec::~SpellMapEventRec()
 {
@@ -29,8 +32,10 @@ SpellMapEventRec::~SpellMapEventRec()
 	units.clear();
 }
 int SpellMapEventRec::AddUnit(MapUnit* unit)
-{
+{	
 	units.push_back(unit);
+	// make unit link to this event
+	unit->map_event = this;
 	return(0);
 }
 MapUnit *SpellMapEventRec::ExtractUnit(MapUnit* unit)
@@ -40,6 +45,8 @@ MapUnit *SpellMapEventRec::ExtractUnit(MapUnit* unit)
 		{
 			// remove from list, but not delete
 			units.erase(it);
+			// unlink from this event
+			unit->map_event = NULL;
 			// return unit
 			return(unit);
 		}
@@ -291,6 +298,9 @@ int SpellMapEvents::AddEvent(SpellData *data, SpellDEF* def, SpellDefCmd* cmd)
 			// unit active (to change in game mode)
 			unit->is_active = 0;
 
+			// store back link to event to the unit
+			unit->map_event = evt;
+
 			// try fetch unit record from spelldata
 			unit->unit = data->units->GetUnit(unit->type_id);
 			if(!unit->unit)
@@ -468,4 +478,39 @@ SpellMapEventsList SpellMapEvents::GetMissionStartEvent(bool clear)
 		list.push_back(evt);
 	}
 	return(list);
+}
+
+// insert unit to first possible MissionStart() event or create new MissionStart() event
+int SpellMapEvents::AddMissionStartUnit(MapUnit* unit,int probab)
+{
+	if(unit->map_event && unit->map_event->isMissionStart())
+		return(1);
+
+	// remove unit from other event eventually
+	if(unit->map_event)
+	{
+		unit->map_event->ExtractUnit(unit);
+		unit->map_event = NULL;
+	}
+
+	// try to find some suitable MissionStart() event
+	SpellMapEventRec *target_evt = NULL;
+	for(auto & evt : events)
+		if(evt->isMissionStart() && evt->probability == 100)
+			target_evt = evt;
+	if(!target_evt)
+	{
+		// not found: make one
+		target_evt = new SpellMapEventRec();
+		target_evt->SetType(SpellMapEventRec::EvtTypes::EVT_MISSION_START);
+		target_evt->probability = probab;
+		events.push_back(target_evt);
+		// resort events
+		ResetEvents();
+	}
+
+	// add unit to MissionStart() event
+	target_evt->AddUnit(unit);
+
+	return(0);
 }

@@ -112,6 +112,7 @@ private:
     void OnCanvasMouseWheel(wxMouseEvent& event);
     void OnCanvasKeyDown(wxKeyEvent& event);
     void OnCanvasLMouseDown(wxMouseEvent& event);
+    void OnCanvasPopupSelect(wxCommandEvent& event);
     void OnUnitClick_cb(int action);
     wxBitmap m_buffer;
     
@@ -172,6 +173,13 @@ private:
     static constexpr int ID_HUD_BASE = 3000;
     static constexpr int ID_TOOL_BASE = 10000;
     static constexpr int ID_TOOL_CLASS_STEP = 100;
+
+    enum
+    {
+        ID_POP_ADD_MISSIONSTART = 2100,
+        ID_POP_REM_MISSIONSTART,
+        ID_POP_EDIT_EVENT
+    };
 
     // maximum size of minimap panel
     static constexpr int MAX_MINIMAP_X = 1000;

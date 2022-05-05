@@ -966,6 +966,35 @@ void MyFrame::OnMoveUnit(wxCommandEvent& event)
 
 
 
+// unit popup menu
+void MyFrame::OnCanvasPopupSelect(wxCommandEvent& event)
+{
+    auto menu = (wxMenu*)event.GetEventObject();
+    auto cur_unit = (MapUnit*)menu->GetClientData();
+    if(event.GetId() == ID_POP_ADD_MISSIONSTART)
+    {
+        // try add unit to MissionStart() event
+        spell_map->ExtractUnit(cur_unit);
+        spell_map->events->AddMissionStartUnit(cur_unit);
+        spell_map->SortUnits();
+    }
+    else if(event.GetId() == ID_POP_REM_MISSIONSTART)
+    {
+        // try remove the unit from MissionStart() event
+        cur_unit->map_event->ExtractUnit(cur_unit);
+        spell_map->AddUnit(cur_unit);
+        spell_map->SortUnits();
+    }
+    else if(event.GetId() == ID_POP_EDIT_EVENT)
+    {
+        // edit event        
+        auto cur_evt = spell_map->GetCursorEvent(m_buffer,&scroll);
+        spell_map->SelectEvent(cur_evt);
+        OnEditEvent(event);
+    }
+}
+
+
 
 // --- scrolling control ---
 void MyFrame::OnCanvasRMouse(wxMouseEvent& event)
@@ -976,7 +1005,38 @@ void MyFrame::OnCanvasRMouse(wxMouseEvent& event)
     if(event.RightDown())
         scroll.SetRef(event.GetX(), event.GetY());
     else if(event.RightUp())
-        scroll.Idle();
+    {
+        int was_moved = scroll.Idle();
+        if(!was_moved && !spell_map->isGameMode())
+        {
+            // --- editor mode popup menu stuff:
+            auto cur_unit = spell_map->GetCursorUnit(m_buffer,&scroll);
+            auto cur_evt = spell_map->GetCursorEvent(m_buffer,&scroll);
+
+            wxMenu menu;
+            menu.SetClientData(cur_unit);
+
+            if(cur_unit && cur_unit->map_event && cur_unit->map_event->isMissionStart())
+            {
+                menu.Append(ID_POP_REM_MISSIONSTART,"Remove from MissionStart() event");
+            }
+            if(cur_unit && (!cur_unit->map_event || !cur_unit->map_event->isMissionStart()))
+            {
+                menu.Append(ID_POP_ADD_MISSIONSTART,"Add to MissionStart() event");
+            }
+            if(cur_unit && cur_unit->map_event && cur_unit->map_event->isMissionStart() || cur_evt)
+            {
+                menu.Append(ID_POP_EDIT_EVENT,"Edit event");
+            }
+                        
+            
+            if(menu.GetMenuItemCount())
+            {
+                menu.Connect(wxEVT_COMMAND_MENU_SELECTED,wxCommandEventHandler(MyFrame::OnCanvasPopupSelect),NULL,this);
+                PopupMenu(&menu);
+            }
+        }
+    }
     
     // unit view mode:
     int is_down = event.RightIsDown();
@@ -1149,8 +1209,6 @@ void MyFrame::OnInvalidateSelection(wxCommandEvent& event)
     // invalidate region    
     spell_map->IvalidateTiles(list, bind(&MyFrame::StatusStringCallback,this,placeholders::_1));
 }
-
-
 
 
 

@@ -55,6 +55,7 @@ void TScroll::Reset()
 	state = 0;
 	// no change
 	modified = 0;
+	moved = false;
 }
 // set absolute position
 void TScroll::SetPos(int x,int y)
@@ -73,6 +74,7 @@ void TScroll::SetRef(int x,int y)
 	yref = y;
 	// shift active
 	state = 1;
+	moved = false;
 }
 // cursor moved to new position
 void TScroll::Move(int x,int y)
@@ -88,12 +90,17 @@ void TScroll::Move(int x,int y)
 	yref = y;
 	// something changed
 	modified = 1;
+	moved = true;
 }
 // cursor to idle state (mouse leave or up)
-void TScroll::Idle()
+int TScroll::Idle()
 {
 	state = 0;
 	modified = 0;
+	
+	int was_moved = moved;
+	moved = false;
+	return(was_moved);
 }
 // check if there was any change in cursor 
 bool TScroll::wasModified()
@@ -2254,7 +2261,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 	}
 
 
-	// --- Redner Layer 8 sound marks ---
+	// --- Redner Layer 7+8 sound marks ---
 	vector<MapSound> *sound_groups[] = {&sounds, &sound_loops->sounds};
 	bool sound_enabled[] = {wSound, wSoundLoop};
 	for(int sid = 0; sid < 2; sid++)
@@ -2382,30 +2389,23 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 					auto unit = Lunit[mxy];
 					while(unit)
 					{
-						// very ineffective way of searching event associated to unit (some kind of back reference from MapUnit would be better...)
-						for(auto & evt : start_evts)
+						if(unit->map_event && unit->map_event->isMissionStart())
 						{
-							for(auto & ev_unit : evt->units)
-							{								
-								if(ev_unit.unit == unit)
-								{
-									// found matching event:
-								
-									// make label on top of unit
-									string label = /*"\x1C" + */evt->type_name;
-									if(evt->probability != 100)
-										label += string_format("(%d%%)",evt->probability);
-									//label += "\x1A";								
+							// found matching event:
+							auto evt = unit->map_event;
+							int is_selected = (evt == GetSelectEvent());
 
-									// plot it
-									int y_ofs = (unit->unit->isAir())?SpellUnitRec::AIR_UNIT_FLY_HEIGHT:0;
-									int color = 252;
-									terrain->font7->Render(pic,pic_end,pic_x_size,mxx,myy - y_ofs,80,spr->y_size,label,color,254,SpellFont::SOLID);
+							// make label on top of unit
+							string label = "?" + evt->type_name;
+							if(evt->probability != 100)
+								label += string_format("(%d%%)",evt->probability);
+							//label += "\x1A";											
 
-									break;
-								}
-							}
-						}						
+							// plot it
+							int y_ofs = (unit->unit->isAir())?SpellUnitRec::AIR_UNIT_FLY_HEIGHT:0;
+							int color = (is_selected && sel_blink_state)?214:252;
+							terrain->font7->Render(pic,pic_end,pic_x_size,mxx,myy - y_ofs,80,spr->y_size,label,color,254,SpellFont::SOLID);
+						}
 
 						unit = unit->next;
 					}
@@ -6033,7 +6033,27 @@ SpellMapEventRec* SpellMap::GetCursorEvent(wxBitmap& bmp,TScroll* scroll)
 		return(NULL);
 	auto& pos = msel[0];
 
+	// try to get event
 	auto evt = events->GetEvent(pos);
+	if(!evt)
+	{
+		// not found: check if there is MissionStart event unit
+		
+		//GetCursorUnit(bmp, scroll);		
+		auto unit = Lunit[ConvXY(pos)];
+		while(unit)
+		{
+			if(unit->map_event && unit->map_event->isMissionStart())
+			{
+				// found some
+				evt = unit->map_event;
+				break;
+			}
+			unit = unit->next;
+		}
+
+	}
+
 	return(evt);
 }
 

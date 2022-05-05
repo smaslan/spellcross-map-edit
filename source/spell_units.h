@@ -18,6 +18,10 @@
 
 //using namespace std;
 
+
+class SpellMapEventRec;
+
+
 class SpellUnitRec
 {
 	public:
@@ -364,6 +368,9 @@ public:
 	// link s between parent and child unit
 	MapUnit* parent;
 	MapUnit* child;
+
+	// linked event
+	SpellMapEventRec *map_event;
 
 
 	// unit rendering state

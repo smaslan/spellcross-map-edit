@@ -115,5 +115,5 @@ public:
     SpellMapEventsList GetEvents(int pos,bool clear=false);
     vector<SpellMapEventRec*> &GetEvents();
     SpellMapEventsList GetMissionStartEvent(bool clear=false);
-
+    int AddMissionStartUnit(MapUnit *unit, int probab=100);
 };
