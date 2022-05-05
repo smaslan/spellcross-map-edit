@@ -540,18 +540,6 @@ void FormEvent::OnSelectMsgResource(wxCommandEvent& event)
 	if(!spell_event)
 		return;
 
-	// get message item selection
-	auto sel = chbMsgItem->GetSelection();
-	if(chbMsgItem->IsEmpty() || sel < 0)
-		return;
-	auto &msg = spell_event->texts[sel];
-
-	// get resource selection
-	int sel_res = lbMsg->GetSelection();
-	if(lbMsg->IsEmpty() || sel_res < 0)
-		return;
-	auto text = spell_data->texts->GetText(sel_res);
-
 	// update probability
 	spell_event->probability = spinProb->GetValue();
 
@@ -568,6 +556,21 @@ void FormEvent::OnSelectMsgResource(wxCommandEvent& event)
 	spinXpos->Enable(pos_active);
 	spinYpos->Enable(pos_active);
 
+	// resort events (note: possibly slow?)
+	spell_map->events->ResetEvents();
+
+	// get message item selection
+	auto sel = chbMsgItem->GetSelection();
+	if(chbMsgItem->IsEmpty() || sel < 0)
+		return;
+	auto &msg = spell_event->texts[sel];
+
+	// get resource selection
+	int sel_res = lbMsg->GetSelection();
+	if(lbMsg->IsEmpty() || sel_res < 0)
+		return;
+	auto text = spell_data->texts->GetText(sel_res);
+	
 	// update text in event record
 	msg.text = text;
 	FillMsgItems();
@@ -580,10 +583,7 @@ void FormEvent::OnSelectMsgResource(wxCommandEvent& event)
 	{
 		btnMsgPlay->Enable(true);
 		btnMsgStop->Enable(true);
-	}
-
-	// resort events (note: possibly slow?)
-	spell_map->events->ResetEvents();
+	}	
 }
 
 // play/stop narration sound

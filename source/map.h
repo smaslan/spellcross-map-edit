@@ -117,6 +117,8 @@ public:
 class TScroll
 {
 private:
+	// screen size
+	int xsize,ysize;
 	// cursor position (within screen)
 	int xref,yref;
 	// scroll position
@@ -134,6 +136,8 @@ private:
 
 public:	
 	TScroll();
+	void SetSurface(int xx, int yy);
+	tuple<int,int> GetSurface();
 	void Reset();
 	void SetRef(int x, int y);
 	void Move(int x, int y);
@@ -372,9 +376,9 @@ class SpellMap
 		bool TileIsVisible(int x, int y);
 		tuple<int,int> GetSurfPos(MapXY &pos);
 		
-		MapXY GetSelection(wxBitmap& bmp,TScroll* scroll);
+		MapXY GetSelection(TScroll* scroll);
 		MapXY GetSelection();
-		vector<MapXY> &GetSelections(wxBitmap& bmp, TScroll* scroll);
+		vector<MapXY> &GetSelections(TScroll* scroll);
 		vector<Sprite*> GetL1sprites(vector<MapXY> &selection);
 		vector<Sprite*> GetL2sprites(vector<MapXY>& selection);
 		vector<uint8_t> GetFlags(vector<MapXY>& selection);
@@ -382,7 +386,7 @@ class SpellMap
 		void SelectTiles(vector<MapXY> tiles,int mode);
 		void SelectTiles(int mode);
 		int IvalidateTiles(vector<MapXY> tiles,std::function<void(std::string)> status_cb=NULL);
-		int RenderPrepare(wxBitmap& bmp, TScroll* scroll);
+		int RenderPrepare(TScroll* scroll);
 		vector<MapXY> GetVisibleTiles();
 		tuple<int,int> GetMapSurfaceSize();
 		int isRenderSurfModified();
@@ -422,7 +426,7 @@ class SpellMap
 		int CreateUnit(MapUnit* parent,SpellUnitRec* new_type);
 		int PlaceUnit(MapUnit* unit);
 		void SortUnits();
-		MapUnit *GetCursorUnit(wxBitmap& bmp,TScroll* scroll);
+		MapUnit *GetCursorUnit(TScroll* scroll);
 		MapUnit* CanSelectUnit(MapXY pos);
 		MapUnit *SelectUnit(MapUnit* new_unit);
 		int UnitChanged(int clear=false);
@@ -453,7 +457,7 @@ class SpellMap
 		int AttackUnit(MapUnit* target);
 		tuple<int,int> GetPosOrigin(MapXY pos);
 		double GetUnitsAngle(MapUnit* ref,MapUnit* target);
-		int GetUnitOptions(wxBitmap& bmp,TScroll* scroll);
+		int GetUnitOptions(TScroll* scroll);
 		enum {
 			UNIT_OPT_UPPER = 1,
 			UNIT_OPT_LOWER = 2,
@@ -469,7 +473,7 @@ class SpellMap
 		int ResetUnitEvents();
 		int MissionStartEvent();
 		int ProcEventsList(SpellMapEventsList &list);
-		SpellMapEventRec *GetCursorEvent(wxBitmap& bmp,TScroll* scroll);
+		SpellMapEventRec *GetCursorEvent(TScroll* scroll);
 		int SelectEvent(SpellMapEventRec *evt);
 		SpellMapEventRec* GetSelectEvent();
 		int UpdateEventUnit(SpellMapEventRec *evt, MapUnit* unit);
@@ -486,12 +490,12 @@ class SpellMap
 		int ConvXY(MapXY *mxy);
 
 			
-		int GetElevation(wxBitmap& bmp,TScroll* scroll);
-		char *GetL1tileName(wxBitmap& bmp,TScroll* scroll);
-		char* GetL2tileName(wxBitmap& bmp,TScroll* scroll);
-		tuple<int,int,int> GetTileFlags(wxBitmap& bmp,TScroll* scroll);
+		int GetElevation(TScroll* scroll);
+		char *GetL1tileName(TScroll* scroll);
+		char* GetL2tileName(TScroll* scroll);
+		tuple<int,int,int> GetTileFlags(TScroll* scroll);
 
-		int EditElev(wxBitmap& bmp,TScroll* scroll,int step);
+		int EditElev(TScroll* scroll,int step);
 		int ReTexture(uint8_t* modz,std::function<void(std::string)> status_cb=NULL);
 		void SyncL1flags();
 

@@ -41,6 +41,16 @@ TScroll::TScroll()
 {
 	Reset();
 }
+// update surface size
+void TScroll::SetSurface(int xx,int yy)
+{
+	xsize = xx;
+	ysize = yy;
+}
+tuple<int,int> TScroll::GetSurface()
+{
+	return tuple(xsize,ysize);
+}
 // reset scroller to default
 void TScroll::Reset()
 {
@@ -1176,14 +1186,15 @@ tuple<int,int> SpellMap::GetMapSurfaceSize()
 
 // call whenever scroll or screen changes
 // it allocates render buffer and fixes scroller limits
-int SpellMap::RenderPrepare(wxBitmap& bmp, TScroll* scroll)
+int SpellMap::RenderPrepare(TScroll* scroll)
 {
 	if(!IsLoaded())
 		return(1);
 
 	// get surface size
-	surf_x = bmp.GetWidth();
-	surf_y = bmp.GetHeight();
+	tie(surf_x, surf_y) = scroll->GetSurface();
+	/*surf_x = bmp.GetWidth();
+	surf_y = bmp.GetHeight();*/
 
 	// reinit of surface changed (this is only needed when map is smaller than screen)
 	if(pic && (surf_x != last_surf_x || surf_y != last_surf_y))
@@ -1492,12 +1503,12 @@ vector<MapXY> SpellMap::GetPersistSelections()
 
 
 // analyze map selection
-vector<MapXY> &SpellMap::GetSelections(wxBitmap& bmp, TScroll *scroll)
+vector<MapXY> &SpellMap::GetSelections(TScroll *scroll)
 {
 	int m,n,i,j;
 		
 	// check & fix surface and scroll ranges
-	if(!RenderPrepare(bmp, scroll))
+	if(!RenderPrepare(scroll))
 	{	
 		// default no selection
 		MapXY selxy = sel;
@@ -1625,9 +1636,9 @@ vector<MapXY> &SpellMap::GetSelections(wxBitmap& bmp, TScroll *scroll)
 
 	return(msel);
 }
-MapXY SpellMap::GetSelection(wxBitmap& bmp,TScroll* scroll)
+MapXY SpellMap::GetSelection(TScroll* scroll)
 {
-	vector<MapXY>& sel = GetSelections(bmp, scroll);
+	vector<MapXY>& sel = GetSelections(scroll);
 	if(sel.size())
 		return(sel[0]);
 	else
@@ -1642,10 +1653,10 @@ MapXY SpellMap::GetSelection()
 }
 
 // get selection elevation
-int SpellMap::GetElevation(wxBitmap& bmp,TScroll* scroll)
+int SpellMap::GetElevation(TScroll* scroll)
 {
 	// fix selection
-	MapXY sel = GetSelection(bmp,scroll);
+	MapXY sel = GetSelection(scroll);
 	if(sel.IsSelected())
 	{
 		// return tile name
@@ -1655,10 +1666,10 @@ int SpellMap::GetElevation(wxBitmap& bmp,TScroll* scroll)
 		return(0);	
 }
 // get L1 terrain tile name
-char *SpellMap::GetL1tileName(wxBitmap& bmp, TScroll* scroll)
+char *SpellMap::GetL1tileName(TScroll* scroll)
 {
 	// fix selection
-	MapXY sel = GetSelection(bmp, scroll);
+	MapXY sel = GetSelection(scroll);
 
 	if(sel.IsSelected())
 	{
@@ -1670,10 +1681,10 @@ char *SpellMap::GetL1tileName(wxBitmap& bmp, TScroll* scroll)
 }
 
 // get L2 object tile name
-char* SpellMap::GetL2tileName(wxBitmap& bmp,TScroll* scroll)
+char* SpellMap::GetL2tileName(TScroll* scroll)
 {
 	// fix selection
-	MapXY sel = GetSelection(bmp,scroll);
+	MapXY sel = GetSelection(scroll);
 
 	if(sel.IsSelected())
 	{
@@ -1695,10 +1706,10 @@ int SpellMap::GetFlagFlag(MapXY* sel)
 	return((flags[ConvXY(sel)])&0x0F);
 }
 // get flags for given tile (###todo: decode what those flags actually means?)
-tuple<int,int,int> SpellMap::GetTileFlags(wxBitmap& bmp,TScroll* scroll)
+tuple<int,int,int> SpellMap::GetTileFlags(TScroll* scroll)
 {
 	// fix selection
-	MapXY sel = GetSelection(bmp,scroll);
+	MapXY sel = GetSelection(scroll);
 	
 	if(sel.IsSelected())
 	{
@@ -1790,11 +1801,11 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 		return(1);
 
 	// prepare scroll & buffer
-	if(RenderPrepare(bmp, scroll))
+	if(RenderPrepare(scroll))
 		return(1);
 
 	// find selection tiles
-	auto msel = GetSelections(bmp,scroll);
+	auto msel = GetSelections(scroll);
 	MapXY cursor;
 	if(msel.size() && msel[0].IsSelected())
 		cursor = msel[0];
@@ -1850,7 +1861,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 	}
 
 	// check unit on cursor
-	MapUnit* cursor_unit = GetCursorUnit(bmp,scroll);
+	MapUnit* cursor_unit = GetCursorUnit(scroll);
 
 	// lock stuff while rendering
 	FindUnitRangeLock(true);
@@ -3102,9 +3113,9 @@ int SpellMap::MoveUnit(MapXY target)
 
 
 // get unit action options for cursor position (game mode)
-int SpellMap::GetUnitOptions(wxBitmap& bmp,TScroll* scroll)
+int SpellMap::GetUnitOptions(TScroll* scroll)
 {	
-	auto select_pos =GetSelection(bmp,scroll);
+	auto select_pos =GetSelection(scroll);
 	int options = 0;
 
 	if(unit_selection && CanUnitAttackLand(select_pos))
@@ -3309,10 +3320,10 @@ int SpellMap::UnitChanged(int clear)
 }
 
 // get unit at cursor position
-MapUnit *SpellMap::GetCursorUnit(wxBitmap& bmp,TScroll* scroll)
+MapUnit *SpellMap::GetCursorUnit(TScroll* scroll)
 {
 	// find selection tiles
-	auto msel = GetSelections(bmp,scroll);
+	auto msel = GetSelections(scroll);
 
 	// no selection?
 	if(!msel.size() || !msel[0].IsSelected())
@@ -6023,10 +6034,10 @@ int SpellMap::ProcEventsList(SpellMapEventsList &list)
 }
 
 // get first event at cursor position or NULL if not found
-SpellMapEventRec* SpellMap::GetCursorEvent(wxBitmap& bmp,TScroll* scroll)
+SpellMapEventRec* SpellMap::GetCursorEvent(TScroll* scroll)
 {
 	// find selection tiles
-	auto msel = GetSelections(bmp,scroll);
+	auto msel = GetSelections(scroll);
 
 	// no selection?
 	if(!msel.size() || !msel[0].IsSelected())
@@ -6626,7 +6637,7 @@ MapXY SpellMap::GetTileNeihgborXY(int x, int y, int angle)
 }
 
 // change elevation of terrain by step for all selected tiles
-int SpellMap::EditElev(wxBitmap& bmp, TScroll* scroll, int step)
+int SpellMap::EditElev(TScroll* scroll, int step)
 {
 	int i,j;
 
@@ -6638,7 +6649,7 @@ int SpellMap::EditElev(wxBitmap& bmp, TScroll* scroll, int step)
 	SyncL1flags();
 
 	// get selection tiles
-	auto msel = GetSelections(bmp, scroll);
+	auto msel = GetSelections(scroll);
 	if(!msel[0].IsSelected())
 		return(2);
 
