@@ -369,9 +369,11 @@ public:
 	MapUnit* parent;
 	MapUnit* child;
 
-	// linked event
+	// linked event (creator)
 	SpellMapEventRec *map_event;
 
+	// linked event (SeeUnit)
+	SpellMapEventRec *trig_event;
 
 	// unit rendering state
 	vector<AStarNode> move_nodes;

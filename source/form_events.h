@@ -19,12 +19,13 @@
 #include <wx/colour.h>
 #include <wx/settings.h>
 #include <wx/stattext.h>
-#include <wx/choice.h>
-#include <wx/spinctrl.h>
+#include <wx/listbox.h>
+#include <wx/button.h>
 #include <wx/sizer.h>
 #include <wx/statline.h>
-#include <wx/button.h>
-#include <wx/listbox.h>
+#include <wx/choice.h>
+#include <wx/checkbox.h>
+#include <wx/spinctrl.h>
 #include <wx/textctrl.h>
 #include <wx/statusbr.h>
 #include <wx/frame.h>
@@ -80,9 +81,13 @@ protected:
 		wxID_BTN_ADD_EVENT,
 		wxID_BTN_REM_EVENT,
 		wxID_CHB_TYPE,
+		wxID_TXT_OBJ_DESC,
+		wxID_CB_IS_OBJECTIVE,
 		wxID_SPIN_PROB,
 		wxID_SPIN_XPOS,
 		wxID_SPIN_YPOS,
+		wxID_SPIN_TRIG_UNIT,
+		wxID_TXT_UNITS,
 		wxID_CHB_MSG_ITEM,
 		wxID_BTN_NEW_MSG,
 		wxID_BNT_DEL_MSG,
@@ -103,18 +108,26 @@ protected:
 	wxStaticLine* m_staticline21;
 	wxStaticText* m_staticText50;
 	wxChoice* chbType;
+	wxStaticText* m_staticText62;
+	wxTextCtrl* txtObjectiveDesc;
+	wxCheckBox* cbIsObjective;
 	wxStaticText* m_staticText51;
 	wxSpinCtrl* spinProb;
 	wxStaticText* m_staticText52;
 	wxSpinCtrl* spinXpos;
 	wxStaticText* m_staticText54;
 	wxSpinCtrl* spinYpos;
+	wxStaticText* m_staticText59;
+	wxSpinCtrl* spinTrigUnit;
 	wxStaticLine* m_staticline20;
+	wxStaticText* strUnits;
+	wxTextCtrl* txtUnits;
+	wxStaticLine* m_staticline22;
 	wxStaticText* m_staticText53;
 	wxChoice* chbMsgItem;
 	wxButton* btnNewMsg;
 	wxButton* btnDelMsg;
-	wxButton* bntMsgUp;
+	wxButton* btnMsgUp;
 	wxButton* btnMsgDown;
 	wxStaticText* m_staticText55;
 	wxListBox* lbMsg;

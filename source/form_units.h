@@ -114,6 +114,7 @@ class FormUnits : public wxFrame
 			wxID_LB_UNITS,
 			wxID_CANVAS_ICON,
 			wxID_PROPS,
+			wxID_SPIN_ID,
 			wxID_NAME,
 			wxID_SPIN_HEALTH,
 			wxID_PAGE_CTRL,
@@ -149,6 +150,8 @@ class FormUnits : public wxFrame
 		wxStaticText* m_staticText34;
 		wxPropertyGrid* props;
 		wxStaticLine* m_staticline13;
+		wxStaticText* m_staticText60;
+		wxSpinCtrl* spinID;
 		wxStaticText* m_staticText39;
 		wxTextCtrl* txtName;
 		wxStaticText* m_staticText40;

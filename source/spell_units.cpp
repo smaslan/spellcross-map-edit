@@ -885,6 +885,8 @@ MapUnit::MapUnit()
 
 	// link to event that creates the unit (if exists)
 	map_event = NULL;
+	// link to event to be triggered (SeeUnit)
+	trig_event = NULL;
 
 	// sound refs
 	sound_move = NULL;
@@ -926,6 +928,12 @@ MapUnit::~MapUnit()
 		parent->child = NULL;
 		parent = NULL;
 	}
+	if(trig_event)
+	{
+		// unlink SeeUnit() event link
+		trig_event->trig_unit = NULL;
+		trig_event = NULL;
+	}
 }
 // copy without sound refs because delete would loose the sounds for source object!
 MapUnit::MapUnit(MapUnit &obj)
@@ -935,6 +943,8 @@ MapUnit::MapUnit(MapUnit &obj)
 
 	parent = NULL;
 	child = NULL;
+	trig_event = NULL;
+	map_event = NULL;
 
 	action_state = ACTION_STATE_IDLE;
 	move_state = MOVE_STATE_IDLE;

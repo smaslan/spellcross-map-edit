@@ -178,7 +178,10 @@ private:
     {
         ID_POP_ADD_MISSIONSTART = 2100,
         ID_POP_REM_MISSIONSTART,
-        ID_POP_EDIT_EVENT
+        ID_POP_ADD_SEEUNIT,
+        ID_POP_REM_SEEUNIT,
+        ID_POP_EDIT_EVENT,
+        ID_POP_EDIT_UNIT
     };
 
     // maximum size of minimap panel

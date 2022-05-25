@@ -8,6 +8,10 @@ using namespace std;
 SpellMapEventRec::SpellMapEventRec()
 {
 	evt_type = EVT_VOID;
+	is_objective = false;
+	trig_unit = NULL;
+	trig_unit_id = -1;
+	probability = 100;
 	type_name = EvtNames[evt_type];
 	is_done = false;
 	next = NULL;
@@ -30,12 +34,20 @@ SpellMapEventRec::~SpellMapEventRec()
 	for(auto & unit : units)
 		delete unit.unit;
 	units.clear();
+	
+	// unlink SeeUnit() event link to unit
+	if(trig_unit)
+	{
+		trig_unit->trig_event = NULL;
+		trig_unit = NULL;
+	}
 }
 int SpellMapEventRec::AddUnit(MapUnit* unit)
 {	
 	units.push_back(unit);
 	// make unit link to this event
 	unit->map_event = this;
+	unit->is_event = true;
 	return(0);
 }
 MapUnit *SpellMapEventRec::ExtractUnit(MapUnit* unit)
@@ -47,11 +59,22 @@ MapUnit *SpellMapEventRec::ExtractUnit(MapUnit* unit)
 			units.erase(it);
 			// unlink from this event
 			unit->map_event = NULL;
+			unit->is_event = false;
 			// return unit
 			return(unit);
 		}
 	// not found
 	return(NULL);
+}
+void SpellMapEventRec::ClearUnits()
+{
+	for(auto& unit : units)
+		delete unit.unit;
+	units.clear();	
+}
+void SpellMapEventRec::ClearTexts()
+{
+	texts.clear();
 }
 int SpellMapEventRec::isMissionStart()
 {
@@ -60,6 +83,10 @@ int SpellMapEventRec::isMissionStart()
 int SpellMapEventRec::isSeePlace()
 {
 	return(evt_type == EVT_SEE_PLACE);
+}
+int SpellMapEventRec::isSeeUnit()
+{
+	return(evt_type == EVT_SEE_UNIT);
 }
 int SpellMapEventRec::isDone()
 {
@@ -73,6 +100,14 @@ int SpellMapEventRec::isDone()
 			return(false);
 	is_done = true;
 	return(is_done);
+}
+int SpellMapEventRec::hasTargetUnit()
+{
+	return(evt_type == EVT_SEE_UNIT || evt_type == EVT_SAVE_UNIT || evt_type == EVT_TRANSPORT_UNIT);
+}
+int SpellMapEventRec::hasPosition()
+{
+	return(evt_type == EVT_SEE_PLACE || evt_type == EVT_DESTROY_OBJ);
 }
 
 // return list of text names of event types
@@ -97,8 +132,8 @@ int SpellMapEventRec::SetType(int type_id)
 
 
 // create events list
-SpellMapEvents::SpellMapEvents(int x_size, int y_size, int &game_mode)
-	: is_game_mode(game_mode)
+SpellMapEvents::SpellMapEvents(int x_size, int y_size,vector<MapUnit*>& map_units, int &game_mode)
+	: is_game_mode(game_mode), map_units(map_units)
 {
     this->x_size = x_size;
     this->y_size = y_size;	
@@ -137,6 +172,15 @@ int SpellMapEvents::GetNextID()
 }
 
 // tries to find existing event with identical parameters
+SpellMapEventRec* SpellMapEvents::FindEvent(int type,int probab,int trig_unit)
+{
+	for(auto& evt : events)
+	{
+		if(type == SpellMapEventRec::EVT_SEE_UNIT && type == evt->evt_type && probab && probab == evt->probability && trig_unit == evt->trig_unit_id)
+			return(evt);
+	}
+	return(NULL);
+}
 SpellMapEventRec* SpellMapEvents::FindEvent(int type,int probab,MapXY pos)
 {
 	for(auto & evt : events)
@@ -170,6 +214,34 @@ SpellMapEventRec* SpellMapEvents::RemoveEvent(SpellMapEventRec* event)
 	events.erase(id);
 	return(event);
 }
+// erase event (deletes it, places linked units directly to map units)
+int SpellMapEvents::EraseEvent(SpellMapEventRec* event)
+{
+	// try remove event from the list
+	auto evt = RemoveEvent(event);
+	if(!evt)
+		return(1);
+
+	// place all linked units to the map
+	for(auto & rec : evt->units)
+	{
+		// extract unit from event units list
+		auto unit = evt->ExtractUnit(rec.unit);
+		if(unit->is_enemy)
+		{
+			// enemy units can go directly to the map
+			map_units.push_back(unit);
+		}
+		else
+		{
+			// alinace can be only MissionStart()
+			AddMissionStartUnit(unit);
+		}		
+	}
+
+	delete evt;
+	return(0);
+}
 
 // clear all events
 void SpellMapEvents::ClearEvents()
@@ -180,18 +252,98 @@ void SpellMapEvents::ClearEvents()
 	events.clear();
 }
 
+
+// parse and add mission objectives (they are treated as events for simplicity)
+//AddMissionObjective(DestroyAllUnits,Zni‡en¡ v¨ech jednotek)
+//AddMissionObjective(TransportUnit,48,Probojovat se na z kladnu)
+//AddMissionObjective(SaveUnit,48,Zachr nit mjr.Davidsona)
+//AddMissionObjective(DestroyUnit,50,Zabít Daertora)
+//AddMissionObjective(SeePlace,648,Lokalizovat sklad ‡.1)
+//AddMissionObjective(DestroyObject,1966,Zni‡it vchod do jeskynˆ)
+int SpellMapEvents::AddMissionObjective(SpellData* data,SpellDEF* def,SpellDefCmd* cmd)
+{
+	
+	// identify type of objective
+	const struct{
+		const char *name;
+		int type;
+	} types[] = {
+		{"DestroyAllUnits",SpellMapEventRec::EvtTypes::EVT_DESTROY_ALL},
+		{"DestroyUnit",SpellMapEventRec::EvtTypes::EVT_DESTROY_UNIT},
+		{"DestroyObject",SpellMapEventRec::EvtTypes::EVT_DESTROY_OBJ},
+		{"SeePlace",SpellMapEventRec::EvtTypes::EVT_SEE_PLACE},
+		{"SaveUnit",SpellMapEventRec::EvtTypes::EVT_SAVE_UNIT},
+		{"TransportUnit",SpellMapEventRec::EvtTypes::EVT_TRANSPORT_UNIT},
+		{NULL,SpellMapEventRec::EvtTypes::EVT_VOID}};	
+	int event_type = SpellMapEventRec::EvtTypes::EVT_VOID;
+	auto *ptype = &types[0];
+	while(ptype->name)
+		if(strcmp(ptype->name,cmd->parameters->at(0).c_str()) == 0)
+		{
+			event_type = ptype->type;
+			break;
+		}
+		else
+			ptype++;
+	if(event_type == SpellMapEventRec::EvtTypes::EVT_VOID)
+	{
+		// type unknown
+		return(1);
+	}		
+
+	// decode parameters
+	wstring label = L"";
+	MapXY target_position;
+	int unit_index = -1;
+	if(event_type == SpellMapEventRec::EvtTypes::EVT_TRANSPORT_UNIT || event_type == SpellMapEventRec::EvtTypes::EVT_SAVE_UNIT || event_type == SpellMapEventRec::EvtTypes::EVT_DESTROY_UNIT)
+	{
+		// target unit index
+		unit_index = atoi(cmd->parameters->at(1).c_str());
+
+		// objective label
+		label = char2wstringCP895(cmd->parameters->at(2).c_str());
+	}
+	else if(event_type == SpellMapEventRec::EvtTypes::EVT_DESTROY_ALL)
+	{
+		// objective label
+		label = char2wstringCP895(cmd->parameters->at(1).c_str());
+	}
+	else if(event_type == SpellMapEventRec::EvtTypes::EVT_DESTROY_OBJ || event_type == SpellMapEventRec::EvtTypes::EVT_SEE_PLACE)
+	{
+		// event position		
+		target_position = ConvXY(atoi(cmd->parameters->at(1).c_str()));
+		
+		// objective label
+		label = char2wstringCP895(cmd->parameters->at(2).c_str());
+	}
+
+	// make new object-event
+	SpellMapEventRec *evt = new SpellMapEventRec();
+	evt->evt_type = event_type;
+	evt->type_name = cmd->parameters->at(0);
+	evt->label = label;
+	evt->position = target_position;
+	evt->probability = 100;
+	evt->trig_unit_id = unit_index;
+	evt->is_objective = true;	
+	events.push_back(evt);
+
+	return(0);
+}
+
 // parse and add given event
-int SpellMapEvents::AddEvent(SpellData *data, SpellDEF* def, SpellDefCmd* cmd)
+int SpellMapEvents::AddSpecialEvent(SpellData *data, SpellDEF* def, SpellDefCmd* cmd)
 {
 	SpellMapEventRec *evt = NULL;
 	MapXY target_position;
 	int event_data_index;
 	int event_probability;
 	int event_type;
+	int unit_index = -1;
 	int is_new_event = false;
 	if(cmd->parameters->at(0).compare("SeePlace") == 0)
 	{
-		// SeePlace(target_position, event_data_index, event_probability)
+		// AddSpecialEvent(SeePlace, target_position, event_data_index, event_probability)
 		event_type = SpellMapEventRec::EVT_SEE_PLACE;
 
 		// event position		
@@ -209,7 +361,7 @@ int SpellMapEvents::AddEvent(SpellData *data, SpellDEF* def, SpellDefCmd* cmd)
 	}
 	else if(cmd->parameters->at(0).compare("MissionStart") == 0)
 	{
-		// MissionStart(event_data_index, event_probability)
+		// AddSpecialEvent(MissionStart, event_data_index, event_probability)
 		event_type = SpellMapEventRec::EVT_MISSION_START;
 
 		// event index
@@ -220,6 +372,23 @@ int SpellMapEvents::AddEvent(SpellData *data, SpellDEF* def, SpellDefCmd* cmd)
 
 		// try find another matching event
 		evt = FindEvent(SpellMapEventRec::EVT_MISSION_START,event_probability);
+	}
+	else if(cmd->parameters->at(0).compare("SeeUnit") == 0)
+	{
+		// AddSpecialEvent(SeeUnit, unit_index, event_data_index, event_probability)
+		event_type = SpellMapEventRec::EVT_SEE_UNIT;
+
+		// unit to see index
+		unit_index = atoi(cmd->parameters->at(1).c_str());
+
+		// event index
+		event_data_index = atoi(cmd->parameters->at(2).c_str());
+
+		// probability
+		event_probability = atoi(cmd->parameters->at(3).c_str());
+
+		// try find another matching event
+		evt = FindEvent(SpellMapEventRec::EVT_SEE_UNIT,event_probability,unit_index);
 	}
 	else
 	{
@@ -234,6 +403,7 @@ int SpellMapEvents::AddEvent(SpellData *data, SpellDEF* def, SpellDefCmd* cmd)
 		evt->evt_type = event_type;
 		evt->position = target_position;
 		evt->probability = event_probability;
+		evt->trig_unit_id = unit_index;
 		events.push_back(evt);
 	}
 	
@@ -388,28 +558,49 @@ void SpellMapEvents::ResetEvents()
 			text.is_done = false;
 		for(auto& unit : evt->units)
 			unit.is_placed = false;
+		if(evt->isSeeUnit() && evt->trig_unit)
+		{
+			evt->trig_unit->trig_event = NULL;
+			evt->trig_unit = NULL;
+		}
 	}
+
+	// make list of all existing units (map units and events' units)
+	vector<MapUnit*> units_list = map_units;
+	for(auto& evt : events)
+		for(auto & unit : evt->units)
+			units_list.push_back(unit.unit);
 	
 	// make map of events
 	events_map.assign(x_size*y_size, NULL);
 	for(auto& evt : events)
-	{
-		// only see place events
-		if(!evt->isSeePlace())
-			continue;
-
-		// place event to map (or at the end of chain of events for the position)
-		auto tile = EventMap(evt->position);
-		if(!*tile)
+	{		
+		if(evt->isSeePlace())
 		{
-			*tile = evt;
+			// place event to map (or at the end of chain of events for the position)
+			auto tile = EventMap(evt->position);
+			if(!*tile)
+			{
+				*tile = evt;
+			}
+			else
+			{
+				SpellMapEventRec *prev = *tile;
+				while(prev)
+					prev = prev->next;
+				prev = evt;
+			}
 		}
-		else
+		else if(evt->isSeeUnit())
 		{
-			SpellMapEventRec *prev = *tile;
-			while(prev)
-				prev = prev->next;
-			prev = evt;
+			// look for target unit and assign ref
+			for(auto & unit : units_list)
+				if(unit->id == evt->trig_unit_id)
+				{
+					// target unit found
+					unit->trig_event = evt;
+					evt->trig_unit = unit;
+				}			
 		}
 	}
 }
@@ -513,4 +704,16 @@ int SpellMapEvents::AddMissionStartUnit(MapUnit* unit,int probab)
 	target_evt->AddUnit(unit);
 
 	return(0);
+}
+
+// add new SeeUnit() event
+SpellMapEventRec* SpellMapEvents::AddSeeUnitEvent(MapUnit* unit,int probab)
+{
+	auto evt = new SpellMapEventRec();
+	evt->SetType(SpellMapEventRec::EvtTypes::EVT_SEE_UNIT);
+	evt->trig_unit_id = unit->id;
+	evt->probability = probab;
+	AddEvent(evt);
+	ResetEvents();
+	return(evt);
 }

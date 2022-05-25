@@ -99,6 +99,13 @@ FormUnits::FormUnits( wxWindow* parent, wxWindowID id, const wxString& title, co
 	m_staticline13 = new wxStaticLine(this,wxID_ANY,wxDefaultPosition,wxDefaultSize,wxLI_HORIZONTAL);
 	szProps->Add(m_staticline13,0,wxEXPAND | wxALL,5);
 
+	m_staticText60 = new wxStaticText(this,wxID_ANY,wxT("Unit index:"),wxDefaultPosition,wxDefaultSize,0);
+	m_staticText60->Wrap(-1);
+	szProps->Add(m_staticText60,0,wxTOP|wxRIGHT|wxLEFT,5);
+
+	spinID = new wxSpinCtrl(this,wxID_SPIN_ID,wxEmptyString,wxDefaultPosition,wxDefaultSize,wxSP_ARROW_KEYS,0,100,0);
+	szProps->Add(spinID,0,wxEXPAND|wxBOTTOM|wxRIGHT|wxLEFT,5);
+
 	m_staticText39 = new wxStaticText(this,wxID_ANY,wxT("Custom name:"),wxDefaultPosition,wxDefaultSize,0);
 	m_staticText39->Wrap(-1);
 	szProps->Add(m_staticText39,0,wxTOP|wxRIGHT|wxLEFT,5);
@@ -482,7 +489,11 @@ void FormUnits::SelectUnit(MapUnit *unit)
 	props->Append(new wxStringProperty(wxT("Air attack"),wxT(""),string_format("%d",unit_rec->attack_air)));
 	props->Append(new wxStringProperty(wxT("Objects attack"),wxT(""),string_format("%d",unit_rec->attack_objects)));
 	props->Append(new wxStringProperty(wxT("Man count"),wxT(""),string_format("%d",unit_rec->cnt)));
-	props->Thaw();
+	props->Thaw();	
+
+	// show unit ID
+	if(m_unit)
+		spinID->SetValue(m_unit->id);
 
 	// set health control
 	int health = unit_rec->GetHP();

@@ -31,13 +31,25 @@ public:
     {
         EVT_VOID = 0,
         EVT_MISSION_START,
-        EVT_SEE_PLACE
+        EVT_SEE_PLACE,
+        EVT_SEE_UNIT,
+        EVT_DESTROY_UNIT,
+        EVT_DESTROY_OBJ,
+        EVT_DESTROY_ALL,
+        EVT_TRANSPORT_UNIT,
+        EVT_SAVE_UNIT
     };
-    string EvtNames[3] = 
+    string EvtNames[9] = 
     {
         "Void",
         "MissionStart",
-        "SeePlace"
+        "SeePlace",
+        "SeeUnit",
+        "DestroyUnit",
+        "DestroyObject",
+        "DestroyAllUnits",
+        "TransportUnit",
+        "SaveUnit"
     };
 
     int in_placement;
@@ -46,7 +58,11 @@ public:
     int evt_type;
     MapXY position;
     int probability;
-    string type_name;    
+    int trig_unit_id;
+    MapUnit *trig_unit;
+    string type_name;
+    int is_objective;
+    wstring label;
 
     // event is below probability (will not be excuted)
     int hide;
@@ -65,12 +81,18 @@ public:
     int SetType(int type_id);
     int AddUnit(MapUnit *unit);
     MapUnit *ExtractUnit(MapUnit* unit);
+    void ClearUnits();
+    void ClearTexts();
     SpellMapEventRec();
     SpellMapEventRec(SpellMapEventRec* rec);
     ~SpellMapEventRec();
+    
     int isMissionStart();
     int isSeePlace();
+    int isSeeUnit();
     int isDone();
+    int hasTargetUnit();
+    int hasPosition();
 
     vector<string> GetEventTypes();
 };
@@ -86,6 +108,8 @@ private:
     int y_size;
     // game mode?
     int &is_game_mode;
+    // map units list
+    vector<MapUnit*> &map_units;
     // unit index (only for loading)
     int next_index;
     // list of events
@@ -97,15 +121,18 @@ private:
     int ConvXY(MapXY pos);
     int GetNextID();
     SpellMapEventRec *FindEvent(int type, int probab, MapXY pos={-1,-1});
+    SpellMapEventRec *FindEvent(int type,int probab,int trig_unit);
     SpellMapEventRec **EventMap(MapXY pos);
 
 public:
 
-    SpellMapEvents(int x_size, int y_size, int& game_mode);
+    SpellMapEvents(int x_size, int y_size,vector<MapUnit*>& map_units,int& game_mode);
     ~SpellMapEvents();
-    int AddEvent(SpellData* data, SpellDEF* def, SpellDefCmd* cmd);
+    int AddSpecialEvent(SpellData* data, SpellDEF* def, SpellDefCmd* cmd);
+    int AddMissionObjective(SpellData* data,SpellDEF* def,SpellDefCmd* cmd);
     SpellMapEventRec* AddEvent(SpellMapEventRec *event);
     SpellMapEventRec* RemoveEvent(SpellMapEventRec* event);
+    int EraseEvent(SpellMapEventRec* event);
     void ClearEvents();
     void ResetEvents();
     SpellMapEventRec* GetEvent(MapXY pos);
@@ -116,4 +143,5 @@ public:
     vector<SpellMapEventRec*> &GetEvents();
     SpellMapEventsList GetMissionStartEvent(bool clear=false);
     int AddMissionStartUnit(MapUnit *unit, int probab=100);
+    SpellMapEventRec* AddSeeUnitEvent(MapUnit* unit,int probab=100);
 };

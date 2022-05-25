@@ -419,7 +419,7 @@ int SpellMap::Create(SpellData* spelldata, const char *terr_name, int x, int y)
 	filter.resize(x_size*y_size);
 
 	// create events
-	events = new SpellMapEvents(x_size, y_size, game_mode);
+	events = new SpellMapEvents(x_size, y_size, units, game_mode);
 
 	// generate plain map
 	for(int k = 0; k < (x_size * y_size); k++)
@@ -905,7 +905,7 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 	pnm_sipka = MapLayer4(spelldata->pnm_sipka);
 
 	// create events list
-	events = new SpellMapEvents(x_size,y_size,game_mode);
+	events = new SpellMapEvents(x_size,y_size,units,game_mode);
 
 	//////////////////////////
 	///// Load DEF stuff /////
@@ -1000,12 +1000,15 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 				// add unit to list
 				units.push_back(unit);
 			}
-			else if (cmd->name.compare("AddSpecialEvent") == 0)
+			else if(cmd->name.compare("AddSpecialEvent") == 0)
 			{
 				// --- Event definitions: AddSpecialEvent(type, position, index, probability) ---
-
-				// decode event
-				events->AddEvent(spelldata, def, cmd);
+				events->AddSpecialEvent(spelldata, def, cmd);
+			}
+			else if(cmd->name.compare("AddMissionObjective") == 0)
+			{
+				// --- Mission objectives: treating them as events too				
+				events->AddMissionObjective(spelldata, def, cmd);
 			}
 		}
 		delete mission_data;
@@ -2325,12 +2328,17 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 		// render event-unit connection lines:
 		for(auto & evt : events->GetEvents())
 		{
-			if(!evt->isSeePlace())
+			MapXY ev_pos;
+			if(evt->isSeePlace())
+				ev_pos = evt->position;
+			else if(evt->isSeeUnit() && evt->trig_unit)
+				ev_pos = evt->trig_unit->coor;
+			else 
 				continue;
 
 			// event position in surface
-			Sprite* spr = L1[ConvXY(evt->position)];
-			auto [mxx,myy] = GetSurfPos(evt->position);
+			Sprite* spr = L1[ConvXY(ev_pos)];
+			auto [mxx,myy] = GetSurfPos(ev_pos);
 			mxx += 40;
 			myy += spr->y_ofs + spr->y_size/2;
 
@@ -2395,14 +2403,14 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 				}
 				else
 				{
-					// show MissionStart events associated to units:
+					// show events associated to units (MissionStart and SeeUnit):
 
 					auto unit = Lunit[mxy];
 					while(unit)
 					{
 						if(unit->map_event && unit->map_event->isMissionStart())
 						{
-							// found matching event:
+							// found matching MissionStart() event:
 							auto evt = unit->map_event;
 							int is_selected = (evt == GetSelectEvent());
 
@@ -2416,6 +2424,26 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 							int y_ofs = (unit->unit->isAir())?SpellUnitRec::AIR_UNIT_FLY_HEIGHT:0;
 							int color = (is_selected && sel_blink_state)?214:252;
 							terrain->font7->Render(pic,pic_end,pic_x_size,mxx,myy - y_ofs,80,spr->y_size,label,color,254,SpellFont::SOLID);
+						}
+						else if(unit->trig_event && unit->trig_event->isSeeUnit())
+						{
+							// SeeUnit() event:
+							auto evt = unit->trig_event;
+							int is_selected = (evt == GetSelectEvent());
+
+							// make label on top of unit
+							string label = "\x1C" + evt->type_name;
+							if(evt->probability != 100)
+								label += string_format("(%d%%)",evt->probability);
+							if(!evt->units.empty())
+								label += "\x1A";
+							if(!evt->texts.empty())
+								label += "\x1B";
+
+							// plot it
+							int y_ofs = (unit->unit->isAir())?SpellUnitRec::AIR_UNIT_FLY_HEIGHT:0;
+							int color = (is_selected && sel_blink_state)?214:252;
+							terrain->font->Render(pic,pic_end,pic_x_size,mxx,myy - y_ofs,80,spr->y_size,label,color,254,SpellFont::SOLID);
 						}
 
 						unit = unit->next;
@@ -4358,13 +4386,20 @@ int SpellMap::AddUnitView(MapUnit *unit, vector<SpellMapEventRec*>* event_list)
 						// target reached: mark tile as visible and done
 						units_view[next_mxy] = 5;
 
-						// check new enemy contact
+						// check new unit contact
 						if(!Lunit.empty())
 						{
-							if(!units_view_flags[next_mxy] && Lunit[next_mxy] && Lunit[next_mxy]->is_enemy)
+							MapUnit* unit = Lunit[next_mxy];
+							while(unit)
 							{
-								new_contact = true;
+								// new contact?
+								if(!units_view_flags[next_mxy] && Lunit[next_mxy]->is_enemy)
+									new_contact = true;
+								// SeeUnit() event?
+								if(event_list && unit->trig_event)
+									event_list->push_back(unit->trig_event);
 								units_view_flags[next_mxy] = 1;
+								unit = unit->next;
 							}
 						}
 						if(event_list && events->CheckEvent(next_mxy))
@@ -4432,12 +4467,20 @@ int SpellMap::AddUnitView(MapUnit *unit, vector<SpellMapEventRec*>* event_list)
 				// mark as seen
 				units_view[hnext_mxy] = 5;
 				// check new enemy contact
+				// check new unit contact
 				if(!Lunit.empty())
 				{
-					if(!units_view_flags[next_mxy] && Lunit[next_mxy] && Lunit[next_mxy]->is_enemy)
+					MapUnit* unit = Lunit[next_mxy];
+					while(unit)
 					{
-						new_contact = true;
+						// new contact?
+						if(!units_view_flags[next_mxy] && Lunit[next_mxy]->is_enemy)
+							new_contact = true;
+						// SeeUnit() event?
+						if(event_list && unit->trig_event)
+							event_list->push_back(unit->trig_event);
 						units_view_flags[next_mxy] = 1;
+						unit = unit->next;
 					}
 				}
 				if(event_list && events->CheckEvent(next_mxy))
@@ -6048,9 +6091,7 @@ SpellMapEventRec* SpellMap::GetCursorEvent(TScroll* scroll)
 	auto evt = events->GetEvent(pos);
 	if(!evt)
 	{
-		// not found: check if there is MissionStart event unit
-		
-		//GetCursorUnit(bmp, scroll);		
+		// not found: check if there is MissionStart event unit		
 		auto unit = Lunit[ConvXY(pos)];
 		while(unit)
 		{
@@ -6062,7 +6103,6 @@ SpellMapEventRec* SpellMap::GetCursorEvent(TScroll* scroll)
 			}
 			unit = unit->next;
 		}
-
 	}
 
 	return(evt);
@@ -6089,6 +6129,7 @@ int SpellMap::UpdateEventUnit(SpellMapEventRec* evt,MapUnit* unit)
 		// yaha: move unit from map to event
 		evt->AddUnit(unit);
 		SortUnits();
+		events->ResetEvents();
 		return(0);
 	}
 	
@@ -6098,8 +6139,12 @@ int SpellMap::UpdateEventUnit(SpellMapEventRec* evt,MapUnit* unit)
 	{
 		AddUnit(free_unit);
 		SortUnits();
+		events->ResetEvents();
 		return(0);
 	}
+
+	
+	
 	
 	// unit is not found, most likely belongs to other event, do nothing
 	return(1);

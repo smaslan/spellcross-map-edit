@@ -29,7 +29,7 @@ FormEvent::FormEvent(wxWindow* parent,SpellData* spell_data,wxWindowID id,const 
 	mMenu = new wxMenuBar(0);
 	mmFile = new wxMenu();
 	wxMenuItem* mmOk;
-	mmOk = new wxMenuItem(mmFile,wxID_MM_OK,wxString(wxT("Place/Update")) + wxT('\t') + wxT("Enter"),wxEmptyString,wxITEM_NORMAL);
+	mmOk = new wxMenuItem(mmFile,wxID_MM_OK,wxString(wxT("Place/Update")) + wxT('\t') + wxT("Ctrl+Enter"),wxEmptyString,wxITEM_NORMAL);
 	mmFile->Append(mmOk);
 
 	wxMenuItem* mmExit;
@@ -85,6 +85,16 @@ FormEvent::FormEvent(wxWindow* parent,SpellData* spell_data,wxWindowID id,const 
 	chbType->SetSelection(0);
 	bSizer50->Add(chbType,0,wxEXPAND|wxRIGHT|wxLEFT,5);
 
+	m_staticText62 = new wxStaticText(this,wxID_ANY,wxT("MissionObjective() description:"),wxDefaultPosition,wxDefaultSize,0);
+	m_staticText62->Wrap(-1);
+	bSizer50->Add(m_staticText62,0,wxTOP|wxRIGHT|wxLEFT,5);
+
+	txtObjectiveDesc = new wxTextCtrl(this,wxID_TXT_OBJ_DESC,wxEmptyString,wxDefaultPosition,wxDefaultSize,wxTE_PROCESS_ENTER);
+	bSizer50->Add(txtObjectiveDesc,0,wxEXPAND|wxBOTTOM|wxRIGHT|wxLEFT,5);
+
+	cbIsObjective = new wxCheckBox(this,wxID_CB_IS_OBJECTIVE,wxT("is MissionObjective?"),wxDefaultPosition,wxDefaultSize,0);
+	bSizer50->Add(cbIsObjective,0,wxALL,5);
+
 	m_staticText51 = new wxStaticText(this,wxID_ANY,wxT("Probability:"),wxDefaultPosition,wxDefaultSize,0);
 	m_staticText51->Wrap(-1);
 	bSizer50->Add(m_staticText51,0,wxTOP|wxRIGHT|wxLEFT,5);
@@ -116,8 +126,39 @@ FormEvent::FormEvent(wxWindow* parent,SpellData* spell_data,wxWindowID id,const 
 
 	bSizer50->Add(bSizer48,0,wxEXPAND,5);
 
+	wxBoxSizer* bSizer56;
+	bSizer56 = new wxBoxSizer(wxHORIZONTAL);
+
+	m_staticText59 = new wxStaticText(this,wxID_ANY,wxT("Trigger unit index:"),wxDefaultPosition,wxDefaultSize,0);
+	m_staticText59->Wrap(-1);
+	bSizer56->Add(m_staticText59,0,wxALIGN_CENTER_VERTICAL|wxALL,5);
+
+	spinTrigUnit = new wxSpinCtrl(this,wxID_SPIN_TRIG_UNIT,wxEmptyString,wxDefaultPosition,wxDefaultSize,wxSP_ARROW_KEYS,0,99,0);
+	spinTrigUnit->SetMinSize(wxSize(70,-1));
+
+	bSizer56->Add(spinTrigUnit,0,wxALL,5);
+
+
+	bSizer50->Add(bSizer56,0,wxEXPAND,5);
+
 	m_staticline20 = new wxStaticLine(this,wxID_ANY,wxDefaultPosition,wxDefaultSize,wxLI_HORIZONTAL);
 	bSizer50->Add(m_staticline20,0,wxEXPAND | wxALL,5);
+
+	wxBoxSizer* bSizer55;
+	bSizer55 = new wxBoxSizer(wxHORIZONTAL);
+
+	strUnits = new wxStaticText(this,wxID_ANY,wxT("Event units count:"),wxDefaultPosition,wxDefaultSize,0);
+	strUnits->Wrap(-1);
+	bSizer55->Add(strUnits,0,wxALIGN_CENTER|wxRIGHT|wxLEFT,5);
+
+	txtUnits = new wxTextCtrl(this,wxID_TXT_UNITS,wxEmptyString,wxDefaultPosition,wxDefaultSize,wxTE_READONLY);
+	bSizer55->Add(txtUnits,1,wxRIGHT|wxLEFT,5);
+
+
+	bSizer50->Add(bSizer55,0,wxEXPAND,5);
+
+	m_staticline22 = new wxStaticLine(this,wxID_ANY,wxDefaultPosition,wxDefaultSize,wxLI_HORIZONTAL);
+	bSizer50->Add(m_staticline22,0,wxEXPAND | wxALL,5);
 
 	m_staticText53 = new wxStaticText(this,wxID_ANY,wxT("Event message(s) list:"),wxDefaultPosition,wxDefaultSize,0);
 	m_staticText53->Wrap(-1);
@@ -137,8 +178,8 @@ FormEvent::FormEvent(wxWindow* parent,SpellData* spell_data,wxWindowID id,const 
 	btnDelMsg = new wxButton(this,wxID_BNT_DEL_MSG,wxT("Delete"),wxDefaultPosition,wxDefaultSize,0);
 	bSizer49->Add(btnDelMsg,1,wxALL,5);
 
-	bntMsgUp = new wxButton(this,wxID_BTN_MSG_UP,wxT("Move up"),wxDefaultPosition,wxDefaultSize,0);
-	bSizer49->Add(bntMsgUp,1,wxALL,5);
+	btnMsgUp = new wxButton(this,wxID_BTN_MSG_UP,wxT("Move up"),wxDefaultPosition,wxDefaultSize,0);
+	bSizer49->Add(btnMsgUp,1,wxALL,5);
 
 	btnMsgDown = new wxButton(this,wxID_BTN_MSG_DOWN,wxT("Move down"),wxDefaultPosition,wxDefaultSize,0);
 	bSizer49->Add(btnMsgDown,1,wxALL,5);
@@ -193,6 +234,8 @@ FormEvent::FormEvent(wxWindow* parent,SpellData* spell_data,wxWindowID id,const 
 
 	// === AUTO GENERATED END ===
 
+
+
 	// not sound yet
 	spell_sound = NULL;
 
@@ -217,10 +260,13 @@ FormEvent::FormEvent(wxWindow* parent,SpellData* spell_data,wxWindowID id,const 
 	Bind(wxEVT_COMMAND_BUTTON_CLICKED,&FormEvent::OnPlayNarration,this,wxID_BTN_PLAY_MSG);
 	Bind(wxEVT_COMMAND_BUTTON_CLICKED,&FormEvent::OnPlayNarration,this,wxID_BTN_STOP_MSG);
 
+	Bind(wxEVT_TEXT_ENTER,&FormEvent::OnSelectMsgResource,this,wxID_TXT_OBJ_DESC);
+	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormEvent::OnSelectMsgResource,this,wxID_CB_IS_OBJECTIVE);
 	Bind(wxEVT_COMMAND_CHOICE_SELECTED,&FormEvent::OnSelectMsgResource,this,wxID_CHB_TYPE);
 	Bind(wxEVT_COMMAND_SPINCTRL_UPDATED,&FormEvent::OnSelectMsgResource,this,wxID_SPIN_PROB);
 	Bind(wxEVT_COMMAND_SPINCTRL_UPDATED,&FormEvent::OnSelectMsgResource,this,wxID_SPIN_XPOS);
 	Bind(wxEVT_COMMAND_SPINCTRL_UPDATED,&FormEvent::OnSelectMsgResource,this,wxID_SPIN_YPOS);
+	Bind(wxEVT_COMMAND_SPINCTRL_UPDATED,&FormEvent::OnSelectMsgResource,this,wxID_SPIN_TRIG_UNIT);
 
 }
 
@@ -433,6 +479,18 @@ void FormEvent::SelectEvent(SpellMapEventRec *evt)
 	spinYpos->SetRange(0,spell_map->y_size - 1);
 	spinYpos->SetValue(spell_event->position.y);
 
+	// fill SeeUnit() target
+	spinTrigUnit->SetValue(spell_event->trig_unit_id);
+
+	// fill associated units count
+	txtUnits->SetValue(string_format("%d", spell_event->units.size()));
+
+	// is objective?
+	cbIsObjective->SetValue(spell_event->is_objective);
+
+	// objective label
+	txtObjectiveDesc->SetValue(spell_event->label);
+
 	// fill text messages list
 	FillMsgItems();
 	SelectMsgItem();
@@ -540,21 +598,64 @@ void FormEvent::OnSelectMsgResource(wxCommandEvent& event)
 	if(!spell_event)
 		return;
 
-	// update probability
-	spell_event->probability = spinProb->GetValue();
-
-	// update coordinates
-	spell_event->position = MapXY(spinXpos->GetValue(),spinYpos->GetValue());
-
 	// update event type
 	int type_id = chbType->GetSelection();
 	if(!chbType->IsEmpty() && type_id >= 0)
 		spell_event->SetType(type_id);
 
-	// set controls visibility
-	int pos_active = spell_event->isSeePlace();
-	spinXpos->Enable(pos_active);
-	spinYpos->Enable(pos_active);
+	// mission objective flag
+	if(cbIsObjective->GetValue() && spell_event->evt_type == SpellMapEventRec::EvtTypes::EVT_MISSION_START)
+		cbIsObjective->SetValue(false);
+	spell_event->is_objective = cbIsObjective->GetValue();
+
+	// update probability	
+	if(spell_event->is_objective)
+	{
+		spell_event->probability = 100;
+		spinProb->SetValue(spell_event->probability);
+		spinProb->Enable(false);
+	}
+	else
+	{
+		spell_event->probability = spinProb->GetValue();
+		spinProb->Enable(true);
+	}
+
+	// objective text label
+	if(spell_event->is_objective)
+	{
+		spell_event->label = txtObjectiveDesc->GetValue();
+		txtObjectiveDesc->Enable(true);
+	}
+	else
+	{
+		spell_event->label = L"";
+		txtObjectiveDesc->SetValue("");
+		txtObjectiveDesc->Enable(false);
+	}
+	
+	// update coordinates
+	spell_event->position = MapXY(spinXpos->GetValue(),spinYpos->GetValue());	
+	spinXpos->Enable(spell_event->hasPosition());
+	spinYpos->Enable(spell_event->hasPosition());
+
+	// update target unit id
+	spell_event->trig_unit_id = spinTrigUnit->GetValue();
+	spinTrigUnit->Enable(spell_event->hasTargetUnit());	
+
+	if(spell_event->is_objective)
+	{
+		// clear event stuff (messages and units)
+		spell_event->ClearUnits();
+		spell_event->ClearTexts();		
+	}
+	lbMsg->Enable(!spell_event->is_objective);
+	btnDelMsg->Enable(!spell_event->is_objective);
+	btnMsgDown->Enable(!spell_event->is_objective);
+	btnMsgUp->Enable(!spell_event->is_objective);
+	btnNewMsg->Enable(!spell_event->is_objective);
+	chbMsgItem->Enable(!spell_event->is_objective);
+	txtMessage->Enable(!spell_event->is_objective);
 
 	// resort events (note: possibly slow?)
 	spell_map->events->ResetEvents();
@@ -562,7 +663,12 @@ void FormEvent::OnSelectMsgResource(wxCommandEvent& event)
 	// get message item selection
 	auto sel = chbMsgItem->GetSelection();
 	if(chbMsgItem->IsEmpty() || sel < 0)
+	{
+		txtMessage->SetValue("");
+		btnMsgPlay->Enable(false);
+		btnMsgStop->Enable(false);
 		return;
+	}
 	auto &msg = spell_event->texts[sel];
 
 	// get resource selection

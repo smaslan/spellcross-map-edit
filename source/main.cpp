@@ -988,12 +988,30 @@ void MyFrame::OnCanvasPopupSelect(wxCommandEvent& event)
         spell_map->AddUnit(cur_unit);
         spell_map->SortUnits();
     }
+    else if(event.GetId() == ID_POP_ADD_SEEUNIT)
+    {
+        // try ass SeeUnit() event
+        spell_map->events->AddSeeUnitEvent(cur_unit);
+        spell_map->SortUnits();
+    }
+    else if(event.GetId() == ID_POP_REM_SEEUNIT)
+    {
+        // try remove SeeUnit() event
+        spell_map->SelectEvent(NULL);
+        spell_map->events->EraseEvent(cur_unit->trig_event);
+    }
     else if(event.GetId() == ID_POP_EDIT_EVENT)
     {
         // edit event        
         auto cur_evt = spell_map->GetCursorEvent(&scroll);
         spell_map->SelectEvent(cur_evt);
         OnEditEvent(event);
+    }
+    else if(event.GetId() == ID_POP_EDIT_UNIT)
+    {
+        // edit unit
+        spell_map->SelectUnit(cur_unit);
+        OnEditUnit(event);
     }
 }
 
@@ -1027,9 +1045,23 @@ void MyFrame::OnCanvasRMouse(wxMouseEvent& event)
             {
                 menu.Append(ID_POP_ADD_MISSIONSTART,"Add to MissionStart() event");
             }
-            if(cur_unit && cur_unit->map_event && cur_unit->map_event->isMissionStart() || cur_evt)
+            if(cur_unit && !cur_unit->trig_event)
+            {
+                menu.Append(ID_POP_ADD_SEEUNIT,"Set as SeeUnit() event trigger unit");
+            }
+            if(cur_unit && cur_unit->trig_event && cur_unit->trig_event->isSeeUnit())
+            {
+                menu.Append(ID_POP_REM_SEEUNIT,"Remove SeeUnit() event");
+            }
+            if((cur_unit && cur_unit->map_event && cur_unit->map_event->isMissionStart())
+                || cur_evt)
             {
                 menu.Append(ID_POP_EDIT_EVENT,"Edit event");
+            }
+            if(cur_unit)
+            {
+                menu.AppendSeparator();
+                menu.Append(ID_POP_EDIT_UNIT,"Edit unit");
             }
                         
             
@@ -1260,7 +1292,12 @@ void MyFrame::OnCanvasLMouseDown(wxMouseEvent& event)
                 {
                     // select event
                     spell_map->SelectEvent(cur_evt);
-                }                
+                }
+                else if(wEvents && cur_unit && cur_unit->trig_event)
+                {
+                    // select SeeUnit() event
+                    spell_map->SelectEvent(cur_unit->trig_event);
+                }
                 else if(cur_unit && cur_unit == sel_unit)
                 {
                     // move/place unit
