@@ -9,7 +9,7 @@
 #ifndef _SPRITES_H_
 #define _SPRITES_H_
 
-#include "windows.h"
+//#include "windows.h"
 #include "cstdint"
 #include <fstream>
 #include <vector>

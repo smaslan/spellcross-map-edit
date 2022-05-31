@@ -5,6 +5,8 @@
 // (c) 2022, Stanislav Maslan, s.maslan@seznam.cz
 // Distributed under MIT license, https://opensource.org/licenses/MIT.
 //=============================================================================
+#undef _HAS_STD_BYTE
+#define _HAS_STD_BYTE 0
 
 #include "spell_graphics.h"
 #include "other.h"

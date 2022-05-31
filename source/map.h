@@ -9,7 +9,7 @@
 #ifndef _MAP_H_
 #define _MAP_H_
 
-#include "windows.h"
+//#include "windows.h"
 #include "cstdint"
 #include <vector>
 #include <thread>
@@ -44,11 +44,19 @@ private:
 public:
 	// sprite data pointer
 	Sprite *spr;
+	// elevation
+	int elev;
 	// hit points if destructible
 	int hp;
-
+	
+	MapSprite();
 	MapSprite(Sprite* sprite);
 	~MapSprite();
+	
+	void Set(Sprite* sprite,int elev=-1);
+	void Clear();
+	int PlayHit();
+	int PlayDestruct();
 };
 
 class MapLayer3
@@ -361,17 +369,16 @@ class SpellMap
 		Terrain* terrain;
 		SpellData* spelldata;
 		// layers:
-		Sprite **L1; // terrain array
-		int* elev; // terrain elevation array
-		Sprite **L2; // objects array
-		uint8_t* flags; // flags array
-		vector<MapLayer3*> L3; // ANM list
-		vector<MapLayer4*> L4; // PNM list				
+		vector<MapSprite> L1; // terrain array
+		vector<MapSprite> L2; // objects array
+		vector<uint8_t> flags; // flags array
+		vector<MapLayer3> L3; // ANM list
+		vector<MapLayer4> L4; // PNM list				
 		vector<MapXY> start; // start tiles list
 		vector<MapXY> escape; // escape tiles list
 		vector<MapUnit*> Lunit; // units layer array
-		uint8_t *select; // selection flags array
-		uint32_t *L1_flags; // terrain class flags array
+		vector<uint8_t> select; // selection flags array
+		vector<uint32_t> L1_flags; // terrain class flags array
 		// list of units
 		vector<MapUnit*> units;
 		// map events

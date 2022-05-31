@@ -5,6 +5,9 @@
 // (c) 2021, Stanislav Maslan, s.maslan@seznam.cz
 // Distributed under MIT license, https://opensource.org/licenses/MIT.
 //=============================================================================
+#undef _HAS_STD_BYTE
+#define _HAS_STD_BYTE 0
+
 #include "sprites.h"
 #include "other.h"
 #include "fs_archive.h"
@@ -111,7 +114,7 @@ int Sprite::Decode(uint8_t* src, char* name)
 	src += 2;
 
 	// get vertical offset
-	y_ofs = (int)*(__int32*)src;
+	y_ofs = (int)*(int32_t*)src;
 	src += 4;
 
 	// allocate sprite data (maximum possible value)
@@ -680,7 +683,7 @@ int AnimL1::Decode(uint8_t* data, char* name)
 	int count = *data++;
 
 	// relative frame data offsets in data
-	__int32 *frame_data_offsets = (__int32*)data;
+	int32_t *frame_data_offsets = (int32_t*)data;
 	
 	// --- for each frame:
 	for (int fid = 0; fid < count; fid++)
