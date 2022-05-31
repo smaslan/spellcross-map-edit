@@ -165,8 +165,66 @@ SpellDefSection *SpellDEF::GetSection(std::string section)
 }
 
 
+//=============================================================================
+// spellcross class lists parser
+//=============================================================================
+// parse spellcross class DEF files
+//  text - DEF file content
+//  regexp_head - regexp header to parse out single record of the DEF
+//  reg_index_item - <0 to put records as they goes, >=0 to pick regexpt captured item to be used as result position number
+SpellClassFile::SpellClassFile(string text,string regexp_head,int reg_index_item)
+{
+	int max_id = 0;
+	//auto start_pos = text.find(";[");
+	auto start_pos = 0;
+	if(start_pos != string::npos)
+	{
+		text = text.substr(start_pos);
+		regex secexp(regexp_head);
+		do {
+			smatch match;
+			std::regex_search(text,match,secexp);
+			if(match.size() < 2)
+				break;
+			int head_count = match.size();
 
+			SpellClassFileRec cls;
+			// strore header items
+			for(int k = 1; k < head_count-1; k++)
+				cls.head.push_back(match[k].str());
+			
+			// parse data
+			auto ss = stringstream{match[head_count-1]};
+			int first = true;
+			for(std::string line; getline(ss,line,'\n');)
+			{
+				if(!line.empty() && line[0] == ';')
+					continue; // still comment
+				auto cr = line.find('\r');
+				if(cr != string::npos)
+					line.resize(cr);
+				if(line.empty())
+					break;
+				cls.items.push_back(line);
+			}
+			// place class to proper ID position
+			if(reg_index_item >= 0)
+			{
+				cls.index = std::stoi(cls.head[reg_index_item]);
+				max_id = max(max_id,cls.index);
+				list.resize(max_id+1);
+				list[cls.index] = cls;
+			}
+			else
+			{
+				cls.index = -1;
+				list.push_back(cls);
+			}
 
+			text = match.suffix();
+		} while(true);
+	}	
+}
 
 
 
@@ -190,42 +248,47 @@ SpellData::SpellData(wstring &data_path,wstring& cd_data_path,wstring& spec_path
 	info = NULL;
 	sounds = NULL;
 	texts = NULL;
+	L2_classes = NULL;
 	
 	// store path
 	spell_data_root = data_path;
 
+	// load COMMON.FS
+	FSarchive* common;
+	wstring common_path = data_path + L"\\COMMON.FS";
+	common = new FSarchive(common_path);
+	uint8_t* data;
+	int size;
+
+	// load sound stuff
+	sounds = new SpellSounds(data_path);
+	
+	// load L2 object classes stuff
+	L2_classes = new SpellL2classes(common,sounds);
+
 	// load terrains
-	const wchar_t* terrain_list[] ={ L"\\T11.FS",
-									 L"\\PUST.FS",
-									 L"\\DEVAST.FS"};
-	for(unsigned k = 0; k < sizeof(terrain_list)/sizeof(const wchar_t*); k++)
+	vector<wstring> terrain_list = {L"T11.FS", L"PUST.FS", L"DEVAST.FS"};
+	for(auto & name : terrain_list)
 	{
 		// terrain archive path
-		wstring path = data_path + terrain_list[k];
+		wstring path = std::filesystem::path(data_path) / std::filesystem::path(name);
 		// aux terrain data path
-		wstring aux_path = spec_path + terrain_list[k];		
+		wstring aux_path = std::filesystem::path(spec_path) / std::filesystem::path(name);
 
 		// load terrain
 		Terrain* new_terrain = new Terrain();
-		new_terrain->Load(path, aux_path);
+		new_terrain->Load(path, aux_path, L2_classes);
 
 		// store to list
 		terrain.push_back(new_terrain);
 	}
 		
 	// load FSU data
-	wstring path = data_path + L"\\UNITS.FSU";
-	units_fsu = new FSUarchive(path);
-	
-	// load COMMON.FS
-	FSarchive *common;
-	path = data_path + L"\\COMMON.FS";
-	common = new FSarchive(path);
-	uint8_t* data;
-	int size;	
-	
+	wstring fsu_path = data_path + L"\\UNITS.FSU";
+	units_fsu = new FSUarchive(fsu_path);
+		
 	// load UNITS.PAL palette chunk and merge with terrain palette chunk
-	if (common->GetFile("UNITS.PAL", &data, &size))
+	if(common->GetFile("UNITS.PAL", &data, &size))
 	{
 		delete common;
 		throw runtime_error("UNITS.PAL not found in COMMON.FS!");
@@ -272,10 +335,7 @@ SpellData::SpellData(wstring &data_path,wstring& cd_data_path,wstring& spec_path
 	}
 
 	// hard assign some PNM links
-	pnm_sipka = GetPNM("SIPKA");
-
-	// load sound stuff
-	sounds = new SpellSounds(data_path);
+	pnm_sipka = GetPNM("SIPKA");	
 
 	// load JEDNOTKY.DEF units definition file
 	if (common->GetFile("JEDNOTKY.DEF", &data, &size))
@@ -306,8 +366,8 @@ SpellData::SpellData(wstring &data_path,wstring& cd_data_path,wstring& spec_path
 
 	
 	// load INFO.FS (units art)
-	path = cd_data_path + L"\\INFO.FS";
-	info = new FSarchive(path);
+	wstring info_path = cd_data_path + L"\\INFO.FS";
+	info = new FSarchive(info_path);
 	
 
 	// load special tiles
@@ -360,6 +420,8 @@ SpellData::~SpellData()
 		delete sounds;
 	if(texts)
 		delete texts;
+	if(L2_classes)
+		delete L2_classes;
 }
 
 // find loaded PNM animation

@@ -160,6 +160,8 @@ public:
     SpellSound* GetHitClass(int index);
     SpellSound* GetDieClass(int index);
     SpellSound* GetSpecialClass(int index);
+    SpellSound* GetObjectHitClass(int index);
+    SpellSound* GetObjectDestructClass(int index);
         
 };
 

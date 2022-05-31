@@ -313,6 +313,21 @@ SpellSound* SpellSounds::GetSpecialClass(int index)
     SpellSound* sound = new SpellSound(channels,spec_sounds[index].items[0]);
     return(sound);
 }
+SpellSound* SpellSounds::GetObjectHitClass(int index)
+{
+    if(index >= object_sounds.size())
+        return(NULL);
+    SpellSound* sound = new SpellSound(channels,object_sounds[index].items[0]);
+    return(sound);
+}
+SpellSound* SpellSounds::GetObjectDestructClass(int index)
+{
+    if(index >= object_sounds.size())
+        return(NULL);
+    SpellSound* sound = new SpellSound(channels,object_sounds[index].items[1]);
+    return(sound);
+}
+
 
 
 void SpellSounds::ParseSoundClasses2(FSarchive* fs, const char *name, vector<SpellSoundClassFile> *cls)

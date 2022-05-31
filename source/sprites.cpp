@@ -10,12 +10,15 @@
 #include "fs_archive.h"
 #include "fsu_archive.h"
 #include "map_types.h"
+#include "spellcross.h"
 
 #include "simpleini.h"
 #include <string>
 #include <vector>
 #include <stdexcept>
 #include <filesystem>
+#include <regex>
+#include <sstream>
 
 #include "wx/dcgraph.h"
 #include "wx/dcbuffer.h"
@@ -42,6 +45,7 @@ Sprite::Sprite()
 	land_type = 0;
 	data = NULL;
 	index = 0;
+	destructible = NULL;
 
 	flags = 0;
 	for(int k = 0; k < 4; k++)
@@ -1268,6 +1272,137 @@ int Sprite::GetToolClassGroup()
 
 
 //=============================================================================
+// Destructible L2 object parameters
+//=============================================================================
+SpellL2classRec::SpellL2classRec()
+{
+	sound_hit = NULL;
+	sound_destruct = NULL;
+}
+SpellL2classRec::~SpellL2classRec()
+{
+	if(sound_hit)
+		delete sound_hit;
+	if(sound_destruct)
+		delete sound_destruct;
+}
+
+
+SpellL2classes::~SpellL2classes()
+{
+	for(auto & wall : wall_list)
+		delete wall;
+	for(auto& bridge : bridge_list)
+		delete bridge;
+	for(auto& spec : spec_list)
+		delete spec;
+}
+SpellL2classes::SpellL2classes(FSarchive* fs,SpellSounds* sounds)
+{	
+	uint8_t* data;
+	int size;
+	
+	// --- Wall classes:	
+	if(fs->GetFile("MURY.DEF",&data,&size))
+		throw runtime_error("MURY.DEF not found in COMMON.FS!");	
+	string mury_text(size+1,'\0');
+	memcpy(mury_text.data(),data,size);
+ 	SpellClassFile wall_cls = SpellClassFile(mury_text,";\\s*typ\\s*([\\d]+)\\s*:\\s*([^\\n\\r]+)\\r?\\n?([^;]+)",0);
+	for(auto & cls : wall_cls.list)
+	{
+		if(cls.items.size() != 3)
+			throw runtime_error("Invalid data in MURY.DEF in COMMON.FS!");
+		auto wall = new SpellL2classRec();		
+		wall->index = cls.index;
+		wall->tag = cls.head[0];
+		wall->label = cls.head[1];
+		wall->defence = std::stoi(cls.items[0]);
+		wall->hp = std::stoi(cls.items[1]);
+		wall->sound_class_id = std::stoi(cls.items[2]);
+		wall->sound_hit = sounds->GetObjectHitClass(wall->sound_class_id);
+		wall->sound_destruct = sounds->GetObjectDestructClass(wall->sound_class_id);
+		wall_list.push_back(wall);
+	}
+
+	// --- Bridge classes:
+	if(fs->GetFile("MOSTY.DEF",&data,&size))
+		throw runtime_error("MOSTY.DEF not found in COMMON.FS!");
+	string mosty_text(size+1,'\0');
+	memcpy(mosty_text.data(),data,size);
+	SpellClassFile bridge_cls = SpellClassFile(mosty_text,";\\s*typ\\s*([\\d]+)\\s*:\\s*([^\\n\\r]+)\\r?\\n?([^;]+)",0);
+	for(auto& cls : bridge_cls.list)
+	{
+		if(cls.items.size() != 3)
+			throw runtime_error("Invalid data in MOSTY.DEF in COMMON.FS!");
+		auto bridge = new SpellL2classRec();
+		bridge->index = cls.index;
+		bridge->tag = cls.head[0];
+		bridge->label = cls.head[1];
+		bridge->defence = std::stoi(cls.items[0]);
+		bridge->hp = std::stoi(cls.items[1]);
+		bridge->sound_class_id = std::stoi(cls.items[2]);
+		bridge->sound_hit = sounds->GetObjectHitClass(bridge->sound_class_id);
+		bridge->sound_destruct = sounds->GetObjectDestructClass(bridge->sound_class_id);
+		bridge_list.push_back(bridge);
+	}
+
+	// --- Spec Object classes:
+	if(fs->GetFile("SPECOBJ.DEF",&data,&size))
+		throw runtime_error("SPECOBJ.DEF not found in COMMON.FS!");
+	string spec_text(size+1,'\0');
+	memcpy(spec_text.data(),data,size);
+	SpellClassFile spec_cls = SpellClassFile(spec_text,";\\s*(SOAx[^\\s]+)\\s*-\\s*([^\\n\\r]+)\\r?\\n?([^;]+)");
+	for(auto& cls : spec_cls.list)
+	{
+		if(cls.items.size() != 3)
+			throw runtime_error("Invalid data in SPECOBJ.DEF in COMMON.FS!");
+		auto spec = new SpellL2classRec();
+		spec->tag = cls.head[0];
+		spec->tag[3] = '?';
+		spec->label = cls.head[1];
+		spec->defence = std::stoi(cls.items[0]);
+		spec->hp = std::stoi(cls.items[1]);
+		spec->sound_class_id = std::stoi(cls.items[2]);
+		spec->sound_hit = sounds->GetObjectHitClass(spec->sound_class_id);
+		spec->sound_destruct = sounds->GetObjectDestructClass(spec->sound_class_id);
+		spec_list.push_back(spec);
+	}
+	
+}
+// try to fetch class by sprite name
+SpellL2classRec* SpellL2classes::GetClass(const char* sprite_name)
+{
+	// is wall?
+	if(wildcmp("MRA??_??",sprite_name))
+	{
+		int id = (sprite_name[3] - '0') & 0x03;
+		if(id < wall_list.size())
+			return(wall_list[id]);
+	}
+
+	// is bridge?
+	if(wildcmp("MTA1?_??",sprite_name))
+	{
+		int id = (sprite_name[4] - 'A') & 0x03;
+		if(id < bridge_list.size())
+			return(bridge_list[id]);
+	}
+
+	// is special object?
+	if(wildcmp("SOA?_???",sprite_name))
+	{
+		for(auto & spec : spec_list)
+			if(wildcmp(spec->tag.c_str(), sprite_name))
+				return(spec);
+	}
+
+	//sprite_name
+	return(NULL);
+}
+
+
+
+//=============================================================================
 // class Terrain
 //=============================================================================
 
@@ -1310,7 +1445,7 @@ Terrain::~Terrain()
 	tools.clear();
 }
 
-int Terrain::Load(wstring &path, wstring& aux_path)
+int Terrain::Load(wstring &path, wstring& aux_path, SpellL2classes *L2)
 {	
 	// store terrain tag name
 	const wchar_t *tag = wcsrchr(path.c_str(), '\\');
@@ -1386,6 +1521,10 @@ int Terrain::Load(wstring &path, wstring& aux_path)
 				}
 				// set sprite index (linear unsorted)
 				sprite->SetIndex(sprite_index++);
+
+				// try pair it with class definitions (MURY.DEF, MOSTY.DEF or SPECOBJ.DEF)
+				if(L2)
+					sprite->destructible = L2->GetClass(sprite->name);
 				
 				//st->Caption = "Loading " + N_terr + ": " + IntToStr(fcnt) + " - " + AnsiString(name);
 				fcnt++;

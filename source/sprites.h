@@ -23,6 +23,7 @@
 #include "map_types.h"
 #include "spell_font.h"
 #include "spell_filter.h"
+#include "spell_sound.h"
 
 #include "wx/dcbuffer.h"
 
@@ -33,6 +34,36 @@ using namespace std;
 
 #define MAX_STR 256
 #define MAX_SPRITE_NAME 8
+
+
+class SpellL2classRec
+{
+public:
+	string tag;
+	string label;
+	int index;
+	int defence;
+	int hp;
+	int sound_class_id;
+	SpellSound* sound_hit;
+	SpellSound* sound_destruct;
+	SpellL2classRec();
+	~SpellL2classRec();
+};
+
+class SpellL2classes
+{
+private:
+	vector<SpellL2classRec*> wall_list;
+	vector<SpellL2classRec*> bridge_list;
+	vector<SpellL2classRec*> spec_list;
+public:
+	SpellL2classes(FSarchive* fs,SpellSounds* sounds);
+	~SpellL2classes();
+	SpellL2classRec *GetClass(const char *sprite_name);
+};
+
+
 
 typedef struct {
 	double x, y, z;
@@ -68,6 +99,8 @@ class Sprite
 		int has_transp;
 		// sprite index in terrain
 		int index;
+		// Layer 2 object parameters
+		SpellL2classRec *destructible;
 		
 		// void constructor
 		Sprite();
@@ -389,7 +422,7 @@ public:
 	// void contructor
 	Terrain();
 	~Terrain();
-	int Load(wstring &path, wstring &aux_path);
+	int Load(wstring &path, wstring &aux_path,SpellL2classes* L2=NULL);
 	Sprite* GetSprite(const char* name);
 	Sprite* GetSprite(int index);
 	int GetSpriteID(Sprite *spr);

@@ -62,6 +62,24 @@ class SpellDEF
 		SpellDefSection *GetSection(std::string section);
 };
 
+class SpellClassFileRec
+{
+private:
+public:
+	int index;
+	vector<string> head;
+	vector<string> items;
+};
+
+class SpellClassFile
+{
+private:
+public:
+	vector<SpellClassFileRec> list;
+	SpellClassFile(string text,string regexp_head,int reg_index_item=-1);
+};
+
+
 
 class SpellData
 {
@@ -98,6 +116,8 @@ public:
 	SpellSounds* sounds;
 	// texts.fs
 	SpellTexts* texts;
+	// L2 object class parameters
+	SpellL2classes *L2_classes;
 
 	SpellData(wstring& data_path,wstring& cd_data_path,wstring& spec_path);
 	~SpellData();	

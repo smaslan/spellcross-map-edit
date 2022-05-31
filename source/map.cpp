@@ -181,8 +181,35 @@ int TScroll::ResizeSelection(int delta)
 }
 
 
+//=============================================================================
+// class MapSprite - Map layer 1/2 records
+//=============================================================================
+MapSprite::~MapSprite()
+{
+	if(sound_hit)
+		delete sound_hit;
+	if(sound_destruct)
+		delete sound_destruct;
+}
 
+MapSprite::MapSprite(Sprite* sprite)
+{
+	spr = sprite;
+	hp = 0;
+	sound_hit = NULL;
+	sound_destruct = NULL;
 
+	if(spr->destructible)
+	{
+		// init hit points
+		hp = spr->destructible->hp;
+		// make new sound instances
+		if(spr->destructible->sound_hit)
+			sound_hit = new SpellSound(*spr->destructible->sound_hit);
+		if(spr->destructible->sound_destruct)
+			sound_destruct = new SpellSound(*spr->destructible->sound_destruct);
+	}
+}
 
 //=============================================================================
 // class MapLayer3 - Map layer 3 record (ANM animations)

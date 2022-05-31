@@ -34,6 +34,23 @@ using namespace std;
 #define MAX_STR 256
 #define MAX_SPRITE_NAME 8
 
+// map L1/L2 sprite item
+class MapSprite
+{
+private:
+	SpellSound *sound_hit;
+	SpellSound *sound_destruct;
+
+public:
+	// sprite data pointer
+	Sprite *spr;
+	// hit points if destructible
+	int hp;
+
+	MapSprite(Sprite* sprite);
+	~MapSprite();
+};
+
 class MapLayer3
 {
 	public:
