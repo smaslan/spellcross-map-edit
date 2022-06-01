@@ -174,9 +174,19 @@ SpellDefSection *SpellDEF::GetSection(std::string section)
 //  reg_index_item - <0 to put records as they goes, >=0 to pick regexpt captured item to be used as result position number
 SpellClassFile::SpellClassFile(string text,string regexp_head,int reg_index_item)
 {
-	int max_id = 0;
-	//auto start_pos = text.find(";[");
-	auto start_pos = 0;
+	// skip comments
+	size_t start_pos = 0;
+	auto ss = stringstream{text};
+	for(std::string line; getline(ss,line,'\n');)
+	{
+		if(line.empty() || line[0] != ';')
+		{
+			start_pos = ss.tellg();
+			break;
+		}
+	}
+	
+	int max_id = 0;	
 	if(start_pos != string::npos)
 	{
 		text = text.substr(start_pos);
@@ -228,6 +238,57 @@ SpellClassFile::SpellClassFile(string text,string regexp_head,int reg_index_item
 
 
 
+//=============================================================================
+// multilingual 
+//=============================================================================
+SpellStringTableRec::SpellStringTableRec(string label,string raw,wstring text)
+{
+	this->label = label;
+	this->raw = raw;
+	this->text = text;
+}
+
+SpellStringTable::SpellStringTable(FSarchive* fs,string name)
+{
+	vector<string> lang_list = {"CZ","ENG","PL"};
+	for(auto& lang_tag : lang_list)
+	{
+		lang = lang_tag;
+		raw_text = fs->GetFile((name + "." + lang_tag).c_str());
+		if(!raw_text.empty())
+			break;
+	}
+	if(raw_text.empty())
+		throw std::runtime_error("Cannot find stringtable file!");
+
+	// try parse
+	SpellClassFile strtable(raw_text, ";\\s*([^\\r^\\n]+)\\r?\\n?([^;]+)");
+	
+	list.reserve(strtable.list.size());
+	for(auto & rec : strtable.list)
+	{
+		if(rec.head.empty() || rec.items.empty())
+			throw std::runtime_error("Invalid string table data!");
+
+		// decode
+		string &raw = rec.items[0];
+		wstring text = L"";
+		if(lang.compare("CZ") == 0)
+			text = char2wstringCP895(raw.c_str());
+		else if(lang.compare("ENG") == 0)
+			text = char2wstring(raw.c_str());
+		else if(lang.compare("PL") == 0)
+			text = char2wstring(raw.c_str()); // ###todo: shoud be CP1250
+
+		// store to list
+		list.emplace_back(rec.head[0],raw,text);		
+	}	
+}
+
+string &SpellStringTable::GetRaw()
+{
+	return(raw_text);
+}
 
 
 

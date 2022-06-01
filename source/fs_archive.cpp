@@ -94,6 +94,10 @@ int FSarchive::Count()
 }
 
 // get file by name
+int FSarchive::GetFile(string &name,uint8_t** data,int* size)
+{
+	return(GetFile(name.c_str(), data, size));
+}
 int FSarchive::GetFile(const char* name, uint8_t** data, int* size)
 {
 	for (int k = 0; k < names.size(); k++)
@@ -111,6 +115,10 @@ int FSarchive::GetFile(const char* name, uint8_t** data, int* size)
 }
 
 // get file by name
+string FSarchive::GetFile(string &name)
+{
+	return(GetFile(name.c_str()));
+}
 string FSarchive::GetFile(const char* name)
 {
 	string text;

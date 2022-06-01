@@ -189,62 +189,89 @@ int TScroll::ResizeSelection(int delta)
 //=============================================================================
 MapSprite::~MapSprite()
 {
-	Clear();
 }
 
 MapSprite::MapSprite()
 {
-	spr = NULL;
+	L1 = NULL;
+	L2 = NULL;
 	elev = 0;
 	hp = 0;
-	sound_hit = NULL;
-	sound_destruct = NULL;
+	flags = 0;
 }
 
-MapSprite::MapSprite(Sprite* sprite)
+/*MapSprite::MapSprite(Sprite* sprite)
 {
 	Set(sprite);
-}
+}*/
 
-void MapSprite::Clear()
+void MapSprite::SetL1(Sprite* sprite,int elev)
 {
-	spr = NULL;
-	if(sound_hit)
-		delete sound_hit;
-	sound_hit = NULL;
-	if(sound_destruct)
-		delete sound_destruct;
-	sound_destruct = NULL;
-}
-
-void MapSprite::Set(Sprite* sprite,int elev)
-{
-	Clear();	
-	spr = sprite;
+	L1 = sprite;
 	if(elev >= 0)
 		this->elev = elev;
-	if(spr && spr->destructible)
+	if(L1 && L1->destructible)
 	{
 		// init hit points
-		hp = spr->destructible->hp;						
+		hp = L1->destructible->hp;
 	}
+}
+void MapSprite::SetL2(Sprite* sprite,int flags)
+{
+	L2 = sprite;
+	if(flags >= 0)
+		this->flags = flags;
+	if(L2 && L2->destructible)
+	{
+		// init hit points
+		hp = L2->destructible->hp;
+	}
+}
+
+SpellL2classRec* MapSprite::GetDestructible()
+{
+	SpellL2classRec* destr = NULL;
+	if(L1)
+		destr = L1->destructible;
+	if(!destr && L2)
+		destr = L2->destructible;
+	return(destr);
+}
+
+int MapSprite::isDestructible()
+{
+	return(!!GetDestructible());
+}
+
+int MapSprite::GetMaxHP()
+{
+	auto *destr = GetDestructible();
+	if(!destr)
+		return(0);
+	return(destr->hp);
 }
 
 int MapSprite::PlayHit()
 {
-	if(spr->destructible->sound_hit && !sound_hit)
-		sound_hit = new SpellSound(*spr->destructible->sound_hit);
-	if(sound_hit)
-		sound_hit->Play(true);
+	SpellSound *snd = NULL;
+	if(L1->destructible->sound_hit)
+		snd = new SpellSound(*L1->destructible->sound_hit);
+	else if(L2->destructible->sound_hit)
+		snd = new SpellSound(*L2->destructible->sound_hit);
+	if(snd)
+		snd->Play(true);
 	return(0);
 }
 
 int MapSprite::PlayDestruct()
 {
-	if(spr->destructible->sound_destruct && !sound_destruct)
-		sound_destruct = new SpellSound(*spr->destructible->sound_destruct);
-	if(sound_destruct)
-		sound_destruct->Play(true);
+	SpellSound* snd = NULL;
+	if(L1->destructible->sound_destruct)
+		snd = new SpellSound(*L1->destructible->sound_destruct);
+	else if(L2->destructible->sound_destruct)
+		snd = new SpellSound(*L2->destructible->sound_destruct);
+	if(snd)
+		snd->Play(true);
 	return(0);
 }
 
@@ -373,9 +400,7 @@ void SpellMap::Close()
 	}
 
 	// loose layer data
-	L1.clear();
-	L2.clear();
-	flags.clear();
+	tiles.clear();
 	L3.clear();
 	L4.clear();
 	// loose start/ciel
@@ -445,9 +470,7 @@ int SpellMap::Create(SpellData* spelldata, const char *terr_name, int x, int y)
 	y_size = y;
 
 	// load L1 sprite indices
-	L1.resize(x_size*y_size);
-	L2.resize(x_size*y_size);
-	flags.resize(x_size*y_size);
+	tiles.resize(x_size*y_size);
 	L1_flags.resize(x_size*y_size);
 	
 	// filter mask
@@ -459,9 +482,8 @@ int SpellMap::Create(SpellData* spelldata, const char *terr_name, int x, int y)
 	// generate plain map
 	for(int k = 0; k < (x_size * y_size); k++)
 	{		
-		L1[k].Set(terrain->GetSpriteWild("PLA00_??",Terrain::RANDOM),2);
-		L2[k].Clear();
-		flags[k] = 0;
+		tiles[k].SetL1(terrain->GetSpriteWild("PLA00_??",Terrain::RANDOM),2);
+		tiles[k].SetL2(NULL,0);
 	}
 	
 	// get tile flags from context data
@@ -593,8 +615,6 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 	this->spelldata = spelldata;
 	
 	// load list of used L1 sprites
-	//Sprite** sprites = new Sprite*[L1_count];
-	//int* sprite_ids = new int[L1_count];
 	vector<Sprite*> sprites;
 	vector<int> sprite_ids;
 	sprites.assign(L1_count,NULL);
@@ -619,12 +639,12 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 	}
 
 	// load L1 sprite indices
-	L1.resize(x_size*y_size);
+	tiles.resize(x_size*y_size);
 	L1_flags.resize(x_size*y_size);
 	for (int k = 0; k < (x_size * y_size); k++)
 	{
 		// get cell code
-		WORD code = *(WORD*)data;
+		int16_t code = *(int16_t*)data;
 		data += 2;
 
 		// extract sprite index
@@ -640,10 +660,7 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 			delete[] map_buffer;
 			return(1);
 		}
-		this->L1[k].Set(sprites[sid],elev);
-
-		// get tile flags from context data
-		//this->L1_flags[k] = this->terrain->sprites[sprite_ids[sid]]->GetFlags();
+		tiles[k].SetL1(sprites[sid],elev);
 	}
 	// get tile flags from context data
 	SyncL1flags();
@@ -687,8 +704,6 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 	}
 
 	// load L2 sprite indices
-	L2.resize(x_size * y_size);
-	flags.resize(x_size * y_size);
 	for (int k = 0; k < (x_size * y_size); k++)
 	{
 		// get sprite index
@@ -703,8 +718,7 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 			delete[] map_buffer;
 			return(1);
 		}
-		this->L2[k].Set((sid)?sprites[sid-1]:NULL);
-		this->flags[k] = code;
+		tiles[k].SetL2((sid)?sprites[sid-1]:NULL,code);
 	}
 
 
@@ -1185,7 +1199,7 @@ void SpellMap::SortUnits()
 // is some valid map data loaded?
 int SpellMap::IsLoaded()
 {
-	if (L1.empty() || L2.empty() || flags.empty())
+	if (tiles.empty())
 		return(0);
 
 	if (!x_size || !y_size)
@@ -1559,8 +1573,9 @@ vector<MapXY> &SpellMap::GetSelections(TScroll *scroll)
 					// --- for every valid tile ---
 
 					// get map tile
-					Sprite* sid = L1[(m + ys_ofs * 2) * x_size + n + xs_ofs].spr;
-					int sof = L1[(m + ys_ofs * 2) * x_size + n + xs_ofs].elev;
+					auto *tile = &tiles[(m + ys_ofs * 2) * x_size + n + xs_ofs];
+					Sprite* sid = tile->L1;
+					int sof = tile->elev;
 
 					// get dimensions for current tile slope
 					char sn = sid->name[2]; /* tile slope */
@@ -1678,8 +1693,7 @@ int SpellMap::GetElevation(TScroll* scroll)
 	MapXY sel = GetSelection(scroll);
 	if(sel.IsSelected())
 	{
-		// return tile name
-		return((L1[ConvXY(sel)].elev));
+		return((tiles[ConvXY(sel)].elev));
 	}
 	else
 		return(0);	
@@ -1693,7 +1707,7 @@ char *SpellMap::GetL1tileName(TScroll* scroll)
 	if(sel.IsSelected())
 	{
 		// return tile name
-		return(L1[ConvXY(sel)].spr->name);
+		return(tiles[ConvXY(sel)].L1->name);
 	}
 	else
 		return(NULL);
@@ -1708,7 +1722,7 @@ char* SpellMap::GetL2tileName(TScroll* scroll)
 	if(sel.IsSelected())
 	{
 		// return tile name
-		return(L2[ConvXY(sel)].spr->name);
+		return(tiles[ConvXY(sel)].L2->name);
 	}
 	else
 		return(NULL);
@@ -1717,12 +1731,12 @@ char* SpellMap::GetL2tileName(TScroll* scroll)
 // get map flag array's object height
 int SpellMap::GetFlagHeight(MapXY *sel)
 {
-	return((flags[ConvXY(sel)] >> 4)&0x0F);
+	return((tiles[ConvXY(sel)].flags >> 4)&0x0F);
 }
 // get map flag array's flag part
 int SpellMap::GetFlagFlag(MapXY* sel)
 {
-	return((flags[ConvXY(sel)])&0x0F);
+	return((tiles[ConvXY(sel)].flags)&0x0F);
 }
 // get flags for given tile (###todo: decode what those flags actually means?)
 tuple<int,int,int> SpellMap::GetTileFlags(TScroll* scroll)
@@ -1733,7 +1747,7 @@ tuple<int,int,int> SpellMap::GetTileFlags(TScroll* scroll)
 	if(sel.IsSelected())
 	{
 		// return tile name
-		return {GetFlagFlag(&sel), GetFlagHeight(&sel), flags[ConvXY(sel)]};
+		return {GetFlagFlag(&sel), GetFlagHeight(&sel), tiles[ConvXY(sel)].flags};
 	}
 	else
 		return {0,0,0};
@@ -1746,7 +1760,7 @@ vector<Sprite*> SpellMap::GetL1sprites(vector<MapXY>& selection)
 	{
 		Sprite *spr = NULL;
 		if(selection[k].IsSelected())
-			spr = L1[ConvXY(selection[k])].spr;
+			spr = tiles[ConvXY(selection[k])].L1;
 		list.push_back(spr);
 	}
 	return(list);
@@ -1759,7 +1773,7 @@ vector<Sprite*> SpellMap::GetL2sprites(vector<MapXY>& selection)
 	{
 		Sprite* spr = NULL;
 		if(selection[k].IsSelected())
-			spr = L2[ConvXY(selection[k])].spr;
+			spr = tiles[ConvXY(selection[k])].L2;
 		list.push_back(spr);
 	}
 	return(list);
@@ -1772,7 +1786,7 @@ vector<uint8_t> SpellMap::GetFlags(vector<MapXY>& selection)
 	{
 		uint8_t spr = 0x00;
 		if(selection[k].IsSelected())
-			spr = flags[ConvXY(selection[k])];
+			spr = tiles[ConvXY(selection[k])].flags;
 		list.push_back(spr);
 	}
 	return(list);
@@ -1911,11 +1925,10 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 			if(filter[mxy])
 				fil = filter[mxy];
 
-			// get sprite parameters
-			
-			Sprite* sid = L1[mxy].spr;
+			// get sprite parameters			
+			Sprite* sid = tiles[mxy].L1;
 			char sn = sid->name[2];
-			int sof = L1[mxy].elev;
+			int sof = tiles[mxy].elev;
 
 			// override sprite by plain one?
 			if (!wL1)
@@ -1985,7 +1998,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 				fil = terrain->filter.darkpal;
 
 			// L1 elevation
-			int sof = L1[mxy].elev;
+			int sof = tiles[mxy].elev;
 
 			// get sprite
 			Sprite* frame = anm->anim->frames[anm->frame_ofs];
@@ -2022,7 +2035,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 					fil = terrain->filter.darkpal;
 
 				// L1 elevation
-				int y_elev = L1[mxy].elev;
+				int y_elev = tiles[mxy].elev;
 
 				// render sprite
 				int mxx = (pos->x - xs_ofs) * 80 + ((((pos->y - ys_ofs * 2) & 1) != 0) ? 0 : 40);
@@ -2056,8 +2069,8 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 			fil[193] = 230;
 			
 			// get tile
-			Sprite *spr = L1[mxy].spr;							
-			int sof = L1[mxy].elev;
+			Sprite *spr = tiles[mxy].L1;
+			int sof = tiles[mxy].elev;
 			// override by selector
 			spr = &spelldata->special.select[spr->GetSlope() - 'A'];
 
@@ -2090,8 +2103,8 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 				fil = terrain->filter.darkpal;
 
 			// get map tile
-			Sprite *sid = L1[mxy].spr;
-			int sof = L1[mxy].elev;
+			Sprite *sid = tiles[mxy].L1;
+			int sof = tiles[mxy].elev;
 
 			// get sprite
 			char sn = sid->name[2];
@@ -2128,7 +2141,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 				fil = terrain->filter.darkpal;
 
 			// L1 elevation
-			int y_elev = L1[mxy].elev;
+			int y_elev = tiles[mxy].elev;
 			
 			// get sprite
 			Sprite* frame = pnm->anim->frames[pnm->frame_ofs];
@@ -2168,11 +2181,11 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 			// first unit to render
 			MapUnit* unit = Lunit[mxy];			
 			// L1 tile
-			Sprite* sid = L1[mxy].spr;
-			int sof = L1[mxy].elev;
+			Sprite* sid = tiles[mxy].L1;
+			int sof = tiles[mxy].elev;
 			char slope = sid->name[2];
 			// L2 tile
-			Sprite* sid2 = L2[mxy].spr;
+			Sprite* sid2 = tiles[mxy].L2;
 
 			// game mode view range
 			int hide_units = game_mode && units_view[mxy] == 1;
@@ -2276,10 +2289,10 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 			continue;
 
 		// L1 elevation
-		Sprite* mspr = L1[ConvXY(mxy)].spr;
-		int m_y_elev = L1[ConvXY(mxy)].elev;
-		Sprite* nspr = L1[ConvXY(nxy)].spr;
-		int n_y_elev = L1[ConvXY(nxy)].elev;
+		Sprite* mspr = tiles[ConvXY(mxy)].L1;
+		int m_y_elev = tiles[ConvXY(mxy)].elev;
+		Sprite* nspr = tiles[ConvXY(nxy)].L1;
+		int n_y_elev = tiles[ConvXY(nxy)].elev;
 		
 		// line ends
 		int mxx = (mxy.x - xs_ofs)*80 + ((((mxy.y - ys_ofs*2) & 1) != 0) ? 0 : 40) + mspr->x_size/2;
@@ -2311,8 +2324,8 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 				int mxy = ConvXY(pos);
 
 				// get tile
-				Sprite* spr = L1[mxy].spr;
-				int sof = L1[mxy].elev;
+				Sprite* spr = tiles[mxy].L1;
+				int sof = tiles[mxy].elev;
 
 				// render sprite
 				n = pos.x - xs_ofs;
@@ -2353,7 +2366,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 				continue;
 
 			// event position in surface
-			Sprite* spr = L1[ConvXY(ev_pos)].spr;
+			Sprite* spr = tiles[ConvXY(ev_pos)].L1;
 			auto [mxx,myy] = GetSurfPos(ev_pos);
 			mxx += 40;
 			myy += spr->y_ofs + spr->y_size/2;
@@ -2361,7 +2374,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 			for(auto & unit : evt->units)
 			{
 				// unit position in surface
-				Sprite* spr = L1[ConvXY(unit.unit->coor)].spr;
+				Sprite* spr = tiles[ConvXY(unit.unit->coor)].L1;
 				auto [mxx2,myy2] = GetSurfPos(unit.unit->coor);
 				mxx2 += 40;
 				myy2 += spr->y_ofs + spr->y_size/2;
@@ -2392,8 +2405,8 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 				int mxy = ConvXY(x_pos,y_pos);
 
 				// get tile
-				Sprite* spr = L1[mxy].spr;
-				int sof = L1[mxy].elev;
+				Sprite* spr = tiles[mxy].L1;
+				int sof = tiles[mxy].elev;
 				int mxx = n * 80 + (((m & 1) != 0) ? 0 : 40);
 				int myy = m * 24 - sof * 18 + MSYOFS + 50 + spr->y_ofs;
 
@@ -2614,8 +2627,8 @@ tuple<int,int> SpellMap::GetSurfPos(MapXY& pos)
 	int x_pos = pos.x - xs_ofs;
 	int y_pos = pos.y - ys_ofs*2;
 	auto mxy = ConvXY(pos);
-	Sprite* spr = L1[mxy].spr;
-	int sof = L1[mxy].elev;
+	Sprite* spr = tiles[mxy].L1;
+	int sof = tiles[mxy].elev;
 	int mxx = x_pos * 80 + (((y_pos & 1) != 0) ? 0 : 40);
 	int myy = y_pos * 24 - sof * 18 + MSYOFS + 50;
 	return tuple(mxx,myy);
@@ -2801,8 +2814,8 @@ int SpellMap::FindUnitRange_th()
 
 
 			// get tile infoz
-			Sprite* spr = L1[ConvXY(neig_pos)].spr;
-			int flag = flags[ConvXY(neig_pos)];		
+			Sprite* spr = tiles[ConvXY(neig_pos)].L1;
+			int flag = tiles[ConvXY(neig_pos)].flags;
 			//int class_flags = spr->GetFlags();
 			//int slope = spr->GetSlope();
 			
@@ -2922,7 +2935,7 @@ vector<AStarNode> SpellMap::FindUnitPath(MapUnit* unit, MapXY target)
 		}
 
 		// current sprite
-		Sprite *current_spr = L1[ConvXY(current_node->pos)].spr;
+		Sprite *current_spr = tiles[ConvXY(current_node->pos)].L1;
 		int current_slope = current_spr->GetSlope();
 
 		// for each neighbor:
@@ -2958,7 +2971,7 @@ vector<AStarNode> SpellMap::FindUnitPath(MapUnit* unit, MapXY target)
 			double ap_step = ap_step_w;
 
 			// tile flags
-			int flag = flags[ConvXY(n_pos)];
+			int flag = tiles[ConvXY(n_pos)].flags;
 
 			int is_forest = (flag == 0x90);
 			int is_object = flag && (flag != 0x90); // any obstacle but trees
@@ -2966,7 +2979,7 @@ vector<AStarNode> SpellMap::FindUnitPath(MapUnit* unit, MapXY target)
 			int is_hoverable = !is_obstacle || (flag == 0x60); // can hover over
 
 			// get L1 sprite
-			Sprite* spr = L1[ConvXY(n_pos)].spr;
+			Sprite* spr = tiles[ConvXY(n_pos)].L1;
 			int class_flags = spr->GetFlags();
 			int slope = spr->GetSlope();
 			
@@ -3433,6 +3446,7 @@ int SpellMap::RenderHUD(uint8_t *buf,uint8_t* buf_end,int buf_x_size,MapXY *curs
 	static MapUnit* last_cursor_unit = NULL;
 	static MapUnit* last_selected_unit = NULL;
 	static int last_can_heal = -1;
+	static MapSprite *last_destructible = NULL;
 
 	if(!hud_enabled)
 	{
@@ -3443,6 +3457,11 @@ int SpellMap::RenderHUD(uint8_t *buf,uint8_t* buf_end,int buf_x_size,MapXY *curs
 		last_hud_state = hud_enabled;
 		return(0);
 	}
+	
+	// destructible object selected?
+	MapSprite *destructible = NULL;
+	if(cursor->IsSelected() && tiles[ConvXY(cursor)].isDestructible())
+		destructible = &tiles[ConvXY(cursor)];
 			
 	auto& gres = spelldata->gres;
 	auto& font = spelldata->font;
@@ -3648,16 +3667,32 @@ int SpellMap::RenderHUD(uint8_t *buf,uint8_t* buf_end,int buf_x_size,MapXY *curs
 
 	}	
 
+	// destructible object selected?
+	if(destructible)
+	{
+		// yaha: render object info
+		auto spec_obj = destructible->GetDestructible();
+		string name = spec_obj->name;
+		font->Render(buf,buf_end,buf_x_size,hud_left+415,hud_top+26,name,232,254,SpellFont::DIAG2);
+				
+		int hp =  100*destructible->hp/spec_obj->hp;
+		int stat_pos = font->Render(buf,buf_end,buf_x_size,hud_left+415+5,hud_top+26+16,"Object state: ",234,254,SpellFont::DIAG2);
+		font->Render(buf,buf_end,buf_x_size,stat_pos,hud_top+26+16,string_format("%d%%",hp),232,254,SpellFont::DIAG2);
+
+		int def = spec_obj->defence;
+		int def_pos  = font->Render(buf,buf_end,buf_x_size,hud_left+415+5,hud_top+26+2*16,"Defence: ",234,254,SpellFont::DIAG2);
+		font->Render(buf,buf_end,buf_x_size,def_pos,hud_top+26+2*16,string_format("%d",def),232,254,SpellFont::DIAG2);		
+	}
+
+
 	// can unit heal?
 	int can_heal = 0;
 	if(unit_selection)
 		can_heal = unit_selection->HasMaxAP() && unit_selection->HasWounded();
 
-	
-
 	// modify HUD buttons?
 	int state_changed = isRenderSurfModified() || cursor_unit != last_cursor_unit || unit_selection != last_selected_unit || hud_enabled != last_hud_state ||
-		last_can_heal != can_heal;		
+		last_can_heal != can_heal || last_destructible != destructible;
 
 	if(state_changed && hud_buttons_cb)
 	{		
@@ -3673,6 +3708,7 @@ int SpellMap::RenderHUD(uint8_t *buf,uint8_t* buf_end,int buf_x_size,MapXY *curs
 
 		if(unit_selection && unit_selection->unit->hasSpecAction())
 		{
+			// render middle buttons (unit actions)
 			int can_do_action = unit_selection->CanSpecAction();
 			if(unit_selection->unit->isActionTurretDown() || unit_selection->unit->isActionTurretUp())
 				CreateHUDbutton(unit_selection->unit->GetActionBtnGlyph(),hud_origin,btn_top[2],buf,buf_end,buf_x_size,0,bind(&SpellMap::OnHUDturretToggle,this),NULL,!can_do_action);
@@ -3688,10 +3724,10 @@ int SpellMap::RenderHUD(uint8_t *buf,uint8_t* buf_end,int buf_x_size,MapXY *curs
 
 		if(unit_selection)
 			CreateHUDbutton(gres.wm_glyph_heal,hud_origin,btn_top[3],buf,buf_end,buf_x_size,0,bind(&SpellMap::OnHUDhealUnit,this),NULL,!can_heal);
-	
-		
-		if(!cursor_unit)
+			
+		if(!cursor_unit && !destructible)
 		{
+			// no unit under cursor: render 8 buttons in the right panel
 			CreateHUDbutton(gres.wm_glyph_map,hud_origin,btn_right[0],buf,buf_end,buf_x_size,HUD_ACTION_MINIMAP,NULL,NULL);
 			CreateHUDbutton((unit_sel_land_preference)?(gres.wm_glyph_ground):(gres.wm_glyph_air),hud_origin,btn_right[1],buf,buf_end,buf_x_size,0,bind(&SpellMap::OnHUDswitchAirLand,this),NULL);
 			CreateHUDbutton(gres.wm_glyph_goto_unit,hud_origin,btn_right[2],buf,buf_end,buf_x_size,0,NULL,NULL);
@@ -3715,6 +3751,7 @@ int SpellMap::RenderHUD(uint8_t *buf,uint8_t* buf_end,int buf_x_size,MapXY *curs
 	last_cursor_unit = cursor_unit;
 	last_selected_unit = unit_selection;
 	last_can_heal = can_heal;
+	last_destructible = destructible;
 
 	
 
@@ -4081,8 +4118,8 @@ int SpellMap::PrepareUnitsViewMask()
 			int myy = 1 + y*(tile_size/2);
 
 			// this tile L1 sprite
-			Sprite *spr = L1[mxy].spr;
-			int flag = flags[mxy];
+			Sprite *spr = tiles[mxy].L1;
+			int flag = tiles[mxy].flags;
 
 			// sprite origin (sprite coordinate system)
 			double sxx = -40.0;
@@ -4099,7 +4136,7 @@ int SpellMap::PrepareUnitsViewMask()
 						// get elevation of tile at this relative position
 						double h = spr->GetTileZ(sxx + ssx*m, -(syy + ssy*n));
 						// add terrain elevation
-						h += L1[mxy].elev*Sprite::TILE_ELEVATION;
+						h += tiles[mxy].elev*Sprite::TILE_ELEVATION;
 
 						// store basic elevation (without objects)
 						units_view_mask_0[mxx+m + (myy+n)*units_view_mask_x_size] = (unsigned)max(h,0.0);
@@ -4286,7 +4323,7 @@ int SpellMap::AddUnitView(MapUnit *unit, vector<SpellMapEventRec*>* event_list)
 	// reference position
 	MapXY ref_pos = unit->coor;
 	int ref_mxy = ConvXY(ref_pos);
-	int ref_alt = L1[ConvXY(ref_pos)].elev;
+	int ref_alt = tiles[ConvXY(ref_pos)].elev;
 
 	// recursion buffer
 	vector<int> dirz;
@@ -4332,7 +4369,7 @@ int SpellMap::AddUnitView(MapUnit *unit, vector<SpellMapEventRec*>* event_list)
 			continue;
 		
 		// next tile elevation
-		int next_alt = L1[next_mxy].elev;
+		int next_alt = tiles[next_mxy].elev;
 		int view = ref_view + max(ref_alt-next_alt,0); // expand if terget lower than ref
 
 		// visible?
@@ -4449,7 +4486,7 @@ int SpellMap::AddUnitView(MapUnit *unit, vector<SpellMapEventRec*>* event_list)
 		hdir.push_back(0);
 		hpos.push_back(next_pos);
 		int mxy = ConvXY(next_pos);
-		if(flags[mxy] == 0x10 || flags[mxy] == 0x20 || flags[mxy] == 0x30)
+		if(tiles[mxy].flags == 0x10 || tiles[mxy].flags == 0x20 || tiles[mxy].flags == 0x30)
 		{
 			while(1)
 			{			
@@ -4477,7 +4514,7 @@ int SpellMap::AddUnitView(MapUnit *unit, vector<SpellMapEventRec*>* event_list)
 					continue;
 
 				// skip if not house
-				if(flags[hnext_mxy] != 0x10 && flags[hnext_mxy] != 0x20 && flags[hnext_mxy] != 0x30)
+				if(tiles[hnext_mxy].flags != 0x10 && tiles[hnext_mxy].flags != 0x20 && tiles[hnext_mxy].flags != 0x30)
 					continue;
 
 				// mark as seen
@@ -4657,7 +4694,7 @@ int SpellMap::CanUnitAttackObject(MapXY pos)
 	auto pxy = ConvXY(pos);	
 	
 	// attackable target?
-	auto flag = flags[pxy];
+	auto flag = tiles[pxy].flags;
 	int is_wall = flag == 0xA0 || flag == 0xB0 || flag == 0xC0 || flag == 0xD0 || flag == 0xE0 || flag == 0xF0;
 	if(!is_wall)
 		return(false);
@@ -4707,8 +4744,8 @@ int SpellMap::CalcUnitAttackRange(MapUnit *unit)
 	// reference unit position
 	MapXY ref_pos = unit->coor;
 	int ref_mxy = ConvXY(ref_pos);
-	int ref_alt = L1[ConvXY(ref_pos)].elev;
-	int ref_slope = L1[ref_mxy].spr->GetSlope();
+	int ref_alt = tiles[ConvXY(ref_pos)].elev;
+	int ref_slope = tiles[ref_mxy].L1->GetSlope();
 
 	if(ref_slope != 'A' && unit->unit->fire_flags & SpellUnitRec::FIRE_NOT_SLOPES)
 	{
@@ -4762,7 +4799,7 @@ int SpellMap::CalcUnitAttackRange(MapUnit *unit)
 			continue;
 
 		// next tile elevation
-		int next_alt = L1[next_mxy].elev;
+		int next_alt = tiles[next_mxy].elev;
 		int view = ref_view + max(ref_alt-next_alt,0); // expand if terget lower than ref
 
 		// visible?
@@ -5271,7 +5308,7 @@ int SpellMap::Tick()
 		// target unit
 		MapUnit* target = unit->attack_target;
 
-		auto *sprite = L1[ConvXY(unit->coor)].spr;
+		auto *sprite = tiles[ConvXY(unit->coor)].L1;
 		int slope_id = sprite->GetSlope() - 'A';
 
 		if(unit->attack_state == MapUnit::ATTACK_STATE_DIR)
@@ -5869,11 +5906,11 @@ int SpellMap::PlaceUnit(MapUnit* unit)
 			if(!unit->unit->isAir())
 			{
 				// land unit: check obstacles
-				if(!unit->unit->isWalk() && flags[pos_mxy] == 0x90)
+				if(!unit->unit->isWalk() && tiles[pos_mxy].flags == 0x90)
 					continue;
-				if(!unit->unit->isHover() && flags[pos_mxy] == 0x60)
+				if(!unit->unit->isHover() && tiles[pos_mxy].flags == 0x60)
 					continue;
-				if(flags[pos_mxy] && flags[pos_mxy] != 0x90 && flags[pos_mxy] != 0x60)
+				if(tiles[pos_mxy].flags && tiles[pos_mxy].flags != 0x90 && tiles[pos_mxy].flags != 0x60)
 					continue;
 			}
 
@@ -5921,8 +5958,8 @@ tuple<int,int> SpellMap::GetPosOrigin(MapXY pos)
 		return tuple(-1,-1);
 
 	// this tile
-	Sprite *spr = L1[ConvXY(pos)].spr;
-	int sof = L1[ConvXY(pos)].elev;
+	Sprite *spr = tiles[ConvXY(pos)].L1;
+	int sof = tiles[ConvXY(pos)].elev;
 	
 	// tile center (in 2D)
 	int x_org = spr->x_ofs + spr->x_size/2;
@@ -6194,7 +6231,7 @@ int SpellMap::EditElevNbrQuad(int x, int y, int elv, int* min)
 				continue;
 
 			// neighbour higher?
-			int nelv = L1[ConvXY(nxy)].elev;
+			int nelv = tiles[ConvXY(nxy)].elev;
 			if(nelv > elv)
 				hcnt++;
 		}
@@ -6245,7 +6282,7 @@ int SpellMap::EditElevNbrDbl(int x,int y,int elv)
 				continue;
 
 			// higher?
-			int nelv = L1[ConvXY(nxy)].elev;
+			int nelv = tiles[ConvXY(nxy)].elev;
 			hdbl[j] |= (nelv > elv);
 		}
 	}
@@ -6270,7 +6307,7 @@ void SpellMap::EditElevNbrRule(uint8_t* flag,TTileElevMod* mod,int x,int y,int e
 		elv++;
 
 		// store it
-		L1[mxy].elev = elv;
+		tiles[mxy].elev = elv;
 		// tile modified flag
 		flag[mxy] = 1;
 
@@ -6305,7 +6342,7 @@ void SpellMap::EditElevNbr(uint8_t* flag,int elv,int edir,int x,int y)
 			continue;
 
 		// get neighbour elev
-		int nelv = L1[ConvXY(nxy)].elev;
+		int nelv = tiles[ConvXY(nxy)].elev;
 		int nelv_o = nelv;
 
 		// limit diference to +/-1
@@ -6318,7 +6355,7 @@ void SpellMap::EditElevNbr(uint8_t* flag,int elv,int edir,int x,int y)
 		if(nelv != nelv_o)
 		{
 			// yaha
-			L1[ConvXY(nxy)].elev = nelv;
+			tiles[ConvXY(nxy)].elev = nelv;
 			flag[ConvXY(nxy)] = 1;
 
 			// set neighbour modified flag
@@ -6353,10 +6390,10 @@ void SpellMap::EditElevNbr(uint8_t* flag,int elv,int edir,int x,int y)
 				continue;
 
 			// neighbour elevation
-			int nelv = L1[ConvXY(nxy)].elev;
+			int nelv = tiles[ConvXY(nxy)].elev;
 
 			// align if neighbour higher
-			L1[ConvXY(nxy)].elev = elv;
+			tiles[ConvXY(nxy)].elev = elv;
 			flag[ConvXY(nxy)] = 1;
 
 			// set neighbour modified flag
@@ -6386,12 +6423,12 @@ void SpellMap::EditElevNbr(uint8_t* flag,int elv,int edir,int x,int y)
 				continue;
 
 			// neighbour elevation
-			int nelv = L1[ConvXY(nxy)].elev;
+			int nelv = tiles[ConvXY(nxy)].elev;
 
 			if(nelv > elv)
 			{
 				// align if neighbour higher
-				L1[ConvXY(nxy)].elev = elv;
+				tiles[ConvXY(nxy)].elev = elv;
 				flag[ConvXY(nxy)] = 1;
 				
 				// set neighbour modified flag
@@ -6415,7 +6452,7 @@ void SpellMap::EditElevNbr(uint8_t* flag,int elv,int edir,int x,int y)
 			continue;
 
 		// get neighbour elev
-		int nelv = L1[ConvXY(nxy)].elev;
+		int nelv = tiles[ConvXY(nxy)].elev;
 
 		// and check/fix
 		if(edir > 0)
@@ -6483,7 +6520,7 @@ void SpellMap::EditElevSlope(uint8_t* flag)
 			if(flag[ConvXY(i,j)] > 0)
 			{
 				// center tile alt
-				int alt = L1[ConvXY(i,j)].elev;
+				int alt = tiles[ConvXY(i,j)].elev;
 
 				// corners
 				int corn = 0x00;
@@ -6504,7 +6541,7 @@ void SpellMap::EditElevSlope(uint8_t* flag)
 							continue;
 
 						// current alt
-						int nalt = L1[ConvXY(nxy)].elev;
+						int nalt = tiles[ConvXY(nxy)].elev;
 						if(nalt > alt)
 							break;
 					}
@@ -6522,13 +6559,12 @@ void SpellMap::EditElevSlope(uint8_t* flag)
 					continue; // skip if not found, but this should not happen
 
 				// assign new sprite to L1
-				L1[ConvXY(i,j)].Set(sprite);
+				tiles[ConvXY(i,j)].SetL1(sprite);
 				
 				// remove objects?
 				if(slp != 'A')
 				{
-					L2[ConvXY(i,j)] = NULL;
-					flags[ConvXY(i,j)] = 0;
+					tiles[ConvXY(i,j)].SetL2(NULL,0);
 				}
 			}
 		}
@@ -6570,9 +6606,9 @@ void SpellMap::EditElevText(uint8_t* flag)
 			if(flag[ConvXY(i,j)] > 0)
 			{
 				// center tile alt
-				int alt = L1[ConvXY(i,j)].elev;
+				int alt = tiles[ConvXY(i,j)].elev;
 
-				Sprite *sprite = L1[ConvXY(i,j)].spr;
+				Sprite *sprite = tiles[ConvXY(i,j)].L1;
 				char slp = sprite->GetSlope();
 
 				int msk = 0;
@@ -6587,7 +6623,7 @@ void SpellMap::EditElevText(uint8_t* flag)
 						MapXY nxy = GetTileNeihgborXY(i,j,tile);
 
 						// center tile alt
-						int nalt = L1[ConvXY(nxy)].elev;
+						int nalt = tiles[ConvXY(nxy)].elev;
 
 						// build mask
 						msk |= (nalt<alt?1:0)<<k;
@@ -6603,10 +6639,10 @@ void SpellMap::EditElevText(uint8_t* flag)
 					MapXY uxy = GetTileNeihgborXY(i,j,uid);
 					//MapXY sxy = GetTileNeihgborXY(i,j,uid);
 
-					if(L1[ConvXY(dxy)].elev == alt)
+					if(tiles[ConvXY(dxy)].elev == alt)
 						msk |= (1<<sid);
 										
-					Sprite *sprite = L1[ConvXY(uxy)].spr;
+					Sprite *sprite = tiles[ConvXY(uxy)].L1;
 					if(sprite->GetSlope() == 'A')
 						msk |= (1<<((sid+2)%4));
 
@@ -6622,12 +6658,12 @@ void SpellMap::EditElevText(uint8_t* flag)
 					MapXY dnbxy = GetTileNeihgborXY(i,j,dnb);
 					MapXY uxy = GetTileNeihgborXY(i,j,uid);
 					
-					if(L1[ConvXY(dnaxy)].elev == alt)
+					if(tiles[ConvXY(dnaxy)].elev == alt)
 						msk |= (1<<((sid+3)%4));
-					if(L1[ConvXY(dnbxy)].elev == alt)
+					if(tiles[ConvXY(dnbxy)].elev == alt)
 						msk |= (1<<((sid+0)%4));
 
-					Sprite* sprite = L1[ConvXY(uxy)].spr;
+					Sprite* sprite = tiles[ConvXY(uxy)].L1;
 					if(sprite->GetSlope() == 'A')
 						mskh |= (1<<((sid+2)%4));
 				}
@@ -6640,9 +6676,9 @@ void SpellMap::EditElevText(uint8_t* flag)
 					int did = (2+sid*2)%8;
 
 					MapXY axy = GetTileNeihgborXY(i,j,una);
-					Sprite* spr1 = L1[ConvXY(axy)].spr;
+					Sprite* spr1 = tiles[ConvXY(axy)].L1;
 					MapXY bxy = GetTileNeihgborXY(i,j,unb);								
-					Sprite* spr2 = L1[ConvXY(bxy)].spr;
+					Sprite* spr2 = tiles[ConvXY(bxy)].L1;
 					if(spr1->GetSlope() == 'A' && spr2->GetSlope() == 'A')
 					{
 						msk |= (1<<((sid+0)%4));
@@ -6650,7 +6686,7 @@ void SpellMap::EditElevText(uint8_t* flag)
 					}
 
 					MapXY dxy = GetTileNeihgborXY(i,j,did);
-					if(L1[ConvXY(dxy)].elev == alt)
+					if(tiles[ConvXY(dxy)].elev == alt)
 						mskh |= (1<<((sid+2)%4));
 				}
 
@@ -6664,7 +6700,7 @@ void SpellMap::EditElevText(uint8_t* flag)
 				if(spr)
 				{
 					// update sprite
-					L1[ConvXY(i,j)].Set(spr);
+					tiles[ConvXY(i,j)].SetL1(spr);
 				}
 				
 				
@@ -6721,13 +6757,13 @@ int SpellMap::EditElev(TScroll* scroll, int step)
 	{
 		// selected tile
 		int mxy = ConvXY(msel[i]);
-		Sprite *sprite = L1[mxy].spr;
+		Sprite *sprite = tiles[mxy].L1;
 
 		// tile slope
 		char sn = sprite->name[2];
 
 		// normal tile - use its alt
-		int elv = L1[mxy].elev;
+		int elv = tiles[mxy].elev;
 		if(elv > max)
 			max = elv;
 		if(elv < min)
@@ -6746,7 +6782,7 @@ int SpellMap::EditElev(TScroll* scroll, int step)
 					continue;
 
 				// tile alt
-				int nalt = L1[ConvXY(nxy)].elev;
+				int nalt = tiles[ConvXY(nxy)].elev;
 
 				if(nalt > max)
 					max = nalt;
@@ -6762,7 +6798,7 @@ int SpellMap::EditElev(TScroll* scroll, int step)
 	{
 		// selected tile
 		int mxy = ConvXY(msel[i]);
-		Sprite* sprite = L1[mxy].spr;
+		Sprite* sprite = tiles[mxy].L1;
 
 		// tile slope
 		char sn = sprite->name[2];
@@ -6770,7 +6806,7 @@ int SpellMap::EditElev(TScroll* scroll, int step)
 		if(step > 0 || sn == 'A')
 		{
 			// update alt
-			int elv = L1[mxy].elev;
+			int elv = tiles[mxy].elev;
 			int elv_o = elv;
 			if((step > 0 && elv == min) || (step < 0 && elv == max))
 			{
@@ -6779,7 +6815,7 @@ int SpellMap::EditElev(TScroll* scroll, int step)
 					elv = ELEV_MIN;
 				if(elv > ELEV_MAX-1)
 					elv = ELEV_MAX-1;
-				L1[mxy].elev = elv;
+				tiles[mxy].elev = elv;
 
 				// add tile to list of modified
 				TTileElevMod pel;
@@ -6800,7 +6836,7 @@ int SpellMap::EditElev(TScroll* scroll, int step)
 					continue;
 				
 				// tile alt down
-				int alt = L1[ConvXY(nxy)].elev;
+				int alt = tiles[ConvXY(nxy)].elev;
 				int alt_o = alt;
 
 				if(alt == max)
@@ -6810,7 +6846,7 @@ int SpellMap::EditElev(TScroll* scroll, int step)
 						alt = ELEV_MIN;
 					if(alt > ELEV_MAX-1)
 						alt = ELEV_MAX-1;
-					L1[ConvXY(nxy)].elev = alt;
+					tiles[ConvXY(nxy)].elev = alt;
 					
 					// add tile to list of modified
 					TTileElevMod pel;
@@ -6834,7 +6870,7 @@ int SpellMap::EditElev(TScroll* scroll, int step)
 		int y = elist[i].y;
 
 		// modify heigth
-		int elv = L1[ConvXY(x,y)].elev;
+		int elv = tiles[ConvXY(x,y)].elev;
 
 		if(elist[i].edir != 0)
 		{
@@ -7035,7 +7071,7 @@ int SpellMap::ReTexture(uint8_t *modz,std::function<void(std::string)> status_cb
 				if(modz[mxy] == 0)
 					continue;
 
-				Sprite *spr = L1[mxy].spr;
+				Sprite *spr = tiles[mxy].L1;
 				auto ref_class = L1_flags[mxy];
 				int ref_slope = spr->GetSlope();
 				auto ref_obj_class = spr->GetToolClass();
@@ -7062,7 +7098,7 @@ int SpellMap::ReTexture(uint8_t *modz,std::function<void(std::string)> status_cb
 						int nxy = ConvXY(o_nxy);
 
 						// neighbor tile
-						Sprite* neig = L1[nxy].spr;
+						Sprite* neig = tiles[nxy].L1;
 						auto neig_class = L1_flags[nxy];
 						auto neig_obj_class = neig->GetToolClass();
 						auto neig_obj_grp = neig->GetToolClassGroup();
@@ -7376,7 +7412,7 @@ int SpellMap::ReTexture(uint8_t *modz,std::function<void(std::string)> status_cb
 				if(cand_map[mxy].size() <= 1)
 				{
 					// single candidate: hard assign, mark as assigned
-					L1[mxy].Set(cand_map[mxy][0]);
+					tiles[mxy].SetL1(cand_map[mxy][0]);
 					modz[mxy] = 0;
 					repeat = true;
 				}			
@@ -7422,7 +7458,7 @@ int SpellMap::ReTexture(uint8_t *modz,std::function<void(std::string)> status_cb
 					auto ref_obj_grp = spr->GetToolClassGroup();*/
 
 					// neighbor slope
-					auto neig_slope = L1[nxy].spr->GetSlope();
+					auto neig_slope = tiles[nxy].L1->GetSlope();
 
 					// for each neighbor candidate of this candidate:
 					for(int nid = 0; nid < cand->GetContextCount(eid, neig_slope); nid++)
@@ -7576,7 +7612,7 @@ int SpellMap::ReTexture(uint8_t *modz,std::function<void(std::string)> status_cb
 					Sprite *spr = cand_map[mxy][cand_lists[mxy][index]];
 
 					// put new sprite to current position
-					L1[mxy].Set(spr);
+					tiles[mxy].SetL1(spr);
 					// mark it as temporarily assigned
 					modz[mxy] = 2;
 
@@ -7712,7 +7748,7 @@ int SpellMap::ReTexture(uint8_t *modz,std::function<void(std::string)> status_cb
 				// this level is still empty: fill in all possible tiles based on known tiles and known classes around
 			
 				// ref tile
-				Sprite *spr = L1[ConvXY(mxy)].spr;
+				Sprite *spr = tiles[ConvXY(mxy)].L1;
 				uint32_t ref_flags = L1_flags[ConvXY(mxy)];
 				uint32_t ref_obj_class = spr->GetToolClass();
 				uint32_t ref_obj_grp = spr->GetToolClassGroup();
@@ -7733,7 +7769,7 @@ int SpellMap::ReTexture(uint8_t *modz,std::function<void(std::string)> status_cb
 					// neighbor edge index
 					int eid180 = (eid + 2)&3;
 					// neighbor tile
-					Sprite *neig = L1[ConvXY(nxy)].spr;
+					Sprite *neig = tiles[ConvXY(nxy)].L1;
 
 					int neig_slope = spr->GetSlope();
 				
@@ -7796,7 +7832,7 @@ int SpellMap::ReTexture(uint8_t *modz,std::function<void(std::string)> status_cb
 						if(modz[ConvXY(nxy)] != 1)
 							continue;
 
-						int neig_slope = L1[ConvXY(nxy)].spr->GetSlope();
+						int neig_slope = tiles[ConvXY(nxy)].L1->GetSlope();
 					
 						// for each context of candidate:
 						bool allow = false;
@@ -7849,7 +7885,7 @@ int SpellMap::ReTexture(uint8_t *modz,std::function<void(std::string)> status_cb
 				// some match found
 				
 				// put new sprite to current position
-				L1[ConvXY(mxy)].Set(spr);
+				tiles[ConvXY(mxy)].SetL1(spr);
 				// mark it as temporarily assigned
 				modz[ConvXY(mxy)] = 2;
 								
@@ -7986,7 +8022,7 @@ void SpellMap::SyncL1flags()
 	{
 		for(int x=0;x<x_size;x++)
 		{
-			L1_flags[ConvXY(x,y)] = L1[ConvXY(x,y)].spr->GetFlags();
+			L1_flags[ConvXY(x,y)] = tiles[ConvXY(x,y)].L1->GetFlags();
 		}
 	}
 }
@@ -8014,8 +8050,8 @@ void SpellMap::SyncShading()
 				if(nxy_pos.IsSelected())
 				{
 					// make two fake sprites					
-					ref.name[2] = L1[mxy].spr->name[2];					
-					neig.name[2] = L1[nxy].spr->name[2];
+					ref.name[2] = tiles[mxy].L1->name[2];					
+					neig.name[2] = tiles[nxy].L1->name[2];
 
 					if(ref.name[2] == 'M')
 						ref.name[2] *= 1;
@@ -8088,7 +8124,7 @@ int SpellMap::BuildSpriteContext()
 				continue;
 
 			// get center tile
-			Sprite *tile = L1[mxy].spr;
+			Sprite *tile = tiles[mxy].L1;
 			int tid = terrain->GetSpriteID(tile);
 			if(tid < 0)
 				return(1);
@@ -8101,7 +8137,7 @@ int SpellMap::BuildSpriteContext()
 				if(nxy.IsSelected())
 				{
 					// add to list
-					Sprite* sprite = L1[ConvXY(nxy)].spr;
+					Sprite* sprite = tiles[ConvXY(nxy)].L1;
 					terrain->sprites[tid]->AddContext(qid, sprite);
 				}
 			}
@@ -8217,9 +8253,9 @@ int SpellMap::EditClass(vector<MapXY>& selection, SpellTool *tool, std::function
 			
 			//L1[pxy] = tspr;
 			L1_flags[pxy] = flag;
-			L1[pxy].Set(terrain->GetTileGlyph(tspr, flag));
-			if(!L1[pxy].spr)
-				L1[pxy].Set(terrain->GetSprite("START"));
+			tiles[pxy].SetL1(terrain->GetTileGlyph(tspr, flag));
+			if(!tiles[pxy].L1)
+				tiles[pxy].SetL1(terrain->GetSprite("START"));
 
 			// tile definitive
 			modz[pxy] = 1;

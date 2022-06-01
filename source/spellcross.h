@@ -80,6 +80,29 @@ public:
 };
 
 
+class SpellStringTableRec
+{
+private:
+public:
+	string label;
+	string raw;
+	wstring text;
+	SpellStringTableRec(string label, string raw, wstring text);
+};
+class SpellStringTable
+{
+private:
+	string raw_text;
+	string lang;
+public:
+	SpellStringTable(FSarchive *fs, string name);
+	string &GetRaw();
+	
+	vector<SpellStringTableRec> list;
+};
+
+
+
 
 class SpellData
 {

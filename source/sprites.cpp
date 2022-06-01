@@ -1275,7 +1275,7 @@ int Sprite::GetToolClassGroup()
 
 
 //=============================================================================
-// Destructible L2 object parameters
+// Destructible objects parameters
 //=============================================================================
 SpellL2classRec::SpellL2classRec()
 {
@@ -1302,15 +1302,14 @@ SpellL2classes::~SpellL2classes()
 }
 SpellL2classes::SpellL2classes(FSarchive* fs,SpellSounds* sounds)
 {	
-	uint8_t* data;
-	int size;
-	
 	// --- Wall classes:	
-	if(fs->GetFile("MURY.DEF",&data,&size))
-		throw runtime_error("MURY.DEF not found in COMMON.FS!");	
-	string mury_text(size+1,'\0');
-	memcpy(mury_text.data(),data,size);
- 	SpellClassFile wall_cls = SpellClassFile(mury_text,";\\s*typ\\s*([\\d]+)\\s*:\\s*([^\\n\\r]+)\\r?\\n?([^;]+)",0);
+	string mury_text = fs->GetFile("MURY.DEF");
+	if(mury_text.empty())
+		throw runtime_error("MURY.DEF not found in COMMON.FS!");		
+	SpellClassFile wall_cls = SpellClassFile(mury_text,";\\s*typ\\s*([\\d]+)\\s*:\\s*([^\\n\\r]+)\\r?\\n?([^;]+)",0);
+	SpellStringTable mury_stable(fs,"MURY");
+	if(mury_stable.list.size() != wall_cls.list.size())
+		throw runtime_error("String table MURY does not match class file MURY.DEF!");
 	for(auto & cls : wall_cls.list)
 	{
 		if(cls.items.size() != 3)
@@ -1324,15 +1323,18 @@ SpellL2classes::SpellL2classes(FSarchive* fs,SpellSounds* sounds)
 		wall->sound_class_id = std::stoi(cls.items[2]);
 		wall->sound_hit = sounds->GetObjectHitClass(wall->sound_class_id);
 		wall->sound_destruct = sounds->GetObjectDestructClass(wall->sound_class_id);
+		wall->name = mury_stable.list[cls.index].raw;
 		wall_list.push_back(wall);
 	}
 
 	// --- Bridge classes:
-	if(fs->GetFile("MOSTY.DEF",&data,&size))
+	string mosty_text = fs->GetFile("MOSTY.DEF");
+	if(mosty_text.empty())
 		throw runtime_error("MOSTY.DEF not found in COMMON.FS!");
-	string mosty_text(size+1,'\0');
-	memcpy(mosty_text.data(),data,size);
 	SpellClassFile bridge_cls = SpellClassFile(mosty_text,";\\s*typ\\s*([\\d]+)\\s*:\\s*([^\\n\\r]+)\\r?\\n?([^;]+)",0);
+	SpellStringTable mosty_stable(fs,"MOSTY");
+	if(mosty_stable.list.size() != bridge_cls.list.size())
+		throw runtime_error("String table MOSTY does not match class file MOSTY.DEF!");
 	for(auto& cls : bridge_cls.list)
 	{
 		if(cls.items.size() != 3)
@@ -1346,20 +1348,25 @@ SpellL2classes::SpellL2classes(FSarchive* fs,SpellSounds* sounds)
 		bridge->sound_class_id = std::stoi(cls.items[2]);
 		bridge->sound_hit = sounds->GetObjectHitClass(bridge->sound_class_id);
 		bridge->sound_destruct = sounds->GetObjectDestructClass(bridge->sound_class_id);
+		bridge->name = mosty_stable.list[cls.index].raw;
 		bridge_list.push_back(bridge);
 	}
 
 	// --- Spec Object classes:
-	if(fs->GetFile("SPECOBJ.DEF",&data,&size))
+	string spec_text = fs->GetFile("SPECOBJ.DEF");
+	if(spec_text.empty())
 		throw runtime_error("SPECOBJ.DEF not found in COMMON.FS!");
-	string spec_text(size+1,'\0');
-	memcpy(spec_text.data(),data,size);
 	SpellClassFile spec_cls = SpellClassFile(spec_text,";\\s*(SOAx[^\\s]+)\\s*-\\s*([^\\n\\r]+)\\r?\\n?([^;]+)");
+	SpellStringTable spec_stable(fs,"SPECOBJ");
+	if(spec_stable.list.size() != spec_cls.list.size())
+		throw runtime_error("String table SPECOBJ does not match class file SPECOBJ.DEF!");
+	int index = 0;
 	for(auto& cls : spec_cls.list)
 	{
 		if(cls.items.size() != 3)
 			throw runtime_error("Invalid data in SPECOBJ.DEF in COMMON.FS!");
 		auto spec = new SpellL2classRec();
+		spec->index = index++;
 		spec->tag = cls.head[0];
 		spec->tag[3] = '?';
 		spec->label = cls.head[1];
@@ -1368,8 +1375,10 @@ SpellL2classes::SpellL2classes(FSarchive* fs,SpellSounds* sounds)
 		spec->sound_class_id = std::stoi(cls.items[2]);
 		spec->sound_hit = sounds->GetObjectHitClass(spec->sound_class_id);
 		spec->sound_destruct = sounds->GetObjectDestructClass(spec->sound_class_id);
+		spec->name = spec_stable.list[spec->index].raw;
 		spec_list.push_back(spec);
 	}
+
 	
 }
 // try to fetch class by sprite name

@@ -38,23 +38,29 @@ using namespace std;
 class MapSprite
 {
 private:
-	SpellSound *sound_hit;
-	SpellSound *sound_destruct;
 
 public:
 	// sprite data pointer
-	Sprite *spr;
+	Sprite *L1;
+	Sprite *L2;
 	// elevation
 	int elev;
+	// elevation
+	uint8_t flags;
 	// hit points if destructible
 	int hp;
 	
+	//MapSprite(Sprite* sprite);
 	MapSprite();
-	MapSprite(Sprite* sprite);
 	~MapSprite();
 	
-	void Set(Sprite* sprite,int elev=-1);
-	void Clear();
+	void SetL1(Sprite* sprite,int elev=-1);
+	void SetL2(Sprite* sprite,int flags=-1);
+
+	SpellL2classRec* GetDestructible();
+	int GetMaxHP();
+	int isDestructible();
+	
 	int PlayHit();
 	int PlayDestruct();
 };
@@ -369,9 +375,7 @@ class SpellMap
 		Terrain* terrain;
 		SpellData* spelldata;
 		// layers:
-		vector<MapSprite> L1; // terrain array
-		vector<MapSprite> L2; // objects array
-		vector<uint8_t> flags; // flags array
+		vector<MapSprite> tiles; // terrain tiles map (L1+L2)
 		vector<MapLayer3> L3; // ANM list
 		vector<MapLayer4> L4; // PNM list				
 		vector<MapXY> start; // start tiles list

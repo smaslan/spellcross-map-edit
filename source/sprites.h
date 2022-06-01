@@ -41,6 +41,7 @@ class SpellL2classRec
 public:
 	string tag;
 	string label;
+	string name;
 	int index;
 	int defence;
 	int hp;

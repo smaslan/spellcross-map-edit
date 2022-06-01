@@ -21,8 +21,10 @@ class FSarchive
 		~FSarchive();
 		void Append(wstring& path);
 		int GetFile(const char* name, uint8_t** data, int* size);
-		int GetFile(int id, uint8_t** data, int* size, char** name=NULL);
-		string GetFile(const char* name);
+		int GetFile(string &name,uint8_t** data,int* size);
+		int GetFile(int id, uint8_t** data, int* size, char** name=NULL);		
+		inline string GetFile(const char* name);
+		string GetFile(string& name);
 		int Count();
 		const char *GetFileName(int id);
 
