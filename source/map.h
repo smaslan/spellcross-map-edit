@@ -248,8 +248,8 @@ class SpellMap
 		// current view state of map tiles
 		vector<int> units_view;
 		vector<int> units_view_mem; /* this is copy used to keep view of all but selected unit */
-		vector<int> units_view_flags;
-		vector<int> units_view_flags_mem;		
+		//vector<int> units_view_flags;
+		//vector<int> units_view_flags_mem;		
 		// units view mask map
 		vector<uint8_t> units_view_mask; // mask with objects
 		vector<uint8_t> units_view_mask_0; // mask without object

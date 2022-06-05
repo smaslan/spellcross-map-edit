@@ -556,7 +556,10 @@ void SpellMapEvents::ResetEvents()
 		for(auto & text : evt->texts)
 			text.is_done = false;
 		for(auto& unit : evt->units)
+		{
 			unit.is_placed = false;
+			unit.unit->was_seen = false;
+		}
 		if(evt->isSeeUnit() && evt->trig_unit)
 		{
 			evt->trig_unit->trig_event = NULL;

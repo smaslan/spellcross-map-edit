@@ -868,7 +868,7 @@ MapUnit::MapUnit()
 	// unit active (set except insertion time)
 	is_active = 0;
 	// unit visible?
-	is_visible = true;
+	hide = false;
 	// enemy?
 	is_enemy = 0;
 	// unit being placed?
@@ -877,6 +877,10 @@ MapUnit::MapUnit()
 	was_moved = true;
 	// created by event?
 	is_event = false;
+	// was unit already seen?
+	was_seen = false;
+	// is unit visible (0 - nope, 1 - yes (in last check), 2 - yes now)
+	is_visible = 0;
 
 	// next unit (for sorted rendering)
 	next = NULL;
@@ -1156,7 +1160,7 @@ int MapUnit::CanSpecAction()
 
 int MapUnit::Render(Terrain* data,uint8_t* buffer,uint8_t* buf_end,int buf_x_pos,int buf_y_pos,int buf_x_size,uint8_t *filter,uint8_t* hud_filter,Sprite* sprt,int show_hud)
 {
-	if(!is_visible)
+	if(hide)
 		return(0);	
 	
 	// filter for shadow rendering

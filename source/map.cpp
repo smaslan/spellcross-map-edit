@@ -4283,26 +4283,31 @@ int SpellMap::ClearUnitsView(int to_unseen)
 {
 	if(to_unseen)
 	{
-		// all to never seen state
+		// all tiles to never seen state
 		units_view.assign(x_size*y_size, 0);
-		units_view_flags.assign(x_size*y_size,0);
+
+		// no units seen yet
+		for(auto& unit : units)
+		{
+			unit->was_seen = false;
+			unit->is_visible = 0;
+		}
 	}
 	else
 	{
-		// all seen to currently invisible
+		// all visible to seen, but not visible
 		if(units_view.size() != x_size*y_size)
-		{
-			units_view.resize(x_size*y_size,0);
-			units_view_flags.resize(x_size*y_size,0);
-		}
-		else
-		{
-			for(auto & pos : units_view)
-				if(pos == 2)
-					pos = 1;
-			units_view_flags.assign(x_size*y_size,0);
-		}
-	}		
+			units_view.assign(x_size*y_size,0);
+		for(auto & pos : units_view)
+			if(pos == 2)
+				pos = 1;
+
+		// no units seen yet
+		for(auto& unit : units)
+			unit->is_visible = max(unit->is_visible - 1,0);
+	}
+
+	
 
 	return(0);
 }
@@ -4323,7 +4328,7 @@ int SpellMap::AddUnitView(MapUnit *unit, vector<SpellMapEventRec*>* event_list)
 	{
 		ref_view = unit->unit->action_params[2];
 		is_radar = true;
-	}
+	}	
 
 	// reference position
 	MapXY ref_pos = unit->coor;
@@ -4451,12 +4456,14 @@ int SpellMap::AddUnitView(MapUnit *unit, vector<SpellMapEventRec*>* event_list)
 							while(unit)
 							{
 								// new contact?
-								if(!units_view_flags[next_mxy] && Lunit[next_mxy]->is_enemy)
+								if(!unit->is_visible && unit->is_enemy)
 									new_contact = true;
-								// SeeUnit() event?
+								// check linked SeeUnit() event?
 								if(event_list && unit->trig_event)
 									event_list->push_back(unit->trig_event);
-								units_view_flags[next_mxy] = 1;
+								// set unit seen flag
+								unit->is_visible = 2;
+								unit->was_seen = true;								
 								unit = unit->next;
 							}
 						}
@@ -4532,12 +4539,14 @@ int SpellMap::AddUnitView(MapUnit *unit, vector<SpellMapEventRec*>* event_list)
 					while(unit)
 					{
 						// new contact?
-						if(!units_view_flags[next_mxy] && Lunit[next_mxy]->is_enemy)
+						if(!unit->is_visible && unit->is_enemy)
 							new_contact = true;
-						// SeeUnit() event?
+						// check linked SeeUnit() event?
 						if(event_list && unit->trig_event)
 							event_list->push_back(unit->trig_event);
-						units_view_flags[next_mxy] = 1;
+						// mark unit as seen
+						unit->is_visible = 2;
+						unit->was_seen = true;
 						unit = unit->next;
 					}
 				}
@@ -5713,7 +5722,7 @@ int SpellMap::Tick()
 				// reached ground: kaboom!
 				
 				// hide attacker unit till actually destroyed
-				unit->is_visible = false;
+				unit->hide = true;
 
 				// start explosion PNM
 				unit->attack_target->attack_hit_pnm = unit->GetTargetHitPNM(unit->attack_target);

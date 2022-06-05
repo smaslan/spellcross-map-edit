@@ -348,8 +348,8 @@ public:
 	int action_points;
 	// unit active (set except insertion time)
 	int is_active;
-	// unit visible?
-	int is_visible;
+	// unit hide (used temporarily when destroying)?
+	int hide;
 	// enemy?
 	int is_enemy;
 	// event created?
@@ -360,6 +360,11 @@ public:
 	int in_placement;
 	// unit moved flag (cleared when rendered)
 	int was_moved;
+	// unit was already seen?
+	int was_seen;
+	// unit visible level (this is used for in-game checking of the unit in view range)
+	int is_visible;
+
 
 	// pointer to next unit to draw (for correct render order)
 	MapUnit* next;
