@@ -5187,9 +5187,12 @@ int SpellMap::Tick()
 					{
 						unit->PlayContact();
 					}
-					// exec detected events
+					// append events
 					event_list.insert(event_list.end(), events.begin(), events.end());
-					//ProcEventsList(events);
+					
+					// check and append TransportUnit/SaveUnit events
+					if(unit->trig_event && unit->trig_event->CheckUnitInPos(true))
+						event_list.push_back(unit->trig_event);
 
 					// done					
 					unit->in_animation = NULL;
@@ -5273,9 +5276,13 @@ int SpellMap::Tick()
 					// enemy contact event:
 					unit->PlayContact();
 				}
-				// process events
-				//ProcEventsList(events);
+				// append events
 				event_list.insert(event_list.end(),events.begin(),events.end());
+
+				// check and append TransportUnit/SaveUnit events
+				if(unit->trig_event && unit->trig_event->CheckUnitInPos(true))
+					event_list.push_back(unit->trig_event);
+
 			
 				if(unit->in_animation)
 				{
@@ -5797,8 +5804,12 @@ int SpellMap::Tick()
 				// enemy contact event:
 				unit->PlayContact();
 			}
-			//ProcEventsList(events);
+			// append events
 			event_list.insert(event_list.end(),events.begin(),events.end());
+			
+			// check and append TransportUnit/SaveUnit events
+			if(unit->trig_event && unit->trig_event->CheckUnitInPos(true))
+				event_list.push_back(unit->trig_event);
 
 			InvalidateHUDbuttons();
 		}		
@@ -6069,11 +6080,12 @@ int SpellMap::MissionStartEvent()
 		for(auto & unit : evt->units)
 		{
 			// make new unit
-			MapUnit *new_unit = new MapUnit(*unit.unit);
+			MapUnit *new_unit = new MapUnit(*unit.unit,true);
 			unit.is_placed = true;
 			
 			if(PlaceUnit(new_unit))
 			{
+				// failed
 				delete new_unit;
 				continue;
 			}

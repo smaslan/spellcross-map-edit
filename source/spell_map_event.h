@@ -5,6 +5,9 @@
 #include "other.h"
 #include "spell_units.h"
 
+// forward refs
+class SpellMap;
+
 class SpellMapEventUnitRec
 {
 public:
@@ -24,6 +27,9 @@ public:
 class SpellMapEventRec
 {
 private:
+
+    // back ref to parent map
+    SpellMap* map;
 
 public:
 
@@ -50,7 +56,7 @@ public:
         "DestroyAllUnits",
         "TransportUnit",
         "SaveUnit"
-    };
+    };       
 
     int in_placement;
 
@@ -83,14 +89,17 @@ public:
     MapUnit *ExtractUnit(MapUnit* unit);
     void ClearUnits();
     void ClearTexts();
-    SpellMapEventRec();
+    SpellMapEventRec(SpellMap *parent_map);
     SpellMapEventRec(SpellMapEventRec* rec);
     ~SpellMapEventRec();
-    
+
+    int CheckUnitInPos(bool clear=false);
+        
     int isMissionStart();
     int isSeePlace();
     int isSeeUnit();
     int isDone();
+    int isTransportSave();
     int hasTargetUnit();
     int hasPosition();
 
@@ -98,9 +107,6 @@ public:
 };
 
 typedef vector<SpellMapEventRec*> SpellMapEventsList;
-
-// forward ref
-class SpellMap;
 
 class SpellMapEvents
 {

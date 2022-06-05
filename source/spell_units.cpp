@@ -942,16 +942,25 @@ MapUnit::~MapUnit()
 	}
 }
 // copy without sound refs because delete would loose the sounds for source object!
-MapUnit::MapUnit(MapUnit &obj)
+MapUnit::MapUnit(MapUnit &obj, bool relink_event_trigger)
 {
 	*this = obj;
 	sound_move = NULL;
 
 	parent = NULL;
-	child = NULL;
-	trig_event = NULL;
+	child = NULL;	
 	map_event = NULL;
 
+	if(relink_event_trigger)
+	{
+		// disconnect event trigger from source unit, move it to new unit
+		obj.trig_event = NULL;
+		if(trig_event)
+			trig_event->trig_unit = this;
+	}
+	else
+		trig_event = NULL;
+	
 	action_state = ACTION_STATE_IDLE;
 	move_state = MOVE_STATE_IDLE;
 	attack_state = ATTACK_STATE_IDLE;

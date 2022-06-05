@@ -465,7 +465,7 @@ public:
 
 
 	MapUnit();
-	MapUnit(MapUnit& obj);
+	MapUnit(MapUnit& obj,bool relink_event_trigger=false);
 	int MorphUnit(SpellUnitRec* target,int health=0);
 	int ClearSounds();
 	~MapUnit();

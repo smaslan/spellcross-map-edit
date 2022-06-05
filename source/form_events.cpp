@@ -236,7 +236,7 @@ FormEvent::FormEvent(wxWindow* parent,SpellData* spell_data,wxWindowID id,const 
 
 
 	// fill event types list
-	SpellMapEventRec map_ev;
+	SpellMapEventRec map_ev((SpellMap*)NULL);
 	chbType->Freeze();
 	chbType->Clear();
 	for(auto& type : map_ev.GetEventTypes())
@@ -374,7 +374,7 @@ void FormEvent::SetMap(SpellMap* map)
 	if(!event)
 	{
 		// nope: create new one
-		event = new SpellMapEventRec();
+		event = new SpellMapEventRec(spell_map);
 		auto pos = spell_map->GetSelection();
 		event->position = pos; // set some position		
 		spell_map->events->AddEvent(event);
@@ -409,7 +409,7 @@ void FormEvent::FillEventsList()
 void FormEvent::OnNewEventClick(wxCommandEvent& event)
 {
 	// create event to main list
-	auto evt = new SpellMapEventRec();
+	auto evt = new SpellMapEventRec(spell_map);
 	auto pos = spell_map->GetSelection();
 	evt->position = pos; // set some position		
 	spell_map->events->AddEvent(evt);

@@ -6,8 +6,9 @@
 
 using namespace std;
 
-SpellMapEventRec::SpellMapEventRec()
+SpellMapEventRec::SpellMapEventRec(SpellMap* parent_map)
 {
+	map = parent_map;
 	evt_type = EVT_VOID;
 	is_objective = false;
 	trig_unit = NULL;
@@ -89,6 +90,10 @@ int SpellMapEventRec::isSeeUnit()
 {
 	return(evt_type == EVT_SEE_UNIT);
 }
+int SpellMapEventRec::isTransportSave()
+{
+	return(evt_type == EVT_TRANSPORT_UNIT || evt_type == EVT_SAVE_UNIT);
+}
 int SpellMapEventRec::isDone()
 {
 	if(is_done)
@@ -99,7 +104,8 @@ int SpellMapEventRec::isDone()
 	for(auto& text : texts)
 		if(!text.is_done)
 			return(false);
-	is_done = true;
+	if(!units.empty() || !texts.empty())
+		is_done = true;
 	return(is_done);
 }
 int SpellMapEventRec::hasTargetUnit()
@@ -129,6 +135,32 @@ int SpellMapEventRec::SetType(int type_id)
 	type_name = EvtNames[type_id];
 	return(0);
 }
+// check if trigger-source unit is in target position (TransportUnit or SaveUnit)
+int SpellMapEventRec::CheckUnitInPos(bool clear)
+{
+	if(!isTransportSave())
+		return(false);
+	
+	if(!trig_unit)
+		return(false);
+		
+	vector<MapXY> &list = (evt_type == EVT_SAVE_UNIT)?(map->start):(map->escape);
+	for(auto & pos : list)
+		if(trig_unit->coor == pos)
+		{
+			if(clear)
+				is_done = true;
+			return(true);
+		}
+	
+	// not in target position
+	if(clear)
+		is_done = false;
+	return(false);
+}
+
+
+
 
 
 
@@ -317,7 +349,7 @@ int SpellMapEvents::AddMissionObjective(SpellData* data,SpellDEF* def,SpellDefCm
 	}
 
 	// make new object-event
-	SpellMapEventRec *evt = new SpellMapEventRec();
+	SpellMapEventRec *evt = new SpellMapEventRec(map);
 	evt->evt_type = event_type;
 	evt->type_name = cmd->parameters->at(0);
 	evt->label = label;
@@ -398,7 +430,7 @@ int SpellMapEvents::AddSpecialEvent(SpellData *data, SpellDEF* def, SpellDefCmd*
 	{
 		// make new event if not existing match found
 		is_new_event = true;
-		evt = new SpellMapEventRec();
+		evt = new SpellMapEventRec(map);
 		evt->evt_type = event_type;
 		evt->position = target_position;
 		evt->probability = event_probability;
@@ -593,7 +625,7 @@ void SpellMapEvents::ResetEvents()
 				prev = evt;
 			}
 		}
-		else if(evt->isSeeUnit())
+		else if(evt->isSeeUnit() || evt->isTransportSave())
 		{
 			// look for target unit and assign ref
 			for(auto & unit : units_list)
@@ -603,9 +635,11 @@ void SpellMapEvents::ResetEvents()
 					unit->trig_event = evt;
 					evt->trig_unit = unit;
 				}			
-		}
+		}		
 	}
 }
+
+
 
 // get first event for given position
 SpellMapEventRec* SpellMapEvents::GetEvent(MapXY pos)
@@ -631,7 +665,7 @@ int SpellMapEvents::CheckEvent(int pos)
 // get list of events for given position, only not executed
 SpellMapEventsList SpellMapEvents::GetEvents(MapXY pos, bool clear)
 {
-	return(GetEvents(ConvXY(pos)));
+	return(GetEvents(ConvXY(pos),clear));
 }
 SpellMapEventsList SpellMapEvents::GetEvents(int pos,bool clear)
 {	
@@ -641,9 +675,11 @@ SpellMapEventsList SpellMapEvents::GetEvents(int pos,bool clear)
 	while(evt)
 	{
 		if(!evt->is_done && evt->isSeePlace() && (!evt->hide || !map->isGameMode()))
+		{
 			list.push_back(evt);
-		if(clear)
-			evt->is_done = true;
+			if(clear)
+				evt->is_done = true;
+		}
 		evt = evt->next;
 	}		
 	return(list);
@@ -694,7 +730,7 @@ int SpellMapEvents::AddMissionStartUnit(MapUnit* unit,int probab)
 	if(!target_evt)
 	{
 		// not found: make one
-		target_evt = new SpellMapEventRec();
+		target_evt = new SpellMapEventRec(map);
 		target_evt->SetType(SpellMapEventRec::EvtTypes::EVT_MISSION_START);
 		target_evt->probability = probab;
 		events.push_back(target_evt);
@@ -711,7 +747,7 @@ int SpellMapEvents::AddMissionStartUnit(MapUnit* unit,int probab)
 // add new SeeUnit() event
 SpellMapEventRec* SpellMapEvents::AddSeeUnitEvent(MapUnit* unit,int probab)
 {
-	auto evt = new SpellMapEventRec();
+	auto evt = new SpellMapEventRec(map);
 	evt->SetType(SpellMapEventRec::EvtTypes::EVT_SEE_UNIT);
 	evt->trig_unit_id = unit->id;
 	evt->probability = probab;
