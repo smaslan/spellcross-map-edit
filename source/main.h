@@ -16,6 +16,7 @@
 #include "form_new_object.h"
 #include "form_unit_options.h"
 #include "form_message_box.h"
+#include "form_map_options.h"
 
 #include <wx/ribbon/buttonbar.h>
 #include <wx/ribbon/panel.h>
@@ -149,6 +150,7 @@ private:
     FormEvent* form_events;
     FormUnitOpts *form_unit_opts;
     FormMsgBox *form_message;
+    FormMapOptions *form_map_options;
     
     void OnPaintHUDbutton(wxPaintEvent& event);
     void OnHUDbuttonsMouseEnter(wxMouseEvent& event);
@@ -168,7 +170,8 @@ private:
         ID_EVENT_WIN,
         ID_MINIMAP_WIN,
         ID_UNIT_MODE_WIN,
-        ID_MSG_WIN
+        ID_MSG_WIN,
+        ID_MAP_OPT_WIN
     };
     static constexpr int ID_HUD_BASE = 3000;
     static constexpr int ID_TOOL_BASE = 10000;

@@ -421,6 +421,7 @@ class SpellMap
 		int CommitRenderSurfModified();		
 		int Render(wxBitmap &bmp, TScroll* scroll,SpellTool* tool=NULL,std::function<void(void)> hud_buttons_cb=NULL);
 		int GetRender(uint8_t* buf, int x_size, int y_size, int x_pos, int y_pos);
+		uint8_t *GetPalette();
 		
 		int GetHUDstate();
 		int SetHUDstate(int state);
@@ -510,6 +511,7 @@ class SpellMap
 
 		void SetRender(bool wL1, bool wL2, bool wL3, bool wL4, bool wSECI, bool wUnits, bool wSound, bool wSoundLoop, bool wEvents);
 		void SetGamma(double gamma);
+		double GetGamma();
 		int Tick();
 		wstring GetTopPath();
 		
@@ -534,7 +536,8 @@ class SpellMap
 		int BuildSpriteContext();
 
 		enum{
-			HUD_ACTION_MINIMAP = 1000
+			HUD_ACTION_MINIMAP = 1000,
+			HUD_ACTION_MAP_OPTIONS
 		};
 
 		MapSound* GetRandomSound(double* left=NULL,double* right=NULL);

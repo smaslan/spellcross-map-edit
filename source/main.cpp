@@ -24,8 +24,6 @@
 #include "simpleini.h"
 #include "spellcross.h"
 #include "map.h"
-#include "form_message_box.h"
-
 
 
 
@@ -115,6 +113,7 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     form_tools = NULL;
     form_unit_opts = NULL;
     form_message = NULL;
+    form_map_options = NULL;
 
 
     // view scroller
@@ -400,6 +399,13 @@ void MyFrame::OnClose(wxCloseEvent& ev)
         delete form_message;
         form_message = NULL;
     }
+    else if(ev.GetId() == ID_MAP_OPT_WIN && form_map_options)
+    {
+        // unit multi-action menu
+        //form_map_options->ResultCallback(); // exec result callback (calling it from here to have in this thread)
+        delete form_map_options;
+        form_map_options = NULL;
+    }
     else
         ev.Skip();
 }
@@ -598,6 +604,11 @@ void MyFrame::OnHUDbuttonsClick(wxMouseEvent& event)
             wxCommandEvent cmd(wxEVT_MENU);
             OnViewMiniMap(cmd);
         }
+        if(btn->action_id == SpellMap::HUD_ACTION_MAP_OPTIONS && !form_map_options)
+        {
+            // show map options
+            form_map_options = new FormMapOptions(canvas,ID_MAP_OPT_WIN,spell_map);
+        }
     }
 }
 
@@ -662,6 +673,7 @@ void MyFrame::OnNewMap(wxCommandEvent& event)
 // set gamma correction
 void MyFrame::OnSetGamma(wxCommandEvent& event)
 {
+    //form_map_options = new FormMapOptions(canvas,ID_MAP_OPT_WIN,spell_map);
     FormGamma *gamma_form = new FormGamma(this, spell_map);
     gamma_form->Show(true);
 }
@@ -905,7 +917,8 @@ void MyFrame::OnViewMiniMap(wxCommandEvent& event)
     int hud_state = spell_map->SetHUDstate(false);
     wxBitmap* buf = new wxBitmap(1,1,24);
     scrl.SetPos(0,0);
-    scrl.SetSurface(pic_x,pic_y);
+    //scrl.SetSurface(pic_x,pic_y);
+    scrl.SetSurface(1,1);
     spell_map->RenderPrepare(&scrl);
     auto [x1,y1] = scrl.GetScroll();
     scrl.SetPos(pic_x,pic_y);
@@ -915,6 +928,7 @@ void MyFrame::OnViewMiniMap(wxCommandEvent& event)
     
     // make local render buffer for entire map size    
     buf = new wxBitmap(x2-x1, y2-y1, 24);
+    scrl.SetSurface(x2-x1,y2-y1);
     scrl.SetPos(0,0);
     spell_map->Render(*buf, &scrl);
     spell_map->SetHUDstate(hud_state);
@@ -1285,7 +1299,9 @@ void MyFrame::OnCanvasLMouseDown(wxMouseEvent& event)
                 }
                 else if(wEvents && cur_evt && cur_evt == sel_evt)
                 {
-                    // move/place event           
+                    // move/place event
+                    if(sel_unit)
+                        sel_unit->in_placement = false;
                     cur_evt->in_placement = !cur_evt->in_placement;                    
                 }
                 else if(wEvents && cur_evt)
@@ -1301,6 +1317,8 @@ void MyFrame::OnCanvasLMouseDown(wxMouseEvent& event)
                 else if(cur_unit && cur_unit == sel_unit)
                 {
                     // move/place unit
+                    if(sel_evt)
+                        sel_evt->in_placement = false;
                     sel_unit->in_placement = !sel_unit->in_placement;
                 }
                 else if(cur_unit)

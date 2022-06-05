@@ -21,6 +21,7 @@
   <ItemGroup>
     <ClCompile Include="form_events.cpp" />
     <ClCompile Include="form_gr_view.cpp" />
+    <ClCompile Include="form_map_options.cpp" />
     <ClCompile Include="form_message_box.cpp" />
     <ClCompile Include="form_new_object.cpp" />
     <ClCompile Include="form_objects.cpp" />
@@ -51,6 +52,7 @@
     <ClInclude Include="cvt_xmi2mid.hpp" />
     <ClInclude Include="form_events.h" />
     <ClInclude Include="form_gr_view.h" />
+    <ClInclude Include="form_map_options.h" />
     <ClInclude Include="form_message_box.h" />
     <ClInclude Include="form_new_object.h" />
     <ClInclude Include="form_objects.h" />
@@ -175,7 +177,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_WINDOWS;WXUSINGDLL;wxMSVC_VERSION_AUTO;_CRT_SECURE_NO_WARNINGS;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;__WINDOWS_DS__;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_HAS_STD_BYTE=0;_DEBUG;_WINDOWS;WXUSINGDLL;wxMSVC_VERSION_AUTO;_CRT_SECURE_NO_WARNINGS;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;__WINDOWS_DS__;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>$(wxwin)V3.1.5\include;$(wxwin)V3.1.5\include\msvc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
@@ -183,6 +185,7 @@
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <IntrinsicFunctions>false</IntrinsicFunctions>
       <FavorSizeOrSpeed>Neither</FavorSizeOrSpeed>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>

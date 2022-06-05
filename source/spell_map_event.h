@@ -99,17 +99,24 @@ public:
 
 typedef vector<SpellMapEventRec*> SpellMapEventsList;
 
+// forward ref
+class SpellMap;
+
 class SpellMapEvents
 {
 private:
     
     // map size
-    int x_size;
-    int y_size;
+    //int x_size;
+    //int y_size;
     // game mode?
-    int &is_game_mode;
+    //int &is_game_mode;
     // map units list
-    vector<MapUnit*> &map_units;
+    //vector<MapUnit*> &map_units;
+    
+    // back ref to parent map
+    SpellMap *map;
+    
     // unit index (only for loading)
     int next_index;
     // list of events
@@ -126,7 +133,7 @@ private:
 
 public:
 
-    SpellMapEvents(int x_size, int y_size,vector<MapUnit*>& map_units,int& game_mode);
+    SpellMapEvents(SpellMap *parent);
     ~SpellMapEvents();
     int AddSpecialEvent(SpellData* data, SpellDEF* def, SpellDefCmd* cmd);
     int AddMissionObjective(SpellData* data,SpellDEF* def,SpellDefCmd* cmd);

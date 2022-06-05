@@ -24,6 +24,7 @@ public:
 	wxBitmap* Render(int x_size=-1,int y_size=-1,bool transparent=false);
 	wxBitmap* Render(bool transparent);
 	wxCursor* RenderCUR(bool is_grayscale=true);
+	int RenderMask(uint8_t* buf,uint8_t* buf_end);
 };
 
 class SpellProjectile
@@ -105,6 +106,12 @@ public:
 	SpellGraphicItem* wm_frame_horz;
 	SpellGraphicItem* wm_frame_vert;
 	SpellGraphicItem* wm_frame_corner;
+
+	SpellGraphicItem* wm_map_opt_frame;
+	SpellGraphicItem* wm_map_opt_btn_disabled;
+	SpellGraphicItem* wm_map_opt_btn_idle;
+	SpellGraphicItem* wm_map_opt_btn_hover;
+	SpellGraphicItem* wm_map_opt_btn_down;	
 
 	wxCursor* cur_pointer;
 	wxCursor* cur_wait;

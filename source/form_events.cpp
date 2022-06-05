@@ -235,6 +235,26 @@ FormEvent::FormEvent(wxWindow* parent,SpellData* spell_data,wxWindowID id,const 
 	// === AUTO GENERATED END ===
 
 
+	// fill event types list
+	SpellMapEventRec map_ev;
+	chbType->Freeze();
+	chbType->Clear();
+	for(auto& type : map_ev.GetEventTypes())
+		chbType->Append(type);
+	chbType->Thaw();
+
+	// fill available text message resources
+	lbMsg->Freeze();
+	lbMsg->Clear();
+	for(auto& txt : spell_data->texts->GetTexts())
+	{
+		wstring name = char2wstring(txt->name);
+		if(txt->audio)
+			name += L"  \x266B";
+		lbMsg->Append(name);
+	}
+	lbMsg->Thaw();
+
 
 	// not sound yet
 	spell_sound = NULL;
@@ -343,7 +363,7 @@ void FormEvent::SetMap(SpellMap* map)
 	for(auto & evt : spell_map->events->GetEvents())
 		spell_orig_events.push_back(new SpellMapEventRec(evt));
 
-	chbType->Clear();
+	//chbType->Clear();
 	chbMsgItem->Clear();
 	lbEvents->Clear();
 	
@@ -452,14 +472,15 @@ void FormEvent::SelectEvent(SpellMapEventRec *evt)
 		}
 
 	// fill event types
-	chbType->Freeze();
+	/*chbType->Freeze();
+	chbType->Clear();
 	for(auto& type : spell_event->GetEventTypes())
-		chbType->Append(type);
+		chbType->Append(type);*/
 	chbType->Select(spell_event->evt_type);
-	chbType->Thaw();
+	//chbType->Thaw();
 
 	// fill available text message resources
-	lbMsg->Freeze();
+	/*lbMsg->Freeze();
 	lbMsg->Clear();
 	for(auto& txt : spell_data->texts->GetTexts())
 	{
@@ -468,7 +489,7 @@ void FormEvent::SelectEvent(SpellMapEventRec *evt)
 			name += L"  \x266B";
 		lbMsg->Append(name);
 	}
-	lbMsg->Thaw();
+	lbMsg->Thaw();*/
 
 	// fill probability
 	spinProb->SetValue(spell_event->probability);
@@ -661,6 +682,7 @@ void FormEvent::OnSelectMsgResource(wxCommandEvent& event)
 	spell_map->events->ResetEvents();
 
 	// get message item selection
+	FillMsgItems();
 	auto sel = chbMsgItem->GetSelection();
 	if(chbMsgItem->IsEmpty() || sel < 0)
 	{
@@ -679,7 +701,7 @@ void FormEvent::OnSelectMsgResource(wxCommandEvent& event)
 	
 	// update text in event record
 	msg.text = text;
-	FillMsgItems();
+	
 	
 	// show text
 	txtMessage->SetValue(text->text);
@@ -730,162 +752,3 @@ void FormEvent::OnPlayNarration(wxCommandEvent& event)
 
 
 
-// find terrain selected
-/*Terrain* FormPalView::FindTerrain()
-{
-	for(int k = 0;k<spell_data->GetTerrainCount();k++)
-	{
-		if(GetMenuBar()->FindItem(TERR_ID0 + k)->IsChecked())
-		{
-			// found selection
-			Terrain* terr = spell_data->GetTerrain(k);
-			return(terr);
-		}
-	}
-	return(NULL);
-}
-
-
-void FormPalView::ListFilters()
-{
-	auto terr = FindTerrain();
-	
-	// loose old list
-	for(int k = mmFilter->GetMenuItemCount(); k-- > 0;)
-		mmFilter->Delete(FILTER_ID0 + k);
-	filter = NULL;
-
-	// make list of filters
-	for(int k = 0; k < terr->filter.list.size(); k++)
-	{
-		auto filter = terr->filter.list[k];
-		mmFilter->Append(FILTER_ID0 + k, wxString(filter->name),wxEmptyString,wxITEM_RADIO);
-		Bind(wxEVT_MENU,&FormPalView::OnFilterChange,this,FILTER_ID0 + k);
-	}
-	if(terr->filter.list.size())
-		mmFilter->Check(FILTER_ID0, true);
-
-	mmFilter->Append(wxID_ANY,wxEmptyString,wxEmptyString,wxITEM_SEPARATOR);
-	mmFilter->Append(FILTER_ID0 + terr->filter.list.size(),wxString("Save New Filter"),wxEmptyString,wxITEM_NORMAL);
-	Bind(wxEVT_MENU,&FormPalView::OnSaveFilterFile,this,FILTER_ID0 + terr->filter.list.size());
-}
-
-// save current temp filter
-void FormPalView::OnSaveFilterFile(wxCommandEvent& event)
-{
-	if(!filter)
-		return;
-	
-	// split path to folder and file
-	std::filesystem::path last_path = wxStandardPaths::Get().GetExecutablePath().ToStdWstring();
-	wstring dir = last_path.parent_path() / L"";
-	wstring name = last_path.filename();
-
-	// show save dialog
-	wxFileDialog saveFileDialog(this,_("Save Spellcross filter file"),dir,name,"Filter file (*.pal)|*.pal",wxFD_SAVE);
-	if(saveFileDialog.ShowModal() == wxID_CANCEL)
-		return;
-	wstring path = wstring(saveFileDialog.GetPath().ToStdWstring());
-
-	// try save
-	filter->SaveFilter(path);	
-}
-
-void FormPalView::OnFilterChange(wxCommandEvent& event)
-{	
-	auto terr = FindTerrain();
-	int filter_id = event.GetId() - FILTER_ID0;
-	filter = terr->filter.list[filter_id];	
-	canvas->Refresh();
-}
-
-void FormPalView::OnChangeFilterRGB(wxCommandEvent& event)
-{
-	auto terr = FindTerrain();
-	auto filter = terr->filter.GetTempFilter();		
-	if(filter)
-		filter->SetFilter(&terr->pal[0][0], "New Filter *",(double)slideRed->GetValue()*0.02,(double)slideGreen->GetValue()*0.02,(double)slideBlue->GetValue()*0.02);
-	canvas->Refresh();
-}
-
-
-void FormPalView::OnTerrainChange(wxCommandEvent& event)
-{
-	ListFilters();
-	canvas->Refresh();
-}
-
-
-
-// render preview
-void FormPalView::OnPaintCanvas(wxPaintEvent& event)
-{	
-	// make render buffer
-	wxBitmap bmp(canvas->GetClientSize(),24);
-
-	// get this terrain
-	Terrain* terrain = FindTerrain();
-	if(terrain)
-	{		
-		// render palette
-		uint8_t* fil = NULL;
-		if(filter)
-			fil = filter->filter;
-		terrain->RenderPalette(bmp, fil, relative_time);
-	}
-	
-	// blit to screen
-	wxPaintDC pdc(canvas);
-	pdc.DrawBitmap(bmp,wxPoint(0,0));
-}
-
-
-void FormPalView::OnCanvasMouseMove(wxMouseEvent& event)
-{
-	sel_pos_x = event.GetX();
-	color->Refresh();
-}
-void FormPalView::OnCanvasMouseLeave(wxMouseEvent& event)
-{
-	sel_pos_x = -1;
-	color->Refresh();
-}
-
-// render color preview
-void FormPalView::OnPaintColor(wxPaintEvent& event)
-{
-	// make render buffer
-	wxBitmap bmp(color->GetClientSize(),24);
-
-	wxString state = "";
-
-	// get this terrain
-	Terrain* terrain = FindTerrain();
-	if(terrain)
-	{
-		// render palette
-		uint8_t* fil = NULL;
-		if(filter)
-			fil = filter->filter;
-		int color = terrain->RenderPaletteColor(bmp, canvas->GetClientSize().GetWidth(),sel_pos_x,fil);
-		if(color >= 0)
-			state = string_format("Color = #%d (0x%02X), R = %d, G = %d, B = %d, RGB = 0x%02X%02X%02X", color, color,
-				terrain->pal[color][0],terrain->pal[color][1],terrain->pal[color][2],
-				terrain->pal[color][0],terrain->pal[color][1],terrain->pal[color][2]);
-	}
-
-	// blit to screen
-	wxPaintDC pdc(color);
-	pdc.DrawBitmap(bmp,wxPoint(0,0));
-	
-	SetStatusText(state);
-}
-
-
-// map animation periodic refresh tick
-void FormPalView::OnTimer(wxTimerEvent& event)
-{
-	relative_time++;
-	canvas->Refresh();
-	color->Refresh();
-}*/

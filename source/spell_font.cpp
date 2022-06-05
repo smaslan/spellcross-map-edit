@@ -382,7 +382,7 @@ int SpellFont::Render(uint8_t* buffer,uint8_t* buf_end,int buf_x_size,int x_pos,
 		{
 			y_shift += 1;
 		}
-		if(sid == 0 && shadow == SOLID && m_filter)
+		else if(sid == 0 && shadow == SOLID && m_filter)
 		{
 			// optional solid background
 			int x_size_txt = GetTextWidth(text);

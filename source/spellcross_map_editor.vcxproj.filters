@@ -96,6 +96,9 @@
     <ClCompile Include="form_events.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="form_map_options.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="fs_archive.h">
@@ -186,6 +189,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="form_events.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="form_map_options.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

@@ -445,6 +445,7 @@ void SpellMap::Close()
 	if(sound_loops)
 		delete sound_loops;
 	sound_loops = NULL;
+	sounds.clear();
 	
 	// reset gamma to make correctio recalculation
 	last_gamma = 0.0;
@@ -477,7 +478,7 @@ int SpellMap::Create(SpellData* spelldata, const char *terr_name, int x, int y)
 	filter.resize(x_size*y_size);
 
 	// create events
-	events = new SpellMapEvents(x_size, y_size, units, game_mode);
+	events = new SpellMapEvents(this);
 
 	// generate plain map
 	for(int k = 0; k < (x_size * y_size); k++)
@@ -935,7 +936,7 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 	pnm_sipka = MapLayer4(spelldata->pnm_sipka);
 
 	// create events list
-	events = new SpellMapEvents(x_size,y_size,units,game_mode);
+	events = new SpellMapEvents(this);
 
 	//////////////////////////
 	///// Load DEF stuff /////
@@ -1823,6 +1824,12 @@ int SpellMap::GetRender(uint8_t* buf, int x_size, int y_size, int x_pos, int y_p
 	return(0);
 }
 
+// get gamma corrected palette
+uint8_t* SpellMap::GetPalette()
+{
+	return(&pal[0][0]);
+}
+
 // render frame
 int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::function<void(void)> hud_buttons_cb)
 {
@@ -2379,7 +2386,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 				mxx2 += 40;
 				myy2 += spr->y_ofs + spr->y_size/2;
 				if(unit.unit->unit->isAir())
-					myy2 += SpellUnitRec::AIR_UNIT_FLY_HEIGHT;
+					myy2 -= SpellUnitRec::AIR_UNIT_FLY_HEIGHT;
 				
 				int is_selected = (cursor_unit == unit.unit || evt == GetSelectEvent());
 
@@ -2450,7 +2457,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 							//label += "\x1A";											
 
 							// plot it
-							int y_ofs = (unit->unit->isAir())?SpellUnitRec::AIR_UNIT_FLY_HEIGHT:0;
+							int y_ofs = (unit->unit->isAir())?(-SpellUnitRec::AIR_UNIT_FLY_HEIGHT):0;
 							int color = (is_selected && sel_blink_state)?214:252;
 							terrain->font7->Render(pic,pic_end,pic_x_size,mxx,myy - y_ofs,80,spr->y_size,label,color,254,SpellFont::SOLID);
 						}
@@ -2470,7 +2477,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 								label += "\x1B";
 
 							// plot it
-							int y_ofs = (unit->unit->isAir())?SpellUnitRec::AIR_UNIT_FLY_HEIGHT:0;
+							int y_ofs = (unit->unit->isAir())?(-SpellUnitRec::AIR_UNIT_FLY_HEIGHT):0;
 							int color = (is_selected && sel_blink_state)?214:252;
 							terrain->font->Render(pic,pic_end,pic_x_size,mxx,myy - y_ofs,80,spr->y_size,label,color,254,SpellFont::SOLID);
 						}
@@ -3735,7 +3742,7 @@ int SpellMap::RenderHUD(uint8_t *buf,uint8_t* buf_end,int buf_x_size,MapXY *curs
 			
 			CreateHUDbutton(gres.wm_glyph_unit_info,hud_origin,btn_right[4],buf,buf_end,buf_x_size,0,bind(&SpellMap::OnHUDswitchUnitHUD,this),NULL);
 			CreateHUDbutton(gres.wm_glyph_info,hud_origin,btn_right[5],buf,buf_end,buf_x_size,0,NULL,NULL);
-			CreateHUDbutton(gres.wm_glyph_options,hud_origin,btn_right[6],buf,buf_end,buf_x_size,0,NULL,NULL);
+			CreateHUDbutton(gres.wm_glyph_options,hud_origin,btn_right[6],buf,buf_end,buf_x_size,HUD_ACTION_MAP_OPTIONS,NULL,NULL);
 			CreateHUDbutton(gres.wm_glyph_retreat,hud_origin,btn_right[7],buf,buf_end,buf_x_size,0,NULL,NULL);
 		}
 		
@@ -4269,8 +4276,6 @@ vector<Txyz> SpellMap::GetUnitsViewTilePixels(int x,int y,int all)
 	}
 	return(list);
 }
-
-
 
 
 // reset units view state to desired state
@@ -4959,6 +4964,10 @@ void SpellMap::SetGamma(double gamma)
 	this->gamma = gamma;
 	// forces recalculation of gamma table
 	last_gamma = 0.0;
+}
+double SpellMap::GetGamma()
+{
+	return(gamma);
 }
 
 // timer tick - update of palettes and animations

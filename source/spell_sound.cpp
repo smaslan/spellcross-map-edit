@@ -43,6 +43,7 @@ SoundChannels::SoundChannels(int count)
     for(auto & chn : channels)
         chn = new RtAudio();    
     last_channel = 0;
+    volume = 0.5;
 }
 // close stream channels
 SoundChannels::~SoundChannels()
@@ -92,6 +93,15 @@ RtAudio* SoundChannels::GetChannel()
     chn->abortStream();
     chn->closeStream();
     return(chn);
+}
+// set/get global volume
+void SoundChannels::SetVolume(double vol)
+{
+    volume = max(min(vol,1.0),0.0);
+}
+double SoundChannels::GetVolume()
+{
+    return(volume);
 }
 
 
@@ -677,14 +687,19 @@ int16_t *SpellSound::cb_GetSmplData(int16_t* buffer, int count)
     auto *data = &smpl->data[smpl->channels*pos];
     pos += count;
 
+    double volume = streams->GetVolume();
+    uint32_t g_vol = (uint32_t)(65534.0*volume);
+    uint32_t left  = (g_vol*left_vol)>>16;
+    uint32_t right  = (g_vol*right_vol)>>16;
+
     if(smpl->channels == 1)
     {
         // one source channel, two output channels
         for(int k = 0; k < count; k++)
         {
             int32_t smpl = *data++;
-            *buffer++ = (int16_t)((left_vol * smpl)>>16);
-            *buffer++ = (int16_t)((right_vol * smpl)>>16);
+            *buffer++ = (int16_t)((left * smpl)>>16);
+            *buffer++ = (int16_t)((right * smpl)>>16);
         }
     }
     else
@@ -692,8 +707,8 @@ int16_t *SpellSound::cb_GetSmplData(int16_t* buffer, int count)
         // two source channels, two output channels
         for(int k = 0; k < count; k++)
         {
-            *buffer++ = (int16_t)((left_vol * ((int32_t)*data++))>>16);
-            *buffer++ = (int16_t)((right_vol * ((int32_t)*data++))>>16);
+            *buffer++ = (int16_t)((left * ((int32_t)*data++))>>16);
+            *buffer++ = (int16_t)((right * ((int32_t)*data++))>>16);
         }
     }
     return(buffer);

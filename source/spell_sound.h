@@ -46,11 +46,14 @@ class SoundChannels
 private:
     vector<RtAudio*> channels;
     vector<int> chn_index;
-    int last_channel;    
+    int last_channel;
+    double volume;
 public:
     SoundChannels(int count=4);
     ~SoundChannels();
     RtAudio *GetChannel();
+    void SetVolume(double vol);
+    double GetVolume();
     
     static constexpr double FAKE_STOP_TIME_MARK = 1e9;
 };

@@ -130,7 +130,12 @@ int SpellGraphics::AddICO(uint8_t* data,int dlen,char* name,uint8_t* pal)
 			// copy chunk
 			if(data + chunk_size > data_end)
 				return(1);
-			memcpy(&pix[line_x_ofs], data, chunk_size);
+			for(int x = 0; x < chunk_size; x++)
+				if(data[x] == 0x00)
+					pix[line_x_ofs+x] = 254; // convert 0 to other black
+				else
+					pix[line_x_ofs+x] = data[x];
+			//memcpy(&pix[line_x_ofs], data, chunk_size);
 			data += chunk_size;
 			line_x_ofs += chunk_size;
 			if(data >= data_end)
@@ -295,6 +300,48 @@ int SpellGraphicItem::Render(uint8_t* buf,uint8_t* buf_end,int buf_x_size,int x_
 	}
 	return(0);
 }
+
+// render outer glyph shape mask
+int SpellGraphicItem::RenderMask(uint8_t* buf, uint8_t *buf_end)
+{
+	memset(buf,0xFFu,buf_end - buf);
+	if(buf_end - buf < x_size*y_size)
+		return(1);
+	for(int y = 0; y < y_size; y++)
+	{
+		for(int x = 0; x < x_size; x++)
+		{
+			if(*GetPixels(y,x))
+				break;
+			buf[x + y*x_size] = 0x00u;
+		}
+		for(int x = x_size-1; x >= 0; x--)
+		{
+			if(*GetPixels(y,x))
+				break;
+			buf[x + y*x_size] = 0x00u;
+		}
+	}
+	for(int x = 0; x < x_size; x++)
+	{
+		for(int y = 0; y < y_size; y++)
+		{
+			if(*GetPixels(y,x))
+				break;
+			buf[x + y*x_size] = 0x00u;
+		}
+		for(int y = y_size-1; y >= 0; y--)
+		{
+			if(*GetPixels(y,x))
+				break;
+			buf[x + y*x_size] = 0x00u;
+		}
+	}
+		
+	return(0);
+}
+
+
 
 // render glyph to bmp
 wxBitmap* SpellGraphicItem::Render(bool transparent)

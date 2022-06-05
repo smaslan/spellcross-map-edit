@@ -1,4 +1,5 @@
 #include "spell_map_event.h"
+#include "map.h"
 #include <stdexcept>
 #include <tuple>
 #include <algorithm>
@@ -132,11 +133,9 @@ int SpellMapEventRec::SetType(int type_id)
 
 
 // create events list
-SpellMapEvents::SpellMapEvents(int x_size, int y_size,vector<MapUnit*>& map_units, int &game_mode)
-	: is_game_mode(game_mode), map_units(map_units)
+SpellMapEvents::SpellMapEvents(SpellMap *parent)	
 {
-    this->x_size = x_size;
-    this->y_size = y_size;	
+	map = parent;
 	next_index = 0;	
 }
 // cleanup
@@ -150,14 +149,14 @@ SpellMapEvents::~SpellMapEvents()
 // convert map coordinates
 MapXY SpellMapEvents::ConvXY(int mxy)
 {
-    MapXY pos(mxy%x_size, mxy/x_size);
-    if(pos.y >= y_size)
+    MapXY pos(mxy%map->x_size, mxy/map->x_size);
+    if(pos.y >= map->y_size)
         pos = {-1,-1};
     return(pos);
 }
 int SpellMapEvents::ConvXY(MapXY pos)
 {
-	return(pos.x + pos.y*x_size);
+	return(pos.x + pos.y*map->x_size);
 }
 
 
@@ -230,7 +229,7 @@ int SpellMapEvents::EraseEvent(SpellMapEventRec* event)
 		if(unit->is_enemy)
 		{
 			// enemy units can go directly to the map
-			map_units.push_back(unit);
+			map->units.push_back(unit);
 		}
 		else
 		{
@@ -246,7 +245,7 @@ int SpellMapEvents::EraseEvent(SpellMapEventRec* event)
 // clear all events
 void SpellMapEvents::ClearEvents()
 {
-	events_map.assign(x_size*y_size,NULL);
+	events_map.assign(map->x_size*map->y_size,NULL);
 	for(auto& evt : events)
 		delete evt;
 	events.clear();
@@ -542,7 +541,7 @@ int SpellMapEvents::AddSpecialEvent(SpellData *data, SpellDEF* def, SpellDefCmd*
 
 SpellMapEventRec** SpellMapEvents::EventMap(MapXY pos)
 {
-	return(&events_map[pos.x + pos.y*x_size]);
+	return(&events_map[pos.x + pos.y*map->x_size]);
 }
 
 // reset event triggers and build events map for fast search (call at least once at mission start)
@@ -566,13 +565,13 @@ void SpellMapEvents::ResetEvents()
 	}
 
 	// make list of all existing units (map units and events' units)
-	vector<MapUnit*> units_list = map_units;
+	vector<MapUnit*> units_list = map->units;
 	for(auto& evt : events)
 		for(auto & unit : evt->units)
 			units_list.push_back(unit.unit);
 	
 	// make map of events
-	events_map.assign(x_size*y_size, NULL);
+	events_map.assign(map->x_size*map->y_size, NULL);
 	for(auto& evt : events)
 	{		
 		if(evt->isSeePlace())
@@ -638,7 +637,7 @@ SpellMapEventsList SpellMapEvents::GetEvents(int pos,bool clear)
 	auto evt = events_map[pos];
 	while(evt)
 	{
-		if(!evt->is_done && evt->isSeePlace() && (!evt->hide || !is_game_mode))
+		if(!evt->is_done && evt->isSeePlace() && (!evt->hide || !map->isGameMode()))
 			list.push_back(evt);
 		if(clear)
 			evt->is_done = true;

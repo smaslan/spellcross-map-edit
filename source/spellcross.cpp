@@ -605,6 +605,13 @@ int SpellData::LoadAuxGraphics(FSarchive *fs)
 			lzw->Decode(data,data_end,&data,&flen);
 			gres.AddRaw(data,flen,10,flen/10,name,(uint8_t*)terrain[0]->pal);
 		}
+		else if(strcmp(name,"MAP_OPT.LZ") == 0)
+		{
+			// window frame
+			is_lzw = true;
+			lzw->Decode(data,data_end,&data,&flen);
+			gres.AddRaw(data,flen,436,flen/436,name,(uint8_t*)terrain[0]->pal);
+		}
 		else if(wildcmp("*.ICO",name) || wildcmp("*.BTN",name))
 		{
 			// ICO files (compression like in PNM files)			
@@ -702,6 +709,11 @@ int SpellData::LoadAuxGraphics(FSarchive *fs)
 	gres.wm_frame_horz = gres.GetResource("RAM2HORZ.DTA");
 	gres.wm_frame_vert = gres.GetResource("RAM2VERT.DTA");
 	gres.wm_frame_corner = gres.GetResource("RAM2ROH.DTA");
+	gres.wm_map_opt_frame = gres.GetResource("MAP_OPT");
+	gres.wm_map_opt_btn_disabled = gres.GetResource("WMOPT__D");
+	gres.wm_map_opt_btn_idle = gres.GetResource("WMOPT__N");
+	gres.wm_map_opt_btn_hover = gres.GetResource("WMOPT__A");
+	gres.wm_map_opt_btn_down = gres.GetResource("WMOPT__P");
 
 	// render cursors
 	gres.cur_pointer = gres.RenderCUR("SIPKA.CUR");
