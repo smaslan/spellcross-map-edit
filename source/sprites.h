@@ -52,6 +52,16 @@ public:
 	~SpellL2classRec();
 };
 
+class DestructibleRec
+{
+public:
+	DestructibleRec();
+	SpellL2classRec* destructible;
+	int destructed;
+	int two_stage_desctruct;
+	string alt_name;
+};
+
 class SpellL2classes
 {
 private:
@@ -61,8 +71,9 @@ private:
 public:
 	SpellL2classes(FSarchive* fs,SpellSounds* sounds);
 	~SpellL2classes();
-	SpellL2classRec *GetClass(const char *sprite_name);
+	DestructibleRec GetClass(const char *sprite_name);
 };
+
 
 
 
@@ -100,8 +111,12 @@ class Sprite
 		int has_transp;
 		// sprite index in terrain
 		int index;
-		// Layer 2 object parameters
+		// destructible parameters (or NULL)
 		SpellL2classRec *destructible;
+		// alternative-paired sprite when destructible
+		Sprite *destructible_alt;
+		int is_destructed;
+		int two_stage_desctruct;
 		
 		// void constructor
 		Sprite();

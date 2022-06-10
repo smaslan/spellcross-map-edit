@@ -198,6 +198,9 @@ MapSprite::MapSprite()
 	elev = 0;
 	hp = 0;
 	flags = 0;
+	is_target = false;
+	hit_pnm = NULL;
+	hit_pnm_frame = 0;
 }
 
 /*MapSprite::MapSprite(Sprite* sprite)
@@ -211,9 +214,15 @@ void MapSprite::SetL1(Sprite* sprite,int elev)
 	if(elev >= 0)
 		this->elev = elev;
 	if(L1 && L1->destructible)
-	{
+	{		
 		// init hit points
-		hp = L1->destructible->hp;
+		int max_hp = L1->destructible->hp;
+		if(L1->two_stage_desctruct && L1->is_destructed)
+			hp = rand()%(max_hp/2);
+		else if(L1->is_destructed)
+			hp = 0;
+		else
+			hp = max_hp;
 	}
 }
 void MapSprite::SetL2(Sprite* sprite,int flags)
@@ -224,17 +233,56 @@ void MapSprite::SetL2(Sprite* sprite,int flags)
 	if(L2 && L2->destructible)
 	{
 		// init hit points
-		hp = L2->destructible->hp;
+		int max_hp = L2->destructible->hp;
+		if(L2->two_stage_desctruct && L2->is_destructed)
+			hp = max((10*max_hp)/100,rand()%(max_hp/2));
+		else if(L2->is_destructed)
+			hp = 0;
+		else
+			hp = max_hp;
 	}
 }
 
-SpellL2classRec* MapSprite::GetDestructible()
+int MapSprite::UpdateDestructible()
 {
-	SpellL2classRec* destr = NULL;
-	if(L1)
-		destr = L1->destructible;
-	if(!destr && L2)
-		destr = L2->destructible;
+	Sprite** tile = NULL;
+	if(L1 && L1->destructible)
+		tile = &L1;
+	else if(L2 && L2->destructible)
+		tile = &L2;
+	if(!tile)
+		return(false);
+		
+	if((*tile)->two_stage_desctruct && 2*hp < (*tile)->destructible->hp && !(*tile)->is_destructed && (*tile)->destructible_alt)
+	{
+		// half destruct tile
+		*tile = (*tile)->destructible_alt;
+	}
+	
+	if(!hp && (*tile)->two_stage_desctruct)
+	{
+		// total destroy of wall
+		*tile = NULL;
+		flags = 0x00;
+		return(true);
+	}
+	
+	if(!hp && (*tile)->destructible_alt)
+	{
+		// destroy of single destruct level object (bridge, non-walls)
+		*tile = (*tile)->destructible_alt;		
+	}
+
+	return(false);
+}
+
+Sprite* MapSprite::GetDestructible()
+{
+	Sprite* destr = NULL;	
+	if(L1 && L1->destructible)
+		destr = L1;
+	else if(L2 && L2->destructible)
+		destr = L2;
 	return(destr);
 }
 
@@ -248,15 +296,15 @@ int MapSprite::GetMaxHP()
 	auto *destr = GetDestructible();
 	if(!destr)
 		return(0);
-	return(destr->hp);
+	return(destr->destructible->hp);
 }
 
 int MapSprite::PlayHit()
 {
 	SpellSound *snd = NULL;
-	if(L1->destructible->sound_hit)
+	if(L1 && L1->destructible && L1->destructible->sound_hit)
 		snd = new SpellSound(*L1->destructible->sound_hit);
-	else if(L2->destructible->sound_hit)
+	else if(L2 && L2->destructible && L2->destructible->sound_hit)
 		snd = new SpellSound(*L2->destructible->sound_hit);
 	if(snd)
 		snd->Play(true);
@@ -266,9 +314,9 @@ int MapSprite::PlayHit()
 int MapSprite::PlayDestruct()
 {
 	SpellSound* snd = NULL;
-	if(L1->destructible->sound_destruct)
+	if(L1 && L1->destructible && L1->destructible->sound_destruct)
 		snd = new SpellSound(*L1->destructible->sound_destruct);
-	else if(L2->destructible->sound_destruct)
+	else if(L2 && L2->destructible && L2->destructible->sound_destruct)
 		snd = new SpellSound(*L2->destructible->sound_destruct);
 	if(snd)
 		snd->Play(true);
@@ -566,10 +614,10 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 	// read to local buffer and close
 	streampos flen = fr.tellg();
 	fr.seekg(0);
-	uint8_t* map_buffer = new uint8_t[flen];
-	fr.read((char*)map_buffer, flen);
+	vector<uint8_t> map_buffer(flen);
+	fr.read((char*)map_buffer.data(), flen);
 	fr.close();
-	unsigned char* data = map_buffer;
+	unsigned char* data = map_buffer.data();
 			
 
 	// get L1 data offset
@@ -581,16 +629,13 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 	data += 4;
 	if (L1_count > 4095)
 	{
-		delete[] map_buffer;
+		Close();
 		return(1);
 	}
 
 	// version check (actually dunno what is that but it's always the same and looks like version code)
 	if (*data++ != 0x12)
-	{
-		delete[] map_buffer;
 		return(1);
-	}
 
 	// get map size
 	this->x_size = *(int16_t*)data;
@@ -607,7 +652,7 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 	this->terrain = spelldata->GetTerrain(this->terrain_name);
 	if (!this->terrain)
 	{
-		delete[] map_buffer;
+		Close();
 		return(1);
 	}
 
@@ -617,10 +662,8 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 	
 	// load list of used L1 sprites
 	vector<Sprite*> sprites;
-	vector<int> sprite_ids;
 	sprites.assign(L1_count,NULL);
-	sprite_ids.assign(L1_count,0);
-	for (int k = 0; k < L1_count; k++)
+	for (auto & sprite : sprites)
 	{
 		// read sprite name		
 		char name[9];
@@ -629,20 +672,19 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 		data += 8;
 
 		// try to get sprite's data
-		sprites[k] = this->terrain->GetSprite(name);
-		if (!sprites[k])
+		sprite = terrain->GetSprite(name);
+		if (!sprite)
 		{
 			// not found!
-			delete[] map_buffer;
+			Close();
 			return(1);
 		}
-		sprite_ids[k] = this->terrain->GetSpriteID(sprites[k]);
 	}
 
 	// load L1 sprite indices
 	tiles.resize(x_size*y_size);
 	L1_flags.resize(x_size*y_size);
-	for (int k = 0; k < (x_size * y_size); k++)
+	for (auto & tile : tiles)
 	{
 		// get cell code
 		int16_t code = *(int16_t*)data;
@@ -658,10 +700,10 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 		if (sid > L1_count)
 		{
 			// out of available range
-			delete[] map_buffer;
+			Close();
 			return(1);
 		}
-		tiles[k].SetL1(sprites[sid],elev);
+		tile.SetL1(sprites[sid],elev);
 	}
 	// get tile flags from context data
 	SyncL1flags();
@@ -679,33 +721,32 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 	data += 4;
 	if (L2_count > 255)
 	{
-		return(1);
-		delete[] map_buffer;
+		Close();
+		return(1);		
 	}
 	
-
 	// load list of used L2 sprites
-	sprites.assign(L2_count,0);
-	for (int k = 0; k < L2_count; k++)
+	sprites.assign(L2_count,NULL);
+	for (auto & sprite : sprites)
 	{
-		// read sprite name		
+		// read sprite name
 		char name[9];
 		std::memset((void*)name, '\0', sizeof(name));
 		std::memcpy((void*)name, (void*)data, 8);
 		data += 8;
 
 		// try to get sprite's data
-		sprites[k] = this->terrain->GetSprite(name);
-		if (!sprites[k])
+		sprite = terrain->GetSprite(name);
+		if (!sprite)
 		{
 			// not found!
-			delete[] map_buffer;
+			Close();
 			return(1);
 		}
 	}
 
 	// load L2 sprite indices
-	for (int k = 0; k < (x_size * y_size); k++)
+	for (auto & tile : tiles)
 	{
 		// get sprite index
 		int sid = *(uint8_t*)data++;
@@ -716,10 +757,10 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 		if (sid > L2_count)
 		{
 			// out of available range
-			delete[] map_buffer;
+			Close();
 			return(1);
 		}
-		tiles[k].SetL2((sid)?sprites[sid-1]:NULL,code);
+		tile.SetL2((sid)?sprites[sid-1]:NULL,code);
 	}
 
 
@@ -749,7 +790,7 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 			if (!anims[k])
 			{
 				// not found!
-				delete[] map_buffer;
+				Close();
 				return(1);
 			}
 		}
@@ -809,7 +850,7 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 		if (!pnims[k])
 		{
 			// not found!
-			delete[] map_buffer;
+			Close();
 			return(1);
 		}
 	}
@@ -916,10 +957,7 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 	}
 
 
-
-	// loose map data buffer
-	delete[] map_buffer;
-
+	
 
 
 	//////////////////////////////////////
@@ -2167,6 +2205,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 	MapXY attack_pos;
 	MapXY target_pos;
 	MapUnit *attacker = NULL;
+	SpellUnitRec *target = NULL;
 	for (m = 0; m < ys_size; m++)
 	{
 		if (m + ys_ofs * 2 >= y_size)
@@ -2188,11 +2227,12 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 			// first unit to render
 			MapUnit* unit = Lunit[mxy];			
 			// L1 tile
-			Sprite* sid = tiles[mxy].L1;
-			int sof = tiles[mxy].elev;
+			MapSprite *tile = &tiles[mxy];
+			Sprite* sid = tile->L1;
+			int sof = tile->elev;
 			char slope = sid->name[2];
 			// L2 tile
-			Sprite* sid2 = tiles[mxy].L2;
+			Sprite* sid2 = tile->L2;
 
 			// game mode view range
 			int hide_units = game_mode && units_view[mxy] == 1;
@@ -2226,7 +2266,10 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 							attack_pos = MapXY(mxx + unit->attack_fire_x_org, myy + unit->attack_fire_y_org + sid->y_ofs);
 						}
 						if(unit->isTarget())
+						{
 							target_pos = MapXY(mxx + 40, myy + sid->y_ofs + sid->y_size/2);
+							target = unit->unit;
+						}
 
 						// render fire PNM animation
 						if(unit->attack_state == MapUnit::ATTACK_STATE_FLIGHT && unit->attack_fire_pnm)
@@ -2243,7 +2286,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 						{
 							auto *frame = unit->attack_hit_pnm->frames[unit->attack_hit_frame];
 							frame->Render(pic,pic_end,mxx,myy,pic_x_size,filter);
-						}
+						}						
 
 						// render selection pointer for selected unit
 						if(unit_selection && unit_selection == unit)
@@ -2261,14 +2304,24 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 				// object render:
 				if (wL2 && pass == 1 && sid2)
 					sid2->Render(pic, pic_end, mxx, myy + sid->y_ofs, pic_x_size, filter);
+
+				// render tile/object hit PNM animation
+				if(wL2 && pass == 2 && tile->hit_pnm)
+				{
+					auto* frame = tile->hit_pnm->frames[tile->hit_pnm_frame];
+					frame->Render(pic,pic_end,mxx,myy,pic_x_size,filter);
+				}
+
+				// mark target tile position
+				if(tile->is_target)
+					target_pos = MapXY(mxx + 40,myy + sid->y_ofs + sid->y_size/2);
 			}
 		}
 	}
 
 	// render projectile
-	if(attacker && attacker->attack_state == MapUnit::ATTACK_STATE_FLIGHT && attack_pos.IsSelected() && target_pos.IsSelected() && attacker->unit->hasProjectile(attacker->attack_target->unit))
+	if(attacker && attacker->attack_state == MapUnit::ATTACK_STATE_FLIGHT && attack_pos.IsSelected() && target_pos.IsSelected() && attacker->unit->hasProjectile(target))
 	{
-		//double angle = attack_pos.Angle(target_pos);
 		double angle =  unit->unit_angle;
 
 		auto glyph = attacker->unit->projectile->GetGlyph(angle);
@@ -3239,19 +3292,47 @@ int SpellMap::Attack(MapXY pos, int prefer_air)
 		target = CanUnitAttackLand(pos);
 	else if(CanUnitAttackAir(pos))
 		target = CanUnitAttackAir(pos);
-	if(target)
-		return(AttackUnit(target));
-	
+	else if(!CanUnitAttackObject(pos))
+		return(1);
+		
 	// get attacking unit
 	auto* unit = GetSelectedUnit();
 	if(!unit)
 		return(1);
 
-	// todo: implement object attack
+	unit->attack_target = NULL;
+	unit->attack_target_obj.Clear();
+
+	if(target && unit->unit->isActionKamikaze())
+	{
+		// --- kamikaze atack is processed via special actions		
+		unit->attack_target = target;
+		unit->altitude = 100;
+		unit->action_state = MapUnit::ACTION_STATE_KAMIKAZE;
+
+		// play attack sound (if exist)
+		unit->PlayFire(target);
+
+		unit->ResetTurnsCounter();
+		return(0);
+	}
+
+	// --- attack unit or object
+	if(target)
+		unit->attack_target = target;
+	else
+		unit->attack_target_obj = pos;
+	int frame_stop;
+	FSU_resource* fsu_anim = unit->GetShotAnim(target,&frame_stop);		
+	unit->in_animation = fsu_anim;
+	unit->frame = 0;
+	unit->frame_stop = frame_stop;
+	unit->attack_state = MapUnit::ATTACK_STATE_DIR;
+
 	unit->ResetTurnsCounter();
 	return(0);
 }
-int SpellMap::AttackUnit(MapUnit *target)
+/*int SpellMap::AttackUnit(MapUnit *target)
 {
 	// get target position
 	if(!target)
@@ -3298,7 +3379,7 @@ int SpellMap::AttackUnit(MapUnit *target)
 
 	unit->ResetTurnsCounter();
 	return(0);
-}
+}*/
 
 
 // check if some selectable unit is at postion (game mode only!)
@@ -3678,7 +3759,7 @@ int SpellMap::RenderHUD(uint8_t *buf,uint8_t* buf_end,int buf_x_size,MapXY *curs
 	if(destructible)
 	{
 		// yaha: render object info
-		auto spec_obj = destructible->GetDestructible();
+		auto spec_obj = destructible->GetDestructible()->destructible;
 		string name = spec_obj->name;
 		font->Render(buf,buf_end,buf_x_size,hud_left+415,hud_top+26,name,232,254,SpellFont::DIAG2);
 				
@@ -4708,9 +4789,11 @@ int SpellMap::CanUnitAttackObject(MapXY pos)
 	auto pxy = ConvXY(pos);	
 	
 	// attackable target?
-	auto flag = tiles[pxy].flags;
-	int is_wall = flag == 0xA0 || flag == 0xB0 || flag == 0xC0 || flag == 0xD0 || flag == 0xE0 || flag == 0xF0;
-	if(!is_wall)
+	if(!tiles[pxy].isDestructible())
+		return(false);
+
+	// already destroyed?
+	if(!tiles[pxy].hp)
 		return(false);
 	
 	// attacking unit
@@ -5330,8 +5413,10 @@ int SpellMap::Tick()
 	{
 		// === UNIT ATTACK ===
 
-		// target unit
+		// target unit/position
 		MapUnit* target = unit->attack_target;
+		MapXY target_pos = (target)?(target->coor):(unit->attack_target_obj);
+		auto *target_obj = &tiles[ConvXY(target_pos)];
 
 		auto *sprite = tiles[ConvXY(unit->coor)].L1;
 		int slope_id = sprite->GetSlope() - 'A';
@@ -5342,7 +5427,7 @@ int SpellMap::Tick()
 			
 			//unit->projectile_angle = GetUnitsAngle(unit,target);
 			//unit->unit_angle = GetUnitsAngle(unit,target);//unit->coor.Angle(target->coor);
-			unit->unit_angle = unit->coor.Angle(target->coor);
+			unit->unit_angle = unit->coor.Angle(target_pos);
 			unit->attack_angle = unit->unit_angle;
 			//unit->attack_angle = GetUnitsAngle(unit,target);
 			if(unit->unit->isMLRS())
@@ -5350,7 +5435,7 @@ int SpellMap::Tick()
 				unit->unit_angle -= 90.0;
 				unit->attack_angle -= 90.0;
 			}
-			unit->attack_dist = unit->coor.Distance(target->coor);			
+			unit->attack_dist = unit->coor.Distance(target_pos);
 			unit->attack_state = MapUnit::ATTACK_STATE_TURN;
 
 			// play move sound when rotating unit (async)
@@ -5436,7 +5521,10 @@ int SpellMap::Tick()
 				unit->PlayFire(target);
 
 				// mark target unit
-				target->is_target = true;
+				if(target)
+					target->is_target = true;
+				else
+					target_obj->is_target = true;
 
 				// reduce AP by single shot
 				unit->UpdateFireAP();
@@ -5468,7 +5556,7 @@ int SpellMap::Tick()
 								
 				// start projectile flight
 				unit->attack_proj_step = 0;
-				if(unit->unit->hasProjectile(target->unit))
+				if((target && unit->unit->hasProjectile(target->unit)) || unit->unit->hasProjectile())
 					unit->attack_proj_delay = (int)(0.04*unit->attack_dist/0.02);
 				else
 					unit->attack_proj_delay = (int)(0.01*unit->attack_dist/0.02);
@@ -5500,22 +5588,57 @@ int SpellMap::Tick()
 				// stop fire anim if still goes
 				unit->attack_fire_pnm = NULL;
 				unit->attack_fire_frame = 0;
+				
+				// apply damage to target
+				MapUnit::AttackResult hit = MapUnit::AttackResult::Hit;
+				if(!target)
+					hit = unit->DamageTarget(target_obj);
 
 				// play hit sound
-				unit->PlayHit(unit->attack_target);
-				// play target hit sound
-				target->PlayBeingHit();
+				unit->PlayHit(target, hit != MapUnit::AttackResult::Missed);
 
-				target->attack_hit_pnm = unit->GetTargetHitPNM(target);
-				target->attack_hit_frame = 0;
-				if(target->attack_hit_pnm)
+				// play target hit sound if applicable
+				if(target && hit == MapUnit::AttackResult::Hit)
+					target->PlayBeingHit();
+				else if(target && hit == MapUnit::AttackResult::Kill)
+					target->PlayDie();
+				else if(!target && hit == MapUnit::AttackResult::Hit)
+					target_obj->PlayHit();
+				else if(!target && hit == MapUnit::AttackResult::Kill)
+					target_obj->PlayDestruct();
+				
+				auto hit_pnm = unit->GetTargetHitPNM(target);
+				if(target && hit_pnm)
+				{
+					// being hit PNM for unit target
+					target->attack_hit_pnm = hit_pnm;
+					target->attack_hit_frame = 0;
 					target->attack_state = MapUnit::ATTACK_STATE_HIT;
+				}
+				else if(!target && hit_pnm)
+				{
+					// being hit PNM for map tile target
+					target_obj->hit_pnm = hit_pnm;
+					target_obj->hit_pnm_frame = 0;
+				}
 				else
 				{
 					// not PNM needed - stop here
 					unit->attack_state = MapUnit::ATTACK_STATE_IDLE;					
 					// unmark target unit
-					target->is_target = false;
+					if(target)
+						target->is_target = false;
+					else
+						target_obj->is_target = false;
+
+					if(!target)
+					{						
+						// update hit object and map
+						int destroyed = target_obj->UpdateDestructible();
+						if(destroyed)
+							PrepareUnitsViewMask();
+						unit->was_moved = true; // this will force range recalculation
+					}
 				}
 			}
 
@@ -5524,16 +5647,36 @@ int SpellMap::Tick()
 		else if(unit->attack_state == MapUnit::ATTACK_STATE_HIT && tick_40ms)
 		{
 			// hit animation:
-			target->attack_hit_frame++;
-			if(target->attack_hit_frame >= target->attack_hit_pnm->frames.size())
+			if(target)
 			{
-				// hit anim done:
-				target->attack_state = MapUnit::ATTACK_STATE_IDLE;
-				target->attack_hit_pnm = NULL;
-				unit->attack_state = MapUnit::ATTACK_STATE_IDLE;
+				// for unit target
+				target->attack_hit_frame++;
+				if(target->attack_hit_frame >= target->attack_hit_pnm->frames.size())
+				{
+					// hit anim done:
+					target->attack_state = MapUnit::ATTACK_STATE_IDLE;
+					target->attack_hit_pnm = NULL;
+					unit->attack_state = MapUnit::ATTACK_STATE_IDLE;
+					target->is_target = false;
+				}
+			}
+			else
+			{
+				// for map tile target
+				target_obj->hit_pnm_frame++;
+				if(target_obj->hit_pnm_frame >= target_obj->hit_pnm->frames.size())
+				{
+					// hit anim done:
+					target_obj->hit_pnm = NULL;
+					unit->attack_state = MapUnit::ATTACK_STATE_IDLE;
+					target_obj->is_target = false;
 
-				// unmark target unit
-				target->is_target = false;
+					// update hit object and map
+					int destroyed = target_obj->UpdateDestructible();
+					if(destroyed)
+						PrepareUnitsViewMask();
+					unit->was_moved = true; // this will force range recalculation
+				}
 			}
 
 			update = true;

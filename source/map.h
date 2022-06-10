@@ -34,6 +34,7 @@ using namespace std;
 #define MAX_STR 256
 #define MAX_SPRITE_NAME 8
 
+
 // map L1/L2 sprite item
 class MapSprite
 {
@@ -49,6 +50,11 @@ public:
 	uint8_t flags;
 	// hit points if destructible
 	int hp;
+	// being attack PNM animation
+	int is_target;
+	AnimPNM *hit_pnm;
+	int hit_pnm_frame;
+	
 	
 	//MapSprite(Sprite* sprite);
 	MapSprite();
@@ -56,8 +62,9 @@ public:
 	
 	void SetL1(Sprite* sprite,int elev=-1);
 	void SetL2(Sprite* sprite,int flags=-1);
+	int UpdateDestructible();
 
-	SpellL2classRec* GetDestructible();
+	Sprite* GetDestructible();
 	int GetMaxHP();
 	int isDestructible();
 	

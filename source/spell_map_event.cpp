@@ -755,3 +755,12 @@ SpellMapEventRec* SpellMapEvents::AddSeeUnitEvent(MapUnit* unit,int probab)
 	ResetEvents();
 	return(evt);
 }
+
+// are all objectives done?
+int SpellMapEvents::ObjectivesDone()
+{	
+	for(auto & evt : events)
+		if(evt->is_objective && !evt->isDone())
+			return(false);
+	return(true);
+}

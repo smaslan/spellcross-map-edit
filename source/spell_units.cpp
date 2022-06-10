@@ -16,6 +16,7 @@
 #include <sstream>
 #include <vector>
 #include <stdexcept>
+#include <random>
 
 using namespace std;
 
@@ -82,7 +83,7 @@ int GetNameStr(char *name, uint8_t* data, int count)
 }
 
 // decode units def file
-SpellUnits::SpellUnits(uint8_t* data, int dlen, FSUarchive *fsu, SpellGraphics *graphics,SpellSounds *sounds)
+SpellUnits::SpellUnits(uint8_t* data, int dlen, FSUarchive *fsu, SpellGraphics *graphics,SpellSounds *sounds,UnitBonuses* bonuses)
 {
 	int count;
 	if (dlen % 206 == 0 && dlen % 207 != 0)
@@ -396,6 +397,9 @@ SpellUnits::SpellUnits(uint8_t* data, int dlen, FSUarchive *fsu, SpellGraphics *
 			unit->sound_action = sounds->GetSpecialClass(unit->snd_action_id);
 		}
 
+		// store BONUSES.DEF link
+		unit->bonuses = bonuses;
+
 		// store unit to list
 		units.push_back(unit);
 	}
@@ -453,12 +457,20 @@ int SpellUnitRec::isMetal()
 	return(!isFlashAndBones());
 }
 
-// uses projectile when shooting to target unit?
+// uses projectile when shooting to target unit (or NULL to object)?
 int SpellUnitRec::hasProjectile(SpellUnitRec* target)
 {
-	int has = target->isLight() && (projectile_visible & PROJECTILE_LIGHT) || 
+	int has = false;
+	if(target)
+	{
+		has = target->isLight() && (projectile_visible & PROJECTILE_LIGHT) || 
 		target->isArmored() && (projectile_visible & PROJECTILE_ARMOR) ||
 		target->isAir() && (projectile_visible & PROJECTILE_AIR);
+	}
+	else
+	{
+		has = projectile_visible & (PROJECTILE_ARMOR | PROJECTILE_LIGHT | PROJECTILE_AIR);
+	}
 	return(has);
 }
 // uses teleport move (demon, hell cavallery)?
@@ -838,6 +850,65 @@ int SpellUnitRec::GetArtCount(FSarchive* info_fs)
 
 
 
+
+//=============================================================================
+// Unit bonuses stuff based on BONUSES.DEF file of COMMON.FS
+//=============================================================================
+UnitBonus::UnitBonus()
+{
+	level = 0;
+	defence = 0;
+	attack = 0;
+	attack_count = 0;
+	move = 0;
+}
+
+
+// load bonus data from BONUSES.DEF
+UnitBonuses::UnitBonuses(string bonuses_def)
+{
+	// try load DEF data
+	SpellDEF bonuses(bonuses_def);
+
+	// for each bonus:
+	list.resize(13);
+	for(int k = 1; k <= 12; k++)
+	{
+		auto bonus = bonuses.GetSection(string_format("UnitLevel(%d)",k));
+		if(!bonus)
+			continue;
+
+		for(auto& par : bonus->GetData())
+		{
+			if(par->parameters->empty())
+				continue;
+			if(!par->name.compare("Attack"))
+				list[k].attack = std::stoi(par->parameters->at(0));
+			else if(!par->name.compare("AttackPT"))
+				list[k].attack_count = std::stoi(par->parameters->at(0));
+			else if(!par->name.compare("Move"))
+				list[k].move = std::stoi(par->parameters->at(0));
+			else if(!par->name.compare("Defence"))
+				list[k].defence = std::stoi(par->parameters->at(0));
+		}
+
+		delete bonus;
+	}
+}
+// get bonus for given experience level
+UnitBonus* UnitBonuses::GetBonus(int level)
+{
+	if(level > list.size())
+		return(NULL);
+	return(&list[level]);
+}
+
+
+
+
+//=============================================================================
+// Map Unit object stuff
+//=============================================================================
 MapUnit::MapUnit()
 {
 	// unit idnetifier index within map
@@ -848,7 +919,7 @@ MapUnit::MapUnit()
 	// position
 	coor = MapXY();
 	// experience
-	experience = 0;
+	experience = 1;
 	// man count
 	man = 1;
 	// unit type/behaviour
@@ -1058,10 +1129,8 @@ int MapUnit::GetMaxAP()
 	int ap = unit->ap;
 
 	// experience bonuses
-	if(experience >= 6)
-		ap += unit->apw;
-	if(experience >= 9)
-		ap += unit->apw;
+	auto bonus = unit->bonuses->GetBonus(experience);
+	ap += bonus->move*unit->apw;
 
 	return(ap);
 }
@@ -1117,10 +1186,11 @@ int MapUnit::GetMaxFireCount()
 	if(!unit->aps)
 		return(0);
 	int basic_fires = floor(unit->ap/unit->aps);
-	if(experience >= 5)
-		basic_fires++;
-	if(experience >= 10)
-		basic_fires++;
+	
+	// add bonus
+	auto bonus = unit->bonuses->GetBonus(experience);
+	basic_fires += bonus->attack_count;
+	
 	return(basic_fires);
 }
 
@@ -1139,10 +1209,8 @@ int MapUnit::UpdateFireAP()
 int MapUnit::GetWalkAP()
 {
 	int move_range = unit->apw;
-	if(experience >= 6)
-		move_range++;
-	if(experience >= 10)
-		move_range++;
+	auto bonus = unit->bonuses->GetBonus(experience);
+	move_range += bonus->move;	
 	return(GetMaxAP()/(move_range-1));
 }
 
@@ -1293,22 +1361,22 @@ int MapUnit::Render(Terrain* data,uint8_t* buffer,uint8_t* buf_end,int buf_x_pos
 
 
 
-// return unit animation associated with attack to particular unit
+// return unit animation associated with attack to particular unit (or object)
 FSU_resource *MapUnit::GetShotAnim(MapUnit *target, int *frame_stop)
 {	
 	FSU_resource *fsu_anim = NULL;
 	int frames = 0;
-	if(target->unit->isLight())
-	{
-		fsu_anim = unit->gr_attack_light;
-		frames = unit->anim_atack_light_frames;
-	}
-	else if(target->unit->isArmored())
+	if(!target && unit->gr_attack_armor || target && target->unit->isArmored())
 	{
 		fsu_anim = unit->gr_attack_armor;
 		frames = unit->anim_atack_armor_frames;
 	}
-	else if(target->unit->isAir())
+	else if(!target && unit->gr_attack_light || target && target->unit->isLight())
+	{
+		fsu_anim = unit->gr_attack_light;
+		frames = unit->anim_atack_light_frames;
+	}
+	else if(!target && unit->gr_attack_air || target && target->unit->isAir())
 	{
 		fsu_anim = unit->gr_attack_air;
 		frames = unit->anim_atack_air_frames;
@@ -1321,28 +1389,28 @@ FSU_resource *MapUnit::GetShotAnim(MapUnit *target, int *frame_stop)
 // return target hit animation if exist
 AnimPNM *MapUnit::GetTargetHitPNM(MapUnit *target)
 {
-	AnimPNM *pnm = NULL;
-	if(target->unit->isLight())
-		pnm = unit->pnm_light_shot;
-	else if(target->unit->isArmored())
-		pnm = unit->pnm_armored_shot;
-	else if(target->unit->isAir())
-		pnm = unit->pnm_air_shot;
-	return(pnm);
+	if(!target && unit->pnm_armored_shot || target && target->unit->isArmored())
+		return(unit->pnm_armored_shot);
+	if(!target && unit->pnm_light_shot || target && target->unit->isLight())
+		return(unit->pnm_light_shot);	
+	if(!target && unit->pnm_air_shot || target && target->unit->isAir())
+		return(unit->pnm_air_shot);
+	return(NULL);
 }
 
 // return shot animation if exist (this is used to animate e.g. cannon fireball)
 AnimPNM* MapUnit::GetFirePNM(MapUnit* target)
 {
-	AnimPNM* pnm = NULL;
-	if(target->unit->isLight())
-		pnm = unit->pnm_light_hit;
-	else if(target->unit->isArmored())
-		pnm = unit->pnm_armored_hit;
-	else if(target->unit->isAir())
-		pnm = unit->pnm_air_hit;
-	return(pnm);
+	if(!target && unit->pnm_armored_hit || target && target->unit->isArmored())
+		return(unit->pnm_armored_hit);
+	if(!target && unit->pnm_light_hit || target && target->unit->isLight())
+		return(unit->pnm_light_hit);
+	if(!target && unit->pnm_air_hit || target && target->unit->isAir())
+		return(unit->pnm_air_hit);
+	return(NULL);
 }
+
+
 // return shot animation if exist (this is used to animate e.g. cannon fireball)
 tuple<int,int> MapUnit::GetFirePNMorigin(MapUnit* target, double azimuth)
 {
@@ -1418,23 +1486,33 @@ int MapUnit::PlayStop()
 int MapUnit::PlayFire(MapUnit* target)
 {
 	SpellSound *sound = NULL;
-	if(target->unit->isLight())
-		sound = new SpellSound(*unit->sound_attack_light->shot);
-	else if(target->unit->isArmored())
+	if(!target && unit->sound_attack_armor || target && target->unit->isArmored())
 		sound = new SpellSound(*unit->sound_attack_armor->shot);
-	else if(target->unit->isAir())
+	else if(!target && unit->sound_attack_light->shot || target && target->unit->isLight())
+		sound = new SpellSound(*unit->sound_attack_light->shot);
+	else if(!target && unit->sound_attack_air->shot || target && target->unit->isAir())
 		sound = new SpellSound(*unit->sound_attack_air->shot);
 	if(sound)
 		sound->Play(true);
-
 	return(0);
 }
 
-// play target hit sound to given unit type
+
+// play target hit sound to given unit type (or object if target=NULL)
+int MapUnit::PlayHit(bool missed)
+{
+	return(PlayHit(NULL,missed));
+}
 int MapUnit::PlayHit(MapUnit* target, bool missed)
 {	
 	SpellAttackSound *attack = NULL;
-	if(target->unit->isLight())
+	if(!target && unit->sound_attack_armor)
+		attack = unit->sound_attack_armor;
+	else if(!target && unit->sound_attack_light)
+		attack = unit->sound_attack_light;
+	else if(!target && unit->sound_attack_air)
+		attack = unit->sound_attack_air;
+	else if(target->unit->isLight())
 		attack = unit->sound_attack_light;
 	else if(target->unit->isArmored())
 		attack = unit->sound_attack_armor;
@@ -1446,6 +1524,8 @@ int MapUnit::PlayHit(MapUnit* target, bool missed)
 	SpellSound* sound = NULL;
 	if(missed)
 		sound = attack->hit_miss;
+	else if(!target)
+		sound = attack->hit_armor;
 	else if(target->unit->isFlashAndBones())
 		sound = attack->hit_flash;
 	else if(target->unit->isMetal())
@@ -1464,4 +1544,57 @@ int MapUnit::PlayAction()
 	auto sound_action = new SpellSound(*unit->sound_action);
 	sound_action->Play(true);
 	return(0);
+}
+
+
+// --- attack damage model stuff
+
+// get attack strength to target unit (or NULL to object)
+int MapUnit::GetAttack(MapUnit *target)
+{
+	// get basic attack
+	int attack = 0;
+	if(!target)
+		attack = unit->attack_objects;
+	else if(target->unit->isLight())
+		attack = unit->attack_light;
+	else if(target->unit->isArmored())
+		attack = unit->attack_armored;
+	else if(target->unit->isAir())
+		attack = unit->attack_air;
+	if(!attack)
+		return(attack);
+	
+	// add bonuses
+	auto bonus = unit->bonuses->GetBonus(experience);
+	attack += bonus->attack;
+		
+	return(attack);
+}
+
+// apply damage model for attack to target tile/object
+MapUnit::AttackResult MapUnit::DamageTarget(MapSprite *target)
+{
+	if(!target)
+		return(AttackResult::Missed);
+
+	// attack strength
+	double attack = GetAttack();
+	
+	// object's defence
+	auto tile = target->GetDestructible();
+	double defence = tile->destructible->defence;
+
+	// damage model
+	int hit = (int)(randgman(3.0, 2.0, 5.0)*attack - defence);
+	if(hit < 0)
+		return(AttackResult::Missed);
+	
+	// reduce HP
+	target->hp = max(target->hp - hit, 0);
+
+	if(!target->hp)
+		return(AttackResult::Kill);
+	else
+		return(AttackResult::Hit);
 }

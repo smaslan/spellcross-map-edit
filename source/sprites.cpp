@@ -49,6 +49,7 @@ Sprite::Sprite()
 	data = NULL;
 	index = 0;
 	destructible = NULL;
+	destructible_alt = NULL;
 
 	flags = 0;
 	for(int k = 0; k < 4; k++)
@@ -1381,23 +1382,46 @@ SpellL2classes::SpellL2classes(FSarchive* fs,SpellSounds* sounds)
 
 	
 }
-// try to fetch class by sprite name
-SpellL2classRec* SpellL2classes::GetClass(const char* sprite_name)
+
+DestructibleRec::DestructibleRec()
 {
+	destructible = NULL;
+	destructed = false;
+	two_stage_desctruct = false;
+	alt_name = "";
+}
+
+// try to fetch class by sprite name
+DestructibleRec SpellL2classes::GetClass(const char* sprite_name)
+{
+	DestructibleRec rec;
+
 	// is wall?
 	if(wildcmp("MRA??_??",sprite_name))
 	{
-		int id = (sprite_name[3] - '0') & 0x03;
-		if(id < wall_list.size())
-			return(wall_list[id]);
+		int id = hex2num(sprite_name[3]);
+		int class_id = id & 0x03;		
+		rec.destructed = !!(id & 0x08);
+		rec.two_stage_desctruct = true;
+		rec.alt_name = sprite_name;
+		rec.alt_name[3] = num2hex(class_id & (!rec.destructed*0x08));
+		if(class_id < wall_list.size())
+			rec.destructible = wall_list[class_id];			
+		return(rec);
 	}
 
 	// is bridge?
-	if(wildcmp("MTA1?_??",sprite_name))
+	if(wildcmp("MTA1?_??",sprite_name) || wildcmp("MTA3?_??",sprite_name))
 	{
-		int id = (sprite_name[4] - 'A') & 0x03;
-		if(id < bridge_list.size())
-			return(bridge_list[id]);
+		int class_id = (sprite_name[4] - 'A') & 0x03;
+		int type_id = hex2num(sprite_name[3]) & 0x01;
+		rec.destructed = !!(hex2num(sprite_name[3]) & 0x02);
+		rec.two_stage_desctruct = false;
+		rec.alt_name = sprite_name;
+		rec.alt_name[3] = num2hex(type_id | (!rec.destructed*0x02));
+		if(class_id < bridge_list.size())
+			rec.destructible = bridge_list[class_id];
+		return(rec);
 	}
 
 	// is special object?
@@ -1405,12 +1429,19 @@ SpellL2classRec* SpellL2classes::GetClass(const char* sprite_name)
 	{
 		for(auto & spec : spec_list)
 			if(wildcmp(spec->tag.c_str(), sprite_name))
-				return(spec);
+			{
+				rec.destructed = (sprite_name[3] != '0');
+				rec.two_stage_desctruct = false;
+				rec.alt_name = sprite_name;
+				rec.alt_name[3] = !rec.destructed + '0';
+				rec.destructible = spec;
+				return(rec);
+			}
 	}
 
-	//sprite_name
-	return(NULL);
+	return(rec);
 }
+
 
 
 
@@ -1533,10 +1564,6 @@ int Terrain::Load(wstring &path, wstring& aux_path, SpellL2classes *L2)
 				}
 				// set sprite index (linear unsorted)
 				sprite->SetIndex(sprite_index++);
-
-				// try pair it with class definitions (MURY.DEF, MOSTY.DEF or SPECOBJ.DEF)
-				if(L2)
-					sprite->destructible = L2->GetClass(sprite->name);
 				
 				//st->Caption = "Loading " + N_terr + ": " + IntToStr(fcnt) + " - " + AnsiString(name);
 				fcnt++;
@@ -1621,6 +1648,31 @@ int Terrain::Load(wstring &path, wstring& aux_path, SpellL2classes *L2)
 			}
 		}
 	}
+	
+	if(L2)
+	{
+		// try pair sprites with class definitions (MURY.DEF, MOSTY.DEF or SPECOBJ.DEF)
+		for(auto & sprite : sprites)
+		{
+			// check destructibility
+			auto destr = L2->GetClass(sprite->name);
+			
+			// store destructible class ref
+			sprite->destructible = destr.destructible;
+			sprite->is_destructed = destr.destructed;
+			sprite->two_stage_desctruct = destr.two_stage_desctruct;
+
+			// try to find desctructible sprite pair alternative
+			if(!destr.alt_name.empty())
+			{
+				sprite->destructible_alt = GetSprite(destr.alt_name.c_str());
+				if(!sprite->destructible_alt)
+					sprite->destructible = NULL;
+			}
+		}
+	}
+
+
 
 	// free archive
 	delete fs;

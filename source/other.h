@@ -20,6 +20,7 @@ std::string string_format(const std::string fmt,...);
 int wildcmp(const char* wild,const char* string);
 void strcpy_noext(char* dest,char* src);
 int hex2num(char hex);
+char num2hex(int num);
 
 //int ostream_write_string(ofstream& fw,std::string &str);
 int ostream_write_string(ofstream& fw,std::string str);
@@ -36,6 +37,9 @@ void plot_line(uint8_t* buffer,uint8_t* buf_end,int buf_x,int buf_y,int x_size,u
 void apply_gamma(uint8_t* pal,double gamma);
 
 int mod(int x,int y);
+double rand(double min,double max);
+double randexp(double pow,double limit=1e9);
+double randgman(double shape,double scale,double limit=1e9);
 
 
 /*template <class charT,class Traits>

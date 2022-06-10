@@ -71,45 +71,44 @@ SpellDefCmd* SpellDefSection::operator[](int index)
 		return(NULL);
 	return(list[index]);
 }
+// get all sections
+vector<SpellDefCmd*>& SpellDefSection::GetData()
+{
+	return(list);
+}
 
 
 
 // construct from file
 SpellDEF::SpellDEF(wstring &path)
 {
-	data = NULL;
-
 	// try open file
 	ifstream fr(path.c_str(), ios::in | ios::binary | ios::ate);
 	if (!fr.is_open())
-	{
 		throw runtime_error("Cannot open DEF file!");
-	}
 
 	// read to local buffer and close
 	streampos flen = fr.tellg();
 	fr.seekg(0);
-	data = new char[(int)flen];
-	fr.read(data, flen);
+	data.resize(flen);
+	fr.read(data.data(), flen);
 	fr.close();
 }
 // construct from data buffer
 SpellDEF::SpellDEF(uint8_t* data, int size)
 {
-	this->data = new char[size];
-	if (this->data == NULL)
-	{
-		// allocation failed
-		throw std::runtime_error("DEF file memory allocation failed!");
-	}
-	std::memcpy((void*)this->data, (void*)data, size);
+	this->data.resize(size);
+	std::memcpy((void*)this->data.data(), (void*)data, size);
+}
+// construct from string
+SpellDEF::SpellDEF(string str)
+{
+	data = str;
 }
 // destroy
 SpellDEF::~SpellDEF()
 {
-	if (data)
-		delete[] data;
-	data = NULL;
+	data.clear();
 }
 
 // returns vector of commands in given section
@@ -310,6 +309,7 @@ SpellData::SpellData(wstring &data_path,wstring& cd_data_path,wstring& spec_path
 	sounds = NULL;
 	texts = NULL;
 	L2_classes = NULL;
+	unit_bonuses = NULL;
 	
 	// store path
 	spell_data_root = data_path;
@@ -320,12 +320,16 @@ SpellData::SpellData(wstring &data_path,wstring& cd_data_path,wstring& spec_path
 	common = new FSarchive(common_path);
 	uint8_t* data;
 	int size;
-
+	
 	// load sound stuff
 	sounds = new SpellSounds(data_path);
 	
 	// load L2 object classes stuff
 	L2_classes = new SpellL2classes(common,sounds);
+
+	// load unit bonuses BONUSES.DEF
+	string bonus_def = common->GetFile("BONUSES.DEF");
+	unit_bonuses = new UnitBonuses(bonus_def);
 
 	// load terrains
 	vector<wstring> terrain_list = {L"T11.FS", L"PUST.FS", L"DEVAST.FS"};
@@ -404,7 +408,7 @@ SpellData::SpellData(wstring &data_path,wstring& cd_data_path,wstring& spec_path
 		delete common;
 		throw runtime_error("JEDNOTKY.DEF not found in COMMON.FS!");
 	}
-	units = new SpellUnits(data, size, units_fsu, &gres, sounds);
+	units = new SpellUnits(data, size, units_fsu, &gres, sounds, unit_bonuses);
 
 	// load font file
 	if(common->GetFile("FONT_001.FNT",&data,&size))
@@ -483,6 +487,8 @@ SpellData::~SpellData()
 		delete texts;
 	if(L2_classes)
 		delete L2_classes;
+	if(unit_bonuses)
+		delete unit_bonuses;
 }
 
 // find loaded PNM animation

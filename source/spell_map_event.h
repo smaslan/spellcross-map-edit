@@ -157,4 +157,5 @@ public:
     SpellMapEventsList GetMissionStartEvent(bool clear=false);
     int AddMissionStartUnit(MapUnit *unit, int probab=100);
     SpellMapEventRec* AddSeeUnitEvent(MapUnit* unit,int probab=100);
+    int ObjectivesDone();
 };

@@ -18,8 +18,33 @@
 
 //using namespace std;
 
-
+// forward refs
 class SpellMapEventRec;
+class MapSprite;
+
+
+class UnitBonus
+{
+public:
+	int level;
+	int defence;
+	int attack;
+	int attack_count;
+	int move;
+
+	UnitBonus();
+};
+
+class UnitBonuses
+{
+private:
+	vector<UnitBonus> list;
+
+public:
+	UnitBonuses(string bonuses_def);
+	UnitBonus* GetBonus(int level);
+};
+
 
 
 class SpellUnitRec
@@ -153,6 +178,9 @@ class SpellUnitRec
 		AnimPNM *pnm_light_shot;
 		AnimPNM *pnm_armored_shot;
 		AnimPNM *pnm_air_shot;
+
+		// bonus levels link
+		UnitBonuses *bonuses;
 		
 
 		SpellUnitRec();
@@ -175,7 +203,7 @@ class SpellUnitRec
 		int isFly();
 		int isTank();
 		int isMLRS();
-		int hasProjectile(SpellUnitRec *target);
+		int hasProjectile(SpellUnitRec *target=NULL);
 		int usingTeleportMove();
 		int isFlashAndBones();
 		int isMetal();
@@ -250,7 +278,7 @@ private:
 	vector<SpellUnitRec*> units;
 
 public:	
-	SpellUnits(uint8_t* data, int dlen, FSUarchive *fsu, SpellGraphics *graphics,SpellSounds* sounds);
+	SpellUnits(uint8_t* data, int dlen, FSUarchive *fsu, SpellGraphics *graphics,SpellSounds* sounds,UnitBonuses *bonuses);
 	~SpellUnits();
 	int Count();
 	SpellUnitRec* GetUnit(int uid);
@@ -272,6 +300,9 @@ public:
 	AStarNode();
 	static constexpr int INIT_COST = 1<<30;
 };
+
+
+
 
 
 class MapUnitType
@@ -404,6 +435,7 @@ public:
 	int attack_fire_y_org;
 	int attack_fire_frame;
 	MapUnit* attack_target;
+	MapXY attack_target_obj;
 	int is_target;
 	int isAttacker() { return(attack_state != ATTACK_STATE_IDLE); };
 	int isTarget() { return(is_target); };
@@ -445,9 +477,9 @@ public:
 	static constexpr int MOVE_STATE_TELEPORT_OUT = 4;
 
 
-	FSU_resource* GetShotAnim(MapUnit* target,int* frame_stop=NULL);
-	AnimPNM* GetTargetHitPNM(MapUnit* target);
-	AnimPNM* GetFirePNM(MapUnit* target);
+	FSU_resource* GetShotAnim(MapUnit* target=NULL,int* frame_stop=NULL);
+	AnimPNM* GetTargetHitPNM(MapUnit* target=NULL);
+	AnimPNM* GetFirePNM(MapUnit* target=NULL);
 	tuple<int,int> GetFirePNMorigin(MapUnit* target,double azimuth);
 
 	int AreSoundsDone();
@@ -456,12 +488,21 @@ public:
 	int PlayMove();
 	int PlayStop();
 	SpellSound* sound_move;
-	int PlayFire(MapUnit* target);
+	int PlayFire(MapUnit* target=NULL);
+	int PlayHit(bool missed=false);
 	int PlayHit(MapUnit* target,bool missed=false);
 	int PlayDie();
 	int PlayBeingHit();
 	int PlayAction();
 
+	enum AttackResult{
+		Missed = 0,
+		Hit,
+		Kill
+	};
+
+	int GetAttack(MapUnit* target=NULL);
+	AttackResult DamageTarget(MapSprite* target);
 
 
 	MapUnit();

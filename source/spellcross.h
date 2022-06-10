@@ -43,18 +43,20 @@ private:
 public:
 	SpellDefSection();
 	~SpellDefSection();
-	int Size();
-
+		
 	void Add(SpellDefCmd* cmd);
+	int Size();
 	SpellDefCmd* operator[](int index);
+	vector<SpellDefCmd*> &GetData();
 };
 
 class SpellDEF
 {
 	private: 
-		char *data;
+		string data;
 
 	public:
+		SpellDEF(string str);
 		SpellDEF(wstring &path);
 		SpellDEF(uint8_t *data, int size);
 		~SpellDEF();
@@ -141,6 +143,8 @@ public:
 	SpellTexts* texts;
 	// L2 object class parameters
 	SpellL2classes *L2_classes;
+	// unit bonuses (BONUSES.DEF)
+	UnitBonuses *unit_bonuses;
 
 	SpellData(wstring& data_path,wstring& cd_data_path,wstring& spec_path);
 	~SpellData();	

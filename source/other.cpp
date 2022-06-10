@@ -3,6 +3,8 @@
 #include <string>
 #include <codecvt>
 #include <filesystem>
+#include <random>
+
 
 std::wstring char2wstring(const char* str)
 {
@@ -83,7 +85,7 @@ char wchar2charCP895(wchar_t sym)
                      L"αßΓπΣσµτΦΘΩδ∞φε∩"
                      L"≡±≥≤⌠⌡÷≈°∙·√ⁿ²■ "};
     if(sym < 128)
-        return(sym);
+        return(char(sym));
     int unisym = codes.find(sym);
     if(unisym == wstring::npos)
         return(' ');
@@ -152,10 +154,18 @@ int hex2num(char hex)
 {
     if(hex >= '0' && hex <= '9')
         return(hex - '0');
-    else if(hex >= 'A' && hex <= 'F')
+    if(hex >= 'A' && hex <= 'F')
         return(hex - 'A' + 10);
-    else
-        return(-1);
+    return(-1);
+}
+// convert single digit num to ascii char
+char num2hex(int num)
+{
+    if(num >= 0 && num <= 9)
+        return(num + '0');
+    if(num >= 0x0A && num <= 0x0F)
+        return(num - 0x0A + 'A');
+    return('_');
 }
 
 
@@ -274,8 +284,46 @@ void apply_gamma(uint8_t *pal, double gamma)
         *pal++ = (uint8_t)(pow((double)*pal / 255.0,1.0 / gamma) * 255.0);
 }
 
-
+// correct modulo
 int mod(int x, int y) {
     if(y == -1) return 0;
     return x - y * (x / y - (x % y && (x ^ y) < 0));
+}
+
+// generate random number in range min-max, uniform distribution
+double rand(double min,double max)
+{
+    std::uniform_real_distribution<double> unif(min,max);
+    std::default_random_engine re;
+    return(unif(re));
+}
+
+// generate exponential random number with max value limit
+double randexp(double pow,double limit)
+{
+    std::default_random_engine re;
+    std::exponential_distribution<double> distribution(pow);
+    double num;
+    do{
+        num = distribution(re);
+    }while(num > limit && limit > 1e-3);
+    return(num);    
+}
+
+// generate gamma distribution number normalized, so maximum PDF is 1.0, with optional maximum output limit
+double randgman(double shape,double scale,double limit)
+{
+    std::default_random_engine re;
+    std::gamma_distribution<double> distribution(shape,scale);
+    
+    // maximum of PDF
+    double imode = 1.0/((shape - 1.0)*scale);
+    
+    // get random number lower than limit
+    double num;
+    do {
+        num = distribution(re)*imode;
+    } while(num > limit && limit > 1e-3);
+
+    return(num);
 }
