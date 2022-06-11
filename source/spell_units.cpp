@@ -277,16 +277,12 @@ SpellUnits::SpellUnits(uint8_t* data, int dlen, FSUarchive *fsu, SpellGraphics *
 		unit->action_params[2] = rdu8(rec + 0xAE);
 
 		// die action
-		unit->daid = rdu8(rec + 0xBB);
+		unit->die_action_id = rdu8(rec + 0xBB);
 
-		// die action parameter 1
-		unit->dap1 = rdu8(rec + 0xB9);
-
-		// die action parameter 2
-		unit->dap2 = rdu8(rec + 0xBA);
-
-		// die action parameter 1
-		unit->dap3 = rdu8(rec + 0xBD);
+		// die action parameters
+		unit->die_action_params[0] = rdu8(rec + 0xB9);
+		unit->die_action_params[1] = rdu8(rec + 0xBA);
+		unit->die_action_params[2] = rdu8(rec + 0xBD);
 
 		// die action animation resource (*.fsu content)
 		GetNameStr(unit->die_anim_name,rec + 0xB2,6);
@@ -456,6 +452,26 @@ int SpellUnitRec::isMetal()
 	// ###todo: maybe not correct?
 	return(!isFlashAndBones());
 }
+int SpellUnitRec::isInefficientToArmor()
+{
+	return(!!(fire_flags & FIRE_INEFFICIENT_TO_ARMORRED));
+}
+int SpellUnitRec::isFireSensitive()
+{
+	return(!!(fire_flags & FIRE_FIRE_SENSITIVE));
+}
+int SpellUnitRec::isFireHealed()
+{
+	return(!!(fire_flags & FIRE_FIRE_HEALED));
+}
+int SpellUnitRec::hasFireAttack()
+{
+	return(!!(fire_flags & FIRE_FIRE_PROJECTILE));
+}
+int SpellUnitRec::isSingleMan()
+{
+	return(cnt == 1);
+}
 
 // uses projectile when shooting to target unit (or NULL to object)?
 int SpellUnitRec::hasProjectile(SpellUnitRec* target)
@@ -594,13 +610,13 @@ vector<SpellUnitRec*> &SpellUnits::GetUnits()
 //   *fsu_anim - animation override
 //   flight_alt - air unit flight altitute in percent
 tuple<int,int> SpellUnitRec::Render(uint8_t* buffer, uint8_t* buf_end, int buf_x_pos, int buf_y_pos, int buf_x_size,
-	uint8_t* filter, uint8_t* shadow_filter, ::Sprite *sprt, int azim, int azim_turret, int frame, FSU_resource *fsu_anim, int flight_alt)
+	uint8_t* filter, uint8_t* shadow_filter, ::Sprite *sprt, int man, int azim, int azim_turret, int frame, FSU_resource *fsu_anim, int flight_alt)
 {
 	// tile slope
 	char slope = sprt->name[2];
 	
 	// visible man count in unit
-	int man = vis;
+	//int man = vis;
 	if (man < 1)
 		man = 1; // overrider for tanks
 	if (man > 5)
@@ -977,9 +993,9 @@ MapUnit::MapUnit()
 	azimuth_turret = 0;
 	frame = 0;
 
-	move_state = MapUnit::MOVE_STATE_IDLE;
-	attack_state = MapUnit::ATTACK_STATE_IDLE;
-	action_state = MapUnit::ACTION_STATE_IDLE;
+	move_state = MapUnit::MOVE_STATE::IDLE;
+	attack_state = MapUnit::ATTACK_STATE::IDLE;
+	action_state = MapUnit::ACTION_STATE::IDLE;
 }
 // clear sound refs
 int MapUnit::ClearSounds()
@@ -1032,9 +1048,9 @@ MapUnit::MapUnit(MapUnit &obj, bool relink_event_trigger)
 	else
 		trig_event = NULL;
 	
-	action_state = ACTION_STATE_IDLE;
-	move_state = MOVE_STATE_IDLE;
-	attack_state = ATTACK_STATE_IDLE;
+	action_state = ACTION_STATE::IDLE;
+	move_state = MOVE_STATE::IDLE;
+	attack_state = ATTACK_STATE::IDLE;
 }
 // morph unit type to target (used e.g. for land/take off action)
 int MapUnit::MorphUnit(SpellUnitRec* target, int health)
@@ -1048,7 +1064,7 @@ int MapUnit::MorphUnit(SpellUnitRec* target, int health)
 		new_max_count = 100;
 	if(health)
 	{
-		man = man*health/100;
+		man = unit->GetHP()*health/100;
 		wounded = 0;
 	}
 	else
@@ -1246,9 +1262,12 @@ int MapUnit::Render(Terrain* data,uint8_t* buffer,uint8_t* buf_end,int buf_x_pos
 	int loc_frame = frame;
 	if(!in_animation)
 		loc_frame = -1; // static unit resource
+	
+	// visible man based on health
+	int visible_man = (unit->vis - 1)*(wounded + man)/unit->GetHP() + 1;
 
 	// render unit
-	auto [x_status_bar,y_status_bar] = unit->Render(buffer, buf_end, buf_x_pos, buf_y_pos, buf_x_size,filter,shadow_filter, sprt, azimuth, azimuth_turret, loc_frame, in_animation, altitude);
+	auto [x_status_bar,y_status_bar] = unit->Render(buffer, buf_end, buf_x_pos, buf_y_pos, buf_x_size,filter,shadow_filter, sprt, visible_man,azimuth, azimuth_turret, loc_frame, in_animation, altitude);
 	
 	if(!hud_filter)
 		hud_filter = data->filter.nullpal;
@@ -1572,11 +1591,27 @@ int MapUnit::GetAttack(MapUnit *target)
 	return(attack);
 }
 
+// get unit defence
+int MapUnit::GetDefence()
+{
+	// basic defence
+	int defence = unit->defence;
+	if(!defence)
+		return(defence);
+	
+	// add bonuses
+	defence += unit->bonuses->GetBonus(experience)->defence;
+	return(defence);
+}
+
+
 // apply damage model for attack to target tile/object
 MapUnit::AttackResult MapUnit::DamageTarget(MapSprite *target)
 {
 	if(!target)
 		return(AttackResult::Missed);
+
+	ResetTurnsCounter();
 
 	// attack strength
 	double attack = GetAttack();
@@ -1597,4 +1632,112 @@ MapUnit::AttackResult MapUnit::DamageTarget(MapSprite *target)
 		return(AttackResult::Kill);
 	else
 		return(AttackResult::Hit);
+}
+
+// apply damage model for attack to target unit
+MapUnit::AttackResult MapUnit::DamageTarget(MapUnit* target)
+{
+	if(!target)
+		return(AttackResult::Missed);
+
+	ResetTurnsCounter();
+
+	// attack strength
+	double attack = GetAttack();
+
+	// target defence
+	double defence = target->GetDefence();
+
+	// defence bonus by dig level
+	defence *= (1.0 + (double)target->dig_level*0.5);
+		
+	// reduce dig level of target
+	target->dig_level = max(target->dig_level - 1, 0);
+
+	// conditional bonuses/penalties
+	double bonus = 1.0;
+		
+	// penalize armored attacks?
+	if(target->unit->isArmored() && unit->isInefficientToArmor())
+		bonus *= 0.7;
+
+	// bonus of fire sensitivity
+	if(target->unit->isFireSensitive() && unit->hasFireAttack())
+		bonus *= 1.5;
+	
+	// damage model
+	double hit = (int)(randgman(3.0,3.0,3.0)*attack*bonus - defence);
+	if(hit < 0.0)
+		return(AttackResult::Missed);
+
+	// reduce HP
+	if(target->unit->isSingleMan())
+	{
+		// for single-man unit only wounding
+		target->wounded = min(target->wounded + (int)hit, target->unit->GetHP());
+		if(target->wounded >= target->unit->GetHP())
+			target->man = 0;
+	}
+	else
+	{
+		// for multi-man units
+		
+		// calculate kill/wound ratio
+		double prob = 0.0;
+		for(int k = 0; k < 1000; k++)
+			prob += 1.0*(randgman(3.0,2.0,5.0)*hit > defence);
+		prob /= 1000.0;
+
+		// to kill/wound
+		double kill = prob*hit;
+		double wound = (1.0 - prob)*hit;
+
+		// killed some
+		target->wounded = target->wounded - (int)(0.5*kill);
+		if(target->wounded < 0)
+		{
+			kill += (double)(-target->wounded);
+			target->wounded = 0;
+		}
+		else
+			kill -= 0.5*kill;
+		target->man = max(target->man - (int)kill, 0);
+				
+		// wound some
+		target->wounded = target->wounded + (int)wound;
+		target->man = max(target->man - (int)wound, 0);
+	}
+
+	if(!target->man)
+		return(AttackResult::Kill);
+	else
+		return(AttackResult::Hit);
+}
+
+// check if unit is dead
+int MapUnit::isDead()
+{
+	return(!man);
+}
+
+// kill unit (exec linked events, then delete the object, so no touchy afterwards and Extract() from units list before calling!)
+SpellMapEventRec *MapUnit::Kill()
+{
+	SpellMapEventRec *evt = NULL;
+	if(trig_event)
+	{		
+		// unlink from event
+		evt = trig_event;
+		evt->trig_unit = NULL;
+		trig_event = NULL;
+
+		// mark as done
+		evt->is_done = true;		
+	}
+
+	// destroy this unit
+	delete this;
+
+	// eventually return triggered event
+	return(evt);
 }

@@ -150,12 +150,10 @@ class SpellUnitRec
 		int action_params[3];
 
 		// die action
-		int daid;
+		int die_action_id;
+		int die_action_params[3];
 		char die_anim_name[6];
 		int die_anim_frames;
-		int dap1;
-		int dap2;
-		int dap3;
 
 		int GetHP() {return((cnt==1)?(100):(cnt));};
 
@@ -186,7 +184,7 @@ class SpellUnitRec
 		SpellUnitRec();
 		~SpellUnitRec();
 		tuple<int,int> Render(uint8_t* buffer, uint8_t* buf_end, int buf_x_pos, int buf_y_pos, int buf_x_size,
-			uint8_t* filter,uint8_t* shadow_filter, Sprite *sprt, int azim,int azim_turret, int frame,FSU_resource* fsu_anim=NULL, int flight_alt=100);
+			uint8_t* filter,uint8_t* shadow_filter, Sprite *sprt,int man, int azim,int azim_turret, int frame,FSU_resource* fsu_anim=NULL, int flight_alt=100);
 
 		vector<string> GetArtList(FSarchive* info_fs);
 		int GetArtCount(FSarchive* info_fs);
@@ -207,6 +205,11 @@ class SpellUnitRec
 		int usingTeleportMove();
 		int isFlashAndBones();
 		int isMetal();
+		int isInefficientToArmor();
+		int isFireSensitive();
+		int isFireHealed();
+		int hasFireAttack();
+		int isSingleMan();
 
 		int canAttack(SpellUnitRec* target);
 		int canAttackObject();
@@ -228,8 +231,16 @@ class SpellUnitRec
 
 		// air unit height in projected space (pixels)
 		static constexpr int AIR_UNIT_FLY_HEIGHT = 150;
-
 		static constexpr double FIRE_RING_DIAMETER = 40.0;
+
+
+		// die actions
+		enum DIE_ACTION
+		{
+			NONE = 0,
+			MORPH = 1,
+			EXPLODE = 2
+		};
 
 private:
 
@@ -250,7 +261,7 @@ private:
 	static constexpr int SPEC_ACT_KAMIZAZE = 15; // 15 - kamize attack
 	static constexpr int SPEC_ACT_TRANSFORM_TO_FORTRES = 16; // 16 - transform to fortres (par3-unit to transform to)
 	static constexpr int SPEC_ACT_TRANSFORM_FROM_FORTRES = 17; // 17 - transform from fortres (par3-unit to transfrom to)
-
+	
 	// multiple man in unit placement diameter in tile (pixels)
 	static constexpr double MAN_RING_DIAMETER = 15.0;
 	
@@ -350,6 +361,49 @@ private:
 class MapUnit
 {
 public:
+	// unit attack state machine states
+	enum class ATTACK_STATE
+	{
+		IDLE = 0, /* inactive */
+		DIR, /* calculating azimuth */
+		TURN, /* rotating to azimuth */
+		SHOT, /* shoot anim */
+		FLIGHT, /* projectile flight */
+		HIT, /* hit anim */
+		DIE_INIT, /* init die anim */
+		DIE, /* die anim */
+		UPDATE /* update object/unit after hit */
+	};
+
+	// unit actions
+	enum class ACTION_STATE
+	{
+		IDLE = 0,
+		AIR_LAND,
+		AIR_TAKEOFF,
+		AIR_FINISH,
+		TURRET_DOWN,
+		TURRET_FINISH,
+		RADAR_UP,
+		RADAR_DOWN,
+		TO_FORT,
+		FROM_FORT,
+		FROM_FORT_TURRET,
+		CREATE_UNIT,
+		KAMIKAZE,
+		KAMIKAZE_EXPLOSION
+	};
+
+	// unit move states
+	enum class MOVE_STATE
+	{
+		IDLE = 0,
+		TURRET,
+		MOVE,
+		TELEPORT_IN,
+		TELEPORT_OUT
+	};
+	
 	// unit idnetifier index within map
 	int id;
 	// unit type ID
@@ -413,9 +467,9 @@ public:
 
 	// unit rendering state
 	vector<AStarNode> move_nodes;
-	int move_state;
+	MOVE_STATE move_state;
 	int move_step;
-	int isMoving() { return(move_state != MOVE_STATE_IDLE); };
+	int isMoving() { return(move_state != MOVE_STATE::IDLE); };
 	FSU_resource* in_animation;
 	int azimuth;
 	int azimuth_turret;
@@ -427,7 +481,7 @@ public:
 	double attack_dist;
 	int attack_proj_step;
 	int attack_proj_delay;
-	int attack_state;
+	ATTACK_STATE attack_state;
 	int attack_hit_frame;
 	AnimPNM* attack_hit_pnm;
 	AnimPNM* attack_fire_pnm;
@@ -437,7 +491,7 @@ public:
 	MapUnit* attack_target;
 	MapXY attack_target_obj;
 	int is_target;
-	int isAttacker() { return(attack_state != ATTACK_STATE_IDLE); };
+	int isAttacker() { return(attack_state != ATTACK_STATE::IDLE); };
 	int isTarget() { return(is_target); };
 
 	// unit radar state
@@ -445,36 +499,12 @@ public:
 	// unit flight altitude [%]
 	int altitude;
 
-	int action_state;
+	ACTION_STATE action_state;
 	int action_step;
 
-	static constexpr int ACTION_STATE_IDLE = 0;
-	static constexpr int ACTION_STATE_AIR_LAND = 1;
-	static constexpr int ACTION_STATE_AIR_TAKEOFF = 2;
-	static constexpr int ACTION_STATE_AIR_FINISH = 3;
-	static constexpr int ACTION_STATE_TURRET_DOWN = 4;
-	static constexpr int ACTION_STATE_TURRET_FINISH = 5;
-	static constexpr int ACTION_STATE_RADAR_UP = 6;
-	static constexpr int ACTION_STATE_RADAR_DOWN = 7;
-	static constexpr int ACTION_STATE_TO_FORT = 8;
-	static constexpr int ACTION_STATE_FROM_FORT = 9;
-	static constexpr int ACTION_STATE_FROM_FORT_TURRET = 10;
-	static constexpr int ACTION_STATE_CREATE_UNIT = 11;
-	static constexpr int ACTION_STATE_KAMIKAZE = 12;
-	static constexpr int ACTION_STATE_KAMIKAZE_EXPLOSION = 13;
-
-	static constexpr int ATTACK_STATE_IDLE = 0;
-	static constexpr int ATTACK_STATE_DIR = 1;
-	static constexpr int ATTACK_STATE_TURN = 2;
-	static constexpr int ATTACK_STATE_SHOT = 3;
-	static constexpr int ATTACK_STATE_FLIGHT = 4;
-	static constexpr int ATTACK_STATE_HIT = 5;
-
-	static constexpr int MOVE_STATE_IDLE = 0;
-	static constexpr int MOVE_STATE_TURRET = 1;
-	static constexpr int MOVE_STATE_MOVE = 2;
-	static constexpr int MOVE_STATE_TELEPORT_IN = 3;
-	static constexpr int MOVE_STATE_TELEPORT_OUT = 4;
+	
+		
+	
 
 
 	FSU_resource* GetShotAnim(MapUnit* target=NULL,int* frame_stop=NULL);
@@ -495,14 +525,18 @@ public:
 	int PlayBeingHit();
 	int PlayAction();
 
-	enum AttackResult{
+	enum class AttackResult{
 		Missed = 0,
 		Hit,
 		Kill
 	};
 
 	int GetAttack(MapUnit* target=NULL);
+	int GetDefence();
 	AttackResult DamageTarget(MapSprite* target);
+	AttackResult DamageTarget(MapUnit* target);
+	int isDead();
+	SpellMapEventRec *Kill();
 
 
 	MapUnit();

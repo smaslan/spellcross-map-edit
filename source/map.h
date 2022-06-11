@@ -399,6 +399,33 @@ class SpellMap
 		// looping sounds
 		MapLoopSounds *sound_loops;
 
+		// map state save
+		class SavedState
+		{
+		public:
+			// save level
+			int level;
+			
+			// tiles copy
+			vector<MapSprite> tiles; // terrain tiles map (L1+L2)
+			// list of units
+			vector<MapUnit*> units;
+			// map events
+			SpellMapEvents* events;
+		};
+		class Saves
+		{
+		private:
+			vector<SavedState*> saves;
+			int level;
+			SpellMap *map;
+		public:
+			Saves(SpellMap *parent);
+			~Saves();
+			int Clear();
+			int SaveState();
+		};
+
 		
 		SpellMap();
 		~SpellMap();

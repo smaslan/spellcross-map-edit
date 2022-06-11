@@ -293,15 +293,15 @@ int mod(int x, int y) {
 // generate random number in range min-max, uniform distribution
 double rand(double min,double max)
 {
+    static std::default_random_engine re((unsigned)std::chrono::system_clock::now().time_since_epoch().count());
     std::uniform_real_distribution<double> unif(min,max);
-    std::default_random_engine re;
     return(unif(re));
 }
 
 // generate exponential random number with max value limit
 double randexp(double pow,double limit)
 {
-    std::default_random_engine re;
+    static std::default_random_engine re((unsigned)std::chrono::system_clock::now().time_since_epoch().count());
     std::exponential_distribution<double> distribution(pow);
     double num;
     do{
@@ -313,7 +313,7 @@ double randexp(double pow,double limit)
 // generate gamma distribution number normalized, so maximum PDF is 1.0, with optional maximum output limit
 double randgman(double shape,double scale,double limit)
 {
-    std::default_random_engine re;
+    static std::default_random_engine re((unsigned)std::chrono::system_clock::now().time_since_epoch().count());
     std::gamma_distribution<double> distribution(shape,scale);
     
     // maximum of PDF

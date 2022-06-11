@@ -110,7 +110,7 @@ int SpellMapEventRec::isDone()
 }
 int SpellMapEventRec::hasTargetUnit()
 {
-	return(evt_type == EVT_SEE_UNIT || evt_type == EVT_SAVE_UNIT || evt_type == EVT_TRANSPORT_UNIT);
+	return(evt_type == EVT_SEE_UNIT || evt_type == EVT_SAVE_UNIT || evt_type == EVT_TRANSPORT_UNIT || evt_type == EVT_DESTROY_UNIT);
 }
 int SpellMapEventRec::hasPosition()
 {
@@ -625,7 +625,7 @@ void SpellMapEvents::ResetEvents()
 				prev = evt;
 			}
 		}
-		else if(evt->isSeeUnit() || evt->isTransportSave())
+		else if(evt->hasTargetUnit())
 		{
 			// look for target unit and assign ref
 			for(auto & unit : units_list)

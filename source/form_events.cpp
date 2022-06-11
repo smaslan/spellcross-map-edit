@@ -373,12 +373,19 @@ void FormEvent::SetMap(SpellMap* map)
 	auto event = spell_map->GetSelectEvent();
 	if(!event)
 	{
-		// nope: create new one
-		event = new SpellMapEventRec(spell_map);
-		auto pos = spell_map->GetSelection();
-		event->position = pos; // set some position		
-		spell_map->events->AddEvent(event);
-		spell_new_event = event;
+		// nope: select some existing?
+		auto list = spell_map->events->GetEvents();
+		if(!list.empty())
+			event = list[0];
+		/*else
+		{
+			// nope: make new
+			event = new SpellMapEventRec(spell_map);
+			auto pos = spell_map->GetSelection();
+			event->position = pos; // set some position		
+			spell_map->events->AddEvent(event);
+			spell_new_event = event;
+		}*/
 	}
 
 	// update events list
@@ -412,6 +419,9 @@ void FormEvent::OnNewEventClick(wxCommandEvent& event)
 	auto evt = new SpellMapEventRec(spell_map);
 	auto pos = spell_map->GetSelection();
 	evt->position = pos; // set some position		
+	auto unit = spell_map->GetSelectedUnit();
+	if(unit)
+		evt->trig_unit_id = unit->id;
 	spell_map->events->AddEvent(evt);
 	spell_new_event = evt;
 
@@ -462,6 +472,9 @@ void FormEvent::SelectEvent(SpellMapEventRec *evt)
 {	
 	// get selected event (if exists)
 	spell_event = evt;
+
+	if(!spell_event)
+		return;
 
 	// select events list item
 	for(int k = 0; k < lbEvents->GetCount(); k++)
@@ -654,6 +667,8 @@ void FormEvent::OnSelectMsgResource(wxCommandEvent& event)
 		txtObjectiveDesc->SetValue("");
 		txtObjectiveDesc->Enable(false);
 	}
+
+	
 	
 	// update coordinates
 	spell_event->position = MapXY(spinXpos->GetValue(),spinYpos->GetValue());	
