@@ -245,7 +245,7 @@ class SpellMap
 
 		//static constexpr int UNIT_PATH_IDLE = -1;
 		//int unit_path_state;
-		mutex unit_action_lock;
+		mutex map_lock;
 		//vector<AStarNode> unit_path;		
 
 		// currently selected unit
@@ -255,8 +255,6 @@ class SpellMap
 		// current view state of map tiles
 		vector<int> units_view;
 		vector<int> units_view_mem; /* this is copy used to keep view of all but selected unit */
-		//vector<int> units_view_flags;
-		//vector<int> units_view_flags_mem;		
 		// units view mask map
 		vector<uint8_t> units_view_mask; // mask with objects
 		vector<uint8_t> units_view_mask_0; // mask without object
@@ -368,8 +366,9 @@ class SpellMap
 		SpellMessageCraeteFunPtr m_msg_creator;
 		SpellMessagePollingFunPtr m_msg_checker;
 		
-		
-
+		// map modification locks
+		int LockMap();
+		int ReleaseMap();
 
 		// this map path
 		wstring map_path;
@@ -402,29 +401,41 @@ class SpellMap
 		// map state save
 		class SavedState
 		{
-		public:
-			// save level
-			int level;
-			
+		public:		
 			// tiles copy
 			vector<MapSprite> tiles; // terrain tiles map (L1+L2)
 			// list of units
 			vector<MapUnit*> units;
+			MapUnit *sel_unit;
 			// map events
 			SpellMapEvents* events;
+			// view mask
+			vector<int> units_view;
+			
+			SavedState();
+			~SavedState();
+			MapUnit* GetUnit(int id);
 		};
 		class Saves
 		{
 		private:
-			vector<SavedState*> saves;
-			int level;
+			vector<SavedState> saves;
+			SavedState initial;
+			int max_saves;
 			SpellMap *map;
 		public:
 			Saves(SpellMap *parent);
 			~Saves();
-			int Clear();
-			int SaveState();
+			int Clear(int count=4);			
+			int canSave();
+			int canLoad();			
+			int Save(SpellMap::SavedState* slot=NULL);
+			int LoadByID(int index=-1);
+			int Load(SpellMap::SavedState* save=NULL);
+			int SaveInitial();
+			int LoadInitial();
 		};
+		Saves *saves;
 
 		
 		SpellMap();
@@ -483,9 +494,11 @@ class SpellMap
 		void OnHUDcreateUnit();
 		
 
+		MapUnit* GetUnit(int id);
 		int RemoveUnit(MapUnit* unit);
+		int RemoveAllUnits();
 		MapUnit *ExtractUnit(MapUnit* unit);
-		int AddUnit(MapUnit* unit);
+		int AddUnit(MapUnit* unit);		
 		int CreateUnit(MapUnit* parent,SpellUnitRec* new_type);
 		int PlaceUnit(MapUnit* unit);
 		void SortUnits();

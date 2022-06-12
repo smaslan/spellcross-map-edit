@@ -26,11 +26,12 @@ FormMapOptions::FormMapOptions(wxPanel* parent,wxWindowID win_id,SpellMap* spell
     auto btn_glyph = m_spelldata->gres.wm_map_opt_btn_disabled;
     int btn_y_pos = 284;
     vector<int> btn_x_list = {34,121};
+    vector<int> btn_wx_id = {wxID_BTN_SAVE, wxID_BTN_LOAD};
     m_buttons.reserve(2); // allocate all now to keep element addresses!
     for(int k = 0; k < 2; k++)
     {
         m_buttons.emplace_back();
-        m_buttons.back().action_id = k > 0;
+        m_buttons.back().action_id = btn_wx_id[k];
         m_buttons.back().is_down = false;
         m_buttons.back().is_hover = false;
         m_buttons.back().panel = new wxPanel(form,wxID_ANY,wxPoint(btn_x_list[k],btn_y_pos),wxSize(btn_glyph->x_size,btn_glyph->y_size),wxBG_STYLE_PAINT);
@@ -84,8 +85,6 @@ FormMapOptions::FormMapOptions(wxPanel* parent,wxWindowID win_id,SpellMap* spell
     form->Bind(wxEVT_LEFT_DOWN,&FormMapOptions::OnWinClick,this,win_id);
     form->Bind(wxEVT_LEFT_UP,&FormMapOptions::OnWinClick,this,win_id);
     form->Bind(wxEVT_MOTION,&FormMapOptions::OnWinMouseMove,this,win_id);
-
-    m_saves = 4;
         
 }
 
@@ -172,7 +171,7 @@ void FormMapOptions::OnPaintTab(wxPaintEvent& event)
     m_spelldata->font->Render(buf,&buf[x_size*y_size],x_size,102,36,82,16,"Other Side",229,254,SpellFont::DIAG3);
 
     // render saves count 88,287  24,18
-    string str_saves = string_format("%d",m_saves);
+    string str_saves = string_format("%d",m_spell_map->saves->canSave());
     m_spelldata->font->Render(buf,&buf[x_size*y_size],x_size, 89,287, 24,18, str_saves,253,254,SpellFont::DIAG);
 
     // render gamma correcion label pos=32,113 sz=132,16
@@ -347,12 +346,17 @@ void FormMapOptions::OnButtonClick(wxMouseEvent& event)
     }
     else if(event.GetEventType() == wxEVT_LEFT_DOWN)
     {
-        btn_rec->is_down = true;
+        btn_rec->is_down = true;             
+
+        if(btn_rec->action_id == wxID_BTN_SAVE && m_spell_map->saves->canSave())
+            m_spell_map->saves->Save();
+        else if(btn_rec->action_id == wxID_BTN_LOAD && m_spell_map->saves->canLoad())
+        {
+            m_spell_map->saves->Load();
+            form->Close();
+        }
+
         
-        if(btn_rec->action_id)
-            m_saves++;
-        else
-            m_saves--;
     }
     btn->Refresh();
 }

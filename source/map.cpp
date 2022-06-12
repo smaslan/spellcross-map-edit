@@ -395,12 +395,28 @@ SpellMap::SpellMap()
 	sound_loops = NULL;
 
 	events = NULL;
+
+	saves = NULL;
 }
 
 SpellMap::~SpellMap()
 {
 	// cleanup heap allocated stuff
 	Close();
+}
+
+// lock map access
+int SpellMap::LockMap()
+{
+	map_lock.lock();
+	return(0);
+}
+
+// release map access
+int SpellMap::ReleaseMap()
+{
+	map_lock.unlock();
+	return(0);
 }
 
 // switch game mode
@@ -494,6 +510,10 @@ void SpellMap::Close()
 		delete sound_loops;
 	sound_loops = NULL;
 	sounds.clear();
+
+	if(saves)
+		delete saves;
+	saves = NULL;
 	
 	// reset gamma to make correctio recalculation
 	last_gamma = 0.0;
@@ -528,6 +548,9 @@ int SpellMap::Create(SpellData* spelldata, const char *terr_name, int x, int y)
 	// create events
 	events = new SpellMapEvents(this);
 
+	// make save slots
+	saves = new Saves(this);
+
 	// generate plain map
 	for(int k = 0; k < (x_size * y_size); k++)
 	{		
@@ -553,7 +576,7 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 {		
 	// loose old map data
 	Close();
-	
+		
 	// default map file
 	wstring map_path = path;
 
@@ -975,6 +998,9 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 
 	// create events list
 	events = new SpellMapEvents(this);
+
+	// make save slots
+	saves = new Saves(this);
 
 	//////////////////////////
 	///// Load DEF stuff /////
@@ -1943,6 +1969,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 
 	// lock stuff while rendering
 	FindUnitRangeLock(true);
+	LockMap();
 	
 	// --- Render Layer 1 - ground sprites ---
 	for (m = 0; m < ys_size; m++)
@@ -2634,6 +2661,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 
 	// unlock stuff while rendering
 	FindUnitRangeLock(false);
+	ReleaseMap();
 	
 	
 	// --- translate indexed image buffer to RGB bitmap scanline by scanline:
@@ -3190,10 +3218,10 @@ int SpellMap::MoveUnit(MapXY target)
 		return(1);
 
 	// clear last move
-	unit_action_lock.lock();
+	LockMap();
 	unit->move_state = MapUnit::MOVE_STATE::IDLE;
 	unit->move_nodes.clear();
-	unit_action_lock.unlock();
+	ReleaseMap();
 	
 	//  check target
 	if(!target.IsSelected())
@@ -3207,7 +3235,7 @@ int SpellMap::MoveUnit(MapXY target)
 	// find path
 	auto path = FindUnitPath(unit, target);
 	
-	unit_action_lock.lock();
+	LockMap();
 
 	// build path
 	for(int nid = 1; nid < path.size(); nid++)
@@ -3223,7 +3251,7 @@ int SpellMap::MoveUnit(MapXY target)
 		unit->ResetTurnsCounter();
 	}
 
-	unit_action_lock.unlock();
+	ReleaseMap();
 		
 	return(0);
 }
@@ -5176,11 +5204,14 @@ int SpellMap::Tick()
 	if(!unit)
 		return(0);
 
+	
+	LockMap();
+
 	if(unit->move_state != MapUnit::MOVE_STATE::IDLE)
 	{			
 		// === UNIT MOVEMENT ===
 
-		unit_action_lock.lock();
+		//unit_action_lock.lock();
 
 		if(unit->unit->usingTeleportMove())
 		{
@@ -5405,7 +5436,7 @@ int SpellMap::Tick()
 			update = true;
 		}
 
-		unit_action_lock.unlock();
+		//unit_action_lock.unlock();
 
 		
 	}
@@ -5622,7 +5653,6 @@ int SpellMap::Tick()
 					// being hit PNM for map tile target
 					target_obj->hit_pnm = hit_pnm;
 					target_obj->hit_pnm_frame = 0;
-					target->attack_state = MapUnit::ATTACK_STATE::HIT;
 				}
 				else
 				{
@@ -6026,6 +6056,8 @@ int SpellMap::Tick()
 	// try process pending events
 	ProcEventsList(event_list);
 
+	ReleaseMap();
+
 	// repaint
 	return(update);
 }
@@ -6037,6 +6069,25 @@ void SpellMap::SetMessageInterface(SpellMessageCraeteFunPtr create_msg,SpellMess
 	m_msg_checker = msg_checker;
 }
 
+
+// get unit by its id
+MapUnit* SpellMap::GetUnit(int id)
+{
+	for(auto& unit : units)
+		if(unit->id == id)
+			return(unit);
+	return(NULL);
+}
+
+// remove all units
+int SpellMap::RemoveAllUnits()
+{
+	for(auto & unit : units)
+		delete unit;
+	units.clear();
+	unit_selection = NULL;
+	return(0);
+}
 
 // removes unit from map list (used e.g. for kamikaze attacks)
 int SpellMap::RemoveUnit(MapUnit* unit)
@@ -6445,8 +6496,210 @@ int SpellMap::UpdateEventUnit(SpellMapEventRec* evt,MapUnit* unit)
 // ----------------------------------------------------------------------------
 // Map State Save
 // ----------------------------------------------------------------------------
-//Saves(SpellMap* parent);
+SpellMap::SavedState::SavedState()
+{	
+	events = NULL;
+	sel_unit = NULL;
+}
+SpellMap::SavedState::~SavedState()
+{
+	for(auto& unit : units)
+		delete unit;
+	units.clear();
+	units_view.clear();
+	tiles.clear();
+	if(events)
+	{
+		events->ClearEvents();
+		delete events;
+		events = NULL;
+	}
+}
+// get unit by its id
+MapUnit* SpellMap::SavedState::GetUnit(int id)
+{
+	for(auto& unit : units)
+		if(unit->id == id)
+			return(unit);
+	return(NULL);
+}
 
+SpellMap::Saves::Saves(SpellMap* parent)
+{
+	map = parent;
+	max_saves = 0;
+}
+SpellMap::Saves::~Saves()
+{
+}
+// clear saves, set saves count
+int SpellMap::Saves::Clear(int count)
+{	
+	saves.clear();
+	max_saves = count;	
+	return(0);
+}
+// how many times can we save?
+int SpellMap::Saves::canSave()
+{
+	return(max_saves - saves.size());
+}
+// can load state?
+int SpellMap::Saves::canLoad()
+{
+	return(!saves.empty());
+}
+
+// save state to list
+int SpellMap::Saves::Save(SpellMap::SavedState *slot)
+{	
+	SpellMap::SavedState *save = slot;
+	if(!save)
+	{
+		// add save slot if not provided explicitely
+		saves.emplace_back();
+		save = &saves.back();
+	}
+
+	map->LockMap();
+
+	// copy destructible tiles
+	save->tiles = map->tiles;
+
+	// make blank copy of units (no linking to events)
+	save->sel_unit = NULL;
+	for(auto & unit : map->units)
+	{		
+		MapUnit *copy = new MapUnit(*unit, false);		
+		save->units.push_back(copy);
+		// store selected unit
+		if(map->GetSelectedUnit() == unit)
+			save->sel_unit = copy;
+	}
+			
+	// make blank copy of events
+	save->events = new SpellMapEvents(map);
+	for(auto& evt : map->events->GetEvents())
+		save->events->AddEvent(new SpellMapEventRec(evt));
+
+	// relink inter-units links and links units-events
+	for(int uid = 0; uid < map->units.size(); uid++)
+	{
+		MapUnit *orig = map->units[uid];
+		MapUnit *copy = save->units[uid];
+
+		// relink parent/child unit to new list
+		if(orig->parent)
+			copy->parent = save->GetUnit(orig->parent->id);
+		if(orig->child)
+			copy->child = save->GetUnit(orig->child->id);
+		
+		// relink events links to new events list
+		if(orig->map_event)
+			copy->map_event = save->events->GetEvent(map->events->GetEventID(orig->map_event));
+	}
+
+	// save units view
+	save->units_view = map->units_view;
+
+	map->ReleaseMap();
+
+	return(0);
+}
+
+// load save position (by default last one)
+int SpellMap::Saves::LoadByID(int index)
+{
+	// select save slot
+	int save_id = saves.size()-1;
+	if(index >= 0)
+		save_id = index;
+	if(save_id < 0 || save_id >= saves.size())
+		return(1); // out of range
+	SpellMap::SavedState *save = &saves[save_id];
+	
+	// load slot 
+	return(Load(save));
+}
+// load saved position from explicit slot (by default last one)
+int SpellMap::Saves::Load(SpellMap::SavedState* save)
+{
+	if(!save)
+	{
+		// get last save slot of not provided
+		if(canLoad())
+			save = &saves.back();
+		else
+			return(1);
+	}
+
+	map->LockMap();
+		
+	// replace tiles
+	map->tiles = save->tiles;
+	
+	// replace events	
+	map->events->ClearEvents();
+	for(auto& evt : save->events->GetEvents())
+		map->events->AddEvent(new SpellMapEventRec(evt));
+
+	// replace units
+	map->RemoveAllUnits();
+	for(auto& unit : save->units)
+	{
+		MapUnit* copy = new MapUnit(*unit,false);
+		map->AddUnit(copy);
+		if(unit == save->sel_unit)
+			map->SelectUnit(copy);
+	}
+
+	// relink inter-units links and links units-events
+	for(int uid = 0; uid < save->units.size(); uid++)
+	{
+		MapUnit* copy = map->units[uid];
+		MapUnit* orig = save->units[uid];
+
+		// relink parent/child unit to new list
+		if(orig->parent)
+			copy->parent = map->GetUnit(orig->parent->id);
+		if(orig->child)
+			copy->child = map->GetUnit(orig->child->id);
+
+		// relink events links to new events list
+		if(orig->map_event)
+			copy->map_event = map->events->GetEvent(save->events->GetEventID(orig->map_event));
+	}
+
+	// deselect event
+	map->SelectEvent(NULL);
+
+	// relink event units
+	map->events->RelinkUnits();
+
+	// resort units to tiles
+	map->SortUnits();
+
+	// update units view
+	map->units_view = save->units_view;
+	map->units_view_mem = save->units_view;
+	map->PrepareUnitsViewMask();
+	
+	map->ReleaseMap();
+	
+	return(0);
+}
+
+// save initial state (used when entering game mode)
+int SpellMap::Saves::SaveInitial()
+{
+	return(Save(&initial));
+}
+
+// restore initial state (used when leaving game mode)
+int SpellMap::Saves::LoadInitial()
+{
+	return(Load(&initial));
+}
 
 
 

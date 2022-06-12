@@ -144,11 +144,13 @@ public:
     int AddSpecialEvent(SpellData* data, SpellDEF* def, SpellDefCmd* cmd);
     int AddMissionObjective(SpellData* data,SpellDEF* def,SpellDefCmd* cmd);
     SpellMapEventRec* AddEvent(SpellMapEventRec *event);
-    SpellMapEventRec* RemoveEvent(SpellMapEventRec* event);
+    SpellMapEventRec* ExtractEvent(SpellMapEventRec* event);
     int EraseEvent(SpellMapEventRec* event);
     void ClearEvents();
+    int RelinkUnits(vector<MapUnit*>* map_units=NULL);
     void ResetEvents();
-    SpellMapEventRec* GetEvent(MapXY pos);
+    SpellMapEventRec* GetEvent(int index);
+    SpellMapEventRec* GetEvent(MapXY pos);    
     int CheckEvent(MapXY pos);
     int CheckEvent(int pos);
     SpellMapEventsList GetEvents(MapXY pos,bool clear=false);
@@ -158,4 +160,5 @@ public:
     int AddMissionStartUnit(MapUnit *unit, int probab=100);
     SpellMapEventRec* AddSeeUnitEvent(MapUnit* unit,int probab=100);
     int ObjectivesDone();
+    int GetEventID(SpellMapEventRec * target);
 };

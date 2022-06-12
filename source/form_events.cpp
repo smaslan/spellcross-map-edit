@@ -441,7 +441,7 @@ void FormEvent::OnRemoveEventClick(wxCommandEvent& event)
 	
 	// try remove event from map events list
 	auto evt = (SpellMapEventRec*)lbEvents->GetClientData(sel_id);
-	auto rem_evt = spell_map->events->RemoveEvent(evt);
+	auto rem_evt = spell_map->events->ExtractEvent(evt);
 	if(rem_evt)
 		delete rem_evt;
 

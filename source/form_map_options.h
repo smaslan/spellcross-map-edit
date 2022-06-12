@@ -36,8 +36,6 @@ private:
     vector<FormMapOptionsBtn> m_buttons;
     vector<string> m_labels;
 
-    int m_saves;
-
     wxPoint m_click_pos;
     int m_in_move;
     int m_was_moved;
@@ -59,7 +57,9 @@ private:
     {
         wxID_SCROLL_GAMMA = 1000,
         wxID_SCROLL_MUSIC,
-        wxID_SCROLL_SOUND
+        wxID_SCROLL_SOUND,
+        wxID_BTN_SAVE,
+        wxID_BTN_LOAD
     };
 
 };

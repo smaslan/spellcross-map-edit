@@ -30,6 +30,8 @@ SpellMapEventRec::SpellMapEventRec(SpellMapEventRec* rec)
 		unit.unit = new MapUnit(*unit.unit);
 		unit.unit->map_event = this;
 	}
+	// unlink triggering unit
+	trig_unit = NULL;
 }
 SpellMapEventRec::~SpellMapEventRec()
 {
@@ -235,7 +237,7 @@ SpellMapEventRec* SpellMapEvents::AddEvent(SpellMapEventRec* event)
 }
 
 // remove event (returns original object, user deletes it!)
-SpellMapEventRec* SpellMapEvents::RemoveEvent(SpellMapEventRec* event)
+SpellMapEventRec* SpellMapEvents::ExtractEvent(SpellMapEventRec* event)
 {	
 	auto id = find(events.begin(), events.end(), event);
 	if(id == events.end())
@@ -249,7 +251,7 @@ SpellMapEventRec* SpellMapEvents::RemoveEvent(SpellMapEventRec* event)
 int SpellMapEvents::EraseEvent(SpellMapEventRec* event)
 {
 	// try remove event from the list
-	auto evt = RemoveEvent(event);
+	auto evt = ExtractEvent(event);
 	if(!evt)
 		return(1);
 
@@ -599,16 +601,29 @@ void SpellMapEvents::ResetEvents()
 		}
 	}
 
-	// make list of all existing units (map units and events' units)
-	vector<MapUnit*> units_list = map->units;
+	// make link to trigger units
+	RelinkUnits();
+}
+
+// build links to particular units
+int SpellMapEvents::RelinkUnits(vector<MapUnit*> *map_units)
+{
+	// take map units either from parent map (default) or from explicit list
+	vector<MapUnit*> units_list;
+	if(map_units)
+		units_list = *map_units;
+	else
+		units_list = map->units;
+		
+	// make list of all existing units (map units and events' units)	
 	for(auto& evt : events)
-		for(auto & unit : evt->units)
+		for(auto& unit : evt->units)
 			units_list.push_back(unit.unit);
-	
+
 	// make map of events
-	events_map.assign(map->x_size*map->y_size, NULL);
+	events_map.assign(map->x_size*map->y_size,NULL);
 	for(auto& evt : events)
-	{		
+	{
 		if(evt->isSeePlace())
 		{
 			// place event to map (or at the end of chain of events for the position)
@@ -619,7 +634,7 @@ void SpellMapEvents::ResetEvents()
 			}
 			else
 			{
-				SpellMapEventRec *prev = *tile;
+				SpellMapEventRec* prev = *tile;
 				while(prev)
 					prev = prev->next;
 				prev = evt;
@@ -628,15 +643,17 @@ void SpellMapEvents::ResetEvents()
 		else if(evt->hasTargetUnit())
 		{
 			// look for target unit and assign ref
-			for(auto & unit : units_list)
+			for(auto& unit : units_list)
 				if(unit->id == evt->trig_unit_id)
 				{
 					// target unit found
 					unit->trig_event = evt;
 					evt->trig_unit = unit;
-				}			
-		}		
+				}
+		}
 	}
+	
+	return(0);
 }
 
 
@@ -645,6 +662,14 @@ void SpellMapEvents::ResetEvents()
 SpellMapEventRec* SpellMapEvents::GetEvent(MapXY pos)
 {
 	return(*EventMap(pos));
+}
+
+// get event by list order index
+SpellMapEventRec* SpellMapEvents::GetEvent(int index)
+{
+	if(index < 0 || index >= events.size())
+		return(NULL);
+	return(events[index]);
 }
 
 // fast check if there is some undone event at the position
@@ -763,4 +788,13 @@ int SpellMapEvents::ObjectivesDone()
 		if(evt->is_objective && !evt->isDone())
 			return(false);
 	return(true);
+}
+
+// get event order ID by pointer
+int SpellMapEvents::GetEventID(SpellMapEventRec* target)
+{
+	for(int k = 0; k < events.size(); k++)
+		if(events[k] == target)
+			return(k);
+	return(-1);
 }

@@ -423,14 +423,18 @@ void MyFrame::OnSwitchGameMode(wxCommandEvent& event)
         ribbonBar->HidePanels();        
         menuView->FindItem(ID_ViewSoundLoops)->Check(false);
         menuView->FindItem(ID_ViewSounds)->Check(false);
-        OnViewLayer(event);        
+        OnViewLayer(event);
+
         // exec initial events
+        spell_map->saves->Clear();
         spell_map->events->ResetEvents();
+        spell_map->saves->SaveInitial();
         spell_map->MissionStartEvent();
     }
     else
     {
         // switch to editor mode
+        spell_map->saves->LoadInitial();
         spell_map->ResetUnitEvents();
     }
 }
