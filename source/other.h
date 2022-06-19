@@ -39,7 +39,7 @@ void apply_gamma(uint8_t* pal,double gamma);
 int mod(int x,int y);
 double rand(double min,double max);
 double randexp(double pow,double limit=1e9);
-double randgman(double shape,double scale,double limit=1e9);
+double randgman(double shape,double scale,double max=1e9,double min=0);
 
 
 /*template <class charT,class Traits>

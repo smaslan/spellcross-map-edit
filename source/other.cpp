@@ -310,8 +310,8 @@ double randexp(double pow,double limit)
     return(num);    
 }
 
-// generate gamma distribution number normalized, so maximum PDF is 1.0, with optional maximum output limit
-double randgman(double shape,double scale,double limit)
+// generate gamma distribution number normalized, so maximum PDF is 1.0, with optional maximum output limits
+double randgman(double shape,double scale,double max, double min)
 {
     static std::default_random_engine re((unsigned)std::chrono::system_clock::now().time_since_epoch().count());
     std::gamma_distribution<double> distribution(shape,scale);
@@ -323,7 +323,7 @@ double randgman(double shape,double scale,double limit)
     double num;
     do {
         num = distribution(re)*imode;
-    } while(num > limit && limit > 1e-3);
+    } while(num > max || num < min);
 
     return(num);
 }

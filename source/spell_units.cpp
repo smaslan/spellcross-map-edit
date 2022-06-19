@@ -321,10 +321,12 @@ SpellUnits::SpellUnits(uint8_t* data, int dlen, FSUarchive *fsu, SpellGraphics *
 		unit->ssel = rdu8(rec + 0xC5);
 
 		// unit min rank points
-		unit->ramin = rdu32(rec + 0xC6);
-
-		// unit max rank points
-		unit->ramax = rdu32(rec + 0xCA);
+		unit->exp_min = rdu32(rec + 0xC6);
+		// unit max rank points x200
+		unit->exp_max = rdu32(rec + 0xCA);
+		// precalculate experience points limits
+		for(int e = 0; e < 12; e++)
+			unit->exp_limits[e] = unit->CalcExperiencePts(e);
 
 		// --- assign FSU resources:
 		if(fsu)
@@ -471,6 +473,27 @@ int SpellUnitRec::hasFireAttack()
 int SpellUnitRec::isSingleMan()
 {
 	return(cnt == 1);
+}
+// calculate base experience points for given exp. level 1-12 (use for precalculation only)
+int SpellUnitRec::CalcExperiencePts(int level)
+{
+	// very crude approximation of strange Spellcross experience boundaries
+	// note: it's not accurate, but decently close...
+	double a = (double)exp_min;
+	double b = log(200.0*exp_max/exp_min)/log(12);
+	level = min(max(level,0),11);
+	int points = (int)(a*pow((double)level,b));
+	return(points);
+}
+// get base experience points for given exp. level 1-12
+int SpellUnitRec::GetExperiencePts(int level)
+{
+	return(exp_limits[min(max(level-1,0),11)]);
+}
+// get base experience points for next of given exp. level 1-12
+int SpellUnitRec::GetNextExperiencePts(int level)
+{
+	return(exp_limits[min(max(level,0),11)]);
 }
 
 // uses projectile when shooting to target unit (or NULL to object)?
@@ -935,7 +958,8 @@ MapUnit::MapUnit()
 	// position
 	coor = MapXY();
 	// experience
-	experience = 1;
+	experience = 0;
+	experience_level = 1;
 	// man count
 	man = 1;
 	// unit type/behaviour
@@ -1145,7 +1169,7 @@ int MapUnit::GetMaxAP()
 	int ap = unit->ap;
 
 	// experience bonuses
-	auto bonus = unit->bonuses->GetBonus(experience);
+	auto bonus = unit->bonuses->GetBonus(experience_level);
 	ap += bonus->move*unit->apw;
 
 	return(ap);
@@ -1204,7 +1228,7 @@ int MapUnit::GetMaxFireCount()
 	int basic_fires = floor(unit->ap/unit->aps);
 	
 	// add bonus
-	auto bonus = unit->bonuses->GetBonus(experience);
+	auto bonus = unit->bonuses->GetBonus(experience_level);
 	basic_fires += bonus->attack_count;
 	
 	return(basic_fires);
@@ -1225,7 +1249,7 @@ int MapUnit::UpdateFireAP()
 int MapUnit::GetWalkAP()
 {
 	int move_range = unit->apw;
-	auto bonus = unit->bonuses->GetBonus(experience);
+	auto bonus = unit->bonuses->GetBonus(experience_level);
 	move_range += bonus->move;	
 	return(GetMaxAP()/(move_range-1));
 }
@@ -1250,6 +1274,22 @@ int MapUnit::CanSpecAction()
 		return(false);
 	return(action_points >= unit->action_ap);
 }
+
+// initialize experience when unit is created
+int MapUnit::InitExperience(int level)
+{
+	// set experience level
+	experience_level = min(max(level,1),12);
+	
+	// generate random experience points based on level
+	// note: crude approximation of Spellcross, it seems actual experience is always somewhere around 20% of current level
+	int lev_a = unit->GetExperiencePts(level);
+	int lev_b = unit->GetNextExperiencePts(level);
+	experience = lev_a + (10 + rand()%11)*(lev_b - lev_a)/100;
+
+	return(experience);
+}
+
 
 int MapUnit::Render(Terrain* data,uint8_t* buffer,uint8_t* buf_end,int buf_x_pos,int buf_y_pos,int buf_x_size,uint8_t *filter,uint8_t* hud_filter,Sprite* sprt,int show_hud)
 {
@@ -1571,21 +1611,34 @@ int MapUnit::PlayAction()
 // get attack strength to target unit (or NULL to object)
 int MapUnit::GetAttack(MapUnit *target)
 {
+	TARGET_TYPE type = TARGET_TYPE::NONE;
+	if(!target)
+		type = TARGET_TYPE::OBJECT;
+	else if(target->unit->isLight())
+		type = TARGET_TYPE::LIGHT;
+	else if(target->unit->isArmored())
+		type = TARGET_TYPE::ARMOR;
+	else if(target->unit->isAir())
+		type = TARGET_TYPE::AIR;
+	return(GetAttack(type));
+}
+int MapUnit::GetAttack(MapUnit::TARGET_TYPE target)
+{
 	// get basic attack
 	int attack = 0;
-	if(!target)
+	if(target == TARGET_TYPE::OBJECT)
 		attack = unit->attack_objects;
-	else if(target->unit->isLight())
+	else if(target == TARGET_TYPE::LIGHT)
 		attack = unit->attack_light;
-	else if(target->unit->isArmored())
+	else if(target == TARGET_TYPE::ARMOR)
 		attack = unit->attack_armored;
-	else if(target->unit->isAir())
+	else if(target == TARGET_TYPE::AIR)
 		attack = unit->attack_air;
 	if(!attack)
 		return(attack);
 	
 	// add bonuses
-	auto bonus = unit->bonuses->GetBonus(experience);
+	auto bonus = unit->bonuses->GetBonus(experience_level);
 	attack += bonus->attack;
 		
 	return(attack);
@@ -1600,7 +1653,7 @@ int MapUnit::GetDefence()
 		return(defence);
 	
 	// add bonuses
-	defence += unit->bonuses->GetBonus(experience)->defence;
+	defence += unit->bonuses->GetBonus(experience_level)->defence;
 	return(defence);
 }
 
@@ -1643,7 +1696,13 @@ MapUnit::AttackResult MapUnit::DamageTarget(MapUnit* target)
 	ResetTurnsCounter();
 
 	// attack strength
-	double attack = GetAttack();
+	double attack = GetAttack(target);
+	
+	// reduce attack by man state of unit
+	if(target->unit->isSingleMan())
+		attack *= (double)(unit->GetHP() - wounded)/unit->GetHP();
+	else
+		attack *= (double)man/unit->GetHP();
 
 	// target defence
 	double defence = target->GetDefence();
@@ -1664,33 +1723,29 @@ MapUnit::AttackResult MapUnit::DamageTarget(MapUnit* target)
 	// bonus of fire sensitivity
 	if(target->unit->isFireSensitive() && unit->hasFireAttack())
 		bonus *= 1.5;
+
+	double morale = max(1.0,0.1);
 	
+	// randomize attack
+	double rng_attack = randgman(3.5,2.0,3.0/morale,0.7*morale)*attack*bonus;
+
 	// damage model
-	double hit = (int)(randgman(3.0,3.0,3.0)*attack*bonus - defence);
-	if(hit < 0.0)
+	double wound = (int)(rng_attack - 0.7*defence);
+	double kill = (int)(rng_attack - defence);
+	if(wound < 0.0 && kill < 0.0)
 		return(AttackResult::Missed);
 
 	// reduce HP
 	if(target->unit->isSingleMan())
 	{
 		// for single-man unit only wounding
-		target->wounded = min(target->wounded + (int)hit, target->unit->GetHP());
+		target->wounded = min(target->wounded + (int)kill, target->unit->GetHP());
 		if(target->wounded >= target->unit->GetHP())
 			target->man = 0;
 	}
 	else
 	{
 		// for multi-man units
-		
-		// calculate kill/wound ratio
-		double prob = 0.0;
-		for(int k = 0; k < 1000; k++)
-			prob += 1.0*(randgman(3.0,2.0,5.0)*hit > defence);
-		prob /= 1000.0;
-
-		// to kill/wound
-		double kill = prob*hit;
-		double wound = (1.0 - prob)*hit;
 
 		// killed some
 		target->wounded = target->wounded - (int)(0.5*kill);
@@ -1720,7 +1775,7 @@ int MapUnit::isDead()
 	return(!man);
 }
 
-// kill unit (exec linked events, then delete the object, so no touchy afterwards and Extract() from units list before calling!)
+// kill unit (exec linked events, then delete the object, so no touchy afterwards and call Extract() from units list before calling this!)
 SpellMapEventRec *MapUnit::Kill()
 {
 	SpellMapEventRec *evt = NULL;

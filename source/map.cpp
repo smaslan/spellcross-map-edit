@@ -1019,7 +1019,7 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 				// --- AddStartSquare(s) ---				
 				for (int p = 0; p < cmd->parameters->size(); p++)
 				{					
-					int xy = atoi((*cmd->parameters)[p].c_str());
+					int xy = stoi(cmd->parameters->at(p));
 					MapXY coor;				
 					coor.y = (xy / x_size);
 					coor.x = xy - coor.y * x_size;
@@ -1031,7 +1031,7 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 				// --- AddStartSquare(s) ---				
 				for (int p = 0; p < cmd->parameters->size(); p++)
 				{
-					int xy = atoi((*cmd->parameters)[p].c_str());
+					int xy = stoi(cmd->parameters->at(p));
 					MapXY coor;
 					coor.y = (xy / x_size);
 					coor.x = xy - coor.y * x_size;
@@ -1047,37 +1047,37 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 				unit->is_enemy = 1;
 
 				// unit index within map (identifier)
-				unit->id = atoi((*cmd->parameters)[0].c_str());
+				unit->id = stoi(cmd->parameters->at(0));
 
 				// unit type index
-				unit->type_id = atoi((*cmd->parameters)[1].c_str());
-								
-				// position
-				int xy = atoi((*cmd->parameters)[2].c_str());				
-				unit->coor.y = (xy / x_size);
-				unit->coor.x = xy - unit->coor.y * x_size;
-
-				// experience
-				unit->experience = atoi((*cmd->parameters)[3].c_str());
-
-				// man count
-				unit->man = atoi((*cmd->parameters)[4].c_str());
-
-				// unit behaviour type
-				unit->type = (*cmd->parameters)[5].c_str();				
-
-				// unit active (to change in game mode)
-				unit->is_active = 1;
-
+				unit->type_id = stoi(cmd->parameters->at(1));
+				
 				// try fetch unit record from spelldata
-				unit->unit = spelldata->units->GetUnit(unit->type_id);				
-				if (!unit->unit)
+				unit->unit = spelldata->units->GetUnit(unit->type_id);
+				if(!unit->unit)
 				{
 					delete mission_data;
 					delete unit;
 					return(1);
 				}
 
+				// position
+				int xy = stoi(cmd->parameters->at(2));
+				unit->coor.y = (xy / x_size);
+				unit->coor.x = xy - unit->coor.y * x_size;
+
+				// experience
+				unit->InitExperience(stoi(cmd->parameters->at(3)));
+
+				// man count
+				unit->man = stoi(cmd->parameters->at(4));
+
+				// unit behaviour type
+				unit->type = cmd->parameters->at(5).c_str();
+
+				// unit active (to change in game mode)
+				unit->is_active = 1;
+				
 				// copy unit name
 				strcpy_s(unit->name,sizeof(unit->name),unit->unit->name);
 				auto & custom_name = cmd->parameters->at(6);
@@ -3659,25 +3659,25 @@ int SpellMap::RenderHUD(uint8_t *buf,uint8_t* buf_end,int buf_x_size,MapXY *curs
 		font->Render(buf,buf_end,buf_x_size,hud_left+px_ref+204,hud_top+61,string_format("%02d",men_wound),216,254,SpellFont::RIGHT_DOWN);
 
 		// pos a: 109,83
-		int attack_light = unit->unit->attack_light;
+		int attack_light = unit->GetAttack(MapUnit::TARGET_TYPE::LIGHT);
 		font->Render(buf,buf_end,buf_x_size,hud_left+px_ref+109,hud_top+83,string_format("%02d",attack_light),232,254,SpellFont::RIGHT_DOWN);
 		if(pid == 0 && cursor_unit && cursor_unit->unit->isLight())
 			RenderHUDrect(buf, buf_end, buf_x_size,hud_left+px_ref+109-11,hud_top+83,27,15,253);
 
 		// pos a: 145,83
-		int attack_heavy = unit->unit->attack_armored;
+		int attack_heavy = unit->GetAttack(MapUnit::TARGET_TYPE::ARMOR);
 		font->Render(buf,buf_end,buf_x_size,hud_left+px_ref+145,hud_top+83,string_format("%02d",attack_heavy),232,254,SpellFont::RIGHT_DOWN);
 		if(pid == 0 && cursor_unit && cursor_unit->unit->isArmored())
 			RenderHUDrect(buf,buf_end,buf_x_size,hud_left+px_ref+145-20,hud_top+83,37,15,253);
 
 		// pos a: 181,83
-		int attack_air = unit->unit->attack_air;
+		int attack_air = unit->GetAttack(MapUnit::TARGET_TYPE::AIR);
 		font->Render(buf,buf_end,buf_x_size,hud_left+px_ref+181,hud_top+83,string_format("%02d",attack_air),232,254,SpellFont::RIGHT_DOWN);
 		if(pid == 0 && cursor_unit && cursor_unit->unit->isAir())
 			RenderHUDrect(buf,buf_end,buf_x_size,hud_left+px_ref+181-20,hud_top+83,36,15,253);
 
 		// pos a: 216,83
-		int defense = unit->unit->defence;
+		int defense = unit->GetDefence();
 		font->Render(buf,buf_end,buf_x_size,hud_left+px_ref+216,hud_top+83,string_format("%02d",defense),232,254,SpellFont::RIGHT_DOWN);
 		if(pid == 1 && cursor_unit)
 			RenderHUDrect(buf,buf_end,buf_x_size,hud_left+px_ref+216-14,hud_top+83,31,15,253);
@@ -3696,15 +3696,21 @@ int SpellMap::RenderHUD(uint8_t *buf,uint8_t* buf_end,int buf_x_size,MapXY *curs
 
 		// render unit experience
 		// pos A: 5,77  size: 51,2
-		int skill_fraction_pix = rand()%52;
+		int skill_fraction_pix = 0;
+		if(unit->experience_level > 0 && unit->experience_level < 12)
+		{
+			int skill_frac_base = unit->unit->GetExperiencePts(unit->experience_level);
+			int skill_frac_next = unit->unit->GetNextExperiencePts(unit->experience_level);
+			skill_fraction_pix = 51*(unit->experience - skill_frac_base)/(skill_frac_next - skill_frac_base);
+		}
 		for(int y = 0; y < 2; y++)
-			memset(&buf[hud_left+ix_ref+5 + (hud_top+y+77)*buf_x_size],235,skill_fraction_pix);
+			memset(&buf[hud_left+ix_ref+5 + (hud_top+y+77)*buf_x_size],235,min(max(skill_fraction_pix,1),51));
 		
 		const struct { int x; int y; } exp_mark[2][12] = {{	{1,81},{11,81},{21,81},{31,81},{41,81},{51,81},
 															{1,90},{11,90},{21,90},{31,90},{41,90},{51,90}},
 														 {	{580,81},{590,81},{600,81},{610,81},{620,81},{630,81},
 															{580,90},{590,90},{600,90},{610,90},{620,90},{630,90}}};
-		int skill_level = rand()%13;
+		int skill_level = unit->experience_level;
 		for(int k = 0; k < skill_level; k++)
 			gres.wm_exp_mark->Render(buf,buf_end,buf_x_size,hud_left+exp_mark[pid][k].x,hud_top+exp_mark[pid][k].y);
 
@@ -5994,7 +6000,21 @@ int SpellMap::Tick()
 				// unmark target unit
 				unit->attack_target->is_target = false;					
 
-				// todo: apply damage to target
+				// apply damage to target
+				MapUnit::AttackResult hit = MapUnit::AttackResult::Hit;
+				hit = unit->DamageTarget(unit->attack_target);
+
+				// play hit sound
+				unit->PlayHit(unit->attack_target,hit != MapUnit::AttackResult::Missed);
+
+				// play target hit sound if applicable
+				if(hit == MapUnit::AttackResult::Hit)
+					unit->attack_target->PlayBeingHit();
+				else if(hit == MapUnit::AttackResult::Kill)
+					unit->attack_target->PlayDie();
+				
+				// process dammage to target
+				unit->attack_state = MapUnit::ATTACK_STATE::DIE_INIT;
 			}
 
 			if(!unit->attack_target->attack_hit_pnm && unit->AreSoundsDone())

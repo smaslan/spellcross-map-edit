@@ -93,8 +93,9 @@ class SpellUnitRec
 		int dig_turns;
 
 		// rank
-		int ramin;
-		int ramax;
+		int exp_min;
+		int exp_max;
+		int exp_limits[12];
 
 		// sound classes
 		int smov;
@@ -209,7 +210,10 @@ class SpellUnitRec
 		int isFireSensitive();
 		int isFireHealed();
 		int hasFireAttack();
-		int isSingleMan();
+		int isSingleMan();		
+		int CalcExperiencePts(int level=1);
+		int GetExperiencePts(int level=1);
+		int GetNextExperiencePts(int level=1);
 
 		int canAttack(SpellUnitRec* target);
 		int canAttackObject();
@@ -242,7 +246,7 @@ class SpellUnitRec
 			EXPLODE = 2
 		};
 
-private:
+private:	
 
 	// special actions
 	static constexpr int SPEC_ACT_TOGGLE_RADAR = 1; // 1  - enable/disable radar (par3-radar indirect sight range)
@@ -403,6 +407,16 @@ public:
 		TELEPORT_IN,
 		TELEPORT_OUT
 	};
+
+	// type of attack target
+	enum class TARGET_TYPE
+	{
+		NONE = 0,
+		LIGHT,
+		ARMOR,
+		AIR,
+		OBJECT
+	};
 	
 	// unit idnetifier index within map
 	int id;
@@ -412,7 +426,8 @@ public:
 	// position
 	MapXY coor;
 	// experience
-	int experience;
+	int experience; // discrete experience (big number)
+	int experience_level; // level 1 to 12
 	// man count (health)
 	int man;
 	int wounded;
@@ -531,6 +546,7 @@ public:
 		Kill
 	};
 
+	int GetAttack(TARGET_TYPE type);
 	int GetAttack(MapUnit* target=NULL);
 	int GetDefence();
 	AttackResult DamageTarget(MapSprite* target);
@@ -563,6 +579,6 @@ public:
 	void ResetTurnsCounter();
 	void IncrementTurnsCounter();
 	void ActivateUnit();
-	int isActive();
-
+	int isActive();	
+	int InitExperience(int level=1);
 };

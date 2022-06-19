@@ -331,7 +331,7 @@ int SpellMapEvents::AddMissionObjective(SpellData* data,SpellDEF* def,SpellDefCm
 	if(event_type == SpellMapEventRec::EvtTypes::EVT_TRANSPORT_UNIT || event_type == SpellMapEventRec::EvtTypes::EVT_SAVE_UNIT || event_type == SpellMapEventRec::EvtTypes::EVT_DESTROY_UNIT)
 	{
 		// target unit index
-		unit_index = atoi(cmd->parameters->at(1).c_str());
+		unit_index = stoi(cmd->parameters->at(1));
 
 		// objective label
 		label = char2wstringCP895(cmd->parameters->at(2).c_str());
@@ -344,7 +344,7 @@ int SpellMapEvents::AddMissionObjective(SpellData* data,SpellDEF* def,SpellDefCm
 	else if(event_type == SpellMapEventRec::EvtTypes::EVT_DESTROY_OBJ || event_type == SpellMapEventRec::EvtTypes::EVT_SEE_PLACE)
 	{
 		// event position		
-		target_position = ConvXY(atoi(cmd->parameters->at(1).c_str()));
+		target_position = ConvXY(stoi(cmd->parameters->at(1)));
 		
 		// objective label
 		label = char2wstringCP895(cmd->parameters->at(2).c_str());
@@ -380,14 +380,14 @@ int SpellMapEvents::AddSpecialEvent(SpellData *data, SpellDEF* def, SpellDefCmd*
 		event_type = SpellMapEventRec::EVT_SEE_PLACE;
 
 		// event position		
-		int xy = atoi(cmd->parameters->at(1).c_str());
+		int xy = stoi(cmd->parameters->at(1));
 		target_position = ConvXY(xy);
 		
 		// event index
-		event_data_index = atoi(cmd->parameters->at(2).c_str());
+		event_data_index = stoi(cmd->parameters->at(2));
 
 		// probability
-		event_probability = atoi(cmd->parameters->at(3).c_str());
+		event_probability = stoi(cmd->parameters->at(3));
 
 		// try find another matching event
 		evt = FindEvent(SpellMapEventRec::EVT_SEE_PLACE, event_probability, target_position);
@@ -398,10 +398,10 @@ int SpellMapEvents::AddSpecialEvent(SpellData *data, SpellDEF* def, SpellDefCmd*
 		event_type = SpellMapEventRec::EVT_MISSION_START;
 
 		// event index
-		event_data_index = atoi(cmd->parameters->at(1).c_str());
+		event_data_index = stoi(cmd->parameters->at(1));
 
 		// probability
-		event_probability = atoi(cmd->parameters->at(2).c_str());
+		event_probability = stoi(cmd->parameters->at(2));
 
 		// try find another matching event
 		evt = FindEvent(SpellMapEventRec::EVT_MISSION_START,event_probability);
@@ -412,13 +412,13 @@ int SpellMapEvents::AddSpecialEvent(SpellData *data, SpellDEF* def, SpellDefCmd*
 		event_type = SpellMapEventRec::EVT_SEE_UNIT;
 
 		// unit to see index
-		unit_index = atoi(cmd->parameters->at(1).c_str());
+		unit_index = stoi(cmd->parameters->at(1));
 
 		// event index
-		event_data_index = atoi(cmd->parameters->at(2).c_str());
+		event_data_index = stoi(cmd->parameters->at(2));
 
 		// probability
-		event_probability = atoi(cmd->parameters->at(3).c_str());
+		event_probability = stoi(cmd->parameters->at(3));
 
 		// try find another matching event
 		evt = FindEvent(SpellMapEventRec::EVT_SEE_UNIT,event_probability,unit_index);
@@ -486,23 +486,7 @@ int SpellMapEvents::AddSpecialEvent(SpellData *data, SpellDEF* def, SpellDefCmd*
 				unit->id = GetNextID();
 
 			// unit type index			
-			unit->type_id = atoi(evcmd->parameters->at(1).c_str());
-
-			// desired unit position
-			int xy = atoi(evcmd->parameters->at(2).c_str());
-			unit->coor = ConvXY(xy);
-			
-			// experience level
-			unit->experience = atoi(evcmd->parameters->at(3).c_str());
-
-			// man count (health)
-			unit->man = atoi(evcmd->parameters->at(4).c_str());
-
-			// unit active (to change in game mode)
-			unit->is_active = 0;
-
-			// store back link to event to the unit
-			unit->map_event = evt;
+			unit->type_id = stoi(evcmd->parameters->at(1));
 
 			// try fetch unit record from spelldata
 			unit->unit = data->units->GetUnit(unit->type_id);
@@ -518,6 +502,22 @@ int SpellMapEvents::AddSpecialEvent(SpellData *data, SpellDEF* def, SpellDefCmd*
 				return(1);
 			}
 
+			// desired unit position
+			int xy = stoi(evcmd->parameters->at(2));
+			unit->coor = ConvXY(xy);
+			
+			// experience level
+			unit->InitExperience(stoi(evcmd->parameters->at(3)));
+
+			// man count (health)
+			unit->man = stoi(evcmd->parameters->at(4));
+
+			// unit active (to change in game mode)
+			unit->is_active = 0;
+
+			// store back link to event to the unit
+			unit->map_event = evt;
+			
 			// copy unit name
 			strcpy_s(unit->name,sizeof(unit->name),unit->unit->name);
 			auto& custom_name = evcmd->parameters->at(5);
