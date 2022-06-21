@@ -419,7 +419,7 @@ class SpellMap
 		class Saves
 		{
 		private:
-			vector<SavedState> saves;
+			vector<SavedState*> saves;
 			SavedState initial;
 			int max_saves;
 			SpellMap *map;

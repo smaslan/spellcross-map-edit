@@ -1090,7 +1090,7 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 				unit->dig_level = 0;
 				unit->commander_id = rand()%9;
 				unit->is_commander = rand()%2;
-				unit->morale = 1 + rand()%100;
+				unit->morale = 50 + rand()%51;
 
 				// add unit to list
 				units.push_back(unit);
@@ -3717,12 +3717,12 @@ int SpellMap::RenderHUD(uint8_t *buf,uint8_t* buf_end,int buf_x_size,MapXY *curs
 		// render morale
 		// pos A: 73,82  size: 6,48
 		// pos B: 402,82  size: 6,48
-		int morale = unit->morale;
-		int morale_pix = morale*48/100;
+		double morale = unit->morale;
+		int morale_pix = (int)(morale*48/100);
 		for(int y = 0; y < morale_pix; y++)
 			memset(&buf[hud_left+px_ref+73 + (hud_top+82-y)*buf_x_size],199,6);
 		// pos a: 75,70
-		font->Render(buf,buf_end,buf_x_size,hud_left+px_ref+75,hud_top+70,string_format("%02d",morale),252,254,SpellFont::RIGHT_DOWN);
+		font->Render(buf,buf_end,buf_x_size,hud_left+px_ref+75,hud_top+70,string_format("%02.0f",morale),252,254,SpellFont::RIGHT_DOWN);
 
 		// render action points
 		// pos A: 81,70  size: 6,44
@@ -3925,7 +3925,10 @@ void SpellMap::OnHUDswitchUnitHUD()
 	InvalidateHUDbuttons();
 }
 void SpellMap::OnHUDswitchEndTurn()
-{
+{	
+	// play button sound
+	auto sound = new SpellSound(*spelldata->sounds->aux_samples.btn_end_turn);
+	sound->Play(true);
 	
 	FinishUnits();
 	ResetUnitsAP();
@@ -6551,10 +6554,15 @@ SpellMap::Saves::Saves(SpellMap* parent)
 }
 SpellMap::Saves::~Saves()
 {
+	for(auto& save : saves)
+		delete save;
+	saves.clear();
 }
 // clear saves, set saves count
 int SpellMap::Saves::Clear(int count)
 {	
+	for(auto & save : saves)
+		delete save;
 	saves.clear();
 	max_saves = count;	
 	return(0);
@@ -6577,8 +6585,8 @@ int SpellMap::Saves::Save(SpellMap::SavedState *slot)
 	if(!save)
 	{
 		// add save slot if not provided explicitely
-		saves.emplace_back();
-		save = &saves.back();
+		saves.push_back(new SpellMap::SavedState());
+		save = saves.back();
 	}
 
 	map->LockMap();
@@ -6636,7 +6644,7 @@ int SpellMap::Saves::LoadByID(int index)
 		save_id = index;
 	if(save_id < 0 || save_id >= saves.size())
 		return(1); // out of range
-	SpellMap::SavedState *save = &saves[save_id];
+	SpellMap::SavedState *save = saves[save_id];
 	
 	// load slot 
 	return(Load(save));
@@ -6648,7 +6656,7 @@ int SpellMap::Saves::Load(SpellMap::SavedState* save)
 	{
 		// get last save slot of not provided
 		if(canLoad())
-			save = &saves.back();
+			save = saves.back();
 		else
 			return(1);
 	}

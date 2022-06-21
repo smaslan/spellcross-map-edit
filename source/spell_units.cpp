@@ -393,6 +393,7 @@ SpellUnits::SpellUnits(uint8_t* data, int dlen, FSUarchive *fsu, SpellGraphics *
 			unit->sound_attack_armor = sounds->GetAttackClass(unit->sarm);
 			unit->sound_attack_air = sounds->GetAttackClass(unit->sair);			
 			unit->sound_action = sounds->GetSpecialClass(unit->snd_action_id);
+			unit->sound_level_up = sounds->aux_samples.unit_level_up;
 		}
 
 		// store BONUSES.DEF link
@@ -1289,6 +1290,28 @@ int MapUnit::InitExperience(int level)
 
 	return(experience);
 }
+// add points of experience (updates experience level)
+int MapUnit::AddExperience(int points)
+{
+	int old_level = experience_level;
+	experience = min(experience + points, unit->GetExperiencePts(12));
+	experience_level = 1;
+	while(experience >= unit->GetNextExperiencePts(experience_level))
+		experience_level++;
+	return(old_level != experience_level);
+}
+// add points of experience based on target unit killed men
+int MapUnit::AddExperience(MapUnit* target,int killed)
+{	
+	return(AddExperience((killed*max(target->experience,target->unit->GetNextExperiencePts(1)/2))/target->unit->cnt));
+}
+// update morale level with limits protection
+int MapUnit::UpdateModale(double points)
+{
+	morale = max(min(morale + points,100.0),0.0);
+	// flee level?
+	return(morale < 25.0);
+}
 
 
 int MapUnit::Render(Terrain* data,uint8_t* buffer,uint8_t* buf_end,int buf_x_pos,int buf_y_pos,int buf_x_size,uint8_t *filter,uint8_t* hud_filter,Sprite* sprt,int show_hud)
@@ -1605,6 +1628,15 @@ int MapUnit::PlayAction()
 	return(0);
 }
 
+// play level up sound
+int MapUnit::PlayLevelUp()
+{
+	auto sound = new SpellSound(*unit->sound_level_up);
+	sound->Play(true);
+	return(0);
+}
+
+
 
 // --- attack damage model stuff
 
@@ -1708,7 +1740,10 @@ MapUnit::AttackResult MapUnit::DamageTarget(MapUnit* target)
 	double defence = target->GetDefence();
 
 	// defence bonus by dig level
-	defence *= (1.0 + (double)target->dig_level*0.5);
+	defence *= (1.0 + (double)target->dig_level*0.7);
+
+	// morale penalty
+	defence *= (0.7 + target->morale*0.3);
 		
 	// reduce dig level of target
 	target->dig_level = max(target->dig_level - 1, 0);
@@ -1724,7 +1759,7 @@ MapUnit::AttackResult MapUnit::DamageTarget(MapUnit* target)
 	if(target->unit->isFireSensitive() && unit->hasFireAttack())
 		bonus *= 1.5;
 
-	double morale = max(1.0,0.1);
+	double morale = this->morale*0.01;
 	
 	// randomize attack
 	double rng_attack = randgman(3.5,2.0,3.0/morale,0.7*morale)*attack*bonus;
@@ -1734,21 +1769,31 @@ MapUnit::AttackResult MapUnit::DamageTarget(MapUnit* target)
 	double kill = (int)(rng_attack - defence);
 	if(wound < 0.0 && kill < 0.0)
 		return(AttackResult::Missed);
+	wound = max(wound,0.0);
+	kill = max(kill,0.0);
 
 	// reduce HP
+	int level_up = false;
 	if(target->unit->isSingleMan())
 	{
 		// for single-man unit only wounding
 		target->wounded = min(target->wounded + (int)kill, target->unit->GetHP());
 		if(target->wounded >= target->unit->GetHP())
+		{
 			target->man = 0;
+						
+			// get target's experience
+			level_up = AddExperience(target,1);			
+		}
 	}
 	else
 	{
 		// for multi-man units
+		int kill_ref = target->man + target->wounded;
 
-		// killed some
-		target->wounded = target->wounded - (int)(0.5*kill);
+		// kill some
+
+		target->wounded -= (int)(0.5*kill);
 		if(target->wounded < 0)
 		{
 			kill += (double)(-target->wounded);
@@ -1759,9 +1804,25 @@ MapUnit::AttackResult MapUnit::DamageTarget(MapUnit* target)
 		target->man = max(target->man - (int)kill, 0);
 				
 		// wound some
-		target->wounded = target->wounded + (int)wound;
-		target->man = max(target->man - (int)wound, 0);
+		int to_wound = min((int)wound,target->man);
+		target->man -= to_wound;
+		target->wounded += to_wound;
+		if(!target->man)
+			target->wounded = 0;
+
+		// total killed in this round
+		int men_killed = kill_ref - target->man - target->wounded;
+
+		// get target's experience
+		level_up = AddExperience(target,men_killed);
+		
+		// steal morale of target
+		target->UpdateModale(-10.0*men_killed/target->unit->cnt);
 	}
+
+	// play level up sound?
+	if(level_up)
+		PlayLevelUp();
 
 	if(!target->man)
 		return(AttackResult::Kill);

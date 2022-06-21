@@ -111,6 +111,10 @@ SpellSounds::~SpellSounds()
     if(channels)
         delete channels;
 
+    for(auto & aux : aux_sounds)
+        delete aux;
+    aux_sounds.clear();    
+
     samples.clear();
 }
 
@@ -228,6 +232,9 @@ SpellSounds::SpellSounds(wstring& fs_data_path, int count)
     delete lzw;
 
 
+    // init stream channels
+    channels = new SoundChannels(16);
+
     // load common.fs
     wstring common_fs_path = fs_data_path + L"\\common.fs";
     FSarchive* common_fs = new FSarchive(common_fs_path);
@@ -262,9 +269,79 @@ SpellSounds::SpellSounds(wstring& fs_data_path, int count)
     text = common_fs->GetFile("Z_SOUNDS.DEF");
     hit_sounds = ParseSoundClasses(text);
 
+    text = common_fs->GetFile("SAMPLES.DEF");    
+    SpellClassFile auxtable(text,";\\s*([^\\r^\\n]+)\\r?\\n?([^;]+)");    
+    for(int k = 0; k < auxtable.list.size(); k++)
+    {
+        auto aux = &auxtable.list[k];
+        if(aux->items.empty())
+            continue;
+        auto &name = aux->items[0];
+        auto *smpl = GetSample(name.c_str());
+        if(name.compare("#") != 0 && smpl)
+            aux_sounds.push_back(new SpellSound(channels,smpl));
+        else
+            aux_sounds.push_back(NULL);
+    }
+    if(aux_sounds.size() >= 44)
+    {
+        // assign shortcuts
+        vector<SpellSound **> list = {
+            NULL, /* 0 - strategy map buttons */
+            NULL, /* 1 - mission selection hover */
+            NULL, /* 2 - mission selection click  */
+            &aux_samples.turret_rotate, /* 3 - rotate turret */
+            NULL, /* 4 - big map button */
+            NULL, /* 5 - scrollbar item select */
+            NULL, /* 6 - scrollbar click */
+            NULL, /* 7 - scrollbar move */
+            NULL, /* 8 - big map attack button */
+            NULL, /* 9 - big map cancel button */
+            NULL, /* 10 - big map hierarchy part select button */
+            NULL, /* 11 - big map hierarchy save unit button */
+            NULL, /* 12 - big map hierarchy delete unit button */
+            NULL, /* 13 - big map units upgrade button */
+            NULL, /* 14 - big map units recruit button */
+            NULL, /* 15 - big map units disband button */
+            NULL, /* 16 - big map units OK button */
+            NULL, /* 17 - big map units save unit button */
+            NULL, /* 18 - big map buy button */
+            &aux_samples.btn_end_turn, /* 19 - end turn button */
+            NULL, /* 20 - big map OS attack */
+            NULL, /* 21 - big map OS attack-win */
+            NULL, /* 22 - big map OS end turn */
+            &aux_samples.oponent_fire_os, /* 23 - oponent fire OS */
+            &aux_samples.oponent_fire_aliance, /* 24 - oponent fire Aliance */
+            &aux_samples.unit_level_up, /* 25 - aliance up level */
+            NULL, /* 26 - unit info button */
+            NULL, /* 27 - tap 1 */
+            NULL, /* 28 - tap 2 */
+            NULL, /* 29 - tap 3 */
+            NULL, /* 30 - tap 4 */
+            NULL, /* 31 - button load */
+            NULL, /* 32 - button save */
+            NULL, /* 33 - button gamma */
+            NULL, /* 34 - button music volume */
+            NULL, /* 35 - button sound volume */
+            NULL, /* 36 - button change resolution */
+            NULL, /* 37 - main menu button hover */
+            NULL, /* 38 - main menu button clock */
+            NULL, /* 39 - war map button */
+            NULL, /* 40 - info button */
+            NULL, /* 41 - mission start in warmap button */
+            NULL, /* 42 - portal unit */
+            NULL /* 43 - big map end */
+        };
+        for(int k = 0; k < list.size(); k++)
+        {
+            auto **smpl = list[k];
+            if(!smpl)
+                continue;
+            *smpl = aux_sounds[k];
+        }
+    }
 
-    // init stream channels
-    channels = new SoundChannels(16);
+
 
     delete common_fs;    
 }

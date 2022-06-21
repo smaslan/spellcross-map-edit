@@ -115,6 +115,7 @@ class SpellUnitRec
 		SpellAttackSound* sound_attack_light;
 		SpellAttackSound* sound_attack_armor;
 		SpellAttackSound* sound_attack_air;
+		SpellSound* sound_level_up;
 
 		// animations/graphics
 		char info[9];
@@ -455,7 +456,7 @@ public:
 	// event created?
 	int is_event;
 	// morale level
-	int morale;
+	double morale;
 	// unit in placement (selected and moving)
 	int in_placement;
 	// unit moved flag (cleared when rendered)
@@ -539,6 +540,7 @@ public:
 	int PlayDie();
 	int PlayBeingHit();
 	int PlayAction();
+	int PlayLevelUp();
 
 	enum class AttackResult{
 		Missed = 0,
@@ -581,4 +583,7 @@ public:
 	void ActivateUnit();
 	int isActive();	
 	int InitExperience(int level=1);
+	int AddExperience(int points=0);
+	int AddExperience(MapUnit *target, int killed);
+	int UpdateModale(double points);
 };

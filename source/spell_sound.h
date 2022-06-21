@@ -143,7 +143,8 @@ private:
     vector<SpellSoundClassFile> object_sounds;
     vector<SpellSoundClassFile> spec_sounds;
     vector<SpellSoundClassFile> hit_sounds;    
-
+    vector<SpellSound*> aux_sounds;
+    
     vector<SpellSoundClassFile> ParseSoundClasses(string text);
     void ParseSoundClasses2(FSarchive* fs,const char* name,vector<SpellSoundClassFile>* cls);    
 
@@ -165,6 +166,16 @@ public:
     SpellSound* GetSpecialClass(int index);
     SpellSound* GetObjectHitClass(int index);
     SpellSound* GetObjectDestructClass(int index);
+
+    class AuxSamples{
+    public:
+        SpellSound* turret_rotate;
+        SpellSound* btn_end_turn;
+        SpellSound* oponent_fire_aliance;
+        SpellSound* oponent_fire_os;
+        SpellSound* unit_level_up;
+    };
+    AuxSamples aux_samples;
         
 };
 
