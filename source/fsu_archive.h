@@ -16,6 +16,7 @@
 #include <vector>
 #include <fstream>
 #include <string>
+#include <functional>
 
 class FSU_sprite
 {
@@ -102,7 +103,7 @@ class FSUarchive{
 		std::vector<FSU_resource*> list;		
 		
 		int LoadResource(uint8_t* data, int rid, FSU_resource* res, LZWexpand* delz);
-		int LoadResourceGroup(uint8_t* data, int first, int count, int step, std::vector<FSU_resource*> *list);
+		int LoadResourceGroup(uint8_t* data, int first, int count, int step, std::vector<FSU_resource*> *list,std::function<void(std::string)> status_item=NULL);
 
 		std::wstring aux_data_path;
 
@@ -115,7 +116,7 @@ class FSUarchive{
 		int GetCount();
 		std::wstring GetAuxDataPath() {return(aux_data_path);};
 
-		FSUarchive(std::wstring &path);
+		FSUarchive(std::wstring &path,std::function<void(std::string)> status_item=NULL);
 		~FSUarchive();
 		FSU_resource* GetResource(const char* name);
 		int SaveAuxData(std::wstring path);

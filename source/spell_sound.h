@@ -152,7 +152,7 @@ public:
     
     SoundChannels* channels;
     
-    SpellSounds(wstring &fs_data_path, int count=4);
+    SpellSounds(FSarchive* common_fs,wstring &fs_data_path, int count=16,std::function<void(std::string)> status_list=NULL,std::function<void(std::string)> status_item=NULL);
     ~SpellSounds();
     SpellSample *GetSample(const char *name);
 

@@ -27,7 +27,7 @@ using namespace std;
 //---------------------------------------------------------------------------
 // load FS archive
 //---------------------------------------------------------------------------
-FSUarchive::FSUarchive(std::wstring &path)
+FSUarchive::FSUarchive(std::wstring &path,std::function<void(std::string)> status_item)
 {
 	// try open file
 	ifstream fr(path, ios::in | ios::binary | ios::ate);
@@ -53,7 +53,7 @@ FSUarchive::FSUarchive(std::wstring &path)
 	for (int k = 0; k < cores; k++)
 	{
 		// try to load batch
-		threads[k] = new thread(&FSUarchive::LoadResourceGroup, this, data, k, units_count, cores, &lists[k]);
+		threads[k] = new thread(&FSUarchive::LoadResourceGroup, this, data, k, units_count, cores, &lists[k], status_item);
 	}
 	// wait for threads
 	for (int k = 0; k < cores; k++)
@@ -91,7 +91,7 @@ FSUarchive::~FSUarchive()
 //---------------------------------------------------------------------------
 // Thread that loads multiple resources
 //---------------------------------------------------------------------------
-int FSUarchive::LoadResourceGroup(uint8_t* data, int first, int count, int step, std::vector<FSU_resource*> *list)
+int FSUarchive::LoadResourceGroup(uint8_t* data, int first, int count, int step, std::vector<FSU_resource*> *list,std::function<void(std::string)> status_item)
 {
 	// read total graphic resources count
 	uint32_t max_count = *(uint32_t*)&data[4];
@@ -104,9 +104,12 @@ int FSUarchive::LoadResourceGroup(uint8_t* data, int first, int count, int step,
 	{
 		// make new unit record
 		FSU_resource* res = new FSU_resource();
-
+		
 		// try decode
 		LoadResource(data, k, res, delz);
+
+		if(status_item)
+			status_item(res->name);
 
 		// add to list
 		list->push_back(res);

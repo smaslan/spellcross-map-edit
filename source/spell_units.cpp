@@ -1743,7 +1743,7 @@ MapUnit::AttackResult MapUnit::DamageTarget(MapUnit* target)
 	defence *= (1.0 + (double)target->dig_level*0.7);
 
 	// morale penalty
-	defence *= (0.7 + target->morale*0.3);
+	defence *= (0.7 + 0.01*target->morale*0.3);
 		
 	// reduce dig level of target
 	target->dig_level = max(target->dig_level - 1, 0);

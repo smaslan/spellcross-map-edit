@@ -1301,9 +1301,11 @@ SpellL2classes::~SpellL2classes()
 	for(auto& spec : spec_list)
 		delete spec;
 }
-SpellL2classes::SpellL2classes(FSarchive* fs,SpellSounds* sounds)
+SpellL2classes::SpellL2classes(FSarchive* fs,SpellSounds* sounds,std::function<void(std::string)> status_list,std::function<void(std::string)> status_item)
 {	
 	// --- Wall classes:	
+	if(status_list)
+		status_list(" - parsing wall object classes (MURY.DEF)...");
 	string mury_text = fs->GetFile("MURY.DEF");
 	if(mury_text.empty())
 		throw runtime_error("MURY.DEF not found in COMMON.FS!");		
@@ -1329,6 +1331,8 @@ SpellL2classes::SpellL2classes(FSarchive* fs,SpellSounds* sounds)
 	}
 
 	// --- Bridge classes:
+	if(status_list)
+		status_list(" - parsing bridge object classes (MOSTY.DEF)...");
 	string mosty_text = fs->GetFile("MOSTY.DEF");
 	if(mosty_text.empty())
 		throw runtime_error("MOSTY.DEF not found in COMMON.FS!");
@@ -1354,6 +1358,8 @@ SpellL2classes::SpellL2classes(FSarchive* fs,SpellSounds* sounds)
 	}
 
 	// --- Spec Object classes:
+	if(status_list)
+		status_list(" - parsing special object classes (SPECOBJ.DEF)...");
 	string spec_text = fs->GetFile("SPECOBJ.DEF");
 	if(spec_text.empty())
 		throw runtime_error("SPECOBJ.DEF not found in COMMON.FS!");
@@ -1488,7 +1494,7 @@ Terrain::~Terrain()
 	tools.clear();
 }
 
-int Terrain::Load(wstring &path, wstring& aux_path, SpellL2classes *L2)
+int Terrain::Load(wstring &path, wstring& aux_path, SpellL2classes *L2,std::function<void(std::string)> status_item)
 {	
 	// store terrain tag name
 	const wchar_t *tag = wcsrchr(path.c_str(), '\\');
@@ -1551,7 +1557,7 @@ int Terrain::Load(wstring &path, wstring& aux_path, SpellL2classes *L2)
 				///////////////////
 				///// Sprites /////
 				///////////////////
-				
+
 				// add sprite list element
 				Sprite* sprite = new Sprite();
 				sprites.push_back(sprite);
@@ -1565,7 +1571,8 @@ int Terrain::Load(wstring &path, wstring& aux_path, SpellL2classes *L2)
 				// set sprite index (linear unsorted)
 				sprite->SetIndex(sprite_index++);
 				
-				//st->Caption = "Loading " + N_terr + ": " + IntToStr(fcnt) + " - " + AnsiString(name);
+				if(status_item)
+					status_item(name);
 				fcnt++;
 			}
 			else if (_strcmpi(ext, "ANM") == 0)
@@ -1585,7 +1592,8 @@ int Terrain::Load(wstring &path, wstring& aux_path, SpellL2classes *L2)
 					return(1);
 				}
 
-				//st->Caption = "Loading " + N_terr + ": " + IntToStr(fcnt) + " - " + AnsiString(name);
+				if(status_item)
+					status_item(name);
 				fcnt++;
 			}
 			else if (_strcmpi(ext, "PNM") == 0)
@@ -1605,7 +1613,8 @@ int Terrain::Load(wstring &path, wstring& aux_path, SpellL2classes *L2)
 					return(1);
 				}
 
-				//st->Caption = "Loading " + N_terr + ": " + IntToStr(fcnt) + " - " + AnsiString(name);
+				if(status_item)
+					status_item(name);
 				fcnt++;
 			}
 			else if (_strcmpi(ext, "PAL") == 0)
@@ -1621,7 +1630,8 @@ int Terrain::Load(wstring &path, wstring& aux_path, SpellL2classes *L2)
 						// "map.pal"
 						std::memcpy((void*)&pal[0][0], data, 128*3);
 
-						//st->Caption = "Loading " + N_terr + ": " + IntToStr(fcnt) + " - " + AnsiString(name);
+						if(status_item)
+							status_item(name);
 						fcnt++;
 					}
 					else if (_strcmpi(full_name, "cycle.pal") == 0)
@@ -1629,9 +1639,11 @@ int Terrain::Load(wstring &path, wstring& aux_path, SpellL2classes *L2)
 						// "cycle.pal"
 						std::memcpy((void*)&pal[240][0], data, 10*3);
 
-						//st->Caption = "Loading " + N_terr + ": " + IntToStr(fcnt) + " - " + AnsiString(name);
+						if(status_item)
+							status_item(name);
 						fcnt++;
 					}
+
 				}
 				else
 				{
@@ -1642,7 +1654,8 @@ int Terrain::Load(wstring &path, wstring& aux_path, SpellL2classes *L2)
 					// these are color reindexing filters, ie. 256 bytes represent new 256 colors, each points to some original color					
 					filter.AddFilter(data,full_name);						
 
-					//st->Caption = "Loading " + N_terr + ": " + IntToStr(fcnt) + " - " + AnsiString(name);
+					if(status_item)
+						status_item(name);
 					fcnt++;
 				}
 			}
@@ -1677,14 +1690,7 @@ int Terrain::Load(wstring &path, wstring& aux_path, SpellL2classes *L2)
 	// free archive
 	delete fs;
 
-	// initialize context list
-	//wstring cont_path = L"";
-	//InitSpriteContext(cont_path);
-	
-	//st->Caption = "Loading " + N_terr + ": " + IntToStr(fcnt) + " files in " + IntToStr(UN->memlen / 1024) + "kB ...";
-
-	return(0);
-	
+	return(0);	
 }
 
 // get sprite pointer by its name

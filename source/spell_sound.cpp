@@ -119,13 +119,22 @@ SpellSounds::~SpellSounds()
 }
 
 // load sound stuff from spellcross fs data folder
-SpellSounds::SpellSounds(wstring& fs_data_path, int count)
+SpellSounds::SpellSounds(FSarchive *common_fs, wstring& fs_data_path, int count,std::function<void(std::string)> status_list,std::function<void(std::string)> status_item)
 {            
     channels = NULL;
     
     // load sound.fs (samples)
-    wstring samples_fs_path = fs_data_path + L"\\samples.fs";
-    FSarchive *samples_fs = new FSarchive(samples_fs_path);
+    if(status_list)
+        status_list(" - Loading SAMPLES.FS...");
+    FSarchive* samples_fs;
+    try{
+        wstring samples_fs_path = std::filesystem::path(fs_data_path) / std::filesystem::path("samples.fs");
+        samples_fs = new FSarchive(samples_fs_path);
+    }catch(const runtime_error& error) {        
+        if(status_list)
+            status_list("   - failed!");
+        throw runtime_error("Loading SAMPLES.FS archive failed!");
+    }
 
     // for each samples file:
     samples.reserve(samples_fs->Count());
@@ -140,6 +149,8 @@ SpellSounds::SpellSounds(wstring& fs_data_path, int count)
         if(wildcmp("1-*",name))
         {
             // 16-bit unsigned, 11025Hz, mono: convert to signed
+            if(status_item)
+                status_item(name);
             samples.emplace_back();
             SpellSample *smpl = &samples.back();
             strcpy_s(smpl->name, sizeof(smpl->name), name);
@@ -154,6 +165,8 @@ SpellSounds::SpellSounds(wstring& fs_data_path, int count)
         else if(wildcmp("8*",name))
         {
             // 8-bit unsigned, 11025Hz, mono: convert to 16bit signed mono
+            if(status_item)
+                status_item(name);
             samples.emplace_back();
             SpellSample* smpl = &samples.back();
             strcpy_s(smpl->name,sizeof(smpl->name),name);
@@ -169,6 +182,8 @@ SpellSounds::SpellSounds(wstring& fs_data_path, int count)
         {
             // 8-bit unsigned, 11025Hz, mono (with RIFF WAVE header)
             //   schmutzig solution ###todo: use actual RIFF loader            
+            if(status_item)
+                status_item(name);
             samples.emplace_back();
             SpellSample* smpl = &samples.back();
             strcpy_s(smpl->name,sizeof(smpl->name),name);
@@ -183,6 +198,8 @@ SpellSounds::SpellSounds(wstring& fs_data_path, int count)
         else if(wildcmp("M*",name))
         {
             // 16-bit unsigned, 11025Hz, stereo: convert to signed
+            if(status_item)
+                status_item(name);
             samples.emplace_back();
             SpellSample* smpl = &samples.back();
             strcpy_s(smpl->name,sizeof(smpl->name),name);
@@ -200,10 +217,19 @@ SpellSounds::SpellSounds(wstring& fs_data_path, int count)
 
 
 
-    // load music.fs (samples)
-    wstring music_fs_path = fs_data_path + L"\\music.fs";
-    FSarchive* music_fs = new FSarchive(music_fs_path);
-    LZWexpand *lzw = new LZWexpand(1000000);
+    // load music.fs (MIDI)
+    if(status_list)
+        status_list(" - Loading MUSIC.FS...");
+    FSarchive* music_fs;
+    wstring music_fs_path = std::filesystem::path(fs_data_path) / std::filesystem::path("music.fs");
+    try{
+        music_fs = new FSarchive(music_fs_path);
+    }catch(const runtime_error& error) {
+        if(status_list)
+            status_list("   - failed!");
+        throw runtime_error("Loading MUSIC.FS archive failed!");
+    }
+    LZWexpand *lzw = new LZWexpand(1000000);    
     for(int fid = 0; fid < music_fs->Count(); fid++)
     {
         // get file
@@ -233,11 +259,17 @@ SpellSounds::SpellSounds(wstring& fs_data_path, int count)
 
 
     // init stream channels
-    channels = new SoundChannels(16);
+    if(status_list)
+        status_list(" - Creating sound streaming channels...");
+    try{
+        channels = new SoundChannels(count);
+    }catch(const runtime_error& error) {
+        if(status_list)
+            status_list("   - failed!");
+        throw runtime_error("Creating sound stream channels failed!");
+    }
 
     // load common.fs
-    wstring common_fs_path = fs_data_path + L"\\common.fs";
-    FSarchive* common_fs = new FSarchive(common_fs_path);
 
     /*std:future<void> tasks[6];
     tasks[0] = std::async(std::launch::async,&SpellSounds::ParseSoundClasses2,this,common_fs,"A_SOUNDS.DEF",&attack_sounds);
@@ -251,24 +283,38 @@ SpellSounds::SpellSounds(wstring& fs_data_path, int count)
     
     string text;
 
+    if(status_list)
+        status_list(" - Parsing attack sound classes...");
     text = common_fs->GetFile("A_SOUNDS.DEF");
     attack_sounds = ParseSoundClasses(text);
 
+    if(status_list)
+        status_list(" - Parsing move sound classes...");
     text = common_fs->GetFile("M_SOUNDS.DEF");
     move_sounds = ParseSoundClasses(text);
 
+    if(status_list)
+        status_list(" - Parsing report sound classes...");
     text = common_fs->GetFile("H_SOUNDS.DEF");
     report_sounds = ParseSoundClasses(text);
     
+    if(status_list)
+        status_list(" - Parsing object sound classes...");
     text = common_fs->GetFile("O_SOUNDS.DEF");
     object_sounds = ParseSoundClasses(text);
 
+    if(status_list)
+        status_list(" - Parsing special sound classes...");
     text = common_fs->GetFile("S_SOUNDS.DEF");
     spec_sounds = ParseSoundClasses(text);
 
+    if(status_list)
+        status_list(" - Parsing hit sound classes...");
     text = common_fs->GetFile("Z_SOUNDS.DEF");
     hit_sounds = ParseSoundClasses(text);
 
+    if(status_list)
+        status_list(" - Parsing special sound effect classes...");
     text = common_fs->GetFile("SAMPLES.DEF");    
     SpellClassFile auxtable(text,";\\s*([^\\r^\\n]+)\\r?\\n?([^;]+)");    
     for(int k = 0; k < auxtable.list.size(); k++)
@@ -341,9 +387,6 @@ SpellSounds::SpellSounds(wstring& fs_data_path, int count)
         }
     }
 
-
-
-    delete common_fs;    
 }
 
 SpellSound* SpellSounds::GetSound(const char *name)

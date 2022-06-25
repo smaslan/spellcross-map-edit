@@ -6,6 +6,7 @@
 #include "map.h"
 #include "spell_hud_buttons.h"
 #include "spell_texts.h"
+#include "form_loader.h"
 #include "form_objects.h"
 #include "form_tools.h"
 #include "form_sprite_view.h"

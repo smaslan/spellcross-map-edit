@@ -31,49 +31,29 @@
 wxIMPLEMENT_APP(MyApp);
 bool MyApp::OnInit()
 {
+    // for saving PNG file (among other stuff)
+    wxInitAllImageHandlers();
+    
     // load config.ini
     ini.SetUnicode();
     ini.LoadFile("config.ini");
 
-    // spellcross data root path
-    wstring spelldata_path = char2wstring(ini.GetValue("SPELCROS","spell_path",""));
-    // spellcross data root path
-    wstring spellcd_path = char2wstring(ini.GetValue("SPELCROS","spellcd_path",""));
-    // special data folder
-    wstring spec_folder = char2wstring(ini.GetValue("DATA","spec_data_path",""));
-    // units aux data path
-    wstring units_aux_data_path = char2wstring(ini.GetValue("DATA","units_aux_data_path",""));
-
-    // try load spellcross data
-    spell_data = new SpellData(spelldata_path, spellcd_path, spec_folder);
-    // try load units.fsu aux metadata
-    spell_data->units_fsu->LoadAuxData(units_aux_data_path);
-
-    // for each terrain load tile context
-    for(int k = 0; k < spell_data->GetTerrainCount(); k++)
+    // --- try load Spellcross data
+    FormLoader* form_loader = new FormLoader(NULL,spell_data,L"config.ini");
+    bool data_ok = form_loader->ShowModal();
+    delete form_loader;
+    if(!data_ok)
     {
-        // get terrain
-        Terrain *terr = spell_data->GetTerrain(k);
-        // make INI section
-        string sec_name = "TERRAIN::" + string(terr->name);
-        
-        // try to load context
-        wstring cont_path = char2wstring(ini.GetValue(sec_name.c_str(), "context_path", ""));        
-        terr->InitSpriteContext(cont_path);        
+        wxMessageBox("Loading Spellcross data failed!\nPossibly incorrect game paths in ''config.ini''?","Error",wxICON_ERROR);
+        return(false);
     }
-          
 
-    // load some map
+    // --- load some map
     wstring map_path = char2wstring(ini.GetValue("STATE","last_map",""));
     spell_map = new SpellMap();
     spell_map->Load(map_path,spell_data);
     spell_map->SetGamma(1.3);
-
-    
-    // for saving PNG file (among other stuff)
-    wxInitAllImageHandlers();
-        
-    
+                
     // --- run main form    
     // main window frame
     MyFrame* frame = new MyFrame(spell_map, spell_data);

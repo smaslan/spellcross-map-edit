@@ -111,6 +111,8 @@ class SpellData
 private:
 	int LoadSpecialLand(wstring& path);
 	int LoadAuxGraphics(FSarchive* fs);
+	
+	FSarchive* common;
 
 public:
 	// terrains data array
@@ -146,7 +148,7 @@ public:
 	// unit bonuses (BONUSES.DEF)
 	UnitBonuses *unit_bonuses;
 
-	SpellData(wstring& data_path,wstring& cd_data_path,wstring& spec_path);
+	SpellData(wstring& data_path,wstring& cd_data_path,wstring& spec_path,std::function<void(std::string)> status_list=NULL,std::function<void(std::string)> status_item=NULL);
 	~SpellData();	
 	Terrain* GetTerrain(const char* name);
 	Terrain* GetTerrain(int index);

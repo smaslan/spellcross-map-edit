@@ -69,7 +69,7 @@ private:
 	vector<SpellL2classRec*> bridge_list;
 	vector<SpellL2classRec*> spec_list;
 public:
-	SpellL2classes(FSarchive* fs,SpellSounds* sounds);
+	SpellL2classes(FSarchive* fs,SpellSounds* sounds,std::function<void(std::string)> status_list=NULL,std::function<void(std::string)> status_item=NULL);
 	~SpellL2classes();
 	DestructibleRec GetClass(const char *sprite_name);
 };
@@ -438,7 +438,7 @@ public:
 	// void contructor
 	Terrain();
 	~Terrain();
-	int Load(wstring &path, wstring &aux_path,SpellL2classes* L2=NULL);
+	int Load(wstring &path, wstring &aux_path,SpellL2classes* L2=NULL,std::function<void(std::string)> status_item=NULL);
 	Sprite* GetSprite(const char* name);
 	Sprite* GetSprite(int index);
 	int GetSpriteID(Sprite *spr);
