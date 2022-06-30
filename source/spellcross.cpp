@@ -441,7 +441,7 @@ SpellData::SpellData(wstring &data_path,wstring& cd_data_path,wstring& spec_path
 	// load generic graphic resources
 	if(status_list)
 		status_list("Loading common graphics resources...");
-	if(LoadAuxGraphics(common))
+	if(LoadAuxGraphics(common,status_item))
 	{
 		this->~SpellData();
 		if(status_list)
@@ -706,7 +706,7 @@ int SpellData::BuildSpriteContextOfMaps(wstring folder, string terrain_name,std:
 
 
 // load generic graphics resources
-int SpellData::LoadAuxGraphics(FSarchive *fs)
+int SpellData::LoadAuxGraphics(FSarchive *fs,std::function<void(std::string)> status_item)
 {
 	// init LZW decoder
 	LZWexpand *lzw = new LZWexpand(1000000);
@@ -722,6 +722,7 @@ int SpellData::LoadAuxGraphics(FSarchive *fs)
 		uint8_t* data_end = &data[flen];
 
 		int is_lzw = false;
+		int no_item = false;
 		if(wildcmp("I_*.LZ", name))
 		{
 			// units icons, fized width 60
@@ -818,6 +819,11 @@ int SpellData::LoadAuxGraphics(FSarchive *fs)
 			// PNM animations:
 			gres.AddPNM(data,flen,name);
 		}
+		else
+			no_item = true;
+
+		if(!no_item && status_item)
+			status_item(name);
 
 		if(is_lzw)
 			delete[] data;

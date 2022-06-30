@@ -110,7 +110,7 @@ class SpellData
 {
 private:
 	int LoadSpecialLand(wstring& path);
-	int LoadAuxGraphics(FSarchive* fs);
+	int LoadAuxGraphics(FSarchive* fs,std::function<void(std::string)> status_item=NULL);
 	
 	FSarchive* common;
 

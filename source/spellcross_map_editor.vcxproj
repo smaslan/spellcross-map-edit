@@ -31,6 +31,7 @@
     <ClCompile Include="form_tools.cpp" />
     <ClCompile Include="form_units.cpp" />
     <ClCompile Include="form_unit_options.cpp" />
+    <ClCompile Include="form_video.cpp" />
     <ClCompile Include="fsu_archive.cpp" />
     <ClCompile Include="fs_archive.cpp" />
     <ClCompile Include="LZ_spell.cpp" />
@@ -47,6 +48,7 @@
     <ClCompile Include="spell_map_event.cpp" />
     <ClCompile Include="spell_sound.cpp" />
     <ClCompile Include="spell_units.cpp" />
+    <ClCompile Include="spell_video.cpp" />
     <ClCompile Include="sprites.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -63,8 +65,10 @@
     <ClInclude Include="form_tools.h" />
     <ClInclude Include="form_units.h" />
     <ClInclude Include="form_unit_options.h" />
+    <ClInclude Include="form_video.h" />
     <ClInclude Include="fsu_archive.h" />
     <ClInclude Include="fs_archive.h" />
+    <ClInclude Include="spell_video.h" />
     <ClInclude Include="spell_filter.h" />
     <ClInclude Include="spell_texts.h" />
     <ClInclude Include="spell_map_event.h" />

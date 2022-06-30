@@ -18,6 +18,7 @@
 #include "form_unit_options.h"
 #include "form_message_box.h"
 #include "form_map_options.h"
+#include "form_video.h"
 
 #include <wx/ribbon/buttonbar.h>
 #include <wx/ribbon/panel.h>
@@ -90,6 +91,7 @@ private:
     void OnViewGrRes(wxCommandEvent& event);
     void OnEditUnit(wxCommandEvent& event);
     void OnEditEvent(wxCommandEvent& event);
+    void OnViewVideo(wxCommandEvent& event);
     void OnViewVoxZ(wxCommandEvent& event);
     void OnViewMiniMap(wxCommandEvent& event);
     void OnUpdateTileContext(wxCommandEvent& event);
@@ -149,6 +151,7 @@ private:
     FormGResView* form_gres;
     FormUnits* form_units;
     FormEvent* form_events;
+    FormVideo* form_videos;
     FormUnitOpts *form_unit_opts;
     FormMsgBox *form_message;
     FormMapOptions *form_map_options;
@@ -172,7 +175,8 @@ private:
         ID_MINIMAP_WIN,
         ID_UNIT_MODE_WIN,
         ID_MSG_WIN,
-        ID_MAP_OPT_WIN
+        ID_MAP_OPT_WIN,
+        ID_VIDEO_WIN
     };
     static constexpr int ID_HUD_BASE = 3000;
     static constexpr int ID_TOOL_BASE = 10000;
@@ -243,7 +247,8 @@ enum
     ID_InvalidateSel,
     ID_CreateNewObject,
     ID_MoveUnit,
-    ID_UpdateSprContextMaps
+    ID_UpdateSprContextMaps,
+    ID_ViewVideo
 };
 
 
