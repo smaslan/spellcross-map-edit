@@ -5775,8 +5775,16 @@ int SpellMap::Tick()
 				// update hit object and map
 				int destroyed = target_obj->UpdateDestructible();
 				if(destroyed)
+				{
+					// update view mask
 					PrepareUnitsViewMask();
-				unit->was_moved = true; // this will force range recalculation				
+
+					// try get eventual DestroyObject events
+					auto destroy_events = events->GetDestroyObjectEvents(target_pos,true);					
+					event_list.insert(event_list.end(), destroy_events.begin(), destroy_events.end());
+				}
+				unit->was_moved = true; // this will force range recalculation
+
 			}
 
 			// idle
@@ -6526,10 +6534,16 @@ SpellMap::SavedState::SavedState()
 }
 SpellMap::SavedState::~SavedState()
 {
+	Clear();
+}
+// clear save position
+void SpellMap::SavedState::Clear()
+{
 	for(auto& unit : units)
 		delete unit;
 	units.clear();
 	units_view.clear();
+	sel_unit = NULL;
 	tiles.clear();
 	if(events)
 	{
@@ -6581,7 +6595,7 @@ int SpellMap::Saves::canLoad()
 // save state to list
 int SpellMap::Saves::Save(SpellMap::SavedState *slot)
 {	
-	SpellMap::SavedState *save = slot;
+	SpellMap::SavedState *save = slot;	
 	if(!save)
 	{
 		// add save slot if not provided explicitely
@@ -6720,6 +6734,7 @@ int SpellMap::Saves::Load(SpellMap::SavedState* save)
 // save initial state (used when entering game mode)
 int SpellMap::Saves::SaveInitial()
 {
+	initial.Clear();
 	return(Save(&initial));
 }
 

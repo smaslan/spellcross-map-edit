@@ -99,6 +99,7 @@ public:
     int isSeePlace();
     int isSeeUnit();
     int isDone();
+    int isDestroyObject();
     int isTransportSave();
     int hasTargetUnit();
     int hasPosition();
@@ -111,14 +112,6 @@ typedef vector<SpellMapEventRec*> SpellMapEventsList;
 class SpellMapEvents
 {
 private:
-    
-    // map size
-    //int x_size;
-    //int y_size;
-    // game mode?
-    //int &is_game_mode;
-    // map units list
-    //vector<MapUnit*> &map_units;
     
     // back ref to parent map
     SpellMap *map;
@@ -155,6 +148,7 @@ public:
     int CheckEvent(int pos);
     SpellMapEventsList GetEvents(MapXY pos,bool clear=false);
     SpellMapEventsList GetEvents(int pos,bool clear=false);
+    SpellMapEventsList GetDestroyObjectEvents(MapXY pos,bool clear=false);
     vector<SpellMapEventRec*> &GetEvents();
     SpellMapEventsList GetMissionStartEvent(bool clear=false);
     int AddMissionStartUnit(MapUnit *unit, int probab=100);

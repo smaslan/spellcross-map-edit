@@ -414,6 +414,7 @@ class SpellMap
 			
 			SavedState();
 			~SavedState();
+			void Clear();
 			MapUnit* GetUnit(int id);
 		};
 		class Saves

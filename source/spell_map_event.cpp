@@ -110,6 +110,10 @@ int SpellMapEventRec::isDone()
 		is_done = true;
 	return(is_done);
 }
+int SpellMapEventRec::isDestroyObject()
+{
+	return(evt_type == EVT_DESTROY_OBJ);
+}
 int SpellMapEventRec::hasTargetUnit()
 {
 	return(evt_type == EVT_SEE_UNIT || evt_type == EVT_SAVE_UNIT || evt_type == EVT_TRANSPORT_UNIT || evt_type == EVT_DESTROY_UNIT);
@@ -624,7 +628,7 @@ int SpellMapEvents::RelinkUnits(vector<MapUnit*> *map_units)
 	events_map.assign(map->x_size*map->y_size,NULL);
 	for(auto& evt : events)
 	{
-		if(evt->isSeePlace())
+		if(evt->hasPosition())
 		{
 			// place event to map (or at the end of chain of events for the position)
 			auto tile = EventMap(evt->position);
@@ -687,7 +691,8 @@ int SpellMapEvents::CheckEvent(int pos)
 	return(true);
 }
 
-// get list of events for given position, only not executed
+// get list of events for given position (SeePlace), only not executed
+// in editor mode show all position related events
 SpellMapEventsList SpellMapEvents::GetEvents(MapXY pos, bool clear)
 {
 	return(GetEvents(ConvXY(pos),clear));
@@ -699,7 +704,9 @@ SpellMapEventsList SpellMapEvents::GetEvents(int pos,bool clear)
 	auto evt = events_map[pos];
 	while(evt)
 	{
-		if(!evt->is_done && evt->isSeePlace() && (!evt->hide || !map->isGameMode()))
+		if(!map->isGameMode())
+			list.push_back(evt);
+		else if(!evt->is_done && evt->isSeePlace() && !evt->hide)
 		{
 			list.push_back(evt);
 			if(clear)
@@ -709,6 +716,26 @@ SpellMapEventsList SpellMapEvents::GetEvents(int pos,bool clear)
 	}		
 	return(list);
 }
+// check and eventually return non-done DestroyObject events linked to position
+SpellMapEventsList SpellMapEvents::GetDestroyObjectEvents(MapXY pos,bool clear)
+{
+	// make list of events
+	vector<SpellMapEventRec*> list;
+	for(auto & evt : events)
+	{
+		if(evt->isDone())
+			continue;
+		if(!evt->isDestroyObject())
+			continue;
+		if(evt->position != pos)
+			continue;
+		list.push_back(evt);
+		if(clear)
+			evt->is_done = true;
+	}
+	return(list);
+}
+
 // get all events list
 vector<SpellMapEventRec*>& SpellMapEvents::GetEvents()
 {
