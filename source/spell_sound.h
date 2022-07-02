@@ -78,7 +78,9 @@ private:
 
     void SpellSoundInit();
 
-    SoundChannels* streams;    
+    SoundChannels* streams;
+
+    std::function<void(void)> user_frame_callback;
 
 public:
 
@@ -101,9 +103,10 @@ public:
     ~SpellSound();
 
     int SetPanning(double left_vol=1.0,double right_vol=1.0);
-    int Play(bool auto_delete=false, bool loop=false);
+    int Play(bool auto_delete=false, bool loop=false, std::function<void(void)> frame_callback=NULL, double frame_step=0.02);
+    double GetPlaybackTime();
     int StopMove();
-    int Stop();
+    int Stop(double wait=0.0);
     int isDone();
     void cb_DoneFlag();
     int cb_GetFrame(int16_t* buffer,int count);
@@ -112,6 +115,7 @@ public:
     int16_t* cb_GetSmplData(int16_t* buffer, int count);
     int isAutoDelete();
     SpellSample *GetSample(int id=0);
+    void cb_user_callback();
 };
 
 

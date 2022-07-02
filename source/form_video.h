@@ -21,10 +21,10 @@
 #include <wx/stattext.h>
 #include <wx/panel.h>
 #include <wx/slider.h>
+#include <wx/button.h>
 #include <wx/sizer.h>
 #include <wx/statusbr.h>
 #include <wx/frame.h>
-#include <wx/filedlg.h>
 
 #include "spellcross.h"
 #include "spell_video.h"
@@ -45,22 +45,33 @@ private:
 	void OnOpenClick(wxCommandEvent& event);
 	void OnChangeOffst(wxCommandEvent& event);
 	void OnSaveFramesClick(wxCommandEvent& event);
-
+	void OnPlayClick(wxCommandEvent& event);
+	void OnStopClick(wxCommandEvent& event);
 	void OnPaintCanvas(wxPaintEvent& event);
+	void OnNewAudioFrame(wxThreadEvent& event);
+
+	void StopPlayback();	
+	void cbNewAudioFrame();
 
 	SpellData *m_spell_data;
-	SpellCAN *m_data;
+	SpellVideo *m_data;
+
+	SpellSound *m_sound;
+
+	int m_zoom;
 	
 
 protected:
 	enum
 	{
 		wxID_MM_OPEN = 1000,
-		wxID_SAVE_FRAMES,
+		wxID_MM_SAVE_FRAMES,
 		wxID_MM_EXIT,
 		wxID_CANVAS,
 		wxID_DATA_POS,
-		wxID_SLIDE_OFS
+		wxID_SLIDE_OFS,
+		wxID_BTN_PLAY,
+		wxID_BTN_STOP
 	};
 
 	wxMenuBar* mmenu;
@@ -69,11 +80,13 @@ protected:
 	wxPanel* canvas;
 	wxStaticText* m_staticText65;
 	wxSlider* slideOffset;
+	wxButton* btnPlay;
+	wxButton* btnStop;
 	wxStatusBar* m_statusBar8;
 
 public:
 
-	FormVideo(wxWindow* parent,SpellData* spell_data,wxWindowID id = wxID_ANY,const wxString& title = wxT("Spellcross Video Viewer"),const wxPoint& pos = wxDefaultPosition,const wxSize& size = wxSize(696,385),long style = wxDEFAULT_FRAME_STYLE|wxTAB_TRAVERSAL);
+	FormVideo(wxWindow* parent,SpellData* spell_data,wxWindowID id = wxID_ANY,const wxString& title = wxT("Spellcross Video Viewer"),const wxPoint& pos = wxDefaultPosition,const wxSize& size = wxSize(696,385),long style = wxDEFAULT_FRAME_STYLE|wxTAB_TRAVERSAL|wxFRAME_FLOAT_ON_PARENT);
 
 	~FormVideo();
 

@@ -648,6 +648,9 @@ int SpellSound_RtCallback(void* outputBuffer,void* inputBuffer,unsigned int nBuf
 {
     SpellSound* data = (SpellSound*)userData;
     int stop = data->cb_GetFrame((int16_t*)outputBuffer,nBufferFrames);
+
+    // try call user callback
+    data->cb_user_callback();
     
     // force stop signalization?
     if(streamTime >= SoundChannels::FAKE_STOP_TIME_MARK)
@@ -666,6 +669,13 @@ int SpellSound_RtCallback(void* outputBuffer,void* inputBuffer,unsigned int nBuf
 int SpellSound::isAutoDelete()
 {
     return(auto_delete);
+}
+
+// call user callback from frame callback (keep it short!)
+void SpellSound::cb_user_callback()
+{
+    if(user_frame_callback)
+        user_frame_callback();
 }
 
 // signalize playback is done
@@ -867,11 +877,15 @@ int SpellSound::SetPanning(double left_vol,double right_vol)
     return(0);
 }
 
-int SpellSound::Play(bool auto_delete, bool loop)
+// start playback, optional auto-object delete after playback, optional loop, optional callback function to be called every frame (time critical!)
+int SpellSound::Play(bool auto_delete, bool loop, std::function<void(void)> frame_callback, double frame_step)
 {    
     // automatically delete object after playaback?
     this->auto_delete = auto_delete;
     force_loop = loop;
+    
+    // store user callback pointer
+    user_frame_callback = frame_callback;
 
     //control = CTRL_STOP;
     if(!isDone())
@@ -916,13 +930,23 @@ int SpellSound::Play(bool auto_delete, bool loop)
     parameters.firstChannel = 0;
     parameters.nChannels = 2;
     unsigned int sampleRate = fs;
-    unsigned int bufferFrames = 256;
+    unsigned int bufferFrames = max(32,min((int)(frame_step*fs),512))&(~1);
 
     // start stream    
     dac->openStream(&parameters,NULL,RTAUDIO_SINT16,sampleRate,&bufferFrames,&SpellSound_RtCallback,(void*)this);
     dac->startStream();
-    
+        
     return(0);
+}
+
+// get current playback time
+double SpellSound::GetPlaybackTime()
+{
+    if(!dac)
+        return(0.0);
+    if(!dac->isStreamRunning())
+        return(0.0);
+    return(dac->getStreamTime());
 }
 
 // send move stop command
@@ -933,9 +957,23 @@ int SpellSound::StopMove()
 }
 
 // send stop command
-int SpellSound::Stop()
+int SpellSound::Stop(double wait)
 {
     control = CTRL_STOP;
+    if(wait < 1e-9)
+        return(0);
+    
+    // wait to finish
+    auto start = std::chrono::high_resolution_clock::now();
+    while(!isDone())
+    {
+        auto stop = std::chrono::high_resolution_clock::now();
+        auto duration = (std::chrono::duration_cast<std::chrono::milliseconds>(stop - start)).count();
+        if((double)duration > wait*1000.0)
+            return(1); // timeout
+        this_thread::sleep_for(10ms);
+    }
+
     return(0);
 }
 
