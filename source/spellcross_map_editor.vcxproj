@@ -32,6 +32,7 @@
     <ClCompile Include="form_units.cpp" />
     <ClCompile Include="form_unit_options.cpp" />
     <ClCompile Include="form_video.cpp" />
+    <ClCompile Include="form_video_box.cpp" />
     <ClCompile Include="fsu_archive.cpp" />
     <ClCompile Include="fs_archive.cpp" />
     <ClCompile Include="LZ_spell.cpp" />
@@ -67,6 +68,7 @@
     <ClInclude Include="form_units.h" />
     <ClInclude Include="form_unit_options.h" />
     <ClInclude Include="form_video.h" />
+    <ClInclude Include="form_video_box.h" />
     <ClInclude Include="fsu_archive.h" />
     <ClInclude Include="fs_archive.h" />
     <ClInclude Include="riff_loader.h" />

@@ -124,7 +124,7 @@ void FormVideo::OnClose(wxCloseEvent& ev)
 		delete m_data;
 	m_data = NULL;
 	
-	wxPostEvent(GetParent(), ev);
+	wxQueueEvent(GetParent(), new wxCloseEvent(ev));
 	ev.Skip();
 	Destroy();
 }

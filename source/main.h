@@ -19,6 +19,7 @@
 #include "form_message_box.h"
 #include "form_map_options.h"
 #include "form_video.h"
+#include "form_video_box.h"
 
 #include <wx/ribbon/buttonbar.h>
 #include <wx/ribbon/panel.h>
@@ -154,6 +155,7 @@ private:
     FormVideo* form_videos;
     FormUnitOpts *form_unit_opts;
     FormMsgBox *form_message;
+    FormVideoBox* form_video_box;
     FormMapOptions *form_map_options;
     
     void OnPaintHUDbutton(wxPaintEvent& event);
@@ -175,6 +177,7 @@ private:
         ID_MINIMAP_WIN,
         ID_UNIT_MODE_WIN,
         ID_MSG_WIN,
+        ID_VIDEO_BOX_WIN,
         ID_MAP_OPT_WIN,
         ID_VIDEO_WIN
     };

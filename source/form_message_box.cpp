@@ -79,6 +79,8 @@ FormMsgBox::FormMsgBox(wxPanel* parent,wxWindowID win_id,SpellData* spell_data,S
         m_sound = new SpellSound(m_spelldata->sounds->channels, text->audio);
         m_sound->Play();
     }
+
+    form->SetFocus();
 }
 
 FormMsgBox::~FormMsgBox()
@@ -98,8 +100,8 @@ void FormMsgBox::OnClose(wxCloseEvent& ev)
     }
 
     // terminate (and send message to parent)
-    wxPostEvent(form->GetParent(),ev);
     form->DeletePendingEvents();
+    wxQueueEvent(form->GetParent(),new wxCloseEvent(ev));    
     //form->Destroy();
     //ev.Skip();
 }

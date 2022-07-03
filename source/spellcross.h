@@ -115,6 +115,10 @@ private:
 	FSarchive* common;
 
 public:
+	// data paths
+	std::wstring data_path;
+	std::wstring cd_data_path;
+
 	// terrains data array
 	vector<Terrain*> terrain;
 	// special tile graphics

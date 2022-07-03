@@ -86,7 +86,7 @@ protected:
 
 public:
 
-	FormVideo(wxWindow* parent,SpellData* spell_data,wxWindowID id = wxID_ANY,const wxString& title = wxT("Spellcross Video Viewer"),const wxPoint& pos = wxDefaultPosition,const wxSize& size = wxSize(696,385),long style = wxDEFAULT_FRAME_STYLE|wxTAB_TRAVERSAL|wxFRAME_FLOAT_ON_PARENT);
+	FormVideo(wxWindow* parent,SpellData* spell_data,wxWindowID id = wxID_ANY,const wxString& title = wxT("Spellcross Video Viewer"),const wxPoint& pos = wxDefaultPosition,const wxSize& size = wxSize(700,500),long style = wxDEFAULT_FRAME_STYLE|wxTAB_TRAVERSAL|wxFRAME_FLOAT_ON_PARENT);
 
 	~FormVideo();
 

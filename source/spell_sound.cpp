@@ -18,10 +18,6 @@
 #include "other.h"
 #include "riff_loader.h"
 #include "cvt_xmi2mid.hpp"
-
-//#include "iffdigest\iffdigest.h"
-
-
 #include "RtAudio.h"
 
 #include <fstream>
@@ -185,8 +181,7 @@ SpellSounds::SpellSounds(FSarchive *common_fs, wstring& fs_data_path, int count,
         {
             // 8-bit unsigned, 11025Hz, mono (with RIFF WAVE header)            
             if(status_item)
-                status_item(name);
-                       
+                status_item(name);                       
             try{
                 // try parse RIFF WAVE
                 RIFF riff(data,size);
@@ -198,7 +193,6 @@ SpellSounds::SpellSounds(FSarchive *common_fs, wstring& fs_data_path, int count,
                 smpl->fs = riff.fs;
                 smpl->samples = riff.samples;
                 riff.ConvertPCM(smpl->data);
-
             }catch(const runtime_error& error) {
                 if(status_list)
                     status_list("   - failed!");

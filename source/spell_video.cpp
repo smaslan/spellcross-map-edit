@@ -14,7 +14,7 @@
 #include <fstream>
 #include <filesystem>
 
-
+// load video file from path
 SpellVideo::SpellVideo(std::wstring path)
 {
 	// try open file
@@ -56,6 +56,46 @@ SpellVideo::SpellVideo(std::wstring path)
 
 		// try decode
 		if(DecodeDP2(data.data(), data.size(), wave_data.data(), wave_data.size()))
+		{
+			throw runtime_error("Decoding DP2 video file failed!");
+		}
+	}
+}
+
+// load video file from FS archive
+SpellVideo::SpellVideo(FSarchive* fs,std::string name)
+{
+	if(!fs)
+		throw runtime_error("Loading video file: source FS archive not provided!");
+
+	// try load video file
+	uint8_t *v_data;
+	int v_size;
+	if(fs->GetFile(name, &v_data, &v_size))
+		throw runtime_error(string_format("Loading video file: video file \"%s\" not found in archive!",name));
+	
+	if(std::filesystem::path(name).extension().compare(".CAN") == 0 && DecodeCAN(v_data, v_size))
+	{
+		throw runtime_error("Decoding CAN video file failed!");
+	}
+	else if(std::filesystem::path(name).extension().compare(".DPK") == 0 && DecodeDPK(v_data,v_size))
+	{
+		throw runtime_error("Decoding DPK video file failed!");
+	}
+	else if(std::filesystem::path(name).extension().compare(".DP2") == 0)
+	{
+		// try load complement audio file if needed
+		uint8_t* a_data = NULL;
+		int a_size = 0;
+		if(std::filesystem::path(name).extension().compare(".DP2") == 0)
+		{
+			std::string audio_name = std::filesystem::path(name).replace_extension("").string();
+			if(fs->GetFile(audio_name,&a_data,&a_size))
+				throw runtime_error(string_format("Loading video file: complement audio file \"%s\" not found in archive!",audio_name));
+		}
+
+		// try decode
+		if(DecodeDP2(v_data,v_size, a_data,a_size))
 		{
 			throw runtime_error("Decoding DP2 video file failed!");
 		}

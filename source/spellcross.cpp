@@ -309,9 +309,12 @@ SpellData::SpellData(wstring &data_path,wstring& cd_data_path,wstring& spec_path
 	sounds = NULL;
 	texts = NULL;
 	L2_classes = NULL;
-	unit_bonuses = NULL;
-		
+	unit_bonuses = NULL;		
 	common = NULL;
+
+	// store data paths for dynamic loading
+	this->data_path = data_path;
+	this->cd_data_path = cd_data_path;
 
 	uint8_t* data;
 	int size;

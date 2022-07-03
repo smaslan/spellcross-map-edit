@@ -94,6 +94,8 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     form_unit_opts = NULL;
     form_message = NULL;
     form_map_options = NULL;
+    form_videos = NULL;
+    form_video_box = NULL;
 
 
     // view scroller
@@ -385,6 +387,13 @@ void MyFrame::OnClose(wxCloseEvent& ev)
         form_message->ResultCallback(); // exec result callback (calling it from here to have in this thread)
         delete form_message;
         form_message = NULL;
+    }
+    else if(ev.GetId() == ID_VIDEO_BOX_WIN && form_video_box)
+    {
+        // unit multi-action menu
+        //form_video_box->ResultCallback(); // exec result callback (calling it from here to have in this thread)
+        delete form_video_box;
+        form_video_box = NULL;
     }
     else if(ev.GetId() == ID_MAP_OPT_WIN && form_map_options)
     {
@@ -773,6 +782,10 @@ void MyFrame::OnEditEvent(wxCommandEvent& event)
 // open video viwer
 void MyFrame::OnViewVideo(wxCommandEvent& event)
 {
+    /*if(!FindWindowById(ID_VIDEO_BOX_WIN))
+    {
+        form_video_box = new FormVideoBox(canvas,ID_VIDEO_BOX_WIN,spell_data,"LEVEL10.DPK");
+    }*/
     if(!FindWindowById(ID_VIDEO_WIN))
     {
         form_videos = new FormVideo(this,spell_data,ID_VIDEO_WIN);
