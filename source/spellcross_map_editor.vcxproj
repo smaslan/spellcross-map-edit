@@ -34,11 +34,11 @@
     <ClCompile Include="form_video.cpp" />
     <ClCompile Include="fsu_archive.cpp" />
     <ClCompile Include="fs_archive.cpp" />
-    <ClCompile Include="iffdigest\iffdigest.cc" />
     <ClCompile Include="LZ_spell.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="map.cpp" />
     <ClCompile Include="other.cpp" />
+    <ClCompile Include="riff_loader.cpp" />
     <ClCompile Include="RtAudio.cpp" />
     <ClCompile Include="spell_filter.cpp" />
     <ClCompile Include="spell_texts.cpp" />
@@ -69,7 +69,7 @@
     <ClInclude Include="form_video.h" />
     <ClInclude Include="fsu_archive.h" />
     <ClInclude Include="fs_archive.h" />
-    <ClInclude Include="iffdigest\iffdigest.h" />
+    <ClInclude Include="riff_loader.h" />
     <ClInclude Include="spell_video.h" />
     <ClInclude Include="spell_filter.h" />
     <ClInclude Include="spell_texts.h" />

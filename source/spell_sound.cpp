@@ -16,7 +16,10 @@
 #include "LZ_spell.h"
 #include "map.h"
 #include "other.h"
+#include "riff_loader.h"
 #include "cvt_xmi2mid.hpp"
+
+//#include "iffdigest\iffdigest.h"
 
 
 #include "RtAudio.h"
@@ -180,20 +183,27 @@ SpellSounds::SpellSounds(FSarchive *common_fs, wstring& fs_data_path, int count,
         }
         else if(wildcmp("U*",name))
         {
-            // 8-bit unsigned, 11025Hz, mono (with RIFF WAVE header)
-            //   schmutzig solution ###todo: use actual RIFF loader            
+            // 8-bit unsigned, 11025Hz, mono (with RIFF WAVE header)            
             if(status_item)
                 status_item(name);
-            samples.emplace_back();
-            SpellSample* smpl = &samples.back();
-            strcpy_s(smpl->name,sizeof(smpl->name),name);
-            smpl->fs = 11025;
-            smpl->channels = 1;
-            smpl->samples = *(uint32_t*)&data[40];
-            smpl->data.resize(smpl->samples);
-            uint8_t* ptr = (uint8_t*)&data[44];
-            for(int k = 0; k < smpl->samples; k++)
-                smpl->data[k] = (int16_t)((((uint16_t)*ptr++)<<8) - (uint16_t)0x8000u);
+                       
+            try{
+                // try parse RIFF WAVE
+                RIFF riff(data,size);
+                // store PCM data
+                samples.emplace_back();
+                SpellSample* smpl = &samples.back();
+                strcpy_s(smpl->name,sizeof(smpl->name),name);
+                smpl->channels = riff.channels;
+                smpl->fs = riff.fs;
+                smpl->samples = riff.samples;
+                riff.ConvertPCM(smpl->data);
+
+            }catch(const runtime_error& error) {
+                if(status_list)
+                    status_list("   - failed!");
+                throw runtime_error(string_format("Parsing sample \"%s\" failed!",name));
+            }
         }
         else if(wildcmp("M*",name))
         {

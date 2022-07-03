@@ -9,7 +9,7 @@
 #include "spell_video.h"
 #include "other.h"
 #include "LZ_spell.h"
-#include "iffdigest\iffdigest.h"
+#include "riff_loader.h"
 
 #include <fstream>
 #include <filesystem>
@@ -447,44 +447,19 @@ int SpellVideo::DecodeDP2(uint8_t* dp2,int dp2_len, uint8_t *riff, int riff_len)
 		delete deltas;
 	}
 
-
-	// init audio stream data	 
-	std::strcpy(audio.name,"stream");
-
-	// parse wave data
-	IFFDigest iff((const char*)riff,riff_len);
-	IFFChunkIterator pfmt = iff.ck_find(iff_ckid("fmt "));
-	if(pfmt == iff.ck_end()) {
-		// not wave?
-		return 1;
-	}	
-	const char* fmt = pfmt->dataPtr();
-	uint16_t wformat = iff_u16_le(fmt);
-	audio.channels = iff_u16_le(fmt+2);
-	audio.fs = iff_u32_le(fmt+4);	
-	int bits = iff_u16_le(fmt+14);
-	if(wformat != 1)
-	{
-		// not wave fmt header?
-		return 1;		
-	}	
-	IFFChunkIterator pdata = iff.ck_find(iff_ckid("data"));
-	if(pdata == iff.ck_end())
-	{
-		// not data?
-		return 1;
-	}		
-	if(bits == 16)
-	{
-		auto *dptr = pdata->dataPtr();
-		audio.samples = pdata->len()/2/audio.channels;
-		audio.data.resize(audio.samples*audio.channels);
-		for(int k = 0; k < audio.samples*audio.channels; k++)
-			audio.data[k] = iff_s16_le(dptr + k*2);
+	// load complementary audio data			
+	try {
+		// try parse RIFF WAVE
+		RIFF riff_cont(riff,riff_len);
+		
+		// store PCM data
+		std::strcpy(audio.name,"stream");
+		audio.channels = riff_cont.channels;
+		audio.fs = riff_cont.fs;
+		audio.samples = riff_cont.samples;
+		riff_cont.ConvertPCM(audio.data);
 	}
-	else
-	{
-		// 8-bit not implemented
+	catch(const runtime_error& error) {
 		return(1);
 	}
 

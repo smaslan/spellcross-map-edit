@@ -108,7 +108,7 @@
     <ClCompile Include="spell_video.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="iffdigest\iffdigest.cc">
+    <ClCompile Include="riff_loader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -215,7 +215,7 @@
     <ClInclude Include="spell_video.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="iffdigest\iffdigest.h">
+    <ClInclude Include="riff_loader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
