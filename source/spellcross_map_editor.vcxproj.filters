@@ -108,6 +108,9 @@
     <ClCompile Include="spell_video.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="iffdigest\iffdigest.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="fs_archive.h">
@@ -210,6 +213,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="spell_video.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="iffdigest\iffdigest.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

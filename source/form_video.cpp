@@ -144,11 +144,14 @@ void FormVideo::OnOpenClick(wxCommandEvent& event)
 	wstring name = last_path.filename();
 
 	// show open dialog
-	wxFileDialog openFileDialog(this,_("Open Spellcross Video File"),dir,name,"CAN file (*.CAN)|*.CAN|Packed file (*.DPK)|*.DPK",
+	wxFileDialog openFileDialog(this,_("Open Spellcross Video File"),dir,name,"Spellcross video file (*.CAN;*.DPK;*.DP2)|*.CAN;*.DPK;*.DP2",
 		wxFD_OPEN|wxFD_FILE_MUST_EXIST);
 	if(openFileDialog.ShowModal() == wxID_CANCEL)
 		return;
 	wstring path = wstring(openFileDialog.GetPath().ToStdWstring());
+
+	// stop old playback
+	StopPlayback();
 
 	// loose old data
 	if(m_data)
@@ -206,10 +209,13 @@ void FormVideo::OnPaintCanvas(wxPaintEvent& event)
 	wxBitmap bmp(canvas->GetClientSize(),24);
 	int surf_x = bmp.GetWidth();
 	int surf_y = bmp.GetHeight();
-
+	
 	int frame_id = slideOffset->GetValue();
 	if(m_data && m_data->GetFramesCount() && frame_id < m_data->GetFramesCount())
 	{
+		if(m_data->isCAN())
+			return;
+
 		// resize canvas
 		auto [frame_x,frame_y] = m_data->GetResolution();
 		

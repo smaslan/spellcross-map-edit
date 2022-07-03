@@ -9,6 +9,7 @@
 #include "spell_video.h"
 #include "other.h"
 #include "LZ_spell.h"
+#include "iffdigest\iffdigest.h"
 
 #include <fstream>
 #include <filesystem>
@@ -37,16 +38,40 @@ SpellVideo::SpellVideo(std::wstring path)
 	{
 		throw runtime_error("Decoding DPK video file failed!");
 	}
+	else if(std::filesystem::path(path).extension().compare(".DP2") == 0)
+	{		
+		// try open complement wave file
+		std::wstring wave_path = std::filesystem::path(path).replace_extension("").wstring();
+		ifstream frw(wave_path.c_str(),ios::in | ios::binary | ios::ate);
+		if(!frw.is_open())
+			throw runtime_error("Cannot open complement wave file!");
+
+		// read to local buffer and close
+		streampos wave_flen = frw.tellg();
+		frw.seekg(0);
+		vector<uint8_t> wave_data;
+		wave_data.resize(wave_flen);
+		frw.read((char*)wave_data.data(),wave_flen);
+		frw.close();
+
+		// try decode
+		if(DecodeDP2(data.data(), data.size(), wave_data.data(), wave_data.size()))
+		{
+			throw runtime_error("Decoding DP2 video file failed!");
+		}
+	}
 }
 
 int SpellVideo::DecodeCAN(uint8_t* data,int len)
 {
+	type = SpellVideoType::CAN;
+
 	uint8_t *p = data;
 	uint8_t *pend = &data[len];
-
+	
 	// frame rate (estimate from smallest audio chunk)
 	fps = 15.0;
-	
+		
 	// read frames count
 	if(&p[4] > pend)
 	{
@@ -94,7 +119,7 @@ int SpellVideo::DecodeCAN(uint8_t* data,int len)
 		}
 		
 		// copy audio block
-		audio.data.reserve(audio.samples + audio_block_size);
+		audio.data.resize(audio.samples + audio_block_size);
 		for(int k = 0; k < audio_block_size; k++)
 			audio.data[audio.samples++] = (int16_t)((((uint16_t)*p++)<<8) - (uint16_t)0x8000u);
 		
@@ -127,6 +152,8 @@ int SpellVideo::DecodeCAN(uint8_t* data,int len)
 
 int SpellVideo::DecodeDPK(uint8_t* data,int len)
 {
+	type = SpellVideoType::DPK;
+
 	uint8_t* p = data;
 	uint8_t* pend = &data[len];
 
@@ -287,6 +314,183 @@ int SpellVideo::DecodeDPK(uint8_t* data,int len)
 	return(0);
 }
 
+int SpellVideo::DecodeDP2(uint8_t* dp2,int dp2_len, uint8_t *riff, int riff_len)
+{
+	type = SpellVideoType::DP2;
+
+	uint8_t* p = dp2;
+	uint8_t* pend = &dp2[dp2_len];
+
+	// frame rate (estimate from smallest audio chunk)
+	fps = 15.0;
+
+	// read frames count
+	if(&p[4] > pend)
+	{
+		// fail
+		return(1);
+	}
+	int frames_count = *(uint32_t*)p; p += sizeof(uint32_t);
+
+	// read palette data
+	if(&p[256*3] > pend)
+	{
+		// fail
+		return(1);
+	}
+	std::memcpy(&pal[0][0],p,256*3);
+	p += 256*3;
+
+	// read frame resolution
+	if(&p[8] > pend)
+	{
+		// fail
+		return(1);
+	}
+	x_size = *(uint32_t*)p; p += sizeof(uint32_t);
+	y_size = *(uint32_t*)p; p += sizeof(uint32_t);
+
+	// make temp frame buffer holding current frame data
+	vector<uint8_t> frame(x_size*y_size,0x00);
+
+	// initialize LZW decoder
+	LZWexpand delz(1000000);
+
+	// read frames
+	while(p < pend)
+	{
+		// read audio samples till end of block detected
+
+		// get video frame data size		
+		if(&p[4] > pend)
+		{
+			// failed
+			return(1);
+		}
+		int video_chunk_size = *(uint32_t*)p; p += sizeof(uint32_t);
+		if(&p[video_chunk_size] > pend)
+		{
+			// fail
+			return(1);
+		}
+		if(!video_chunk_size)
+		{
+			// duplicate last frame
+			frames.emplace_back(frame);
+			continue;
+		}
+
+		// try deLZ
+		uint8_t* deltas = NULL;
+		int deltas_size;
+		delz.Decode(p,&p[video_chunk_size],&deltas,&deltas_size);
+		if(!deltas || deltas_size < 20)
+		{
+			// failed
+			return(1);
+		}
+		p += video_chunk_size;
+		uint8_t* dptr = deltas;
+		uint8_t* dend = &deltas[deltas_size];
+
+		// modified area range
+		int min_x = *(uint16_t*)dptr; dptr += sizeof(uint16_t);
+		int max_x = *(uint16_t*)dptr; dptr += sizeof(uint16_t);
+		int min_y = *(uint16_t*)dptr; dptr += sizeof(uint16_t);
+		int max_y = *(uint16_t*)dptr; dptr += sizeof(uint16_t);
+
+		// frame data pointer
+		uint8_t* fptr = frame.data();
+		uint8_t* fend = &fptr[frame.size()];
+
+		while(true)
+		{
+			// get pixels gap
+			if(&dptr[4] > dend)
+			{
+				// failed
+				delete deltas;
+				return(1);
+			}
+			uint32_t gap_size = *(uint32_t*)dptr; dptr += sizeof(uint32_t);
+			// end mark?
+			if(gap_size == 0xFFFFFFFFu)
+				break;
+
+			// get chunk size
+			if(&dptr[4] > dend)
+			{
+				// failed
+				delete deltas;
+				return(1);
+			}
+			int chunk_size = *(uint32_t*)dptr; dptr += sizeof(uint32_t);
+			if(!chunk_size)
+				continue;
+
+			// copy data chunk to current frame
+			fptr += gap_size;
+			if(&fptr[chunk_size] > fend || &dptr[chunk_size] > dend)
+			{
+				// failed
+				delete deltas;
+				return(1);
+			}
+			std::memcpy(fptr,dptr,chunk_size);
+			dptr += chunk_size;
+			fptr += chunk_size;
+		}
+
+		// store to frame buffer
+		frames.emplace_back(frame);
+
+		delete deltas;
+	}
+
+
+	// init audio stream data	 
+	std::strcpy(audio.name,"stream");
+
+	// parse wave data
+	IFFDigest iff((const char*)riff,riff_len);
+	IFFChunkIterator pfmt = iff.ck_find(iff_ckid("fmt "));
+	if(pfmt == iff.ck_end()) {
+		// not wave?
+		return 1;
+	}	
+	const char* fmt = pfmt->dataPtr();
+	uint16_t wformat = iff_u16_le(fmt);
+	audio.channels = iff_u16_le(fmt+2);
+	audio.fs = iff_u32_le(fmt+4);	
+	int bits = iff_u16_le(fmt+14);
+	if(wformat != 1)
+	{
+		// not wave fmt header?
+		return 1;		
+	}	
+	IFFChunkIterator pdata = iff.ck_find(iff_ckid("data"));
+	if(pdata == iff.ck_end())
+	{
+		// not data?
+		return 1;
+	}		
+	if(bits == 16)
+	{
+		auto *dptr = pdata->dataPtr();
+		audio.samples = pdata->len()/2/audio.channels;
+		audio.data.resize(audio.samples*audio.channels);
+		for(int k = 0; k < audio.samples*audio.channels; k++)
+			audio.data[k] = iff_s16_le(dptr + k*2);
+	}
+	else
+	{
+		// 8-bit not implemented
+		return(1);
+	}
+
+	return(0);
+}
+
 std::tuple<int,int> SpellVideo::GetResolution()
 {
 	return std::tuple(x_size,y_size);
@@ -294,12 +498,18 @@ std::tuple<int,int> SpellVideo::GetResolution()
 
 int SpellVideo::GetFramesCount()
 {
+	if(isDP2())
+		return((int)(fps*audio.samples/audio.fs));
 	return(frames.size());
 }
 
 uint8_t* SpellVideo::GetFrame(int id)
 {
-	if(id >= frames.size())
+	if(id < 0)
+		return(NULL);
+	if(isDP2())
+		id = mod(id, frames.size()); // loop frames for DP2 format
+	else if(id >= frames.size())
 		return(NULL);
 	return(frames[id].data());
 }
@@ -309,7 +519,11 @@ int SpellVideo::GetFrameID(double time)
 {
 	if(frames.empty())
 		return(-1);
-	int id = min(max((int)(time*fps), 0), (int)frames.size()-1);	
+	int id;
+	if(isDP2())
+		id = max((int)(time*fps),0);
+	else
+		id = min(max((int)(time*fps), 0), (int)frames.size()-1);	
 	return(id);
 }
 
