@@ -285,7 +285,7 @@ void FormTools::SetMap(SpellMap* map)
 	{
 		Terrain* terr = spell_data->GetTerrain(k);
 		wxString lab = terr->name;
-		if (map && std::strcmp(map->terrain->name, spell_data->GetTerrain(k)->name) == 0)
+		if (map && map->terrain->name.compare(spell_data->GetTerrain(k)->name) == 0)
 		{
 			lab = lab + " (active)";
 			mmTerrain->Check(TERR_ID0 + k,true);

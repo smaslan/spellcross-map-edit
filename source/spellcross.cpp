@@ -21,6 +21,7 @@
 #include <stdexcept>
 #include <regex>
 #include <filesystem>
+//#include <algorithm>
 
 //#include <format>
 
@@ -310,7 +311,8 @@ SpellData::SpellData(wstring &data_path,wstring& cd_data_path,wstring& spec_path
 	texts = NULL;
 	L2_classes = NULL;
 	unit_bonuses = NULL;		
-	common = NULL;
+	common_fs = NULL;
+	terrain_fs = NULL;
 
 	// store data paths for dynamic loading
 	this->data_path = data_path;
@@ -327,7 +329,7 @@ SpellData::SpellData(wstring &data_path,wstring& cd_data_path,wstring& spec_path
 		status_list("Loading COMMON.FS archive...");	
 	wstring common_path = std::filesystem::path(data_path) / std::filesystem::path("COMMON.FS");
 	try{
-		common = new FSarchive(common_path);
+		common_fs = new FSarchive(common_path);
 	}catch(const runtime_error& error){
 		this->~SpellData();
 		if(status_list)
@@ -339,7 +341,7 @@ SpellData::SpellData(wstring &data_path,wstring& cd_data_path,wstring& spec_path
 	if(status_list)
 		status_list("Loading sound samples...");
 	try{
-		sounds = new SpellSounds(common,data_path,16,status_list,status_item);
+		sounds = new SpellSounds(common_fs,data_path,16,status_list,status_item);
 	}catch(const runtime_error& error) {
 		this->~SpellData();
 		if(status_list)
@@ -351,7 +353,7 @@ SpellData::SpellData(wstring &data_path,wstring& cd_data_path,wstring& spec_path
 	if(status_list)
 		status_list("Loading destructible object classes...");
 	try{
-		L2_classes = new SpellL2classes(common,sounds,status_list,status_item);
+		L2_classes = new SpellL2classes(common_fs,sounds,status_list,status_item);
 	}catch(const runtime_error& error) {
 		this->~SpellData();
 		if(status_list)
@@ -363,7 +365,7 @@ SpellData::SpellData(wstring &data_path,wstring& cd_data_path,wstring& spec_path
 	if(status_list)
 		status_list("Loading unit experience bonuses...");
 	try{
-		string bonus_def = common->GetFile("BONUSES.DEF");	
+		string bonus_def = common_fs->GetFile("BONUSES.DEF");
 		unit_bonuses = new UnitBonuses(bonus_def);
 	}catch(const runtime_error& error) {
 		this->~SpellData();
@@ -372,32 +374,92 @@ SpellData::SpellData(wstring &data_path,wstring& cd_data_path,wstring& spec_path
 		throw runtime_error(string_format("Loading unit bonuses failed (%s)!",error.what()));
 	}
 
+	// load UNITS.PAL palette chunk for maps
+	if(status_list)
+		status_list("Loading palette files...");
+	if(common_fs->GetFile("UNITS.PAL",&data,&size) || size != 96*3)
+	{
+		this->~SpellData();
+		if(status_list)
+			status_list(" - missing UNITS.PAL!");
+		throw runtime_error("UNITS.PAL not found in COMMON.FS!");
+	}
+	std::memcpy(&map_pal[128][0],data,size);
+	// load SYSTEM.PAL palette chunk for maps
+	if(common_fs->GetFile("SYSTEM.PAL",&data,&size) || size != 32*3)
+	{
+		this->~SpellData();
+		if(status_list)
+			status_list(" - missing SYSTEM.PAL!");
+		throw runtime_error("SYSTEM.PAL not found in COMMON.FS!");
+	}
+	std::memcpy(&map_pal[224][0],data,size);
+	// load CURSOR.PAL palette chunk for maps - ###todo: not sure where to place this
+	/*if(common_fs->GetFile("CURSOR.PAL",&data,&size) || size != 6*3)
+	{
+		this->~SpellData();
+		if(status_list)
+			status_list(" - missing CURSOR.PAL!");
+		throw runtime_error("CURSOR.PAL not found in COMMON.FS!");
+	}
+	std::memcpy(&map_pal[218][0],data,size);*/
+	
+	// load generic graphic resources
+	if(status_list)
+		status_list("Loading common graphics resources...");
+	if(LoadAuxGraphics(common_fs,status_item))
+	{
+		this->~SpellData();
+		if(status_list)
+			status_list(" - failed!");
+		throw runtime_error("Loading common graphics resources failed!");
+	}
+	
 	// load terrains
 	if(status_list)
 		status_list("Loading terrain graphics data...");
 	vector<string> terrain_list = {"T11.FS", "PUST.FS", "DEVAST.FS"};
 	for(auto & name : terrain_list)
 	{
-		// terrain archive path
-		wstring path = std::filesystem::path(data_path) / std::filesystem::path(name);
-		// aux terrain data path
-		wstring aux_path = std::filesystem::path(spec_path) / std::filesystem::path(name);
-
 		// load terrain
 		if(status_list)
-			status_list(string_format(" - loading terrain ''%s''",name.c_str()));
+			status_list(string_format(" - loading terrain \"%s\"",name.c_str()));
+
+		// load FS
+		wstring path = std::filesystem::path(data_path) / std::filesystem::path(name);
+		try{
+			terrain_fs = new FSarchive(path);
+		}catch(const runtime_error& error) {
+			this->~SpellData();
+			if(status_list)
+				status_list("   - failed!");
+			throw runtime_error(string_format("Loading \"%ls\" archive failed (%s)!",path,error.what()));
+		}
+
+		// try load aux FS data
+		wstring aux_path = std::filesystem::path(spec_path) / std::filesystem::path(name);
+		try{			
+			terrain_fs->Append(aux_path);
+		}catch(...) {};
+		
+		// make new terrain
 		Terrain* new_terrain = new Terrain();
-		if(new_terrain->Load(path, aux_path, L2_classes, status_item))
+		if(new_terrain->Load(terrain_fs, map_pal, &gres, L2_classes, status_item))
 		{
 			this->~SpellData();
 			if(status_list)
 				status_list(" - failed!");
-			throw runtime_error(string_format("Loading terrain ''%s'' failed!",name.c_str()));
+			throw runtime_error(string_format("Loading terrain \"%s\" failed!",name.c_str()));
 		}
+
+		// loose FS data
+		delete terrain_fs;
+		terrain_fs = NULL;
 
 		// store to list
 		terrain.push_back(new_terrain);
 	}
+
 		
 	// load FSU data
 	if(status_list)
@@ -410,86 +472,15 @@ SpellData::SpellData(wstring &data_path,wstring& cd_data_path,wstring& spec_path
 		if(status_list)
 			status_list(" - failed!");
 		throw runtime_error(string_format("Loading UNITS.FSU units graphics failed (%s)!",error.what()));
-	}
+	}	
 		
-	// load UNITS.PAL palette chunk and merge with terrain palette chunk
-	if(status_list)
-		status_list("Loading palette files...");
-	if(common->GetFile("UNITS.PAL", &data, &size))
-	{
-		this->~SpellData();
-		if(status_list)
-			status_list(" - missing UNITS.PAL!");
-		throw runtime_error("UNITS.PAL not found in COMMON.FS!");
-	}
-	for (unsigned k = 0; k < this->terrain.size(); k++)
-		std::memcpy((void*)&this->terrain[k]->pal[128][0], (void*)data, 96 * 3);
-	
-	// load SYSTEM.PAL palette chunk and merge with terrain palette chunk
-	if (common->GetFile("SYSTEM.PAL", &data, &size))
-	{
-		this->~SpellData();
-		if(status_list)
-			status_list(" - missing SYSTEM.PAL!");
-		throw runtime_error("SYSTEM.PAL not found in COMMON.FS!");
-	}
-	for (unsigned k = 0; k < this->terrain.size(); k++)
-	{
-		uint8_t temp[10][3];
-		std::memcpy((void*)temp, (void*)&this->terrain[k]->pal[240][0], 10 * 3);
-		std::memcpy((void*)&this->terrain[k]->pal[224][0], (void*)data, 32 * 3);
-		std::memcpy((void*)&this->terrain[k]->pal[240][0], (void*)temp, 10 * 3);
-	}
-
-	// load generic graphic resources
-	if(status_list)
-		status_list("Loading common graphics resources...");
-	if(LoadAuxGraphics(common,status_item))
-	{
-		this->~SpellData();
-		if(status_list)
-			status_list(" - failed!");
-		throw runtime_error("Loading common graphics resources failed!");
-	}
-	
-	// processing all other common files
-	if(status_list)
-		status_list("Loading common PNM animations...");
-	for(int fid = 0; fid < common->Count(); fid++)
-	{
-		// get file data
-		char* name;
-		uint8_t* data;
-		int flen;
-		common->GetFile(fid,&data,&flen,&name);
-		uint8_t* data_end = &data[flen];
-
-		if(wildcmp("*.PNM",name))
-		{
-			// PNM animations			
-			char temp_name[13];
-			strcpy_noext(temp_name,name);
-			if(status_item)
-				status_item(temp_name);
-			AnimPNM* pnm = new AnimPNM();
-			if(pnm->Decode(data,temp_name))
-			{
-				delete pnm;
-				this->~SpellData();
-				if(status_list)
-					status_list(string_format(" - failed decoding ''%s''!",name));
-				throw runtime_error(string_format("Failed decoding PNM animation ''%s''!",name));
-			}
-			pnms.push_back(pnm);			
-		}
-	}
 	// hard assign some PNM links
-	pnm_sipka = GetPNM("SIPKA");	
+	pnm_sipka = gres.GetPNM("SIPKA");	
 
 	// load JEDNOTKY.DEF units definition file
 	if(status_list)
 		status_list("Loading units definitions (JEDNOTKY.DEF)...");
-	if(common->GetFile("JEDNOTKY.DEF", &data, &size))
+	if(common_fs->GetFile("JEDNOTKY.DEF", &data, &size))
 	{		
 		this->~SpellData();
 		if(status_list)
@@ -508,7 +499,7 @@ SpellData::SpellData(wstring &data_path,wstring& cd_data_path,wstring& spec_path
 	// load font file
 	if(status_list)
 		status_list("Loading font files...");
-	if(common->GetFile("FONT_001.FNT",&data,&size))
+	if(common_fs->GetFile("FONT_001.FNT",&data,&size))
 	{
 		// failed
 		this->~SpellData();
@@ -526,8 +517,8 @@ SpellData::SpellData(wstring &data_path,wstring& cd_data_path,wstring& spec_path
 	}
 
 	// close common.fs
-	delete common;
-	common = NULL;
+	delete common_fs;
+	common_fs = NULL;
 
 
 	// load TEXTS.FS
@@ -623,10 +614,6 @@ SpellData::~SpellData()
 	if(units_fsu)
 		delete units_fsu;
 	units_fsu = NULL;
-	// delete pnm animations
-	for(auto & pnm : pnms)
-		delete pnm;
-	pnms.clear();
 	// delete font
 	if(font)
 		delete font;
@@ -649,19 +636,22 @@ SpellData::~SpellData()
 	if(unit_bonuses)
 		delete unit_bonuses;
 	unit_bonuses = NULL;
-	if(common)
-		delete common;
-	common = NULL;
+	if(common_fs)
+		delete common_fs;
+	common_fs = NULL;
+	if(terrain_fs)
+		delete terrain_fs;
+	terrain_fs = NULL;
 }
 
 // find loaded PNM animation
-AnimPNM* SpellData::GetPNM(const char* name)
+/*AnimPNM* SpellData::GetPNM(const char* name)
 {
 	for(auto & pnm : pnms)
 		if(strcmp(pnm->name, name) == 0)
 			return(pnm);
 	return(NULL);
-}
+}*/
 
 // auto build sprite context from all available spellcross maps
 int SpellData::BuildSpriteContextOfMaps(wstring folder, string terrain_name,std::function<void(std::string)> status_cb)
@@ -731,91 +721,91 @@ int SpellData::LoadAuxGraphics(FSarchive *fs,std::function<void(std::string)> st
 			// units icons, fized width 60
 			is_lzw = true;
 			lzw->Decode(data, data_end, &data, &flen);			
-			gres.AddRaw(data, flen, 60, flen/60, name, (uint8_t*)terrain[0]->pal);
+			gres.AddRaw(data, flen, 60, flen/60, name, map_pal);
 		}
 		else if(strcmp(name, "LISTA_0.LZ") == 0 || strcmp(name,"LISTA_1.LZ") == 0)
 		{
 			// war map bottom panel
 			is_lzw = true;
 			lzw->Decode(data,data_end,&data,&flen);
-			gres.AddRaw(data,flen,640,flen/640,name,(uint8_t*)terrain[0]->pal);
+			gres.AddRaw(data,flen,640,flen/640,name,map_pal);
 		}
 		else if(strcmp(name,"LISTA_0B.LZ0") == 0)
 		{
 			// war map right panel overlay
 			is_lzw = true;
 			lzw->Decode(data,data_end,&data,&flen);
-			gres.AddRaw(data,flen,160,flen/160,name,(uint8_t*)terrain[0]->pal);
+			gres.AddRaw(data,flen,160,flen/160,name,map_pal);
 		}
 		else if(strcmp(name,"LISTAPAT.LZ") == 0)
 		{
 			// war map bottom panel side filling
 			is_lzw = true;
 			lzw->Decode(data,data_end,&data,&flen);
-			gres.AddRaw(data,flen,32,flen/32,name,(uint8_t*)terrain[0]->pal);
+			gres.AddRaw(data,flen,32,flen/32,name,map_pal);
 		}
 		else if(strcmp(name,"LEV_GFK.LZ") == 0)
 		{
 			// experience mark
 			is_lzw = true;
 			lzw->Decode(data,data_end,&data,&flen);
-			gres.AddRaw(data,flen,9,flen/9,name,(uint8_t*)terrain[0]->pal);
+			gres.AddRaw(data,flen,9,flen/9,name,map_pal);
 		}
 		else if(strcmp(name,"M_ACCOMP.LZ") == 0 || strcmp(name,"M_FAILED.LZ") == 0)
 		{
 			// war map end title
 			is_lzw = true;
 			lzw->Decode(data,data_end,&data,&flen);
-			gres.AddRaw(data,flen,340,flen/340,name,(uint8_t*)terrain[0]->pal);
+			gres.AddRaw(data,flen,340,flen/340,name,map_pal);
 		}
 		else if(strcmp(name,"OPT_BAR.LZ") == 0)
 		{
 			// window frame
 			is_lzw = true;
 			lzw->Decode(data,data_end,&data,&flen);
-			gres.AddRaw(data,flen,10,flen/10,name,(uint8_t*)terrain[0]->pal);
+			gres.AddRaw(data,flen,10,flen/10,name,map_pal);
 		}
 		else if(strcmp(name,"MAP_OPT.LZ") == 0)
 		{
 			// window frame
 			is_lzw = true;
 			lzw->Decode(data,data_end,&data,&flen);
-			gres.AddRaw(data,flen,436,flen/436,name,(uint8_t*)terrain[0]->pal);
+			gres.AddRaw(data,flen,436,flen/436,name,map_pal);
 		}
 		else if(wildcmp("*.ICO",name) || wildcmp("*.BTN",name))
 		{
 			// ICO files (compression like in PNM files)			
-			gres.AddICO(data, flen, name,(uint8_t*)terrain[0]->pal);
+			gres.AddICO(data, flen, name,map_pal);
 		}
 		else if(wildcmp("*.CUR",name))
 		{
 			// CUR files (simple bitmaps with dimensions and transparencies)
-			gres.AddCUR(data,flen,name,(uint8_t*)terrain[0]->pal);
+			gres.AddCUR(data,flen,name,map_pal);
 		}
 		else if(wildcmp("*.GFK",name))
 		{
 			// GFK projection files: fixed 21x21 pixel with transparencies
-			gres.AddRaw(data,flen,21,21,name,(uint8_t*)terrain[0]->pal,true);
+			gres.AddRaw(data,flen,21,21,name,map_pal,true);
 		}
 		else if(strcmp(name,"I_ATTACK") == 0 || strcmp(name,"I_LOWER") == 0 || strcmp(name,"I_MOVE") == 0 || strcmp(name,"I_UPPER") == 0 || strcmp(name,"I_SELECT") == 0)
 		{
 			// raw icon files
-			gres.AddRaw(data,flen,20,20,name,(uint8_t*)terrain[0]->pal,false,true);
+			gres.AddRaw(data,flen,20,20,name,map_pal,false,true);
 		}
 		else if(strcmp(name,"I_TAB") == 0)
 		{
 			// raw icon files
-			gres.AddRaw(data,flen,60,45,name,(uint8_t*)terrain[0]->pal,false,true);
+			gres.AddRaw(data,flen,60,45,name,map_pal,false,true);
 		}
 		else if(wildcmp("RAM?HORZ.DTA",name))
 		{
 			// frame part
-			gres.AddRaw(data,flen,76,flen/76,name,(uint8_t*)terrain[0]->pal,true);
+			gres.AddRaw(data,flen,76,flen/76,name,map_pal,true);
 		}
 		else if(wildcmp("RAM*.DTA",name))
 		{
 			// frame part
-			gres.AddRaw(data,flen,10,flen/10,name,(uint8_t*)terrain[0]->pal,true);
+			gres.AddRaw(data,flen,10,flen/10,name,map_pal,true);
 		}
 		else if(wildcmp("*.PNM",name))
 		{
@@ -833,9 +823,9 @@ int SpellData::LoadAuxGraphics(FSarchive *fs,std::function<void(std::string)> st
 	}
 
 	// make round LED indicators for mission HUD
-	gres.AddLED(204,"RLED_OFF",(uint8_t*)terrain[0]->pal);
-	gres.AddLED(253,"RLED_ON",(uint8_t*)terrain[0]->pal);
-	gres.AddLED(229,"YLED_ON",(uint8_t*)terrain[0]->pal);
+	gres.AddLED(204,"RLED_OFF",map_pal);
+	gres.AddLED(253,"RLED_ON",map_pal);
+	gres.AddLED(229,"YLED_ON",map_pal);
 	
 	// --- DO NOT ADD ANYTHING TO LIST FROM HERE!!! it would change memory locations!
 
@@ -1057,9 +1047,9 @@ int SpellData::GetTerrainCount()
 // get terrain pointer by terrain name or return NULL
 Terrain* SpellData::GetTerrain(const char* name)
 {
-	for (unsigned k = 0; k < this->terrain.size(); k++)
-		if (_strcmpi(this->terrain[k]->name, name) == 0)
-			return(this->terrain[k]);
+	for(auto & terr : terrain)
+		if(_stricmp(terr->name.c_str(), name) == 0)
+			return(terr);
 	return(NULL);
 }
 // get terrain pointer by index or NULL

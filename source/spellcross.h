@@ -112,7 +112,8 @@ private:
 	int LoadSpecialLand(wstring& path);
 	int LoadAuxGraphics(FSarchive* fs,std::function<void(std::string)> status_item=NULL);
 	
-	FSarchive* common;
+	FSarchive* common_fs;
+	FSarchive* terrain_fs;
 
 public:
 	// data paths
@@ -132,13 +133,13 @@ public:
 	FSUarchive *units_fsu;
 	// units
 	SpellUnits* units;
+	// palettes
+	uint8_t map_pal[256][3]; /* map environment common pal (index: 128 - 255) */
 	// fonts
 	SpellFont* font;
 	SpellFont* font7;
 	// generic graphics
 	SpellGraphics gres;
-	// PNM animations
-	vector<AnimPNM*> pnms;
 	// last path
 	wstring spell_data_root;
 	// info.fs
@@ -158,7 +159,6 @@ public:
 	Terrain* GetTerrain(int index);
 	int GetTerrainCount();
 	int BuildSpriteContextOfMaps(wstring folder,string terrain_name,std::function<void(std::string)> status_cb);
-	AnimPNM *GetPNM(const char *name);
 
 	AnimPNM *pnm_sipka;
 };

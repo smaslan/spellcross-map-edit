@@ -85,7 +85,7 @@ FormVideoBox::FormVideoBox(wxPanel* parent,wxWindowID win_id,SpellData* spell_da
     // convert frame to RGB frame buffer
     m_frame = new wxBitmap(x_size,y_size,24);        
     uint8_t* ptr = &buf[0];
-    uint8_t* pal = horz->pal;
+    uint8_t (*pal)[3] = horz->pal;
     wxNativePixelData pdata(*m_frame);
     wxNativePixelData::Iterator p(pdata);
     for(int y = 0; y < y_size; y++)
@@ -93,9 +93,9 @@ FormVideoBox::FormVideoBox(wxPanel* parent,wxWindowID win_id,SpellData* spell_da
         uint8_t* scan = p.m_ptr;
         for(int x = 0; x < x_size; x++)
         {
-            *scan++ = pal[*ptr*3+2];
-            *scan++ = pal[*ptr*3+1];
-            *scan++ = pal[*ptr*3+0];
+            *scan++ = pal[*ptr][2];
+            *scan++ = pal[*ptr][1];
+            *scan++ = pal[*ptr][0];
             ptr++;
         }
         p.OffsetY(pdata,1);

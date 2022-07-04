@@ -18,9 +18,10 @@ using namespace std;
 // load entire archive file
 FSarchive::FSarchive(wstring &path)
 {
+	fs_name = std::filesystem::path(path).filename().string();
 	names.clear();
 	data.clear();
-	sizes.clear();
+	sizes.clear();	
 	Append(path);
 }
 
@@ -150,4 +151,13 @@ const char* FSarchive::GetFileName(int id)
 	if(id >= this->data.size())
 		return("");
 	return(names[id]);
+}
+
+// get name of FS archive
+std::string FSarchive::GetFSname(bool with_extension)
+{
+	if(with_extension)
+		return(fs_name);
+	else
+		return(std::filesystem::path(fs_name).replace_extension().string());
 }

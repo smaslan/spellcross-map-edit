@@ -74,7 +74,7 @@ FormUnitOpts::FormUnitOpts(wxPanel *parent, wxWindowID win_id, wxPoint position,
         buttons[k]->Bind(wxEVT_PAINT,&FormUnitOpts::OnPaintButton,this,ID_BTN + k);
         buttons[k]->Bind(wxEVT_LEAVE_WINDOW,&FormUnitOpts::OnButtonMouseHover,this,ID_BTN + k);
         buttons[k]->Bind(wxEVT_ENTER_WINDOW,&FormUnitOpts::OnButtonMouseHover,this,ID_BTN + k);
-        buttons[k]->Bind(wxEVT_LEFT_UP,&FormUnitOpts::OnButtonClick,this,ID_BTN + k);
+        buttons[k]->Bind(wxEVT_LEFT_DOWN,&FormUnitOpts::OnButtonClick,this,ID_BTN + k);
     }
     
     form->Bind(wxEVT_CLOSE_WINDOW,&FormUnitOpts::OnClose,this);
@@ -105,7 +105,7 @@ void FormUnitOpts::OnPaintTab(wxPaintEvent& event)
     m_spelldata->font->Render(buf,&buf[back.size()],x_size,3,29,54,13,info_label,0xFF,0xFE,SpellFont::FontShadow::RIGHT_DOWN);
     
     // render 24bit RGB data to raw bmp buffer
-    uint8_t* pal = m_spelldata->gres.wm_sel_tab->pal;
+    uint8_t (*pal)[3] = m_spelldata->gres.wm_sel_tab->pal;
     wxBitmap bmp(x_size,y_size,24);    
     wxNativePixelData pdata(bmp);
     wxNativePixelData::Iterator p(pdata);
@@ -114,9 +114,9 @@ void FormUnitOpts::OnPaintTab(wxPaintEvent& event)
         uint8_t* scan = p.m_ptr;
         for(int x = 0; x < x_size; x++)
         {
-            *scan++ = pal[*buf*3+2];
-            *scan++ = pal[*buf*3+1];
-            *scan++ = pal[*buf*3+0];
+            *scan++ = pal[*buf][2];
+            *scan++ = pal[*buf][1];
+            *scan++ = pal[*buf][0];
             buf++;
         }
         p.OffsetY(pdata,1);

@@ -24,12 +24,9 @@
 #include "spell_font.h"
 #include "spell_filter.h"
 #include "spell_sound.h"
+#include "spell_graphics.h"
 
 #include "wx/dcbuffer.h"
-
-
-using namespace std;
-
 
 
 #define MAX_STR 256
@@ -39,9 +36,9 @@ using namespace std;
 class SpellL2classRec
 {
 public:
-	string tag;
-	string label;
-	string name;
+	std::string tag;
+	std::string label;
+	std::string name;
 	int index;
 	int defence;
 	int hp;
@@ -57,17 +54,19 @@ class DestructibleRec
 public:
 	DestructibleRec();
 	SpellL2classRec* destructible;
+	std::string pnm_name;
+	int target;
 	int destructed;
 	int two_stage_desctruct;
-	string alt_name;
+	std::string alt_name;
 };
 
 class SpellL2classes
 {
 private:
-	vector<SpellL2classRec*> wall_list;
-	vector<SpellL2classRec*> bridge_list;
-	vector<SpellL2classRec*> spec_list;
+	std::vector<SpellL2classRec*> wall_list;
+	std::vector<SpellL2classRec*> bridge_list;
+	std::vector<SpellL2classRec*> spec_list;
 public:
 	SpellL2classes(FSarchive* fs,SpellSounds* sounds,std::function<void(std::string)> status_list=NULL,std::function<void(std::string)> status_item=NULL);
 	~SpellL2classes();
@@ -117,6 +116,8 @@ class Sprite
 		Sprite *destructible_alt;
 		int is_destructed;
 		int two_stage_desctruct;
+		int is_target;
+		AnimPNM *destroy_pnm;
 		
 		// void constructor
 		Sprite();
@@ -272,7 +273,7 @@ class Sprite
 
 		// sprite context stuff:
 		// quadrant lists of allowed tile neighbors [quadrant, tile_type]
-		vector<Sprite*> quad[4]['M'-'A'+1];
+		std::vector<Sprite*> quad[4]['M'-'A'+1];
 		uint32_t shading;
 		uint32_t flags;
 		uint32_t flags2;
@@ -280,7 +281,7 @@ class Sprite
 		uint32_t spec_class;
 
 		// randomized context
-		vector<vector<Sprite*>> quad_rng[4]['M'-'A'+1];
+		std::vector<std::vector<Sprite*>> quad_rng[4]['M'-'A'+1];
 
 		// tool classes 
 		uint32_t tool_class;
@@ -295,7 +296,7 @@ class AnimL1
 		// animation name
 		char name[MAX_SPRITE_NAME + 1];
 		// frames list
-		vector<Sprite*> frames;
+		std::vector<Sprite*> frames;
 		// sprite size
 		int x_size;
 		int y_size;
@@ -315,7 +316,7 @@ class AnimPNM
 		// animation name
 		char name[MAX_SPRITE_NAME + 1];
 		// frames list
-		vector<Sprite*> frames;
+		std::vector<Sprite*> frames;
 		// sprite data limits relative to origin defined by frames
 		int x_min;
 		int x_max;
@@ -337,11 +338,11 @@ private:
 	// item description
 	std::string description;
 	// sprite positions
-	vector<MapXY> sprite_pos;
+	std::vector<MapXY> sprite_pos;
 	// sprite pointers
-	vector<Sprite*> L1_sprites;
-	vector<Sprite*> L2_sprites;
-	vector<uint8_t> flags;
+	std::vector<Sprite*> L1_sprites;
+	std::vector<Sprite*> L2_sprites;
+	std::vector<uint8_t> flags;
 	// bitmap data
 	int surf_x;
 	int surf_y;
@@ -358,8 +359,8 @@ private:
 	int RenderObjectGlyph();
 
 public:
-	SpellObject(ifstream& fr,vector<Sprite*>& sprite_list,uint8_t* palette = NULL);
-	SpellObject(vector<MapXY> xy, vector<Sprite*> L1_list,vector<Sprite*> L2_list, vector<uint8_t> flag_list, uint8_t *palette = NULL, std::string desc = "");
+	SpellObject(ifstream& fr,std::vector<Sprite*>& sprite_list,uint8_t* palette = NULL);
+	SpellObject(std::vector<MapXY> xy,std::vector<Sprite*> L1_list,std::vector<Sprite*> L2_list,std::vector<uint8_t> flag_list, uint8_t *palette = NULL, std::string desc = "");
 	~SpellObject();
 	int RenderPreview(wxBitmap& bmp,double gamma=1.30);
 	tuple<int, int> GetGlyphSize();
@@ -381,9 +382,9 @@ class SpellToolsGroup
 private:
 	
 public:
-	std::vector<string> items;
-	string name;
-	string title;
+	std::vector<std::string> items;
+	std::string name;
+	std::string title;
 	int glyph_x;
 	int glyph_y;
 	int glyph_mode;
@@ -403,28 +404,28 @@ private:
 	// sprite context file path
 	wstring context_path;
 	// list of generic tile glyph pointers
-	vector<Sprite *> glyphs[13];
+	std::vector<Sprite *> glyphs[13];
 
 	// tools list
-	vector<SpellToolsGroup*> tools;
+	std::vector<SpellToolsGroup*> tools;
 
-	void RandomizeSpriteContextTh(vector<Sprite*> *spr,int ofs,int step);
+	void RandomizeSpriteContextTh(std::vector<Sprite*> *spr,int ofs,int step);
 
 	//int CheckNeighborValid(Sprite *ref,Sprite *neig,int eid);	
 
 public:
 	// terrain name
-	char name[MAX_STR];
+	std::string name;
 	// sprites of particular layers
-	vector<Sprite*> sprites;
+	std::vector<Sprite*> sprites;
 	// sprites context
 	//SpriteContext* context;
 	// Layer 1 animations (ANM)
-	vector<AnimL1*> anms;
+	std::vector<AnimL1*> anms;
 	// Layer 4 animations (PNM)
-	vector<AnimPNM*> pnms;
+	std::vector<AnimPNM*> pnms;
 	// terrain objects list
-	vector<SpellObject*> objects;
+	std::vector<SpellObject*> objects;
 	// color palette
 	uint8_t pal[256][3];
 	// filters
@@ -438,7 +439,7 @@ public:
 	// void contructor
 	Terrain();
 	~Terrain();
-	int Load(wstring &path, wstring &aux_path,SpellL2classes* L2=NULL,std::function<void(std::string)> status_item=NULL);
+	int Load(FSarchive *terrain_fs, uint8_t map_pal[][3], SpellGraphics *gres, SpellL2classes* L2=NULL,std::function<void(std::string)> status_item=NULL);
 	Sprite* GetSprite(const char* name);
 	Sprite* GetSprite(int index);
 	int GetSpriteID(Sprite *spr);
@@ -450,7 +451,7 @@ public:
 	
 	int InitSpriteContext(wstring& path);
 	int SaveSpriteContext(wstring& path);	
-	wstring &GetSpriteContextPath();
+	std::wstring &GetSpriteContextPath();
 	void ClearSpriteContext();
 	int RandomizeSpriteContext();
 	int ShuffleSpriteContext();
@@ -461,31 +462,31 @@ public:
 
 	int RenderPreview(wxBitmap& bmp,int count,int* data,int flags,double gamma);
 		
-	int AddObject(vector<MapXY> xy,vector<Sprite*> L1_list,vector<Sprite*> L2_list,vector<uint8_t> flag_list,uint8_t* palette,std::string desc);
+	int AddObject(std::vector<MapXY> xy,std::vector<Sprite*> L1_list,std::vector<Sprite*> L2_list,std::vector<uint8_t> flag_list,uint8_t* palette,std::string desc);
 	int RemoveObject(int id);
 	int MoveObject(int posa, int posb);
 	int RenameObject(int id, string name);
 	int GetObjectsCount();
 	SpellObject *GetObject(int id);
-	vector<SpellObject*> &GetObjects();
+	std::vector<SpellObject*> &GetObjects();
 
 	int GetToolsCount();
-	string GetToolSetName(int id);
-	string GetToolSetTitle(int id);
-	int SetToolSetName(int id, string name);
-	int SetToolSetTitle(int id, string title);
+	std::string GetToolSetName(int id);
+	std::string GetToolSetTitle(int id);
+	int SetToolSetName(int id,std::string name);
+	int SetToolSetTitle(int id,std::string title);
 	int GetToolSetGlyphScalingMode(int id);
 	int SetToolSetGlyphScalingMode(int id, int mode);
 	tuple<int, int> GetToolSetGlyphScaling(int id);
 	int SetToolSetGlyphScaling(int id, int x, int y);
 	int GetToolSetItemsCount(int id);
-	vector<std::string> GetToolSetItems(int toolset_id);
-	string GetToolSetItem(int toolset_id, int tool_id);
-	int AddToolSetItem(int toolset_id, string item, int position = -1);
-	int RenameToolSetItem(int toolset_id, string item, int position);
+	std::vector<std::string> GetToolSetItems(int toolset_id);
+	std::string GetToolSetItem(int toolset_id, int tool_id);
+	int AddToolSetItem(int toolset_id,std::string item, int position = -1);
+	int RenameToolSetItem(int toolset_id,std::string item, int position);
 	int RemoveToolSetItem(int toolset_id, int position);
 	int MoveToolSetItem(int toolset_id, int posa, int posb);
-	int AddToolSet(string name, string title, int position=-1);
+	int AddToolSet(std::string name,std::string title, int position=-1);
 	int RemoveToolSet(int position);
 	int MoveToolSet(int posa, int posb);
 	int GetToolSetID(string& name);

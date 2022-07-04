@@ -64,7 +64,7 @@ public:
 		// standing unit (flesh ones) or tanks (no animations) [slope][azimuth]
 		FSU_sprite** lists['M' - 'A' + 1];
 		// fire origin [slope][azimuth]
-		vector<Txy> fire_origin['M' - 'A' + 1];
+		std::vector<Txy> fire_origin['M' - 'A' + 1];
 		// turret (unit) center for fire azimuth calculation
 		Txy fire_center['M' - 'A' + 1];
 	} stat;
@@ -78,7 +78,7 @@ public:
 		// lists of sprites [azimuth/slope][frame]
 		FSU_sprite*** lists;
 		// fire origin [azimuth/slope]
-		vector<Txy> fire_origin;
+		std::vector<Txy> fire_origin;
 		// turret (unit) center for fire azimuth calculation
 		Txy fire_center;
 	} anim;	

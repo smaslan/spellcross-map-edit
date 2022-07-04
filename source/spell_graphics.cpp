@@ -9,6 +9,7 @@
 #define _HAS_STD_BYTE 0
 
 #include "spell_graphics.h"
+#include "sprites.h"
 #include "other.h"
 
 #include "wx/dcgraph.h"
@@ -37,7 +38,7 @@ SpellGraphics::~SpellGraphics()
 }
 
 // load raw bitmap of known size
-int SpellGraphics::AddRaw(uint8_t* data,int dlen,int x_size,int y_size,char *name,uint8_t *pal,int with_ext,int fix_black)
+int SpellGraphics::AddRaw(uint8_t* data,int dlen,int x_size,int y_size,char *name,uint8_t pal[][3],int with_ext,int fix_black)
 {	
 	// make new record
 	items.emplace_back();	
@@ -70,7 +71,7 @@ int SpellGraphics::AddRaw(uint8_t* data,int dlen,int x_size,int y_size,char *nam
 }
 
 // load ICO/PNM file (same as for PNM animations frames)
-int SpellGraphics::AddICO(uint8_t* data,int dlen,char* name,uint8_t* pal)
+int SpellGraphics::AddICO(uint8_t* data,int dlen,char* name,uint8_t pal[][3])
 {
 	// make new record
 	items.emplace_back();
@@ -155,7 +156,7 @@ int SpellGraphics::AddICO(uint8_t* data,int dlen,char* name,uint8_t* pal)
 }
 
 // load cursor files format: [x,y,data]
-int SpellGraphics::AddCUR(uint8_t* data,int dlen,char* name,uint8_t* pal)
+int SpellGraphics::AddCUR(uint8_t* data,int dlen,char* name,uint8_t pal[][3])
 {
 	if(dlen < 2)
 		return(1);
@@ -189,7 +190,7 @@ int SpellGraphics::AddCUR(uint8_t* data,int dlen,char* name,uint8_t* pal)
 }
 
 // make "round" LED indicator for mission hud
-int SpellGraphics::AddLED(int color,const char* name,uint8_t* pal)
+int SpellGraphics::AddLED(int color,const char* name,uint8_t pal[][3])
 {
 	// make item
 	items.emplace_back();
@@ -383,9 +384,9 @@ wxBitmap *SpellGraphicItem::Render(int surf_x, int surf_y, bool transparent)
 			{
 				int is_visible = y >= y_ofs && y < y_ofs+y_size && x >= x_ofs && x < x_ofs+x_size && buf < end;
 				// visible area
-				*scan++ = pal[*buf*3+2];
-				*scan++ = pal[*buf*3+1];
-				*scan++ = pal[*buf*3+0];
+				*scan++ = pal[*buf][2];
+				*scan++ = pal[*buf][1];
+				*scan++ = pal[*buf][0];
 				*scan++ = (*buf != 0 && is_visible)*255; // alpha channel
 				buf++;
 			}
@@ -406,9 +407,9 @@ wxBitmap *SpellGraphicItem::Render(int surf_x, int surf_y, bool transparent)
 				int is_visible = y >= y_ofs && y < y_ofs+y_size && x >= x_ofs && x < x_ofs+x_size && buf < end;
 				if(is_visible && *buf)
 				{
-					*scan++ = pal[*buf*3+2];
-					*scan++ = pal[*buf*3+1];
-					*scan++ = pal[*buf*3+0];
+					*scan++ = pal[*buf][2];
+					*scan++ = pal[*buf][1];
+					*scan++ = pal[*buf][0];
 					buf++;
 				}
 				else
@@ -460,7 +461,7 @@ wxCursor* SpellGraphicItem::RenderCUR(bool is_grayscale)
 			int pix8pos = 0;
 			for(int x = 0; x < x_size; x++)
 			{
-				uint8_t pix = pal[(int)*buf*3+0];
+				uint8_t pix = pal[*buf][0];
 				bits[y][x_pos] &= ~((uint8_t)(pix > 50u)<<pix8pos);
 				mask[y][x_pos] &= ~((uint8_t)(*buf != 0)<<pix8pos);
 				buf++;
@@ -514,7 +515,7 @@ int SpellGraphics::AddPNM(uint8_t* data,int dlen,char* name)
 }
 
 // obtain PNM file from loaded list by name
-AnimPNM* SpellGraphics::GetPNM(char* name)
+AnimPNM* SpellGraphics::GetPNM(const char* name)
 {
 	for(auto & pnm : pnms)
 		if(strcmp(pnm->name,name) == 0)

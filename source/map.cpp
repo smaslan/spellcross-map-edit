@@ -271,6 +271,13 @@ int MapSprite::UpdateDestructible()
 	{
 		// destroy of single destruct level object (bridge, non-walls)
 		*tile = (*tile)->destructible_alt;		
+		
+		// convert bridge class to water
+		if(flags == 0x70)
+			flags = 0x60;
+		// ###todo: destroy stuff around?
+		
+		return(true);
 	}
 
 	return(false);
@@ -288,7 +295,18 @@ Sprite* MapSprite::GetDestructible()
 
 int MapSprite::isDestructible()
 {
-	return(!!GetDestructible());
+	auto destr = GetDestructible();
+	if(!destr)
+		return(false);		
+	return(true);
+}
+
+int MapSprite::isTarget()
+{
+	auto destr = GetDestructible();
+	if(!destr)
+		return(false);
+	return(destr->is_target);
 }
 
 int MapSprite::GetMaxHP()
@@ -2907,9 +2925,10 @@ int SpellMap::FindUnitRange_th()
 			//int class_flags = spr->GetFlags();
 			//int slope = spr->GetSlope();
 			
+			int is_bridge = (flag == 0x70);
 			int is_forest = (flag == 0x90);
-			int is_object = flag && (flag != 0x90); // any obstacle but trees
-			int is_obstacle = flag; // any obstacle
+			int is_object = flag && !is_bridge && !is_forest; // any obstacle but trees
+			int is_obstacle = flag && !is_bridge; // any obstacle
 			int is_hoverable = !is_obstacle || (flag == 0x60); // can hover over
 
 			// skip invalid targets to save time
@@ -3061,10 +3080,11 @@ vector<AStarNode> SpellMap::FindUnitPath(MapUnit* unit, MapXY target)
 			// tile flags
 			int flag = tiles[ConvXY(n_pos)].flags;
 
+			int is_bridge = (flag == 0x70);
 			int is_forest = (flag == 0x90);
-			int is_object = flag && (flag != 0x90); // any obstacle but trees
-			int is_obstacle = flag; // any obstacle
-			int is_hoverable = !is_obstacle || (flag == 0x60); // can hover over
+			int is_object = flag && !is_bridge && !is_forest; // any obstacle but trees
+			int is_obstacle = flag && !is_bridge; // any obstacle
+			int is_hoverable = !is_obstacle || (flag == 0x60); // can hover over			
 
 			// get L1 sprite
 			Sprite* spr = tiles[ConvXY(n_pos)].L1;
@@ -3576,7 +3596,7 @@ int SpellMap::RenderHUD(uint8_t *buf,uint8_t* buf_end,int buf_x_size,MapXY *curs
 	
 	// destructible object selected?
 	MapSprite *destructible = NULL;
-	if(cursor->IsSelected() && tiles[ConvXY(cursor)].isDestructible())
+	if(cursor->IsSelected() && tiles[ConvXY(cursor)].isTarget())
 		destructible = &tiles[ConvXY(cursor)];
 			
 	auto& gres = spelldata->gres;
@@ -4826,7 +4846,7 @@ int SpellMap::CanUnitAttackObject(MapXY pos)
 	auto pxy = ConvXY(pos);	
 	
 	// attackable target?
-	if(!tiles[pxy].isDestructible())
+	if(!tiles[pxy].isTarget())
 		return(false);
 
 	// already destroyed?
@@ -5649,7 +5669,17 @@ int SpellMap::Tick()
 				else if(!target && hit == MapUnit::AttackResult::Kill)
 					target_obj->PlayDestruct();
 				
+				// default hit PNM
 				auto hit_pnm = unit->GetTargetHitPNM(target);
+				
+				// override by object destruction PNM?
+				if(!target && hit == MapUnit::AttackResult::Kill && target_obj->GetDestructible()->destroy_pnm)
+				{
+					hit_pnm = target_obj->GetDestructible()->destroy_pnm;
+					attack_explosion_list = GetDestructibleList(target_pos);
+				}
+
+				// init hit PNM
 				if(target && hit_pnm)
 				{
 					// being hit PNM for unit target
@@ -5674,6 +5704,13 @@ int SpellMap::Tick()
 					else
 						target_obj->is_target = false;
 				}
+
+				// expand explosion to linked tiles
+				for(auto & kaboom_tile : attack_explosion_list)
+				{
+					kaboom_tile->hit_pnm = target_obj->hit_pnm;
+					kaboom_tile->hit_pnm_frame = target_obj->hit_pnm_frame;
+				}
 			}
 
 			update = true;
@@ -5696,8 +5733,8 @@ int SpellMap::Tick()
 			}
 			else
 			{
-				// for map tile target
-				target_obj->hit_pnm_frame++;
+				// for map tile target(s)
+				target_obj->hit_pnm_frame++;				
 				if(target_obj->hit_pnm_frame >= target_obj->hit_pnm->frames.size())
 				{
 					// hit anim done:
@@ -5705,6 +5742,15 @@ int SpellMap::Tick()
 					target_obj->hit_pnm = NULL;					
 					target_obj->is_target = false;
 				}
+				// duplicate PNM state to linked tiles
+				for(auto& kaboom_tile : attack_explosion_list)
+				{
+					kaboom_tile->hit_pnm_frame = target_obj->hit_pnm_frame;
+					kaboom_tile->hit_pnm = target_obj->hit_pnm;
+				}
+				if(!target_obj->hit_pnm)
+					attack_explosion_list.clear();
+
 			}
 
 			update = true;
@@ -5773,17 +5819,20 @@ int SpellMap::Tick()
 			else if(!target)
 			{
 				// update hit object and map
-				int destroyed = target_obj->UpdateDestructible();
-				if(destroyed)
+				auto destroyed_list = UpdateDestructible(target_pos);				
+				if(!destroyed_list.empty())
 				{
 					// update view mask
 					PrepareUnitsViewMask();
-
-					// try get eventual DestroyObject events
-					auto destroy_events = events->GetDestroyObjectEvents(target_pos,true);					
-					event_list.insert(event_list.end(), destroy_events.begin(), destroy_events.end());
 				}
 				unit->was_moved = true; // this will force range recalculation
+
+				// try get eventual DestroyObject events
+				for(auto & destroyed : destroyed_list)
+				{										
+					auto destroy_events = events->GetDestroyObjectEvents(destroyed,true);
+					event_list.insert(event_list.end(),destroy_events.begin(),destroy_events.end());
+				}
 
 			}
 
@@ -6521,6 +6570,128 @@ int SpellMap::UpdateEventUnit(SpellMapEventRec* evt,MapUnit* unit)
 	// unit is not found, most likely belongs to other event, do nothing
 	return(1);
 }
+
+
+// update destructible tiles after HP modification (changes graphics, eventually alters surrounding tiles (bridges))
+vector<MapXY> SpellMap::UpdateDestructible(MapXY target_pos)
+{	
+	// target tile
+	int mxy = ConvXY(target_pos);
+	auto *tile = &tiles[mxy];
+
+	// list of destroyed positions
+	vector<MapXY> destroyed_list;
+
+	if(tile->flags != 0x70)
+	{
+		// non bridge: just destruct object
+		if(tile->UpdateDestructible())
+			destroyed_list = {target_pos};
+		return(destroyed_list);
+	}
+	
+	vector<MapXY> list = {target_pos};
+	vector<int> proc(x_size*y_size,0);
+	proc[mxy] = true;
+	vector<MapXY> update_list = {target_pos};
+
+	// bridge object: copy HP to surorunding tiles, destruct all	
+	do{
+		vector<MapXY> next;
+		for(auto & pos : list)
+		{		
+			for(int nid = 0; nid < 4; nid++)
+			{
+				auto n_pos = GetNeighborTile(pos, nid);
+				int nxy = ConvXY(n_pos);
+				if(!n_pos.IsSelected())
+					continue;
+
+				// skip if already processed
+				if(proc[nxy])
+					continue;
+				proc[nxy] = true;
+		
+				if(tiles[nxy].flags == 0x70)
+				{
+					// other desctructible part of bridge: copy HP and list for update
+					tiles[nxy].hp = tile->hp;
+					update_list.push_back(n_pos);
+					next.push_back(n_pos);
+				}
+				else if(tiles[nxy].flags == 0x60)
+				{
+					// non-destructible part of bridge: just list for update
+					tiles[nxy].hp = tile->hp;
+					update_list.push_back(n_pos);
+				}
+			}		
+		}
+		list = next;
+	}while(!list.empty());
+
+	// update tiles
+	for(auto & u_tile : update_list)
+	{
+		auto *mod_tile = &tiles[ConvXY(u_tile)];
+		if(mod_tile->UpdateDestructible())
+			destroyed_list.push_back(u_tile);
+	}
+
+	return(destroyed_list);
+}
+
+// get destructible list matching target position (mainly used for exploding bridges)
+vector<MapSprite*> SpellMap::GetDestructibleList(MapXY target_pos)
+{
+	// target tile
+	int mxy = ConvXY(target_pos);
+	auto* tile = &tiles[mxy];
+
+	// affected tiles
+	vector<MapSprite*> update_list;
+
+	if(tile->flags != 0x70)
+	{
+		// non bridge: just destruct object
+		return(update_list);
+	}
+
+	vector<MapXY> list = {target_pos};
+	vector<int> proc(x_size*y_size,0);
+	proc[mxy] = true;
+
+	// bridge object: copy HP to surorunding tiles, destruct all	
+	do {
+		vector<MapXY> next;
+		for(auto& pos : list)
+		{
+			for(int nid = 0; nid < 4; nid++)
+			{
+				auto n_pos = GetNeighborTile(pos,nid);
+				int nxy = ConvXY(n_pos);
+				if(!n_pos.IsSelected())
+					continue;
+
+				// skip if already processed
+				if(proc[nxy])
+					continue;
+				proc[nxy] = true;
+
+				if(tiles[nxy].flags == 0x70)
+				{
+					// other desctructible part of bridge: copy HP and list for update
+					update_list.push_back(&tiles[nxy]);
+					next.push_back(n_pos);
+				}
+			}
+		}
+		list = next;
+	} while(!list.empty());
+
+	return(update_list);
+}
+
 
 
 

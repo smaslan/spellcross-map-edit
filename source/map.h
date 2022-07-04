@@ -67,6 +67,7 @@ public:
 	Sprite* GetDestructible();
 	int GetMaxHP();
 	int isDestructible();
+	int isTarget();
 	
 	int PlayHit();
 	int PlayDestruct();
@@ -243,10 +244,10 @@ class SpellMap
 		// temp layers for debug mostly
 		vector<MapXY> dbg_ord;
 
-		//static constexpr int UNIT_PATH_IDLE = -1;
-		//int unit_path_state;
 		mutex map_lock;
-		//vector<AStarNode> unit_path;		
+		
+		// attack state stuff
+		std::vector<MapSprite*> attack_explosion_list;
 
 		// currently selected unit
 		MapUnit *unit_selection;
@@ -265,7 +266,7 @@ class SpellMap
 		// unit attack range stuff
 		vector<int> unit_attack_map;
 		int UnitAttackRangeInit();
-		int CalcUnitAttackRange(MapUnit* unit);		
+		int CalcUnitAttackRange(MapUnit* unit);
 		// unit range map
 		vector<AStarNode> unit_range_nodes_buffer; // this is preinitialized buffer holding the nodes
 		vector<AStarNode> unit_range_nodes; // this is working buffer
@@ -543,6 +544,8 @@ class SpellMap
 			UNIT_OPT_ATTACK = 16
 		};
 		int FinishUnits();
+		std::vector<MapXY> UpdateDestructible(MapXY target_pos);
+		std::vector<MapSprite*> GetDestructibleList(MapXY target_pos);
 
 		// events stuff
 		SpellMapEventsList event_list; // pending events

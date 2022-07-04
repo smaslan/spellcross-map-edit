@@ -1,12 +1,16 @@
 #pragma once
 
-#include "sprites.h"
+//#include "sprites.h"
 #include <vector>
 #include "cstdint"
 
 #include <wx/rawbmp.h>
 
 using namespace std;
+
+// forward refs
+class AnimPNM;
+
 
 class SpellGraphicItem
 {
@@ -17,7 +21,7 @@ public:
 	int y_ofs;
 	char name[13];
 	vector<uint8_t> pixels;
-	uint8_t *pal;
+	uint8_t (*pal)[3];
 
 	uint8_t *GetPixels(int y = 0, int x = 0);
 	int Render(uint8_t *buf,uint8_t* buf_end,int buf_x_size,int x_pos,int y_pos,int in_black=false,int* y_buffer=NULL);
@@ -48,10 +52,10 @@ private:
 public:
 	SpellGraphics();
 	~SpellGraphics();
-	int AddRaw(uint8_t *data, int dlen, int x_size, int y_size, char *name,uint8_t *pal,int with_ext=0,int fix_black=false);
-	int AddICO(uint8_t* data,int dlen,char* name,uint8_t* pal);
-	int AddCUR(uint8_t* data,int dlen,char* name,uint8_t* pal);
-	int AddLED(int color,const char* name,uint8_t* pal);
+	int AddRaw(uint8_t *data, int dlen, int x_size, int y_size, char *name,uint8_t pal[][3],int with_ext=0,int fix_black=false);
+	int AddICO(uint8_t* data,int dlen,char* name,uint8_t pal[][3]);
+	int AddCUR(uint8_t* data,int dlen,char* name,uint8_t pal[][3]);
+	int AddLED(int color,const char* name,uint8_t pal[][3]);
 	int Count();
 	SpellGraphicItem *GetResource(int index);
 	SpellGraphicItem *GetResource(const char *name);
@@ -59,7 +63,7 @@ public:
 
 	// PNM animations	
 	int AddPNM(uint8_t* data,int dlen,char* name);
-	AnimPNM *GetPNM(char *name);
+	AnimPNM *GetPNM(const char *name);
 
 	// direct links to common items
 	SpellGraphicItem *wm_hud;

@@ -136,10 +136,10 @@ void FormLoader::Loader(std::wstring config_path,SpellData* &spell_data)
 	UpdateList("Loading terrain context data...");
 	for(auto & terr : spell_data->terrain)
 	{
-		UpdateList(string_format(" - loading ''%s''...",terr->name));
+		UpdateList(string_format(" - loading ''%s''...",terr->name.c_str()));
 
 		// make INI section
-		string sec_name = "TERRAIN::" + string(terr->name);
+		string sec_name = "TERRAIN::" + terr->name;
 
 		// try to load context
 		wstring cont_path = char2wstring(ini.GetValue(sec_name.c_str(),"context_path",""));

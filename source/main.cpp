@@ -1354,6 +1354,8 @@ void MyFrame::OnCanvasLMouseDown(wxMouseEvent& event)
                 {
                     // show optional menu (or directly call callback) to resolve options
                     wxPoint pos = event.GetPosition();
+                    pos.x -= 15;
+                    pos.y -= 15;
                     form_unit_opts = new FormUnitOpts(canvas,ID_UNIT_MODE_WIN,pos,spell_data,options,bind(&MyFrame::OnUnitClick_cb,this,placeholders::_1));
                 }
             }

@@ -12,26 +12,25 @@
 #include <string>
 #include <cstdint>
 
-using namespace std;
-
 class FSarchive
 {
 	public:
-		FSarchive(wstring &path);
+		FSarchive(std::wstring &path);
 		~FSarchive();
-		void Append(wstring& path);
+		void Append(std::wstring& path);
 		int GetFile(const char* name, uint8_t** data, int* size);
-		int GetFile(string &name,uint8_t** data,int* size);
+		int GetFile(std::string &name,uint8_t** data,int* size);
 		int GetFile(int id, uint8_t** data, int* size, char** name=NULL);		
-		inline string GetFile(const char* name);
-		string GetFile(string& name);
+		inline std::string GetFile(const char* name);
+		std::string GetFile(std::string& name);
 		int Count();
 		const char *GetFileName(int id);
-
+		std::string GetFSname(bool with_extension=true);
 
 	private:
-		vector<uint8_t*> data;
-		vector<char*> names;
-		vector<uint32_t> sizes;
+		std::vector<uint8_t*> data;
+		std::vector<char*> names;
+		std::vector<uint32_t> sizes;
+		std::string fs_name;
 };
 

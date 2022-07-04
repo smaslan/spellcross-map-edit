@@ -50,6 +50,7 @@ Sprite::Sprite()
 	index = 0;
 	destructible = NULL;
 	destructible_alt = NULL;
+	destroy_pnm = NULL;
 
 	flags = 0;
 	for(int k = 0; k < 4; k++)
@@ -1394,7 +1395,9 @@ DestructibleRec::DestructibleRec()
 	destructible = NULL;
 	destructed = false;
 	two_stage_desctruct = false;
+	target = false;
 	alt_name = "";
+	pnm_name = "";
 }
 
 // try to fetch class by sprite name
@@ -1409,6 +1412,7 @@ DestructibleRec SpellL2classes::GetClass(const char* sprite_name)
 		int class_id = id & 0x03;		
 		rec.destructed = !!(id & 0x08);
 		rec.two_stage_desctruct = true;
+		rec.target = true;
 		rec.alt_name = sprite_name;
 		rec.alt_name[3] = num2hex(class_id & (!rec.destructed*0x08));
 		if(class_id < wall_list.size())
@@ -1417,14 +1421,17 @@ DestructibleRec SpellL2classes::GetClass(const char* sprite_name)
 	}
 
 	// is bridge?
-	if(wildcmp("MTA1?_??",sprite_name) || wildcmp("MTA3?_??",sprite_name))
+	if(wildcmp("MTA??_??",sprite_name) || wildcmp("MTA??_??",sprite_name))
 	{
 		int class_id = (sprite_name[4] - 'A') & 0x03;
 		int type_id = hex2num(sprite_name[3]) & 0x01;
 		rec.destructed = !!(hex2num(sprite_name[3]) & 0x02);
 		rec.two_stage_desctruct = false;
+		rec.target = !!type_id;
 		rec.alt_name = sprite_name;
 		rec.alt_name[3] = num2hex(type_id | (!rec.destructed*0x02));
+		if(rec.target)
+			rec.pnm_name = "VYBUCH01"; // destroy PNM
 		if(class_id < bridge_list.size())
 			rec.destructible = bridge_list[class_id];
 		return(rec);
@@ -1438,6 +1445,7 @@ DestructibleRec SpellL2classes::GetClass(const char* sprite_name)
 			{
 				rec.destructed = (sprite_name[3] != '0');
 				rec.two_stage_desctruct = false;
+				rec.target = true;
 				rec.alt_name = sprite_name;
 				rec.alt_name[3] = !rec.destructed + '0';
 				rec.destructible = spec;
@@ -1461,7 +1469,7 @@ Terrain::Terrain()
 	sprites.clear();
 	anms.clear();
 	last_gamma = 0.0;
-	context_path = L"";
+	context_path = L"";	
 }
 
 Terrain::~Terrain()
@@ -1494,41 +1502,25 @@ Terrain::~Terrain()
 	tools.clear();
 }
 
-int Terrain::Load(wstring &path, wstring& aux_path, SpellL2classes *L2,std::function<void(std::string)> status_item)
+int Terrain::Load(FSarchive *terrain_fs, uint8_t map_pal[][3],SpellGraphics* gres,SpellL2classes *L2,std::function<void(std::string)> status_item)
 {	
-	// store terrain tag name
-	const wchar_t *tag = wcsrchr(path.c_str(), '\\');
-	if (!tag)
-	{
-		return(1);
-	}
-	char temp[sizeof(this->name)];
-	wcsrtombs(temp, &tag, sizeof(this->name), NULL);
-	strcpy_s(this->name, sizeof(this->name), &temp[1]);
-	char* pstr = strchr(this->name, '.');
-	if (pstr)
-		*pstr = '\0';
-
-	// try to load FS archive
-	FSarchive* fs;
-	fs = new FSarchive(path);
+	// store archive name (no extension)
+	name = terrain_fs->GetFSname(false);
 	
-	// try load aux FS data
-	try{
-		fs->Append(aux_path);
-	}catch(...){};
+	// init common part of map palette
+	std::memcpy(pal, map_pal, 256*3);
 
 	// --- read files from archive:
 	int sprite_index = 0;
 	int fcnt = 0;
-	for (int i = 0; i < fs->Count(); i++)
+	for (int i = 0; i < terrain_fs->Count(); i++)
 	{		
 		char* full_name;
 		uint8_t* data;
 		int size;
 		
 		// get file from archive
-		fs->GetFile(i, &data, &size, &full_name);
+		terrain_fs->GetFile(i, &data, &size, &full_name);
 
 		// local name copy
 		char name[14];
@@ -1565,7 +1557,6 @@ int Terrain::Load(wstring &path, wstring& aux_path, SpellL2classes *L2,std::func
 				// try decode sprite data
 				if (!sprite->Decode(data, name))
 				{
-					delete fs;
 					return(1);
 				}
 				// set sprite index (linear unsorted)
@@ -1588,7 +1579,6 @@ int Terrain::Load(wstring &path, wstring& aux_path, SpellL2classes *L2,std::func
 				// try decode animation data
 				if (anim->Decode(data, name))
 				{
-					delete fs;
 					return(1);
 				}
 
@@ -1609,7 +1599,6 @@ int Terrain::Load(wstring &path, wstring& aux_path, SpellL2classes *L2,std::func
 				// try decode animation data
 				if (pnm->Decode(data, name))
 				{
-					delete fs;
 					return(1);
 				}
 
@@ -1674,6 +1663,8 @@ int Terrain::Load(wstring &path, wstring& aux_path, SpellL2classes *L2,std::func
 			sprite->destructible = destr.destructible;
 			sprite->is_destructed = destr.destructed;
 			sprite->two_stage_desctruct = destr.two_stage_desctruct;
+			sprite->is_target = destr.target;
+			sprite->destroy_pnm = gres->GetPNM(destr.pnm_name.c_str());
 
 			// try to find desctructible sprite pair alternative
 			if(!destr.alt_name.empty())
@@ -1684,11 +1675,6 @@ int Terrain::Load(wstring &path, wstring& aux_path, SpellL2classes *L2,std::func
 			}
 		}
 	}
-
-
-
-	// free archive
-	delete fs;
 
 	return(0);	
 }
@@ -1792,7 +1778,7 @@ int Terrain::InitSpriteContext(wstring &path)
 
 	// check terrain tag
 	string terr_name = istream_read_string(fr);
-	if(std::strcmp(name, terr_name.c_str()))
+	if(name.compare(terr_name) != 0)
 	{
 		// wrong terrain type
 		fr.close();
@@ -2424,14 +2410,14 @@ int Terrain::InitSpriteContextShading()
 			cont->SetShadingMask(mask);
 
 			// also set edge classes as they are all the same
-			if(_strcmpi(this->name,"T11") == 0 || _strcmpi(this->name,"DEVAST") == 0)
+			if(_stricmp(this->name.c_str(),"T11") == 0 || _stricmp(this->name.c_str(),"DEVAST") == 0)
 			{
 				// for T11/DEVAST the default layer is grass
 				for(int e = 0; e < 4; e++)
 					cont->SetEdgeClass(e,Sprite::CLASS_GRASS);
 				cont->SetFlags(Sprite::IS_GRASS);
 			}
-			else if(_strcmpi(this->name,"PUST") == 0)
+			else if(_stricmp(this->name.c_str(),"PUST") == 0)
 			{
 				// for PUST the default layer is sand
 				for(int e = 0; e < 4; e++)
