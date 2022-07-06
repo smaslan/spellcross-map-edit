@@ -8,6 +8,9 @@
 #pragma once
 
 #include "fs_archive.h"
+#include "cxxmidi/file.hpp"
+#include "cxxmidi/output/default.hpp"
+#include "cxxmidi/player/player_async.hpp"
 
 #include "RtAudio.h"
 #include "cstdint"
@@ -134,23 +137,22 @@ public:
 };
 
 
-
 class SpellSounds
 {
 private:
     // plain samples
-    vector<SpellSample> samples;
+    std::vector<SpellSample> samples;
     // sample classes
-    vector<SpellSoundClassFile> attack_sounds;
-    vector<SpellSoundClassFile> move_sounds;
-    vector<SpellSoundClassFile> report_sounds;
-    vector<SpellSoundClassFile> object_sounds;
-    vector<SpellSoundClassFile> spec_sounds;
-    vector<SpellSoundClassFile> hit_sounds;    
-    vector<SpellSound*> aux_sounds;
+    std::vector<SpellSoundClassFile> attack_sounds;
+    std::vector<SpellSoundClassFile> move_sounds;
+    std::vector<SpellSoundClassFile> report_sounds;
+    std::vector<SpellSoundClassFile> object_sounds;
+    std::vector<SpellSoundClassFile> spec_sounds;
+    std::vector<SpellSoundClassFile> hit_sounds;
+    std::vector<SpellSound*> aux_sounds;
     
-    vector<SpellSoundClassFile> ParseSoundClasses(string text);
-    void ParseSoundClasses2(FSarchive* fs,const char* name,vector<SpellSoundClassFile>* cls);    
+    vector<SpellSoundClassFile> ParseSoundClasses(std::string text);
+    void ParseSoundClasses2(FSarchive* fs,const char* name,vector<SpellSoundClassFile>* cls);
 
 public:
     

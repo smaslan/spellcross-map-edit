@@ -38,7 +38,7 @@ SpellGraphics::~SpellGraphics()
 }
 
 // load raw bitmap of known size
-int SpellGraphics::AddRaw(uint8_t* data,int dlen,int x_size,int y_size,char *name,uint8_t pal[][3],int with_ext,int fix_black)
+int SpellGraphics::AddRaw(uint8_t* data,int dlen,int x_size,int y_size,const char *name,uint8_t pal[][3],int with_ext,int fix_black)
 {	
 	// make new record
 	items.emplace_back();	
@@ -71,7 +71,7 @@ int SpellGraphics::AddRaw(uint8_t* data,int dlen,int x_size,int y_size,char *nam
 }
 
 // load ICO/PNM file (same as for PNM animations frames)
-int SpellGraphics::AddICO(uint8_t* data,int dlen,char* name,uint8_t pal[][3])
+int SpellGraphics::AddICO(uint8_t* data,int dlen,const char* name,uint8_t pal[][3])
 {
 	// make new record
 	items.emplace_back();
@@ -156,7 +156,7 @@ int SpellGraphics::AddICO(uint8_t* data,int dlen,char* name,uint8_t pal[][3])
 }
 
 // load cursor files format: [x,y,data]
-int SpellGraphics::AddCUR(uint8_t* data,int dlen,char* name,uint8_t pal[][3])
+int SpellGraphics::AddCUR(uint8_t* data,int dlen,const char* name,uint8_t pal[][3])
 {
 	if(dlen < 2)
 		return(1);
@@ -504,7 +504,7 @@ wxCursor *SpellGraphics::RenderCUR(const char *name)
 
 
 // add PNM to list
-int SpellGraphics::AddPNM(uint8_t* data,int dlen,char* name)
+int SpellGraphics::AddPNM(uint8_t* data,int dlen,const char* name)
 {
 	// insert new PNM object
 	AnimPNM *pnm = new AnimPNM();

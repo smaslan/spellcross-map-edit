@@ -18,7 +18,7 @@ std::string wstring2stringCP895(std::wstring str);
 std::string string_format(const std::string fmt,...);
 
 int wildcmp(const char* wild,const char* string);
-void strcpy_noext(char* dest,char* src);
+void strcpy_noext(const char* dest,const char* src);
 int hex2num(char hex);
 char num2hex(int num);
 

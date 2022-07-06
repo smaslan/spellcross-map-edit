@@ -19,6 +19,7 @@
 #include "spell_font.h"
 #include "spell_graphics.h"
 #include "spell_sound.h"
+#include "spell_midi.h"
 #include "spell_texts.h"
 
 using namespace std;
@@ -146,6 +147,8 @@ public:
 	FSarchive* info;
 	// sound stuff
 	SpellSounds* sounds;
+	// sound stuff
+	SpellMIDI* midi;
 	// texts.fs
 	SpellTexts* texts;
 	// L2 object class parameters

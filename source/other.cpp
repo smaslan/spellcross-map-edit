@@ -142,11 +142,12 @@ int wildcmp(const char* wild,const char* string)
 }
 
 // copy string with no extension, assuming destiantion has enough space!
-void strcpy_noext(char *dest, char *src)
+void strcpy_noext(const char *dest, const char *src)
 {
+    char *ptr = (char*)dest;
     while(*src && *src != '.')
-        *dest++ = *src++;
-    *dest = '\0';
+        *ptr++ = *src++;
+    *ptr = '\0';
 }
 
 // convert single hex digit to int

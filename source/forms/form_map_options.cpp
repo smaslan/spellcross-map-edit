@@ -61,7 +61,8 @@ FormMapOptions::FormMapOptions(wxPanel* parent,wxWindowID win_id,SpellMap* spell
     scroll_music->Bind(wxEVT_SCROLL_LINEUP,&FormMapOptions::OnScroll,this,wxID_SCROLL_MUSIC);
     scroll_music->Bind(wxEVT_SCROLL_LINEDOWN,&FormMapOptions::OnScroll,this,wxID_SCROLL_MUSIC);
     scroll_music->SetRange(51);
-    scroll_music->SetThumbPosition(10);
+    double music_volume = m_spelldata->midi->GetVolume();
+    scroll_music->SetThumbPosition(music_volume*50);
 
     // sound volume scrollbar (pos=32,232 sz=132,16)
     wxScrollBar* scroll_sound = new wxScrollBar(form,wxID_SCROLL_SOUND,wxPoint(32,232),wxSize(133,15),wxSB_HORIZONTAL|wxSB_FLAT);
@@ -72,8 +73,8 @@ FormMapOptions::FormMapOptions(wxPanel* parent,wxWindowID win_id,SpellMap* spell
     scroll_sound->Bind(wxEVT_SCROLL_PAGEUP,&FormMapOptions::OnScroll,this,wxID_SCROLL_SOUND);
     scroll_sound->Bind(wxEVT_SCROLL_PAGEDOWN,&FormMapOptions::OnScroll,this,wxID_SCROLL_SOUND);
     scroll_sound->SetRange(51);
-    double volume = m_spell_map->spelldata->sounds->channels->GetVolume();
-    scroll_sound->SetThumbPosition(volume*50);
+    double sound_volume = m_spell_map->spelldata->sounds->channels->GetVolume();
+    scroll_sound->SetThumbPosition(sound_volume*50);
     
 
     form->Show();    
@@ -116,16 +117,15 @@ void FormMapOptions::OnScroll(wxScrollEvent& event)
         // update music volume
         auto scroll = (wxScrollBar*)event.GetEventObject();
         double volume = 0.02*(double)scroll->GetThumbPosition();
-        //m_spell_map->spelldata->sounds->channels->SetVolume(volume);
+        m_spelldata->midi->SetVolume(volume);
         form->Refresh();
     }
     else if(event.GetId() == wxID_SCROLL_SOUND)
     {
         // update sound volume
         auto scroll = (wxScrollBar*)event.GetEventObject();
-        int vol = scroll->GetThumbPosition();
         double volume = 0.02*(double)scroll->GetThumbPosition();
-        m_spell_map->spelldata->sounds->channels->SetVolume(volume);
+        m_spelldata->sounds->channels->SetVolume(volume);
         form->Refresh();
     }
     
@@ -179,12 +179,12 @@ void FormMapOptions::OnPaintTab(wxPaintEvent& event)
     m_spelldata->font->Render(buf,&buf[x_size*y_size],x_size,32,113,132,16,str_gamma,232,254,SpellFont::DIAG3);
 
     // render music volume label pos=32,162 sz=132,16
-    double mus_volume = 0.5;
+    double mus_volume = m_spelldata->midi->GetVolume();
     string str_mus_volume = string_format("MUSIC (%.0f%%)",(mus_volume*100.0));
     m_spelldata->font->Render(buf,&buf[x_size*y_size],x_size,32,162,132,16,str_mus_volume,232,254,SpellFont::DIAG3);
 
     // render sound volume label pos=32,212 sz=132,16
-    double snd_volume = m_spell_map->spelldata->sounds->channels->GetVolume();
+    double snd_volume = m_spelldata->sounds->channels->GetVolume();
     string str_snd_volume = string_format("SOUNDS (%.0f%%)",(snd_volume*100.0));
     m_spelldata->font->Render(buf,&buf[x_size*y_size],x_size,32,212,132,16,str_snd_volume,232,254,SpellFont::DIAG3);
 

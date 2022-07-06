@@ -308,6 +308,7 @@ SpellData::SpellData(wstring &data_path,wstring& cd_data_path,wstring& spec_path
 	units_fsu = NULL;
 	info = NULL;
 	sounds = NULL;
+	midi = NULL;
 	texts = NULL;
 	L2_classes = NULL;
 	unit_bonuses = NULL;		
@@ -347,6 +348,19 @@ SpellData::SpellData(wstring &data_path,wstring& cd_data_path,wstring& spec_path
 		if(status_list)
 			status_list(" - failed!");
 		throw runtime_error(string_format("Loading sound samples filed (%s)!",error.what()));
+	}
+
+	// load MIDI stuff
+	if(status_list)
+		status_list("Loading MIDI files...");
+	try {
+		midi = new SpellMIDI(data_path,status_list,status_item);
+	}
+	catch(const runtime_error& error) {
+		this->~SpellData();
+		if(status_list)
+			status_list(" - failed!");
+		throw runtime_error(string_format("Loading MIDI files (%s)!",error.what()));
 	}
 	
 	// load L2 object classes stuff
@@ -440,7 +454,9 @@ SpellData::SpellData(wstring &data_path,wstring& cd_data_path,wstring& spec_path
 		wstring aux_path = std::filesystem::path(spec_path) / std::filesystem::path(name);
 		try{			
 			terrain_fs->Append(aux_path);
-		}catch(...) {};
+		}catch(...){
+			// do nothing, optional data
+		};
 		
 		// make new terrain
 		Terrain* new_terrain = new Terrain();
@@ -627,6 +643,9 @@ SpellData::~SpellData()
 	if(sounds)
 		delete sounds;
 	sounds = NULL;
+	if(midi)
+		delete midi;
+	midi = NULL;
 	if(texts)
 		delete texts;
 	texts = NULL;
@@ -708,7 +727,7 @@ int SpellData::LoadAuxGraphics(FSarchive *fs,std::function<void(std::string)> st
 	for(int k = 0; k < fs->Count(); k++)
 	{
 		// get file data
-		char *name;
+		const char *name;
 		uint8_t *data;
 		int flen;
 		fs->GetFile(k, &data, &flen, &name);
@@ -905,14 +924,14 @@ int SpellData::LoadSpecialLand(wstring &spec_folder)
 {
 
 	// groups to load
-	const wchar_t* files[] = { L"\\spec\\solid.fs", L"\\spec\\edge.fs", L"\\spec\\grid.fs", L"\\spec\\select.fs" };
+	std::vector<std::string> files = { "solid.fs", "edge.fs", "grid.fs", "select.fs" };
 	Sprite* lists[] = { special.solid, special.edge, special.grid, special.select };
 	
 	// for each group:
 	for (int g = 0; g < sizeof(files)/sizeof(wchar_t*); g++)
 	{
 		// try to load special archive
-		wstring path = spec_folder + files[g];
+		wstring path = std::filesystem::path(spec_folder) / std::filesystem::path("spec") / std::filesystem::path(files[g]);
 		FSarchive *fs = new FSarchive(path);
 
 		// for each slope:

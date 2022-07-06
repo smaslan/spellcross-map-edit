@@ -53,6 +53,10 @@ bool MyApp::OnInit()
     spell_map = new SpellMap();
     spell_map->Load(map_path,spell_data);
     spell_map->SetGamma(1.3);
+
+    // play some MIDI
+    string midi_name = ini.GetValue("STATE","default_midi","");
+    spell_data->midi->Play(midi_name);
                 
     // --- run main form    
     // main window frame

@@ -11,26 +11,45 @@
 #include <vector>
 #include <string>
 #include <cstdint>
+#include "LZ_spell.h"
 
 class FSarchive
 {
 	public:
-		FSarchive(std::wstring &path);
-		~FSarchive();
-		void Append(std::wstring& path);
+
+		class Options
+		{
+		public:
+			static constexpr int NONE = 0x00;
+			static constexpr int DELZ_LZ = 0x01;
+			static constexpr int DELZ_LZ0 = 0x02;
+			static constexpr int DELZ_ALL = DELZ_LZ | DELZ_LZ0;
+		};
+
+		class FSfile
+		{
+		public:
+			std::string name;
+			std::vector<uint8_t> data;
+		};		
+
+		FSarchive(std::wstring &path, int options=Options::NONE);
+		void Append(std::wstring& path,int options=Options::NONE);
+		~FSarchive();		
+		std::vector<FSfile*> &GetFiles();
 		int GetFile(const char* name, uint8_t** data, int* size);
 		int GetFile(std::string &name,uint8_t** data,int* size);
-		int GetFile(int id, uint8_t** data, int* size, char** name=NULL);		
+		int GetFile(int id, uint8_t** data, int* size, const char** name=NULL);		
 		inline std::string GetFile(const char* name);
 		std::string GetFile(std::string& name);
 		int Count();
 		const char *GetFileName(int id);
 		std::string GetFSname(bool with_extension=true);
 
-	private:
-		std::vector<uint8_t*> data;
-		std::vector<char*> names;
-		std::vector<uint32_t> sizes;
-		std::string fs_name;
+	private:			
+		
+		std::string m_fs_name;
+		LZWexpand* m_lzw;
+		std::vector<FSfile*> m_files;
 };
 

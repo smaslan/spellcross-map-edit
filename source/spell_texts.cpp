@@ -140,7 +140,7 @@ SpellTexts::SpellTexts(FSarchive* fs, SpellLang lang,SpellSounds* sounds)
         // fetch file
         uint8_t *data;
         int len;
-        char *name;
+        const char *name;
         fs->GetFile(fid, &data, &len, &name);
         
         // try fetch message narration

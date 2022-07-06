@@ -19,20 +19,20 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="form_events.cpp" />
-    <ClCompile Include="form_gr_view.cpp" />
-    <ClCompile Include="form_loader.cpp" />
-    <ClCompile Include="form_map_options.cpp" />
-    <ClCompile Include="form_message_box.cpp" />
-    <ClCompile Include="form_new_object.cpp" />
-    <ClCompile Include="form_objects.cpp" />
-    <ClCompile Include="form_pal_view.cpp" />
-    <ClCompile Include="form_sprite_view.cpp" />
-    <ClCompile Include="form_tools.cpp" />
-    <ClCompile Include="form_units.cpp" />
-    <ClCompile Include="form_unit_options.cpp" />
-    <ClCompile Include="form_video.cpp" />
-    <ClCompile Include="form_video_box.cpp" />
+    <ClCompile Include="forms\form_events.cpp" />
+    <ClCompile Include="forms\form_gr_view.cpp" />
+    <ClCompile Include="forms\form_loader.cpp" />
+    <ClCompile Include="forms\form_map_options.cpp" />
+    <ClCompile Include="forms\form_message_box.cpp" />
+    <ClCompile Include="forms\form_new_object.cpp" />
+    <ClCompile Include="forms\form_objects.cpp" />
+    <ClCompile Include="forms\form_pal_view.cpp" />
+    <ClCompile Include="forms\form_sprite_view.cpp" />
+    <ClCompile Include="forms\form_tools.cpp" />
+    <ClCompile Include="forms\form_units.cpp" />
+    <ClCompile Include="forms\form_unit_options.cpp" />
+    <ClCompile Include="forms\form_video.cpp" />
+    <ClCompile Include="forms\form_video_box.cpp" />
     <ClCompile Include="fsu_archive.cpp" />
     <ClCompile Include="fs_archive.cpp" />
     <ClCompile Include="LZ_spell.cpp" />
@@ -42,6 +42,7 @@
     <ClCompile Include="riff_loader.cpp" />
     <ClCompile Include="RtAudio.cpp" />
     <ClCompile Include="spell_filter.cpp" />
+    <ClCompile Include="spell_midi.cpp" />
     <ClCompile Include="spell_texts.cpp" />
     <ClCompile Include="spell_graphics.cpp" />
     <ClCompile Include="spellcross.cpp" />
@@ -54,24 +55,45 @@
     <ClCompile Include="sprites.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="cvt_xmi2mid.hpp" />
-    <ClInclude Include="form_events.h" />
-    <ClInclude Include="form_gr_view.h" />
-    <ClInclude Include="form_loader.h" />
-    <ClInclude Include="form_map_options.h" />
-    <ClInclude Include="form_message_box.h" />
-    <ClInclude Include="form_new_object.h" />
-    <ClInclude Include="form_objects.h" />
-    <ClInclude Include="form_pal_view.h" />
-    <ClInclude Include="form_sprite_view.h" />
-    <ClInclude Include="form_tools.h" />
-    <ClInclude Include="form_units.h" />
-    <ClInclude Include="form_unit_options.h" />
-    <ClInclude Include="form_video.h" />
-    <ClInclude Include="form_video_box.h" />
+    <ClInclude Include="cxxmidi\converters.hpp" />
+    <ClInclude Include="cxxmidi\event.hpp" />
+    <ClInclude Include="cxxmidi\file.hpp" />
+    <ClInclude Include="cxxmidi\guts\cvt_xmi2mid.hpp" />
+    <ClInclude Include="cxxmidi\guts\endianness.hpp" />
+    <ClInclude Include="cxxmidi\guts\FileData.hpp" />
+    <ClInclude Include="cxxmidi\guts\player_base.hpp" />
+    <ClInclude Include="cxxmidi\guts\simulator.hpp" />
+    <ClInclude Include="cxxmidi\guts\utils.hpp" />
+    <ClInclude Include="cxxmidi\instrument.hpp" />
+    <ClInclude Include="cxxmidi\message.hpp" />
+    <ClInclude Include="cxxmidi\note.hpp" />
+    <ClInclude Include="cxxmidi\output\abstract.hpp" />
+    <ClInclude Include="cxxmidi\output\default.hpp" />
+    <ClInclude Include="cxxmidi\output\linux\alsa.hpp" />
+    <ClInclude Include="cxxmidi\output\null.hpp" />
+    <ClInclude Include="cxxmidi\output\windows.hpp" />
+    <ClInclude Include="cxxmidi\player\player_async.hpp" />
+    <ClInclude Include="cxxmidi\player\player_sync.hpp" />
+    <ClInclude Include="cxxmidi\sysex.hpp" />
+    <ClInclude Include="cxxmidi\track.hpp" />
+    <ClInclude Include="forms\form_events.h" />
+    <ClInclude Include="forms\form_gr_view.h" />
+    <ClInclude Include="forms\form_loader.h" />
+    <ClInclude Include="forms\form_map_options.h" />
+    <ClInclude Include="forms\form_message_box.h" />
+    <ClInclude Include="forms\form_new_object.h" />
+    <ClInclude Include="forms\form_objects.h" />
+    <ClInclude Include="forms\form_pal_view.h" />
+    <ClInclude Include="forms\form_sprite_view.h" />
+    <ClInclude Include="forms\form_tools.h" />
+    <ClInclude Include="forms\form_units.h" />
+    <ClInclude Include="forms\form_unit_options.h" />
+    <ClInclude Include="forms\form_video.h" />
+    <ClInclude Include="forms\form_video_box.h" />
     <ClInclude Include="fsu_archive.h" />
     <ClInclude Include="fs_archive.h" />
     <ClInclude Include="riff_loader.h" />
+    <ClInclude Include="spell_midi.h" />
     <ClInclude Include="spell_video.h" />
     <ClInclude Include="spell_filter.h" />
     <ClInclude Include="spell_texts.h" />
@@ -151,9 +173,13 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
+    <OutDir>$(SolutionDir)..\builds\$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)..\builds\$(Platform)\$(Configuration)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
+    <OutDir>$(SolutionDir)..\builds\$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)..\builds\$(Platform)\$(Configuration)\</IntDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -189,18 +215,18 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_HAS_STD_BYTE=0;_WINSOCKAPI_;_DEBUG;_WINDOWS;WXUSINGDLL;_CRT_SECURE_NO_WARNINGS;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;__WINDOWS_DS__;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(wxwin)src-3.1.7\include;$(wxwin)src-3.1.7\include\msvc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <LanguageStandard>stdcpp17</LanguageStandard>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(wxwin)src-3.1.7\include;$(wxwin)src-3.1.7\include\msvc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <Optimization>Disabled</Optimization>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <IntrinsicFunctions>false</IntrinsicFunctions>
       <FavorSizeOrSpeed>Neither</FavorSizeOrSpeed>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>dsound.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>dsound.lib;winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(wxwin)src-3.1.7\lib\vc_x64_dll;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
@@ -212,9 +238,9 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_HAS_STD_BYTE=0;_WINSOCKAPI_;NDEBUG;_WINDOWS;WXUSINGDLL;_CRT_SECURE_NO_WARNINGS;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;__WINDOWS_DS__;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(wxwin)src-3.1.7\include;$(wxwin)src-3.1.7\include\msvc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <LanguageStandard>stdcpp17</LanguageStandard>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(wxwin)src-3.1.7\include;$(wxwin)src-3.1.7\include\msvc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -222,7 +248,7 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(wxwin)src-3.1.7\lib\vc_x64_dll;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>dsound.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>dsound.lib;winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

@@ -1,12 +1,13 @@
 #pragma once
 
-#include "map.h"
 #include <wx/frame.h>
 #include <wx/window.h>
 #include <wx/panel.h>
-#include <string>
 #include <wx/scrolbar.h>
 #include <wx/event.h>
+
+#include "map.h"
+#include <string>
 
 class FormMapOptionsBtn
 {

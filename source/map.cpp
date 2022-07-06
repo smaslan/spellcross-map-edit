@@ -5657,7 +5657,7 @@ int SpellMap::Tick()
 					hit = unit->DamageTarget(target_obj);
 
 				// play hit sound
-				unit->PlayHit(target, hit != MapUnit::AttackResult::Missed);
+				unit->PlayHit(target, hit == MapUnit::AttackResult::Missed);
 
 				// play target hit sound if applicable
 				if(target && hit == MapUnit::AttackResult::Hit)

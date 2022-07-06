@@ -13,6 +13,27 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Header Files\forms">
+      <UniqueIdentifier>{45d75289-0d2b-4daa-9fc0-07becd1da616}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\forms">
+      <UniqueIdentifier>{22fea265-b296-45d8-9f72-06c5b4c11d6b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\cxxmidi">
+      <UniqueIdentifier>{67a85a8f-d024-43ae-bc0d-0abb48b61d6d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\cxxmidi\guts">
+      <UniqueIdentifier>{50197c97-2fff-46be-b152-36586f083259}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\cxxmidi\player">
+      <UniqueIdentifier>{444b9f08-3c7a-4f7d-bba6-0446ab0a32db}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\cxxmidi\output">
+      <UniqueIdentifier>{8f45cb1c-2736-4586-8830-becbdf6017b4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\cxxmidi\output\linux">
+      <UniqueIdentifier>{d1826efc-9cae-4839-b997-67d7e5451215}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="fs_archive.cpp">
@@ -42,25 +63,7 @@
     <ClCompile Include="other.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="form_sprite_view.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="form_objects.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="form_new_object.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="form_tools.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="form_pal_view.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="spell_font.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="form_gr_view.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="spell_graphics.cpp">
@@ -69,16 +72,10 @@
     <ClCompile Include="spell_hud_buttons.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="form_units.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="spell_sound.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="RtAudio.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="form_unit_options.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="spell_map_event.cpp">
@@ -87,22 +84,7 @@
     <ClCompile Include="spell_texts.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="form_message_box.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="spell_filter.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="form_events.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="form_map_options.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="form_loader.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="form_video.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="spell_video.cpp">
@@ -111,7 +93,49 @@
     <ClCompile Include="riff_loader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="form_video_box.cpp">
+    <ClCompile Include="forms\form_events.cpp">
+      <Filter>Source Files\forms</Filter>
+    </ClCompile>
+    <ClCompile Include="forms\form_gr_view.cpp">
+      <Filter>Source Files\forms</Filter>
+    </ClCompile>
+    <ClCompile Include="forms\form_loader.cpp">
+      <Filter>Source Files\forms</Filter>
+    </ClCompile>
+    <ClCompile Include="forms\form_map_options.cpp">
+      <Filter>Source Files\forms</Filter>
+    </ClCompile>
+    <ClCompile Include="forms\form_message_box.cpp">
+      <Filter>Source Files\forms</Filter>
+    </ClCompile>
+    <ClCompile Include="forms\form_new_object.cpp">
+      <Filter>Source Files\forms</Filter>
+    </ClCompile>
+    <ClCompile Include="forms\form_objects.cpp">
+      <Filter>Source Files\forms</Filter>
+    </ClCompile>
+    <ClCompile Include="forms\form_pal_view.cpp">
+      <Filter>Source Files\forms</Filter>
+    </ClCompile>
+    <ClCompile Include="forms\form_sprite_view.cpp">
+      <Filter>Source Files\forms</Filter>
+    </ClCompile>
+    <ClCompile Include="forms\form_tools.cpp">
+      <Filter>Source Files\forms</Filter>
+    </ClCompile>
+    <ClCompile Include="forms\form_unit_options.cpp">
+      <Filter>Source Files\forms</Filter>
+    </ClCompile>
+    <ClCompile Include="forms\form_units.cpp">
+      <Filter>Source Files\forms</Filter>
+    </ClCompile>
+    <ClCompile Include="forms\form_video.cpp">
+      <Filter>Source Files\forms</Filter>
+    </ClCompile>
+    <ClCompile Include="forms\form_video_box.cpp">
+      <Filter>Source Files\forms</Filter>
+    </ClCompile>
+    <ClCompile Include="spell_midi.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -146,28 +170,10 @@
     <ClInclude Include="other.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="form_sprite_view.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="form_objects.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="map_types.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="form_new_object.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="form_tools.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="form_pal_view.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="spell_font.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="form_gr_view.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="spell_graphics.h">
@@ -176,19 +182,10 @@
     <ClInclude Include="spell_hud_buttons.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="form_units.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="spell_sound.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="RtAudio.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="cvt_xmi2mid.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="form_unit_options.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="spell_map_event.h">
@@ -197,22 +194,7 @@
     <ClInclude Include="spell_texts.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="form_message_box.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="spell_filter.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="form_events.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="form_map_options.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="form_loader.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="form_video.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="spell_video.h">
@@ -221,7 +203,112 @@
     <ClInclude Include="riff_loader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="form_video_box.h">
+    <ClInclude Include="forms\form_events.h">
+      <Filter>Header Files\forms</Filter>
+    </ClInclude>
+    <ClInclude Include="forms\form_gr_view.h">
+      <Filter>Header Files\forms</Filter>
+    </ClInclude>
+    <ClInclude Include="forms\form_loader.h">
+      <Filter>Header Files\forms</Filter>
+    </ClInclude>
+    <ClInclude Include="forms\form_map_options.h">
+      <Filter>Header Files\forms</Filter>
+    </ClInclude>
+    <ClInclude Include="forms\form_message_box.h">
+      <Filter>Header Files\forms</Filter>
+    </ClInclude>
+    <ClInclude Include="forms\form_new_object.h">
+      <Filter>Header Files\forms</Filter>
+    </ClInclude>
+    <ClInclude Include="forms\form_objects.h">
+      <Filter>Header Files\forms</Filter>
+    </ClInclude>
+    <ClInclude Include="forms\form_pal_view.h">
+      <Filter>Header Files\forms</Filter>
+    </ClInclude>
+    <ClInclude Include="forms\form_sprite_view.h">
+      <Filter>Header Files\forms</Filter>
+    </ClInclude>
+    <ClInclude Include="forms\form_tools.h">
+      <Filter>Header Files\forms</Filter>
+    </ClInclude>
+    <ClInclude Include="forms\form_unit_options.h">
+      <Filter>Header Files\forms</Filter>
+    </ClInclude>
+    <ClInclude Include="forms\form_units.h">
+      <Filter>Header Files\forms</Filter>
+    </ClInclude>
+    <ClInclude Include="forms\form_video.h">
+      <Filter>Header Files\forms</Filter>
+    </ClInclude>
+    <ClInclude Include="forms\form_video_box.h">
+      <Filter>Header Files\forms</Filter>
+    </ClInclude>
+    <ClInclude Include="cxxmidi\converters.hpp">
+      <Filter>Header Files\cxxmidi</Filter>
+    </ClInclude>
+    <ClInclude Include="cxxmidi\event.hpp">
+      <Filter>Header Files\cxxmidi</Filter>
+    </ClInclude>
+    <ClInclude Include="cxxmidi\file.hpp">
+      <Filter>Header Files\cxxmidi</Filter>
+    </ClInclude>
+    <ClInclude Include="cxxmidi\instrument.hpp">
+      <Filter>Header Files\cxxmidi</Filter>
+    </ClInclude>
+    <ClInclude Include="cxxmidi\message.hpp">
+      <Filter>Header Files\cxxmidi</Filter>
+    </ClInclude>
+    <ClInclude Include="cxxmidi\note.hpp">
+      <Filter>Header Files\cxxmidi</Filter>
+    </ClInclude>
+    <ClInclude Include="cxxmidi\sysex.hpp">
+      <Filter>Header Files\cxxmidi</Filter>
+    </ClInclude>
+    <ClInclude Include="cxxmidi\track.hpp">
+      <Filter>Header Files\cxxmidi</Filter>
+    </ClInclude>
+    <ClInclude Include="cxxmidi\guts\cvt_xmi2mid.hpp">
+      <Filter>Header Files\cxxmidi\guts</Filter>
+    </ClInclude>
+    <ClInclude Include="cxxmidi\guts\endianness.hpp">
+      <Filter>Header Files\cxxmidi\guts</Filter>
+    </ClInclude>
+    <ClInclude Include="cxxmidi\guts\FileData.hpp">
+      <Filter>Header Files\cxxmidi\guts</Filter>
+    </ClInclude>
+    <ClInclude Include="cxxmidi\guts\player_base.hpp">
+      <Filter>Header Files\cxxmidi\guts</Filter>
+    </ClInclude>
+    <ClInclude Include="cxxmidi\guts\simulator.hpp">
+      <Filter>Header Files\cxxmidi\guts</Filter>
+    </ClInclude>
+    <ClInclude Include="cxxmidi\guts\utils.hpp">
+      <Filter>Header Files\cxxmidi\guts</Filter>
+    </ClInclude>
+    <ClInclude Include="cxxmidi\output\abstract.hpp">
+      <Filter>Header Files\cxxmidi\output</Filter>
+    </ClInclude>
+    <ClInclude Include="cxxmidi\output\default.hpp">
+      <Filter>Header Files\cxxmidi\output</Filter>
+    </ClInclude>
+    <ClInclude Include="cxxmidi\output\null.hpp">
+      <Filter>Header Files\cxxmidi\output</Filter>
+    </ClInclude>
+    <ClInclude Include="cxxmidi\output\windows.hpp">
+      <Filter>Header Files\cxxmidi\output</Filter>
+    </ClInclude>
+    <ClInclude Include="cxxmidi\output\linux\alsa.hpp">
+      <Filter>Header Files\cxxmidi\output\linux</Filter>
+    </ClInclude>
+    <ClInclude Include="cxxmidi\player\player_async.hpp">
+      <Filter>Header Files\cxxmidi\player</Filter>
+    </ClInclude>
+    <ClInclude Include="cxxmidi\player\player_sync.hpp">
+      <Filter>Header Files\cxxmidi\player</Filter>
+    </ClInclude>
+    <ClInclude Include="spell_midi.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

@@ -52,9 +52,9 @@ private:
 public:
 	SpellGraphics();
 	~SpellGraphics();
-	int AddRaw(uint8_t *data, int dlen, int x_size, int y_size, char *name,uint8_t pal[][3],int with_ext=0,int fix_black=false);
-	int AddICO(uint8_t* data,int dlen,char* name,uint8_t pal[][3]);
-	int AddCUR(uint8_t* data,int dlen,char* name,uint8_t pal[][3]);
+	int AddRaw(uint8_t *data, int dlen, int x_size, int y_size, const char *name,uint8_t pal[][3],int with_ext=0,int fix_black=false);
+	int AddICO(uint8_t* data,int dlen,const char* name,uint8_t pal[][3]);
+	int AddCUR(uint8_t* data,int dlen,const char* name,uint8_t pal[][3]);
 	int AddLED(int color,const char* name,uint8_t pal[][3]);
 	int Count();
 	SpellGraphicItem *GetResource(int index);
@@ -62,7 +62,7 @@ public:
 	wxCursor* RenderCUR(const char* name);
 
 	// PNM animations	
-	int AddPNM(uint8_t* data,int dlen,char* name);
+	int AddPNM(uint8_t* data,int dlen,const char* name);
 	AnimPNM *GetPNM(const char *name);
 
 	// direct links to common items

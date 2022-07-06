@@ -1,5 +1,5 @@
 //=============================================================================
-// Sound related Spellcross stuff (loaders)
+// Sound related Spellcross stuff (samples and MIDI)
 // 
 // This code is part of Spellcross Map Editor project.
 // (c) 2022, Stanislav Maslan, s.maslan@seznam.cz
@@ -17,7 +17,6 @@
 #include "map.h"
 #include "other.h"
 #include "riff_loader.h"
-#include "cvt_xmi2mid.hpp"
 #include "RtAudio.h"
 
 #include <fstream>
@@ -33,6 +32,11 @@
 
 using namespace std;
 
+
+//=============================================================================
+// Sound channels stuff.
+// This is pool of RtAudio channels used to polyphonic playback of samples.
+//=============================================================================
 
 // initialize stream channels
 SoundChannels::SoundChannels(int count)
@@ -104,16 +108,23 @@ double SoundChannels::GetVolume()
 }
 
 
+
+//=============================================================================
+// Common Spellcross sounds class.
+// Contains sound effect channels, samples and midi engine and files.
+//=============================================================================
+
 // cleanup sounds
 SpellSounds::~SpellSounds()
 {
+    // cleanup sound effect channels
     if(channels)
         delete channels;
 
+    // cleanup samples
     for(auto & aux : aux_sounds)
         delete aux;
-    aux_sounds.clear();    
-
+    aux_sounds.clear();      
     samples.clear();
 }
 
@@ -140,7 +151,7 @@ SpellSounds::SpellSounds(FSarchive *common_fs, wstring& fs_data_path, int count,
     for(int fid = 0; fid < samples_fs->Count(); fid++)
     {
         // get file
-        char *name;
+        const char *name;
         uint8_t* data;
         int size;
         samples_fs->GetFile(fid,&data,&size,&name);
@@ -218,50 +229,7 @@ SpellSounds::SpellSounds(FSarchive *common_fs, wstring& fs_data_path, int count,
     }    
     samples.shrink_to_fit();
     delete samples_fs;
-
-
-
-    // load music.fs (MIDI)
-    if(status_list)
-        status_list(" - Loading MUSIC.FS...");
-    FSarchive* music_fs;
-    wstring music_fs_path = std::filesystem::path(fs_data_path) / std::filesystem::path("music.fs");
-    try{
-        music_fs = new FSarchive(music_fs_path);
-    }catch(const runtime_error& error) {
-        if(status_list)
-            status_list("   - failed!");
-        throw runtime_error("Loading MUSIC.FS archive failed!");
-    }
-    LZWexpand *lzw = new LZWexpand(1000000);    
-    for(int fid = 0; fid < music_fs->Count(); fid++)
-    {
-        // get file
-        char* name;
-        uint8_t* lz_data;
-        int lz_size;
-        music_fs->GetFile(fid,&lz_data,&lz_size,&name);
-        // delz
-        uint8_t *data;
-        int size;
-        lzw->Decode(lz_data, &lz_data[lz_size], &data, &size); 
-        // convert XMI to standard MIDI
-        uint8_t *mid_data;
-        uint32_t mid_size;
-        int ret = Convert_xmi2midi(data,size,&mid_data,&mid_size,XMIDI_CONVERT_NOCONVERSION);
-        delete data;
-
-        /*string mid_name = "c:\\data\\spellcross\\" + string(name) + ".mid";
-        ofstream *fw = new ofstream(mid_name,ios::out | ios::binary);
-        fw->write((char*)mid_data, mid_size);
-        fw->close();*/
-
-        free(mid_data);
-    }
-    delete music_fs;
-    delete lzw;
-
-
+    
     // init stream channels
     if(status_list)
         status_list(" - Creating sound streaming channels...");

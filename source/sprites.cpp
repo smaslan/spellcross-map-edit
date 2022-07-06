@@ -1414,7 +1414,7 @@ DestructibleRec SpellL2classes::GetClass(const char* sprite_name)
 		rec.two_stage_desctruct = true;
 		rec.target = true;
 		rec.alt_name = sprite_name;
-		rec.alt_name[3] = num2hex(class_id & (!rec.destructed*0x08));
+		rec.alt_name[3] = num2hex(class_id | (!rec.destructed*0x08));
 		if(class_id < wall_list.size())
 			rec.destructible = wall_list[class_id];			
 		return(rec);
@@ -1515,7 +1515,7 @@ int Terrain::Load(FSarchive *terrain_fs, uint8_t map_pal[][3],SpellGraphics* gre
 	int fcnt = 0;
 	for (int i = 0; i < terrain_fs->Count(); i++)
 	{		
-		char* full_name;
+		const char* full_name;
 		uint8_t* data;
 		int size;
 		
