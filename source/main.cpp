@@ -54,7 +54,11 @@ bool MyApp::OnInit()
     spell_map->Load(map_path,spell_data);
     spell_map->SetGamma(1.3);
 
-    // play some MIDI
+    // sound effects/midi volumes
+    spell_data->sounds->channels->SetVolume(0.01*ini.GetLongValue("STATE","sound_volume",50));
+    spell_data->midi->SetVolume(0.01*ini.GetLongValue("STATE","music_volume",100));
+
+    // play default MIDI
     string midi_name = ini.GetValue("STATE","default_midi","");
     spell_data->midi->Play(midi_name);
                 
@@ -69,6 +73,11 @@ int MyApp::OnExit()
 {
     // store last path
     ini.SetValue("STATE","last_map",wstring2string(spell_map->GetTopPath()).c_str());
+
+    // store sound/midi volumes
+    ini.SetLongValue("STATE", "sound_volume", 100.0*spell_data->sounds->channels->GetVolume());
+    ini.SetLongValue("STATE", "music_volume", 100.0*spell_data->midi->GetVolume());
+
     // save INI
     ini.SaveFile("config.ini");
 

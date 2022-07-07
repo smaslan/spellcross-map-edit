@@ -295,9 +295,20 @@ namespace cxxmidi {
         // set volume <0;1.0>
         void Windows::SetVolume(double volume)
         {
-            if(connected_) {
-                WinMidiData* data = static_cast<WinMidiData*>(api_data_);
-                midiOutSetVolume(data->outHandle, (DWORD)(max(min(volume,1.0),0.0)*0xFFFF));
+            if(connected_)
+            {                
+                // this affects global application mixer volume for whatever reason, so not using it!
+                /*WinMidiData* data = static_cast<WinMidiData*>(api_data_);
+                midiOutSetVolume(data->outHandle,(DWORD)(max(min(volume,1.0),0.0)*0xFFFF));*/
+                /*WinMidiData* data = static_cast<WinMidiData*>(api_data_);
+                midiOutSetVolume(data->outHandle,(DWORD)0xFFFFFFFFu);*/
+                
+                // instead, I send global volume command:                
+                // MIDI Master Volume message (https://www.recordingblogs.com/wiki/midi-master-volume-message)
+                // it takes place from next note event command, but it works
+                uint16_t bvol = (uint16_t)(max(min(volume,1.0),0.0)*0x3FFF);
+                std::vector<uint8_t> cmd ={0xF0u, 0x7Fu, 0x7Fu, 0x04u, 0x01u, (uint8_t)(bvol&0x7F), (uint8_t)(bvol>>7), 0xF7u};
+                SendCommand(&cmd);
             }
         }
     }  // namespace Output

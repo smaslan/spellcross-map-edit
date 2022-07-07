@@ -314,8 +314,10 @@ void PlayerAsync::SetCallbackFinished(const std::function<void()>& callback) {
 
 inline void PlayerAsync::SetVolume(double volume)
 {
-    std::scoped_lock lock(mutex_);
-    output_->SetVolume(volume);
+    std::scoped_lock lock(mutex_);     
+    if(!output_)
+        return;        
+    output_->SetVolume(volume);    
 }
 
 }  // namespace player

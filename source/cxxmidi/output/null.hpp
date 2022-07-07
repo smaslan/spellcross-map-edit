@@ -52,7 +52,7 @@ namespace cxxmidi {
           inline std::string GetPortName(unsigned int port_num = 0) override {
             return "null";
           }
-          inline void SendMessage(const std::vector<uint8_t> * /* msg */) override {}
+          inline void SendCommand(const std::vector<uint8_t> * /* msg */) override {}
 
          protected:
           inline void Initialize() override {}

@@ -104,18 +104,17 @@ void FormMapOptions::OnClose(wxCloseEvent& ev)
 // handle scroll bars
 void FormMapOptions::OnScroll(wxScrollEvent& event)
 {
+    auto scroll = (wxScrollBar*)event.GetEventObject();
     if(event.GetId() == wxID_SCROLL_GAMMA)
     {
         // update gamma correction        
-        auto scroll = (wxScrollBar*)event.GetEventObject();
         double gamma = 0.1*(double)scroll->GetThumbPosition() + 0.7;
         m_spell_map->SetGamma(gamma);
         form->Refresh();
     }
     else if(event.GetId() == wxID_SCROLL_MUSIC)
     {
-        // update music volume
-        auto scroll = (wxScrollBar*)event.GetEventObject();
+        // update music volume        
         double volume = 0.02*(double)scroll->GetThumbPosition();
         m_spelldata->midi->SetVolume(volume);
         form->Refresh();
@@ -123,7 +122,6 @@ void FormMapOptions::OnScroll(wxScrollEvent& event)
     else if(event.GetId() == wxID_SCROLL_SOUND)
     {
         // update sound volume
-        auto scroll = (wxScrollBar*)event.GetEventObject();
         double volume = 0.02*(double)scroll->GetThumbPosition();
         m_spelldata->sounds->channels->SetVolume(volume);
         form->Refresh();
@@ -158,7 +156,7 @@ void FormMapOptions::OnPaintTab(wxPaintEvent& event)
     // make semi transparent back
     for(int k = 0; k < x_size*y_size; k++)
         if(m_mask[k])
-            buf[k] = m_spell_map->terrain->filter.darkpal[buf[k]];
+            buf[k] = m_spell_map->terrain->filter.darker[buf[k]];
 
     // render back frame
     grp_frame->Render(buf,&buf[x_size*y_size],x_size,0,0);

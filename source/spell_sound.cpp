@@ -8,9 +8,6 @@
 #undef _HAS_STD_BYTE
 #define _HAS_STD_BYTE 0
 
-//#undef __RTAUDIO_DUMMY__
-//#define __WINDOWS_DS__
-
 #include "spell_sound.h"
 #include "fs_archive.h"
 #include "LZ_spell.h"
