@@ -26,6 +26,7 @@ public:
     SpellMIDIfile(std::vector<uint8_t> &data, std::string name);
     std::vector<uint8_t> &GetData();    
     std::string filename; /* no ext */
+    int SaveAs(std::wstring path);
 };
 
 class SpellMIDI
@@ -38,7 +39,8 @@ private:
 
     // current file
     cxxmidi::File *m_file;
-    
+    std::string m_file_name;
+
     // all midi files
     std::vector<SpellMIDIfile*> m_midi;
     
@@ -50,8 +52,18 @@ public:
     
     int Play(SpellMIDIfile *midi);
     int Play(std::string name);
+    int Play(std::wstring path);
     void Stop();
     void SetVolume(double volume=1.0);
     double GetVolume();
+    std::vector<SpellMIDIfile*> &GetMIDI();
+    SpellMIDIfile *GetCurrent();
+    std::string GetCurrentName();
+    int SaveCurrent(std::wstring path);
+    
+    std::string GetInfo(cxxmidi::File *file);
+    std::string GetInfo();
+    std::string GetInfo(std::string name);
+    std::string GetInfo(std::wstring path);
 };
 

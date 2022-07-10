@@ -109,6 +109,7 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     form_map_options = NULL;
     form_videos = NULL;
     form_video_box = NULL;
+    form_midi = NULL;
 
 
     // view scroller
@@ -177,6 +178,7 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     menuTools->Append(ID_EditUnit,"Units viewer/editor\tCtrl+U","",wxITEM_NORMAL);
     menuTools->Append(ID_EditEvent,"Event viewer/editor\tCtrl+E","",wxITEM_NORMAL);
     menuTools->Append(ID_ViewVideo,"Video viewer","",wxITEM_NORMAL);
+    menuTools->Append(ID_ViewMIDI,"MIDI player","",wxITEM_NORMAL);
     menuTools->Append(wxID_ANY,"","",wxITEM_SEPARATOR);
     menuTools->Append(ID_ViewMiniMap,"View mini-map","",wxITEM_NORMAL);
     menuTools->Append(ID_ViewVoxZ,"View Z-map","",wxITEM_NORMAL);
@@ -282,6 +284,7 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     Bind(wxEVT_MENU,&MyFrame::OnEditUnit,this,ID_EditUnit);
     Bind(wxEVT_MENU,&MyFrame::OnEditEvent,this,ID_EditEvent);
     Bind(wxEVT_MENU,&MyFrame::OnViewVideo,this,ID_ViewVideo);
+    Bind(wxEVT_MENU,&MyFrame::OnViewMidi,this,ID_ViewMIDI);
     Bind(wxEVT_MENU,&MyFrame::OnViewVoxZ,this,ID_ViewVoxZ);
     Bind(wxEVT_MENU,&MyFrame::OnViewVoxZ,this,ID_ExportVoxZ);
     Bind(wxEVT_MENU,&MyFrame::OnViewMiniMap,this,ID_ViewMiniMap);
@@ -384,8 +387,13 @@ void MyFrame::OnClose(wxCloseEvent& ev)
     }
     else if(ev.GetId() == ID_VIDEO_WIN)
     {
-        // event editor closed        
+        // video viwer closed        
         form_videos->Destroy();
+    }
+    else if(ev.GetId() == ID_MIDI_WIN)
+    {
+        // midi player closed        
+        form_midi->Destroy();
     }
     else if(ev.GetId() == ID_UNIT_MODE_WIN)
     {
@@ -803,6 +811,16 @@ void MyFrame::OnViewVideo(wxCommandEvent& event)
     {
         form_videos = new FormVideo(this,spell_data,ID_VIDEO_WIN);
         form_videos->Show();
+    }
+}
+
+// open MIDI player
+void MyFrame::OnViewMidi(wxCommandEvent& event)
+{
+    if(!FindWindowById(ID_MIDI_WIN))
+    {
+        form_midi = new FormMIDI(this,spell_data,ID_MIDI_WIN);
+        form_midi->Show();
     }
 }
 

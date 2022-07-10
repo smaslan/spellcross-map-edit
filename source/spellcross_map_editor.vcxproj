@@ -24,6 +24,7 @@
     <ClCompile Include="forms\form_loader.cpp" />
     <ClCompile Include="forms\form_map_options.cpp" />
     <ClCompile Include="forms\form_message_box.cpp" />
+    <ClCompile Include="forms\form_midi.cpp" />
     <ClCompile Include="forms\form_new_object.cpp" />
     <ClCompile Include="forms\form_objects.cpp" />
     <ClCompile Include="forms\form_pal_view.cpp" />
@@ -81,6 +82,7 @@
     <ClInclude Include="forms\form_loader.h" />
     <ClInclude Include="forms\form_map_options.h" />
     <ClInclude Include="forms\form_message_box.h" />
+    <ClInclude Include="forms\form_midi.h" />
     <ClInclude Include="forms\form_new_object.h" />
     <ClInclude Include="forms\form_objects.h" />
     <ClInclude Include="forms\form_pal_view.h" />

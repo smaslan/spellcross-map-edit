@@ -7,6 +7,7 @@
 #include <wx/event.h>
 
 #include "map.h"
+#include "forms/form_midi.h"
 #include <string>
 
 class FormMapOptionsBtn
@@ -16,6 +17,14 @@ public:
     int action_id;
     int is_hover;
     int is_down;
+    std::string text;
+
+    FormMapOptionsBtn()
+    {
+        is_hover = false;
+        is_down = false;
+        text = "";
+    }
 };
 
 class FormMapOptions
@@ -41,6 +50,8 @@ private:
     int m_in_move;
     int m_was_moved;
 
+    FormMIDI *form_midi;
+
     void OnClose(wxCloseEvent& ev);
     void OnPaintTab(wxPaintEvent& event);
     void OnKeyPress(wxKeyEvent& event);
@@ -60,7 +71,9 @@ private:
         wxID_SCROLL_MUSIC,
         wxID_SCROLL_SOUND,
         wxID_BTN_SAVE,
-        wxID_BTN_LOAD
+        wxID_BTN_LOAD,
+        wxID_BTN_MIDI,
+        wxID_WINDOW_MIDI
     };
 
 };

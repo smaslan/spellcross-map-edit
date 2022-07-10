@@ -2,13 +2,17 @@
 #include "map.h"
 
 #include <wx/rawbmp.h>
+#include <wx/window.h>
 
 
 FormMapOptions::FormMapOptions(wxPanel* parent,wxWindowID win_id,SpellMap* spell_map)
 {
     m_spell_map = spell_map;
-    m_spelldata = spell_map->spelldata;    
-    
+    m_spelldata = spell_map->spelldata;
+
+    // no MIDI window
+    form_midi = NULL;
+
     // bacground frame
     auto grp_frame = m_spelldata->gres.wm_map_opt_frame;   
 
@@ -27,13 +31,11 @@ FormMapOptions::FormMapOptions(wxPanel* parent,wxWindowID win_id,SpellMap* spell
     int btn_y_pos = 284;
     vector<int> btn_x_list = {34,121};
     vector<int> btn_wx_id = {wxID_BTN_SAVE, wxID_BTN_LOAD};
-    m_buttons.reserve(2); // allocate all now to keep element addresses!
+    m_buttons.reserve(3); // allocate all now to keep element addresses!
     for(int k = 0; k < 2; k++)
     {
         m_buttons.emplace_back();
         m_buttons.back().action_id = btn_wx_id[k];
-        m_buttons.back().is_down = false;
-        m_buttons.back().is_hover = false;
         m_buttons.back().panel = new wxPanel(form,wxID_ANY,wxPoint(btn_x_list[k],btn_y_pos),wxSize(btn_glyph->x_size,btn_glyph->y_size),wxBG_STYLE_PAINT);
         m_buttons.back().panel->SetDoubleBuffered(true);
         m_buttons.back().panel->Bind(wxEVT_PAINT,&FormMapOptions::OnPaintButton,this);
@@ -43,6 +45,18 @@ FormMapOptions::FormMapOptions(wxPanel* parent,wxWindowID win_id,SpellMap* spell
         m_buttons.back().panel->Bind(wxEVT_LEFT_UP,&FormMapOptions::OnButtonClick,this);
         m_buttons.back().panel->SetClientData((void*)&m_buttons.back());
     }
+    // midi selector pos=130,162 sz=16,16
+    m_buttons.emplace_back();
+    m_buttons.back().action_id = wxID_BTN_MIDI;
+    m_buttons.back().text = "?";
+    m_buttons.back().panel = new wxPanel(form,wxID_ANY,wxPoint(148,162),wxSize(15,15),wxBG_STYLE_PAINT);
+    m_buttons.back().panel->SetDoubleBuffered(true);
+    m_buttons.back().panel->Bind(wxEVT_PAINT,&FormMapOptions::OnPaintButton,this);
+    m_buttons.back().panel->Bind(wxEVT_LEAVE_WINDOW,&FormMapOptions::OnButtonMouseHover,this);
+    m_buttons.back().panel->Bind(wxEVT_ENTER_WINDOW,&FormMapOptions::OnButtonMouseHover,this);
+    m_buttons.back().panel->Bind(wxEVT_LEFT_DOWN,&FormMapOptions::OnButtonClick,this);
+    m_buttons.back().panel->Bind(wxEVT_LEFT_UP,&FormMapOptions::OnButtonClick,this);
+    m_buttons.back().panel->SetClientData((void*)&m_buttons.back());
 
     // gamma correction scrollbar (pos=32,133 sz=132,16)
     wxScrollBar *scroll_gamma = new wxScrollBar(form,wxID_SCROLL_GAMMA,wxPoint(32,133),wxSize(133,15),wxSB_HORIZONTAL|wxSB_FLAT);
@@ -79,7 +93,7 @@ FormMapOptions::FormMapOptions(wxPanel* parent,wxWindowID win_id,SpellMap* spell
 
     form->Show();    
     
-    form->Bind(wxEVT_CLOSE_WINDOW,&FormMapOptions::OnClose,this,win_id);
+    form->Bind(wxEVT_CLOSE_WINDOW,&FormMapOptions::OnClose,this);
     form->Bind(wxEVT_PAINT,&FormMapOptions::OnPaintTab,this,win_id);
     form->Bind(wxEVT_KEY_UP,&FormMapOptions::OnKeyPress,this,win_id);
     form->Bind(wxEVT_LEAVE_WINDOW,&FormMapOptions::OnLeaveWin,this,win_id);
@@ -96,9 +110,20 @@ FormMapOptions::~FormMapOptions()
 
 void FormMapOptions::OnClose(wxCloseEvent& ev)
 {    
-    // terminate (and send message to parent)
-    form->DeletePendingEvents();    
-    wxPostEvent(form->GetParent(),ev);    
+    if(ev.GetId() == wxID_WINDOW_MIDI)
+    {
+        // midi player closed
+        form_midi->Destroy();
+        form_midi = NULL;
+    }
+    else
+    {  
+        // terminate (and send message to parent)
+        if(form_midi)
+            form_midi->Destroy();
+        form->DeletePendingEvents();    
+        wxPostEvent(form->GetParent(),ev);
+    }
 }
 
 // handle scroll bars
@@ -292,27 +317,50 @@ void FormMapOptions::OnPaintButton(wxPaintEvent& event)
     uint8_t *buf = buffer.data();
     
     // get current map render surface behind this window
-    int x_pos = btn->GetPosition().x + form->GetPosition().x;
+    /*int x_pos = btn->GetPosition().x + form->GetPosition().x;
     int y_pos = btn->GetPosition().y + form->GetPosition().y;
-    m_spell_map->GetRender(buf,x_size,y_size,x_pos,y_pos);
+    m_spell_map->GetRender(buf,x_size,y_size,x_pos,y_pos);*/
 
-    // make black back because the buttons have transparencies where they should not for whatever reason
-    memset(buf,254,x_size*y_size);
+    if(btn_rec->text.empty())
+    {
+        // make black back because the buttons have transparencies where they should not for whatever reason
+        memset(buf,254,x_size*y_size);
 
-    // select glyph
-    SpellGraphicItem *btn_glyph;
-    if(btn_rec->is_down)
-        btn_glyph = m_spelldata->gres.wm_map_opt_btn_down;
-    else if(btn_rec->is_hover)
-        btn_glyph = m_spelldata->gres.wm_map_opt_btn_hover;
+        // select glyph
+        SpellGraphicItem *btn_glyph;
+        if(btn_rec->is_down)
+            btn_glyph = m_spelldata->gres.wm_map_opt_btn_down;
+        else if(btn_rec->is_hover)
+            btn_glyph = m_spelldata->gres.wm_map_opt_btn_hover;
+        else
+            btn_glyph = m_spelldata->gres.wm_map_opt_btn_idle;
+
+        // render back frame
+        btn_glyph->Render(buf,&buf[x_size*y_size],x_size,0,0);
+    }
     else
-        btn_glyph = m_spelldata->gres.wm_map_opt_btn_idle;
+    {
+        // text style button:
+        uint8_t clr_back = (btn_rec->is_hover)?215:254;
+        uint8_t clr_frame = 229;
+        uint8_t clr_text = (btn_rec->is_hover)?254:229;
 
-    // render back frame
-    btn_glyph->Render(buf,&buf[x_size*y_size],x_size,0,0);
-      
+        // make button face
+        memset(buf,clr_back,x_size*y_size);
+        memset(&buf[0],clr_frame,x_size);
+        memset(&buf[x_size*(y_size-1)],clr_frame,x_size);
+        for(int y = 1; y < y_size-1; y++)
+        {
+            buf[y*x_size] = clr_frame;
+            buf[y*x_size + x_size-1] = clr_frame;
+        }
+
+        // make button text
+        m_spelldata->font->Render(buf,&buf[x_size*y_size],x_size,0,0,x_size,y_size,btn_rec->text,clr_text,-1,SpellFont::NONE);
+    }
+
     // blit window
-    uint8_t* pal = (uint8_t*)m_spell_map->GetPalette();
+    uint8_t* pal = m_spell_map->GetPalette();
     uint8_t* ptr = buf;
     wxBitmap bmp(x_size,y_size,24);
     wxNativePixelData pdata(bmp);
@@ -352,6 +400,12 @@ void FormMapOptions::OnButtonClick(wxMouseEvent& event)
         {
             m_spell_map->saves->Load();
             form->Close();
+        }
+        else if(btn_rec->action_id == wxID_BTN_MIDI && !this->form->FindWindowById(wxID_WINDOW_MIDI))
+        {
+            // show MIDI selection dialogue
+            form_midi = new FormMIDI(form, m_spelldata, wxID_WINDOW_MIDI);
+            form_midi->Show();
         }
 
         

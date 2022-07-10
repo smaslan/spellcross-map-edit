@@ -39,13 +39,13 @@ namespace cxxmidi {
 class File : public std::vector<Track> {
  public:
   inline File();
-  inline explicit File(const char *path);
+  inline explicit File(std::wstring path);
   inline explicit File(uint8_t* data,int size);
   inline explicit File(std::vector<uint8_t> &data);
 
-  inline int Load(const char *path);
+  inline int Load(std::wstring path);
   inline int Load(uint8_t *data, int len);
-  inline void SaveAs(const char *path) const;
+  inline int SaveAs(std::wstring path);
 
   inline Track &AddTrack();
   inline File::size_type Tracks() const;
@@ -91,7 +91,7 @@ uint32_t File::Write(std::ofstream &file, const uint8_t *c,
 
 File::File() : time_division_(500) {}
 
-File::File(const char *path) : time_division_(500)
+File::File(std::wstring path) : time_division_(500)
 {
     if(Load(path))
         throw std::runtime_error("Loading MIDI file failed!");
@@ -109,14 +109,12 @@ File::File(std::vector<uint8_t> &data) : time_division_(500)
         throw std::runtime_error("Loading MIDI file failed!");
 }
 
-void File::SaveAs(const char *path) const {
+int File::SaveAs(std::wstring path)
+{
   std::ofstream out_file(path, std::ios_base::binary);
 
   if (!out_file.good()) {
-#ifndef CXXMIDI_QUIET
-    std::cerr << "CxxMidi: could not open file " << path << std::endl;
-#endif
-    return;
+    return(1);
   }
 
   // save header
@@ -126,6 +124,8 @@ void File::SaveAs(const char *path) const {
   for (const auto &track : *this) SaveTrackChunk(out_file, track);
 
   out_file.close();
+
+  return(0);
 }
 
 void File::SaveTrackChunk(std::ofstream &output_file,
@@ -221,14 +221,14 @@ void File::SetTimeDivision(uint16_t time_division) {
   time_division_ = time_division;
 }
 
-int File::Load(const char *path)
+int File::Load(std::wstring path)
 {
     // open file
     std::ifstream file(path,std::ifstream::in | std::ifstream::binary | std::ifstream::ate);
 
     if(!file.is_open()) {
 #ifndef CXXMIDI_QUIET
-        std::cerr << "CxxMidi: couldn't open: " << path << std::endl;
+        std::cerr << "CxxMidi: couldn't open: " << path.c_str() << std::endl;
 #endif
         return(1);
     }

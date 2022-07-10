@@ -138,6 +138,9 @@
     <ClCompile Include="spell_midi.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="forms\form_midi.cpp">
+      <Filter>Source Files\forms</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="fs_archive.h">
@@ -310,6 +313,9 @@
     </ClInclude>
     <ClInclude Include="spell_midi.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="forms\form_midi.h">
+      <Filter>Header Files\forms</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

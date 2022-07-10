@@ -35,6 +35,7 @@ class Track : public std::vector<Event> {
   inline Event& AddEvent();
 
   inline std::string GetName() const;
+  inline std::string GetText() const;
 };
 
 }  // namespace cxxmidi
@@ -57,6 +58,19 @@ std::string Track::GetName() const {
     }
   }
   return r;
+}
+
+std::string Track::GetText() const {
+    std::string r;
+    for(const auto& event : *this) {
+        if(event.IsMeta()) {
+            if(event.at(1) == Event::kText) {
+                if(!r.empty()) r += ", ";
+                r += event.GetText();
+            }
+        }
+    }
+    return r;
 }
 
 }  // namespace cxxmidi

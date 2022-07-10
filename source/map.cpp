@@ -2557,7 +2557,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 							// plot it
 							int y_ofs = (unit->unit->isAir())?(-SpellUnitRec::AIR_UNIT_FLY_HEIGHT):0;
 							int color = (is_selected && sel_blink_state)?214:252;
-							terrain->font7->Render(pic,pic_end,pic_x_size,mxx,myy - y_ofs,80,spr->y_size,label,color,254,SpellFont::SOLID);
+							terrain->font7->Render(pic,pic_end,pic_x_size,mxx,myy + y_ofs,80,spr->y_size,label,color,254,SpellFont::SOLID);
 						}
 						else if(unit->trig_event && unit->trig_event->isSeeUnit())
 						{
@@ -2577,7 +2577,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 							// plot it
 							int y_ofs = (unit->unit->isAir())?(-SpellUnitRec::AIR_UNIT_FLY_HEIGHT):0;
 							int color = (is_selected && sel_blink_state)?214:252;
-							terrain->font->Render(pic,pic_end,pic_x_size,mxx,myy - y_ofs,80,spr->y_size,label,color,254,SpellFont::SOLID);
+							terrain->font->Render(pic,pic_end,pic_x_size,mxx,myy + y_ofs,80,spr->y_size,label,color,254,SpellFont::SOLID);
 						}
 
 						unit = unit->next;
