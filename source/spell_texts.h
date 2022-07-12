@@ -10,7 +10,7 @@ enum class SpellLang {ENG, CZE};
 class SpellTextChunk
 {
 public:
-    wstring text;
+    std::wstring text;
     int pos_x;
     int pos_y;
     int size_x;
@@ -23,13 +23,13 @@ typedef vector<SpellTextChunk> SpellTextChunks;
 class SpellTextRec
 {
 public:
-    string raw_text;
-    wstring text;
-    SpellLang lang;
-    char name[8+4+1];
+    std::string name;
+    std::string raw_text;
+    std::wstring text;
+    SpellLang lang;    
     SpellSample *audio;
 
-    SpellTextRec(const char *str,int str_len,SpellLang lang,const char* name=NULL,SpellSample *audio=NULL);
+    SpellTextRec(std::string str,SpellLang lang,const char* name=NULL,SpellSample *audio=NULL);
     SpellTextChunks WordWrap(SpellFont *font, int x_limit);
 };
 

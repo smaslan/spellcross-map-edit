@@ -35,8 +35,8 @@ FSUarchive::FSUarchive(std::wstring &path,std::function<void(std::string)> statu
 	// read to local buffer and close
 	streampos flen = fr.tellg();
 	fr.seekg(0);
-	uint8_t *data = new uint8_t[(unsigned)flen];
-	fr.read((char*)data, flen);	
+	std::vector<uint8_t> data(flen);
+	fr.read((char*)data.data(), flen);	
 	fr.close();
 
 	// read total graphic resources count
@@ -46,36 +46,21 @@ FSUarchive::FSUarchive(std::wstring &path,std::function<void(std::string)> statu
 	// --- multithreaded load (was too slow):
 	// max cores
 	int cores = thread::hardware_concurrency();
-	thread** threads = new thread*[cores];
-	vector<FSU_resource*> *lists = new vector<FSU_resource*>[cores];
+	std::vector<std::thread> threads;
+	std::vector<std::vector<FSU_resource*>> lists(cores);
 
 	// load/decode:
 	for (int k = 0; k < cores; k++)
-	{
-		// try to load batch
-		threads[k] = new thread(&FSUarchive::LoadResourceGroup, this, data, k, units_count, cores, &lists[k], status_item);
-	}
-	// wait for threads
-	for (int k = 0; k < cores; k++)
-	{
-		// try to load batch
-		threads[k]->join();
-		delete threads[k];
-	}
-	delete[] threads;
-	// merge results
-	for (int k = 0; k < cores; k++)
-	{
-		for (unsigned rid = 0; rid < (lists[k]).size(); rid++)
-		{			
-			list.push_back(lists[k][rid]);
-		}
-		lists[k].clear();		
-	}
-	delete[] lists;
+		threads.emplace_back(&FSUarchive::LoadResourceGroup,this,data.data(),k,units_count,cores,&lists[k],status_item);
 
-	// clear FSU file buffer
-	delete[] data;			
+	// wait for threads
+	for(auto & thread : threads)
+		thread.join();
+
+	// merge results
+	for(auto & batch : lists)
+		list.insert(list.end(),batch.begin(),batch.end());
+
 }
 
 //---------------------------------------------------------------------------
@@ -83,8 +68,8 @@ FSUarchive::FSUarchive(std::wstring &path,std::function<void(std::string)> statu
 //---------------------------------------------------------------------------
 FSUarchive::~FSUarchive()
 {
-	for (unsigned k = 0; k < list.size(); k++)
-		delete list[k];
+	for(auto item : list)
+		delete item;
 	list.clear();
 }
 
@@ -98,7 +83,7 @@ int FSUarchive::LoadResourceGroup(uint8_t* data, int first, int count, int step,
 
 	// initialize LZW decoder
 	// note: this object should not be destroyed for each sprite otherwise ti will be slow as hell!
-	LZWexpand* delz = new LZWexpand(100000);
+	LZWexpand delz(100000);
 
 	for (unsigned k = first; k < max_count; k += step)
 	{
@@ -106,7 +91,7 @@ int FSUarchive::LoadResourceGroup(uint8_t* data, int first, int count, int step,
 		FSU_resource* res = new FSU_resource();
 		
 		// try decode
-		LoadResource(data, k, res, delz);
+		LoadResource(data, k, res, &delz);
 
 		if(status_item)
 			status_item(res->name);
@@ -117,9 +102,6 @@ int FSUarchive::LoadResourceGroup(uint8_t* data, int first, int count, int step,
 		if (list->size() >= (unsigned)count)
 			break;
 	}
-
-	// clear LZW decoder
-	delete delz;
 
 	return(0);
 }

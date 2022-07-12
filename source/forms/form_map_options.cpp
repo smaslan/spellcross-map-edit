@@ -48,7 +48,7 @@ FormMapOptions::FormMapOptions(wxPanel* parent,wxWindowID win_id,SpellMap* spell
     // midi selector pos=130,162 sz=16,16
     m_buttons.emplace_back();
     m_buttons.back().action_id = wxID_BTN_MIDI;
-    m_buttons.back().text = "?";
+    m_buttons.back().text = "\x19";
     m_buttons.back().panel = new wxPanel(form,wxID_ANY,wxPoint(148,162),wxSize(15,15),wxBG_STYLE_PAINT);
     m_buttons.back().panel->SetDoubleBuffered(true);
     m_buttons.back().panel->Bind(wxEVT_PAINT,&FormMapOptions::OnPaintButton,this);
@@ -59,7 +59,7 @@ FormMapOptions::FormMapOptions(wxPanel* parent,wxWindowID win_id,SpellMap* spell
     m_buttons.back().panel->SetClientData((void*)&m_buttons.back());
 
     // gamma correction scrollbar (pos=32,133 sz=132,16)
-    wxScrollBar *scroll_gamma = new wxScrollBar(form,wxID_SCROLL_GAMMA,wxPoint(32,133),wxSize(133,15),wxSB_HORIZONTAL|wxSB_FLAT);
+    scroll_gamma = new wxScrollBar(form,wxID_SCROLL_GAMMA,wxPoint(32,133),wxSize(133,15),wxSB_HORIZONTAL|wxSB_FLAT);
     scroll_gamma->SetBackgroundColour(wxColor(90,90,90));
     scroll_gamma->Bind(wxEVT_SCROLL_THUMBTRACK,&FormMapOptions::OnScroll,this,wxID_SCROLL_GAMMA);
     scroll_gamma->Bind(wxEVT_SCROLL_LINEUP,&FormMapOptions::OnScroll,this,wxID_SCROLL_GAMMA);
@@ -69,7 +69,7 @@ FormMapOptions::FormMapOptions(wxPanel* parent,wxWindowID win_id,SpellMap* spell
     scroll_gamma->SetThumbPosition(gamma);
 
     // music volume scrollbar (pos=32,182 sz=132,16)
-    wxScrollBar* scroll_music = new wxScrollBar(form,wxID_SCROLL_MUSIC,wxPoint(32,182),wxSize(133,15),wxSB_HORIZONTAL|wxSB_FLAT);
+    scroll_music = new wxScrollBar(form,wxID_SCROLL_MUSIC,wxPoint(32,182),wxSize(133,15),wxSB_HORIZONTAL|wxSB_FLAT);
     scroll_music->SetBackgroundColour(wxColor(90,90,90));
     scroll_music->Bind(wxEVT_SCROLL_THUMBTRACK,&FormMapOptions::OnScroll,this,wxID_SCROLL_MUSIC);
     scroll_music->Bind(wxEVT_SCROLL_LINEUP,&FormMapOptions::OnScroll,this,wxID_SCROLL_MUSIC);
@@ -79,7 +79,7 @@ FormMapOptions::FormMapOptions(wxPanel* parent,wxWindowID win_id,SpellMap* spell
     scroll_music->SetThumbPosition(music_volume*50);
 
     // sound volume scrollbar (pos=32,232 sz=132,16)
-    wxScrollBar* scroll_sound = new wxScrollBar(form,wxID_SCROLL_SOUND,wxPoint(32,232),wxSize(133,15),wxSB_HORIZONTAL|wxSB_FLAT);
+    scroll_sound = new wxScrollBar(form,wxID_SCROLL_SOUND,wxPoint(32,232),wxSize(133,15),wxSB_HORIZONTAL|wxSB_FLAT);
     scroll_sound->SetBackgroundColour(wxColor(90,90,90));
     scroll_sound->Bind(wxEVT_SCROLL_THUMBTRACK,&FormMapOptions::OnScroll,this,wxID_SCROLL_SOUND);
     scroll_sound->Bind(wxEVT_SCROLL_LINEUP,&FormMapOptions::OnScroll,this,wxID_SCROLL_SOUND);
@@ -115,6 +115,7 @@ void FormMapOptions::OnClose(wxCloseEvent& ev)
         // midi player closed
         form_midi->Destroy();
         form_midi = NULL;
+        scroll_music->SetThumbPosition(m_spelldata->midi->GetVolume()*50);
     }
     else
     {  

@@ -6,23 +6,24 @@
 #include <stdexcept>
 #include <string>
 
-using namespace std;
+//using namespace std;
 
 // basic text loader
-SpellTextRec::SpellTextRec(const char* str, int str_len, SpellLang lang, const char* name,SpellSample* audio)
-{
-    this->lang = lang;
-    raw_text = str;
-    strcpy_s(this->name, sizeof(this->name), name);
+SpellTextRec::SpellTextRec(std::string str, SpellLang lang, const char* name,SpellSample* audio)
+{    
+    if(name)
+        this->name = name;
+    this->lang = lang;    
     this->audio = audio;
+    raw_text = str;
         
     // parse the string (remove control stuff and word wrapping)
-    char* buf = new char[str_len + 1];
-    memset(buf,'\0',str_len + 1);
+    std::string buf(str.size()+1,'\0');
     char last_sym = '\0';
-    char *data = buf;
-    char *pstr = (char*)str;
-    while(pstr < &str[str_len])
+    char *data = buf.data();
+    char *pstr = str.data();
+    char *strend = &pstr[str.size()];
+    while(pstr < strend)
     {
         if(*pstr == '~')
         {
@@ -36,7 +37,7 @@ SpellTextRec::SpellTextRec(const char* str, int str_len, SpellLang lang, const c
             pstr++;
             continue;
         }        
-        if(pstr[0] == '\r' && &pstr[1] < &str[str_len] && pstr[1] == '\n')
+        if(pstr[0] == '\r' && &pstr[1] < strend && pstr[1] == '\n')
         {
             // line break
             if(last_sym == '.' || last_sym == '\n') // discard word wrapping
@@ -56,20 +57,17 @@ SpellTextRec::SpellTextRec(const char* str, int str_len, SpellLang lang, const c
     if(lang == SpellLang::ENG)
     {        
         // ENG: just copy, there should be no stuff above 127
-        text = char2wstring(buf);
+        text = char2wstring(buf.c_str());
     }
     else if(lang == SpellLang::CZE)
     {
         // CZE: convert from weird CP895 to unicode
-        text = char2wstringCP895(buf);
+        text = char2wstringCP895(buf.c_str());
     }
     else
     {
-        delete[] buf;
         throw runtime_error("Unknown language requested in text decoder!");
     }
-    delete[] buf;
-
 }
 
 
@@ -135,21 +133,16 @@ SpellTexts::SpellTexts(FSarchive* fs, SpellLang lang,SpellSounds* sounds)
     this->lang = lang;
 
     // load all files (assuming they are all texts)
-    for(int fid = 0; fid < fs->Count(); fid++)
-    {
-        // fetch file
-        uint8_t *data;
-        int len;
-        const char *name;
-        fs->GetFile(fid, &data, &len, &name);
-        
+    for(auto & src : fs->GetFiles())    
+    {        
         // try fetch message narration
         SpellSample *narration = NULL;
-        if(sounds && name[0] == 'U')
-            narration = sounds->GetSample(name);
+        if(sounds && src->name[0] == 'U')
+            narration = sounds->GetSample(src->name.c_str());
 
         // try load
-        auto txt = new SpellTextRec((char*)data,len,lang,name,narration);
+        std::string str(src->data.begin(), src->data.end());
+        auto txt = new SpellTextRec(str,lang,src->name.c_str(),narration);
         list.push_back(txt);
     }
 }
@@ -171,7 +164,7 @@ SpellTextRec* SpellTexts::GetText(string &name)
 SpellTextRec* SpellTexts::GetText(const char *name)
 {
     for(auto & txt : list)
-        if(_strcmpi(txt->name, name) == 0)
+        if(iequals(txt->name,name))
             return(txt);
     return(NULL);
 }

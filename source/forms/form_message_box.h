@@ -31,6 +31,7 @@ private:
     wxWindow* form;
     wxPanel *m_buttons[2];
     vector<string> m_labels;
+    vector<int> m_hovers;
     vector<SpellMsgResult> m_results;
     SpellMsgResult m_result;
 

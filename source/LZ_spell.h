@@ -63,9 +63,7 @@ class LZWexpand
 {
 private:
 	// local output buffer
-	uint8_t *buffer;
-	int buf_use;
-	int buf_size;
+	std::vector<uint8_t> buffer;
 
 	// dictionary
 	LZWdct dct;

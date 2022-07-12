@@ -48,6 +48,7 @@ FormMsgBox::FormMsgBox(wxPanel* parent,wxWindowID win_id,SpellData* spell_data,S
         int btn_y = y_size - corn->y_size - BTN_Y_GAP - BTN_Y;
         m_labels = {"YES", "NO"};
         m_results = {SpellMsgResult::YES, SpellMsgResult::NO};
+        m_hovers = {false, false};
         
         for(int k = 0; k < 2; k++)
         {
@@ -55,8 +56,8 @@ FormMsgBox::FormMsgBox(wxPanel* parent,wxWindowID win_id,SpellData* spell_data,S
             m_buttons[k]->SetBackgroundStyle(wxBG_STYLE_PAINT);
             m_buttons[k]->SetClientData(&m_labels[k]);
             m_buttons[k]->Bind(wxEVT_PAINT,&FormMsgBox::OnPaintButton,this,ID_BTN + k);
-            //m_buttons[k]->Bind(wxEVT_LEAVE_WINDOW,&FormUnitOpts::OnButtonMouseHover,this,ID_BTN + k);
-            //m_buttons[k]->Bind(wxEVT_ENTER_WINDOW,&FormUnitOpts::OnButtonMouseHover,this,ID_BTN + k);
+            m_buttons[k]->Bind(wxEVT_LEAVE_WINDOW,&FormMsgBox::OnButtonMouseHover,this,ID_BTN + k);
+            m_buttons[k]->Bind(wxEVT_ENTER_WINDOW,&FormMsgBox::OnButtonMouseHover,this,ID_BTN + k);
             m_buttons[k]->Bind(wxEVT_LEFT_UP,&FormMsgBox::OnButtonClick,this,ID_BTN + k);
         }
     }
@@ -223,6 +224,7 @@ void FormMsgBox::OnLeaveWin(wxMouseEvent& event)
 void FormMsgBox::OnPaintButton(wxPaintEvent& event)
 {
     auto btn = (wxPanel*)event.GetEventObject();
+    int is_hover = m_hovers[event.GetId() - ID_BTN];
     
     // make local frame buffer
     int x_size = btn->GetSize().x;
@@ -235,8 +237,14 @@ void FormMsgBox::OnPaintButton(wxPaintEvent& event)
     m_spell_map->GetRender(buf,x_size,y_size,x_pos,y_pos);
 
     // make semi transparent back
-    for(int k = 0; k < x_size*y_size; k++)
-        buf[k] = m_spell_map->terrain->filter.darkpal[buf[k]];
+    if(is_hover)
+        std::memset(buf, 231, x_size*y_size);
+    else
+    {
+        uint8_t* filter = m_spell_map->terrain->filter.darkpal;;
+        for(int k = 0; k < x_size*y_size; k++)
+            buf[k] = filter[buf[k]];
+    }
 
     // draw frame
     memset(&buf[0],0xFF,x_size);
@@ -249,7 +257,7 @@ void FormMsgBox::OnPaintButton(wxPaintEvent& event)
 
     // draw button label
     auto label = (string*)btn->GetClientData();
-    m_spelldata->font->Render(buf,&buf[x_size*y_size],x_size,0,0,x_size,y_size,*label,0xFF,0xFE,SpellFont::FontShadow::RIGHT_DOWN);
+    m_spelldata->font->Render(buf,&buf[x_size*y_size],x_size,0,0,x_size,y_size,*label,(is_hover)?254:0xFF,(is_hover)?-1:0xFE,(is_hover)?(SpellFont::FontShadow::NONE):(SpellFont::FontShadow::RIGHT_DOWN));
       
     // blit window
     uint8_t* pal = (uint8_t*)m_spell_map->terrain->pal;
@@ -282,6 +290,9 @@ void FormMsgBox::OnButtonClick(wxMouseEvent& event)
 
 void FormMsgBox::OnButtonMouseHover(wxMouseEvent& event)
 {
+    m_hovers[event.GetId() - ID_BTN] = event.GetEventType() == wxEVT_ENTER_WINDOW;
+    auto btn = (wxPanel*)event.GetEventObject();
+    btn->Refresh();
 }
 
 void FormMsgBox::ResultCallback()

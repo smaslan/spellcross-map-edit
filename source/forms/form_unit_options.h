@@ -12,8 +12,10 @@ private:
     std::function<void(int)> m_sel_cb;
     vector<uint8_t> m_back_buff;
     wxBitmap* m_bmp_btn[2];
+    wxBitmap* m_bmp_btn_hover[2];
     vector<string> m_labels;
     vector<int> m_actions;
+    vector<int> m_hovers;
     int m_action;
 
     wxWindow* form;

@@ -25,8 +25,8 @@ public:
 
 	uint8_t *GetPixels(int y = 0, int x = 0);
 	int Render(uint8_t *buf,uint8_t* buf_end,int buf_x_size,int x_pos,int y_pos,int in_black=false,int* y_buffer=NULL);
-	wxBitmap* Render(int x_size=-1,int y_size=-1,bool transparent=false);
-	wxBitmap* Render(bool transparent);
+	wxBitmap* Render(int x_size=-1,int y_size=-1,bool transparent=false,bool invert=false);
+	wxBitmap* Render(bool transparent,bool invert=false);
 	wxCursor* RenderCUR(bool is_grayscale=true);
 	int RenderMask(uint8_t* buf,uint8_t* buf_end);
 };

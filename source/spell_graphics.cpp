@@ -345,11 +345,11 @@ int SpellGraphicItem::RenderMask(uint8_t* buf, uint8_t *buf_end)
 
 
 // render glyph to bmp
-wxBitmap* SpellGraphicItem::Render(bool transparent)
+wxBitmap* SpellGraphicItem::Render(bool transparent,bool invert)
 {
-	return(Render(-1,-1,transparent));
+	return(Render(-1,-1,transparent,invert));
 }
-wxBitmap *SpellGraphicItem::Render(int surf_x, int surf_y, bool transparent)
+wxBitmap *SpellGraphicItem::Render(int surf_x, int surf_y, bool transparent, bool invert)
 {
 	if(surf_x < 0 || surf_y < 0)
 	{
@@ -370,6 +370,18 @@ wxBitmap *SpellGraphicItem::Render(int surf_x, int surf_y, bool transparent)
 	int x_ofs = (surf_x - x_size)/2;
 	int y_ofs = (surf_y - y_size)/2;
 
+	// make temp palette
+	uint8_t tpal[256][3];
+	if(invert)
+		for(int k = 0; k < 256; k++)
+		{
+			tpal[k][0] = 255u - pal[k][0];
+			tpal[k][1] = 255u - pal[k][1];
+			tpal[k][2] = 255u - pal[k][2];
+		}
+	else
+		std::memcpy(tpal, pal, 256*3);
+
 	if(transparent)
 	{
 		// render 32bit RGBA data to raw bmp buffer
@@ -384,9 +396,9 @@ wxBitmap *SpellGraphicItem::Render(int surf_x, int surf_y, bool transparent)
 			{
 				int is_visible = y >= y_ofs && y < y_ofs+y_size && x >= x_ofs && x < x_ofs+x_size && buf < end;
 				// visible area
-				*scan++ = pal[*buf][2];
-				*scan++ = pal[*buf][1];
-				*scan++ = pal[*buf][0];
+				*scan++ = tpal[*buf][2];
+				*scan++ = tpal[*buf][1];
+				*scan++ = tpal[*buf][0];
 				*scan++ = (*buf != 0 && is_visible)*255; // alpha channel
 				buf++;
 			}
@@ -407,9 +419,9 @@ wxBitmap *SpellGraphicItem::Render(int surf_x, int surf_y, bool transparent)
 				int is_visible = y >= y_ofs && y < y_ofs+y_size && x >= x_ofs && x < x_ofs+x_size && buf < end;
 				if(is_visible && *buf)
 				{
-					*scan++ = pal[*buf][2];
-					*scan++ = pal[*buf][1];
-					*scan++ = pal[*buf][0];
+					*scan++ = tpal[*buf][2];
+					*scan++ = tpal[*buf][1];
+					*scan++ = tpal[*buf][0];
 					buf++;
 				}
 				else

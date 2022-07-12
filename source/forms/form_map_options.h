@@ -52,6 +52,10 @@ private:
 
     FormMIDI *form_midi;
 
+    wxScrollBar* scroll_gamma;
+    wxScrollBar* scroll_music;
+    wxScrollBar* scroll_sound;
+
     void OnClose(wxCloseEvent& ev);
     void OnPaintTab(wxPaintEvent& event);
     void OnKeyPress(wxKeyEvent& event);

@@ -315,7 +315,8 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     
     //SetCursor(*spelldata->gres.ico_attack_up_down);
 
-    
+    /*SpellTextRec text("Experimental text message", SpellLang::CZE);
+    ShowMessage(&text,true);*/
     
 }
 // on form close

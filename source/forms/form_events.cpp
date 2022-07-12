@@ -248,7 +248,7 @@ FormEvent::FormEvent(wxWindow* parent,SpellData* spell_data,wxWindowID id,const 
 	lbMsg->Clear();
 	for(auto& txt : spell_data->texts->GetTexts())
 	{
-		wstring name = char2wstring(txt->name);
+		wstring name = char2wstring(txt->name.c_str());
 		if(txt->audio)
 			name += L"  \x266B";
 		lbMsg->Append(name);

@@ -64,10 +64,14 @@ FormUnitOpts::FormUnitOpts(wxPanel *parent, wxWindowID win_id, wxPoint position,
 
     // no info label yet
     info_label = "";
+
+    // no mouse hover
+    m_hovers.assign(m_actions.size(), false);
        
     for(int k = 0; k < 2; k++)
     {
         m_bmp_btn[k] = glyphs[k]->Render();
+        m_bmp_btn_hover[k] = glyphs[k]->Render(false, true);
         buttons[k] = new wxPanel(form, ID_BTN + k, wxPoint(6 + k*28,4), wxSize(m_bmp_btn[k]->GetWidth(),m_bmp_btn[k]->GetHeight()));
         buttons[k]->SetBackgroundStyle(wxBG_STYLE_PAINT);
         buttons[k]->SetClientData(&m_labels[k]);
@@ -85,11 +89,13 @@ FormUnitOpts::~FormUnitOpts()
 {    
     delete m_bmp_btn[0];
     delete m_bmp_btn[1];
+    delete m_bmp_btn_hover[0];
+    delete m_bmp_btn_hover[1];
 }
 
 void FormUnitOpts::OnClose(wxCloseEvent& ev)
 {
-    wxPostEvent(form->GetParent(),ev);
+    wxQueueEvent(form->GetParent(),new wxCloseEvent(ev));
     form->Destroy();
 }
 
@@ -127,9 +133,14 @@ void FormUnitOpts::OnPaintTab(wxPaintEvent& event)
 }
 
 void FormUnitOpts::OnPaintButton(wxPaintEvent& event)
-{
-    auto bmp = m_bmp_btn[event.GetId() - ID_BTN];
+{    
     auto pan = (wxPanel*)event.GetEventObject();
+    int is_hover = m_hovers[event.GetId() - ID_BTN];
+    wxBitmap *bmp;
+    if(is_hover)
+        bmp = m_bmp_btn_hover[event.GetId() - ID_BTN];
+    else
+        bmp = m_bmp_btn[event.GetId() - ID_BTN];
     wxPaintDC pdc(pan);
     pdc.DrawBitmap(*bmp,wxPoint(0,0));
 }
@@ -140,9 +151,13 @@ void FormUnitOpts::OnButtonMouseHover(wxMouseEvent& event)
     {
         auto pan = (wxPanel*)event.GetEventObject();
         info_label = *(string*)pan->GetClientData();
+        m_hovers[event.GetId() - ID_BTN] = true;
     }
     else
+    {
         info_label = "";
+        m_hovers[event.GetId() - ID_BTN] = false;
+    }
     
     // repaint form
     form->Refresh();

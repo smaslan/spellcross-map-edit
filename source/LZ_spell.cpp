@@ -164,21 +164,14 @@ LZWdictElem *LZWdct::get(int code)
 
 // construct with initial output buffer size
 LZWexpand::LZWexpand(int buf_size)
-{
+{	
 	// allocate initial output buffer (this will exist until class destroyed and grow whenever needed)
-	this->buffer = new uint8_t[buf_size];
-	this->buf_size = buf_size;
-	this->buf_use = 0;
+	buffer.reserve(buf_size);
 }
 
 // close LZW decoder
 LZWexpand::~LZWexpand()
 {
-	// loose local output buffer
-	if (buffer)
-		delete[] buffer;
-	buf_size = 0;
-	buf_use = 0;
 }
 
 //---------------------------------------------------------------------------
@@ -247,7 +240,7 @@ int LZWexpand::Decode(uint8_t*dsrc, uint8_t *dend,uint8_t **dest,int *dlen)
 	*dest = NULL;
 
 	// reset local output buffer
-	buf_use = 0;
+	buffer.resize(0);
 
 	// load dictionary (clears the old one)
 	dct.Load(&dsrc, dend);
@@ -326,28 +319,18 @@ int LZWexpand::Decode(uint8_t*dsrc, uint8_t *dend,uint8_t **dest,int *dlen)
 		}
 
 		// write chunk to local output buffer:
-		if (buf_use + cwrd->len > buf_size)
-		{
-			// not enough memory, expand buffer
-			int new_buf_size = buf_size + 100000;
-			uint8_t* new_buf = new uint8_t[new_buf_size];			
-			std::memcpy((void*)new_buf, (void*)buffer, buf_size);
-			delete[] buffer;
-			buffer = new_buf;
-			buf_size = new_buf_size;			
-		}
-		// copy data to local buffer
-		std::memcpy((void*)&buffer[buf_use], (void*)cwrd->data, cwrd->len);
-		buf_use += cwrd->len;
+		int insert_pos = buffer.size();
+		buffer.resize(buffer.size() + cwrd->len);
+		std::memcpy(&buffer[insert_pos], cwrd->data, cwrd->len);
 
 		// current word to previous word
 		pwrd = *cwrd;
 	}
 
 	// make and copy local data to output buffer
-	*dlen = buf_use;
-	*dest = new uint8_t[buf_use];
-	std::memcpy((void*)*dest, (void*)buffer, buf_use);
+	*dlen = buffer.size();
+	*dest = new uint8_t[buffer.size()];
+	std::memcpy((void*)*dest, buffer.data(), buffer.size());
 
 	return(0);
 }

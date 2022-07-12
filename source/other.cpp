@@ -191,6 +191,17 @@ std::string string_format(const std::string fmt,...) {
     return str;
 }
 
+// compare strings case insensitive
+bool iequals(const std::string& a,const std::string& b)
+{
+    return std::equal(a.begin(),a.end(),
+        b.begin(),b.end(),
+        [](char a,char b) {
+            return std::tolower(a) == std::tolower(b);
+        });
+}
+
+
 // write string with string size prefix (16bit)
 int ostream_write_string(ofstream& fw,std::string &str)
 {
