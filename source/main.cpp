@@ -110,6 +110,7 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     form_videos = NULL;
     form_video_box = NULL;
     form_midi = NULL;
+    form_minimap = NULL;
 
 
     // view scroller
@@ -229,7 +230,7 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     Bind(wxEVT_RIBBONBAR_PAGE_CHANGED,&MyFrame::OnToolPageClick,this);
 
     // make and attach render canvas
-    canvas = new wxPanel(this,wxID_ANY,wxDefaultPosition,wxDefaultSize,wxTAB_TRAVERSAL);
+    canvas = new wxPanel(this,ID_Canvas,wxDefaultPosition,wxDefaultSize,wxTAB_TRAVERSAL);
     sizer->Add(canvas,1,wxEXPAND|wxALL,1);
     canvas->SetBackgroundStyle(wxBG_STYLE_PAINT);
     canvas->SetDoubleBuffered(true);
@@ -245,6 +246,7 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     canvas->Bind(wxEVT_MOUSEWHEEL,&MyFrame::OnCanvasMouseWheel,this);
     canvas->Bind(wxEVT_KEY_DOWN,&MyFrame::OnCanvasKeyDown,this);
     canvas->Bind(wxEVT_LEFT_DOWN,&MyFrame::OnCanvasLMouseDown,this);
+    canvas->Bind(wxEVT_THREAD,&MyFrame::OnThreadCanvas,this);
 
 
 
@@ -366,6 +368,10 @@ void MyFrame::OnClose(wxCloseEvent& ev)
     else if(ev.GetId() == ID_GRES_WIN)
     {
         form_gres->Destroy();
+    }
+    else if(ev.GetId() == ID_MINIMAP_WIN)
+    {
+        delete form_minimap;
     }
     else if(ev.GetId() == ID_UNITS_WIN)
     {
@@ -495,6 +501,10 @@ void MyFrame::OnResize(wxSizeEvent& event)
 }
 
 // render canvas repaint event
+void MyFrame::OnThreadCanvas(wxThreadEvent& event)
+{
+    canvas->Refresh();
+}
 void MyFrame::OnPaintCanvas(wxPaintEvent& event)
 {       
     // make buffer
@@ -826,98 +836,7 @@ void MyFrame::OnViewMidi(wxCommandEvent& event)
 }
 
 
-// creates minimap dialog window with bmp image scaled down to limit size
-void MyFrame::CreateMiniMapDialog(TMiniMap &minimap)
-{
-    
-    int xs = minimap.bmp->GetWidth();
-    int ys = minimap.bmp->GetHeight();
-    if(xs > MAX_MINIMAP_X || ys >= MAX_MINIMAP_Y)
-    {
-        // resize to fit
-        wxImage img = minimap.bmp->ConvertToImage();
-        delete minimap.bmp;
-        double scale = min((double)MAX_MINIMAP_X/xs,(double)MAX_MINIMAP_Y/ys);
-        xs = (int)(scale*xs);
-        ys = (int)(scale*ys);
-        img.Rescale(xs,ys,wxIMAGE_QUALITY_HIGH);
-        minimap.bmp = new wxBitmap(img);
-    }
-    int pxs = GetClientSize().x;
-    int pys = GetClientSize().y;
-    wxPoint pos = wxPoint((pxs - xs)/2 + GetPosition().x,(pys - ys)/2 + GetPosition().y);
-    wxDialog* map_form = new wxDialog(this,ID_MINIMAP_WIN,"Spellcross map",pos,wxSize(xs,ys));
-    wxSize csize = map_form->GetClientSize();
-    map_form->SetSize(wxSize(2*xs-csize.x,2*ys-csize.y));
-    map_form->SetClientData(&minimap);
-    map_form->SetDoubleBuffered(true);
-    map_form->Bind(wxEVT_PAINT,&MyFrame::OnPaintMapView,this,ID_MINIMAP_WIN);
-    map_form->Bind(wxEVT_KEY_DOWN,&MyFrame::OnMapViewKeyDown,this,ID_MINIMAP_WIN);
-    map_form->Bind(wxEVT_LEFT_UP,&MyFrame::OnMapViewMouseUp,this,ID_MINIMAP_WIN);
-    map_form->Bind(wxEVT_LEFT_DOWN,&MyFrame::OnMapViewMouseUp,this,ID_MINIMAP_WIN);
-    map_form->Bind(wxEVT_MOTION,&MyFrame::OnMapViewMouseUp,this,ID_MINIMAP_WIN);
-    map_form->ShowModal();
-    map_form->Destroy();
-}
-void MyFrame::OnPaintMapView(wxPaintEvent& event)
-{
-    // get bitmap to render
-    wxDialog* panel = (wxDialog*)event.GetEventObject();
-    TMiniMap* minimap = (TMiniMap*)panel->GetClientData();
-    wxBitmap* bmp = minimap->bmp;
-    // render map
-    wxPaintDC pdc(panel);
-    pdc.DrawBitmap(*bmp,wxPoint(0,0));
-    // render selection:
-    int bmp_x = bmp->GetWidth();
-    int bmp_y = bmp->GetHeight();
-    //auto [map_x,map_y] = spell_map->GetMapSurfaceSize();
-    int surf_x = m_buffer.GetWidth();
-    int surf_y = m_buffer.GetHeight();
-    auto [scroll_x,scroll_y] = scroll.GetScroll();
-    scroll_x -= minimap->source_x_ofs;
-    scroll_y -= minimap->source_y_ofs;
-    wxPoint c1 = wxPoint(scroll_x*bmp_x/minimap->source_x,scroll_y*bmp_y/minimap->source_y);
-    wxPoint c2 = wxPoint(min((scroll_x+surf_x)*bmp_x/minimap->source_x,bmp_x),min((scroll_y+surf_y)*bmp_y/minimap->source_y,bmp_y));
-    pdc.SetBrush(wxBrush(wxColor(0,0,0),wxBRUSHSTYLE_TRANSPARENT));
-    pdc.SetPen(wxPen(wxColor(255,0,0),3));
-    pdc.DrawRectangle(c1.x, c1.y, c2.x-c1.x, c2.y-c1.y);
-    event.Skip();
-}
-void MyFrame::OnMapViewKeyDown(wxKeyEvent& event)
-{
-    if(event.GetKeyCode() == WXK_ESCAPE)
-    {
-        wxDialog* panel = (wxDialog*)event.GetEventObject();
-        panel->EndModal(wxID_OK);
-    }
 
-}
-void MyFrame::OnMapViewMouseUp(wxMouseEvent& event)
-{
-    if(!event.LeftIsDown() && event.GetEventType() != wxEVT_LEFT_UP)
-        return;
-    // get bitmap to render
-    wxDialog* panel = (wxDialog*)event.GetEventObject();
-    TMiniMap* minimap = (TMiniMap*)panel->GetClientData();
-    wxBitmap* bmp = minimap->bmp;
-    // current position
-    int bmp_x = bmp->GetWidth();
-    int bmp_y = bmp->GetHeight();
-    //auto [map_x,map_y] = spell_map->GetMapSurfaceSize();
-    int surf_x = m_buffer.GetWidth();
-    int surf_y = m_buffer.GetHeight();
-    int point_x = event.GetX();
-    int point_y = event.GetY();
-    // set new pos
-    int pos_x = point_x*minimap->source_x/bmp_x - surf_x/2 + minimap->source_x_ofs;
-    int pos_y = point_y*minimap->source_y/bmp_y - surf_y/2 + minimap->source_y_ofs;
-    scroll.SetPos(pos_x,pos_y);
-    scroll.CheckScroll(minimap->source_x_ofs,minimap->source_y_ofs, minimap->source_x - surf_x + minimap->source_x_ofs,minimap->source_y - surf_y + minimap->source_y_ofs);
-    // repaint map
-    panel->Refresh();
-    canvas->Refresh();
-}
 
 
 // export voxel map elevation raster
@@ -928,8 +847,10 @@ void MyFrame::OnViewVoxZ(wxCommandEvent& event)
     {
         // view only:
         auto [map_x,map_y] = spell_map->GetMapSurfaceSize();
-        TMiniMap minimap ={bmp, 0,0,map_x,map_y};
-        CreateMiniMapDialog(minimap);
+        
+        // ceate panel
+        TMiniMap minimap ={bmp, &scroll, spell_map, 0, 0, map_x, map_y};
+        form_minimap = new FormMiniMap(canvas,ID_MINIMAP_WIN,spell_data,minimap);
     }
     else if(event.GetId() == ID_ExportVoxZ)
     {
@@ -948,8 +869,9 @@ void MyFrame::OnViewVoxZ(wxCommandEvent& event)
 
         // expor as PNG
         bmp->SaveFile(path,wxBITMAP_TYPE_PNG);
+        delete bmp;
     }
-    delete bmp;
+    
 }
 // view minimap
 void MyFrame::OnViewMiniMap(wxCommandEvent& event)
@@ -978,11 +900,15 @@ void MyFrame::OnViewMiniMap(wxCommandEvent& event)
     scrl.SetPos(0,0);
     spell_map->Render(*buf, &scrl);
     spell_map->SetHUDstate(hud_state);
+    scrl.SetSurface(canvas->GetClientSize().GetWidth(),canvas->GetClientSize().GetHeight());
     
     // ceate panel
-    TMiniMap minimap = {buf, x1, y1, x2-x1, y2-y1};
-    CreateMiniMapDialog(minimap);
-    delete buf;
+    TMiniMap minimap = {buf, &scroll, spell_map, x1, y1, x2-x1, y2-y1};
+    form_minimap = new FormMiniMap(canvas,ID_MINIMAP_WIN,spell_data,minimap);
+    
+    /*CreateMiniMapDialog(minimap);
+    delete buf;*/
+
 }
 
 

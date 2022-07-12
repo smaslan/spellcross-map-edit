@@ -21,6 +21,7 @@
 #include "forms/form_video.h"
 #include "forms/form_video_box.h"
 #include "forms/form_midi.h"
+#include "forms/form_minimap.h"
 
 #include <wx/ribbon/buttonbar.h>
 #include <wx/ribbon/panel.h>
@@ -28,16 +29,6 @@
 #include <wx/ribbon/control.h>
 #include <wx/ribbon/art.h>
 #include <wx/ribbon/bar.h>
-
-
-class TMiniMap {
-public:
-    wxBitmap* bmp;
-    int source_x_ofs;
-    int source_y_ofs;
-    int source_x;
-    int source_y;
-};
 
 
 // main
@@ -69,12 +60,7 @@ private:
     void OnNewMap(wxCommandEvent& event);
     void OnExit(wxCommandEvent& event);
     void OnAbout(wxCommandEvent& event);
-    void OnClose(wxCloseEvent& ev);
-
-    void CreateMiniMapDialog(TMiniMap& minimap);
-    void OnPaintMapView(wxPaintEvent& event);
-    void OnMapViewKeyDown(wxKeyEvent& event);
-    void OnMapViewMouseUp(wxMouseEvent& event);
+    void OnClose(wxCloseEvent& ev);     
 
     void OnSwitchGameMode(wxCommandEvent& event);
     void OnResetUnitView(wxCommandEvent& event);
@@ -111,6 +97,7 @@ private:
     void LoadToolsetRibbon(Terrain* terr = NULL);
 
     // canvas stuff:
+    void OnThreadCanvas(wxThreadEvent& event);
     void OnPaintCanvas(wxPaintEvent& event);
     void OnCanvasRMouse(wxMouseEvent& event);
     void OnCanvasMouseMove(wxMouseEvent& event);
@@ -160,6 +147,7 @@ private:
     FormVideoBox* form_video_box;
     FormMapOptions *form_map_options;
     FormMIDI *form_midi;
+    FormMiniMap *form_minimap;
     
     void OnPaintHUDbutton(wxPaintEvent& event);
     void OnHUDbuttonsMouseEnter(wxMouseEvent& event);
@@ -226,6 +214,7 @@ enum
     ID_mmGameMode,
     ID_mmResetViewMap,
     ID_mmUnitViewMode,
+    ID_Canvas,
     ID_ViewTer,
     ID_ViewObj,
     ID_ViewAnm,
