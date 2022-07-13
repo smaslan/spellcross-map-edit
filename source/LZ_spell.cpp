@@ -166,7 +166,7 @@ LZWdictElem *LZWdct::get(int code)
 LZWexpand::LZWexpand(int buf_size)
 {	
 	// allocate initial output buffer (this will exist until class destroyed and grow whenever needed)
-	buffer.reserve(buf_size);
+	buffer.resize(buf_size);
 }
 
 // close LZW decoder
@@ -221,14 +221,49 @@ int LZWexpand::GetWord(uint8_t** dsrc, uint8_t* dend)
 
 
 // decode LZW data
-int LZWexpand::Decode(uint8_t*dsrc, uint8_t *dend,uint8_t **dest,int *dlen)
+int LZWexpand::Decode(uint8_t* dsrc,uint8_t* dend,uint8_t** dest,int* dlen)
+{
+	if(!dest || !dlen)
+		return(1);
+	
+	// deLZ
+	auto err = DecodeCore(dsrc,dend);
+	if(err)
+		return(err);
+
+	// make and copy local data to output buffer
+	*dlen = output_size;
+	*dest = new uint8_t[buffer.size()];
+	std::memcpy((void*)*dest, buffer.data(),output_size);
+
+	return(0);
+}
+std::vector<uint8_t>& LZWexpand::Decode(uint8_t* dsrc,uint8_t* dend)
+{
+	// deLZ
+	auto err = DecodeCore(dsrc,dend);
+	if(err)
+	{
+		buffer.resize(0);
+		return(buffer);
+	}
+
+	// return directly working buffer resized to actual data size
+	buffer.resize(output_size);
+	return(buffer);
+}
+int LZWexpand::DecodeCore(uint8_t*dsrc, uint8_t *dend)
 {
 	LZWdictElem *cwrd = NULL;
 	LZWdictElem pwrd;
 	int ccd;
 
+	// reset local output buffer
+	output_size = 0;
+	buffer.resize(buffer.capacity());
+
 	// missing some parameters?
-	if(!dsrc || !dend || !dest || !dlen)
+	if(!dsrc || !dend)
 		return(1);
 
 	// invalid parameter values?
@@ -236,12 +271,9 @@ int LZWexpand::Decode(uint8_t*dsrc, uint8_t *dend,uint8_t **dest,int *dlen)
 		return(1);
 
 	// no output data yet
-	*dlen = 0;
-	*dest = NULL;
-
-	// reset local output buffer
-	buffer.resize(0);
-
+	/**dlen = 0;
+	*dest = NULL;*/
+	
 	// load dictionary (clears the old one)
 	dct.Load(&dsrc, dend);
 
@@ -319,19 +351,17 @@ int LZWexpand::Decode(uint8_t*dsrc, uint8_t *dend,uint8_t **dest,int *dlen)
 		}
 
 		// write chunk to local output buffer:
-		int insert_pos = buffer.size();
-		buffer.resize(buffer.size() + cwrd->len);
-		std::memcpy(&buffer[insert_pos], cwrd->data, cwrd->len);
+		//  ###note: this is much faster than using vector resize every time even if preallocated by reserve()
+		int min_size = output_size + cwrd->len;
+		if(buffer.size() < min_size)
+			buffer.resize(buffer.size()*2);
+		std::memcpy(&buffer[output_size], cwrd->data, cwrd->len);
+		output_size += cwrd->len;
 
 		// current word to previous word
 		pwrd = *cwrd;
 	}
-
-	// make and copy local data to output buffer
-	*dlen = buffer.size();
-	*dest = new uint8_t[buffer.size()];
-	std::memcpy((void*)*dest, buffer.data(), buffer.size());
-
+	
 	return(0);
 }
 

@@ -79,18 +79,14 @@ void FSarchive::Append(wstring& path,int options)
 			std::string ext = std::filesystem::path(name).extension().string();
 			if(options & Options::DELZ_LZ & ext.compare(".LZ") == 0 
 				|| options & Options::DELZ_LZ0 & ext.compare(".LZ0") == 0)
-			{
-				uint8_t *data;
-				int data_len;
-				if(m_lzw->Decode(&file->data[0],&file->data[0] + aflen, &data, &data_len))
+			{				
+				auto &data = m_lzw->Decode(&file->data[0],&file->data[0] + aflen);
+				if(data.empty())
 				{
 					delete file;
 					throw std::runtime_error(string_format("DeLZ of file \"%s\" failed!",name));
 				}
-				file->data.clear();
-				file->data.resize(data_len);
-				std::memcpy(&file->data[0],data,data_len);
-				delete data;
+				file->data = data;				
 			}
 		}
 

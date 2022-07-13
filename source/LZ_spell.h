@@ -64,6 +64,7 @@ class LZWexpand
 private:
 	// local output buffer
 	std::vector<uint8_t> buffer;
+	int output_size;
 
 	// dictionary
 	LZWdct dct;
@@ -76,11 +77,15 @@ private:
 
 	int GetWord(uint8_t** dsrc, uint8_t* dend);
 
+	int DecodeCore(uint8_t* dsrc,uint8_t* dend);
+
 public:
 
 	LZWexpand(int buf_size);
 	~LZWexpand();
+	
 	int Decode(uint8_t* dsrc, uint8_t* dend, uint8_t** dest, int* dlen);
+	std::vector<uint8_t> &Decode(uint8_t* dsrc,uint8_t* dend);
 
 };
 

@@ -421,17 +421,15 @@ int SpellVideo::DecodeDP2(uint8_t* dp2,int dp2_len, uint8_t *riff, int riff_len)
 		}
 
 		// try deLZ
-		uint8_t* deltas = NULL;
-		int deltas_size;
-		delz.Decode(p,&p[video_chunk_size],&deltas,&deltas_size);
-		if(!deltas || deltas_size < 20)
+		auto &deltas = delz.Decode(p,&p[video_chunk_size]);
+		if(deltas.empty() || deltas.size() < 20)
 		{
 			// failed
 			return(1);
 		}
 		p += video_chunk_size;
-		uint8_t* dptr = deltas;
-		uint8_t* dend = &deltas[deltas_size];
+		uint8_t* dptr = deltas.data();
+		uint8_t* dend = &dptr[deltas.size()];
 
 		// modified area range
 		int min_x = *(uint16_t*)dptr; dptr += sizeof(uint16_t);
@@ -449,7 +447,6 @@ int SpellVideo::DecodeDP2(uint8_t* dp2,int dp2_len, uint8_t *riff, int riff_len)
 			if(&dptr[4] > dend)
 			{
 				// failed
-				delete deltas;
 				return(1);
 			}
 			uint32_t gap_size = *(uint32_t*)dptr; dptr += sizeof(uint32_t);
@@ -461,7 +458,6 @@ int SpellVideo::DecodeDP2(uint8_t* dp2,int dp2_len, uint8_t *riff, int riff_len)
 			if(&dptr[4] > dend)
 			{
 				// failed
-				delete deltas;
 				return(1);
 			}
 			int chunk_size = *(uint32_t*)dptr; dptr += sizeof(uint32_t);
@@ -473,7 +469,6 @@ int SpellVideo::DecodeDP2(uint8_t* dp2,int dp2_len, uint8_t *riff, int riff_len)
 			if(&fptr[chunk_size] > fend || &dptr[chunk_size] > dend)
 			{
 				// failed
-				delete deltas;
 				return(1);
 			}
 			std::memcpy(fptr,dptr,chunk_size);
@@ -483,8 +478,6 @@ int SpellVideo::DecodeDP2(uint8_t* dp2,int dp2_len, uint8_t *riff, int riff_len)
 
 		// store to frame buffer
 		frames.emplace_back(frame);
-
-		delete deltas;
 	}
 
 	// load complementary audio data			

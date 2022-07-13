@@ -161,20 +161,17 @@ int FSUarchive::LoadResource(uint8_t *data, int rid, FSU_resource *res, LZWexpan
 		uint8_t* srce = src + len;
 			
 
-		// try to decode sprite archive
-		int slen = 0;
-		uint8_t* spr;
-		int err = delz->Decode(src, srce, &spr, &slen);
-		if (err)
+		// try to decode sprite archive		
+		auto &spr = delz->Decode(src, srce);
+		if (spr.empty())
 		{
 			// something has fucked while decompressing
 			delete sprite;
-			delete delz;
 			return(1);
 		}
 
 		// sprite data local pointer
-		uint8_t* sd = spr;
+		uint8_t* sd = spr.data();
 		
 		// === decode sprite ===
 		// get sprite heigth
@@ -186,10 +183,10 @@ int FSUarchive::LoadResource(uint8_t *data, int rid, FSU_resource *res, LZWexpan
 			ymin = sprite->y_ofs;
 		
 		// sprite data end
-		uint8_t *se = spr + slen;
+		uint8_t *se = spr.data() + spr.size();
 
 		// alloc decoded image data (maximum possible size)
-		uint8_t *img_data = new uint8_t[slen*2];
+		uint8_t *img_data = new uint8_t[spr.size()*2];
 		uint8_t *img = img_data;
 
 		// for each line
@@ -269,7 +266,7 @@ int FSUarchive::LoadResource(uint8_t *data, int rid, FSU_resource *res, LZWexpan
 		}
 
 		// loose LZ decoder output buffer
-		delete[] spr;
+		//delete[] spr;
 
 		// global ymax
 		if(sprite->y_ofs + sprite->y_size > ymax)

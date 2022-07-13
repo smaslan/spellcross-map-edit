@@ -721,7 +721,7 @@ int SpellData::BuildSpriteContextOfMaps(wstring folder, string terrain_name,std:
 int SpellData::LoadAuxGraphics(FSarchive *fs,std::function<void(std::string)> status_item)
 {
 	// init LZW decoder
-	LZWexpand *lzw = new LZWexpand(1000000);
+	LZWexpand lzw(1000000);
 
 	// for each file:
 	for(int k = 0; k < fs->Count(); k++)
@@ -738,58 +738,50 @@ int SpellData::LoadAuxGraphics(FSarchive *fs,std::function<void(std::string)> st
 		if(wildcmp("I_*.LZ", name))
 		{
 			// units icons, fized width 60
-			is_lzw = true;
-			lzw->Decode(data, data_end, &data, &flen);			
-			gres.AddRaw(data, flen, 60, flen/60, name, map_pal);
+			auto &bin = lzw.Decode(data, data_end);
+			gres.AddRaw(bin.data(), bin.size(), 60,bin.size()/60, name, map_pal);
 		}
 		else if(strcmp(name, "LISTA_0.LZ") == 0 || strcmp(name,"LISTA_1.LZ") == 0)
 		{
 			// war map bottom panel
-			is_lzw = true;
-			lzw->Decode(data,data_end,&data,&flen);
-			gres.AddRaw(data,flen,640,flen/640,name,map_pal);
+			auto& bin = lzw.Decode(data,data_end);
+			gres.AddRaw(bin.data(),bin.size(),640,bin.size()/640,name,map_pal);
 		}
 		else if(strcmp(name,"LISTA_0B.LZ0") == 0)
 		{
 			// war map right panel overlay
-			is_lzw = true;
-			lzw->Decode(data,data_end,&data,&flen);
-			gres.AddRaw(data,flen,160,flen/160,name,map_pal);
+			auto& bin = lzw.Decode(data,data_end);
+			gres.AddRaw(bin.data(),bin.size(),160,bin.size()/160,name,map_pal);
 		}
 		else if(strcmp(name,"LISTAPAT.LZ") == 0)
 		{
 			// war map bottom panel side filling
-			is_lzw = true;
-			lzw->Decode(data,data_end,&data,&flen);
-			gres.AddRaw(data,flen,32,flen/32,name,map_pal);
+			auto& bin = lzw.Decode(data,data_end);
+			gres.AddRaw(bin.data(),bin.size(),32,bin.size()/32,name,map_pal);
 		}
 		else if(strcmp(name,"LEV_GFK.LZ") == 0)
 		{
 			// experience mark
-			is_lzw = true;
-			lzw->Decode(data,data_end,&data,&flen);
-			gres.AddRaw(data,flen,9,flen/9,name,map_pal);
+			auto& bin = lzw.Decode(data,data_end);
+			gres.AddRaw(bin.data(),bin.size(),9,bin.size()/9,name,map_pal);
 		}
 		else if(strcmp(name,"M_ACCOMP.LZ") == 0 || strcmp(name,"M_FAILED.LZ") == 0)
 		{
 			// war map end title
-			is_lzw = true;
-			lzw->Decode(data,data_end,&data,&flen);
-			gres.AddRaw(data,flen,340,flen/340,name,map_pal);
+			auto& bin = lzw.Decode(data,data_end);
+			gres.AddRaw(bin.data(),bin.size(),340,bin.size()/340,name,map_pal);
 		}
 		else if(strcmp(name,"OPT_BAR.LZ") == 0)
 		{
 			// window frame
-			is_lzw = true;
-			lzw->Decode(data,data_end,&data,&flen);
-			gres.AddRaw(data,flen,10,flen/10,name,map_pal);
+			auto& bin = lzw.Decode(data,data_end);
+			gres.AddRaw(bin.data(),bin.size(),10,bin.size()/10,name,map_pal);
 		}
 		else if(strcmp(name,"MAP_OPT.LZ") == 0)
 		{
 			// window frame
-			is_lzw = true;
-			lzw->Decode(data,data_end,&data,&flen);
-			gres.AddRaw(data,flen,436,flen/436,name,map_pal);
+			auto& bin = lzw.Decode(data,data_end);
+			gres.AddRaw(bin.data(),bin.size(),436,bin.size()/436,name,map_pal);
 		}
 		else if(wildcmp("*.ICO",name) || wildcmp("*.BTN",name))
 		{
@@ -836,9 +828,6 @@ int SpellData::LoadAuxGraphics(FSarchive *fs,std::function<void(std::string)> st
 
 		if(!no_item && status_item)
 			status_item(name);
-
-		if(is_lzw)
-			delete[] data;
 	}
 
 	// make round LED indicators for mission HUD
@@ -911,9 +900,6 @@ int SpellData::LoadAuxGraphics(FSarchive *fs,std::function<void(std::string)> st
 	
 	// order projectiles
 	gres.SortProjectiles();
-	
-	// loose LZW decoder
-	delete lzw;
 
 	return(0);
 }
