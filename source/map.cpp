@@ -406,6 +406,7 @@ SpellMap::SpellMap()
 
 	unit_range_th = NULL;
 	unit_range_th_control = UNIT_RANGE_TH_IDLE;
+	unit_range_th_unit = NULL;
 
 	unit_range_view_mode = UNIT_RANGE_NONE;
 	unit_range_view_mode_lock = false;
@@ -415,6 +416,9 @@ SpellMap::SpellMap()
 	events = NULL;
 
 	saves = NULL;
+
+	SetDefaultRenderFilter(NULL);
+	SetRenderFilter(NULL);
 }
 
 SpellMap::~SpellMap()
@@ -480,6 +484,9 @@ void SpellMap::Close()
 		delete unit_range_th;
 		unit_range_th = NULL;
 	}
+	if(unit_range_th_unit)
+		delete unit_range_th_unit;
+	unit_range_th_unit = NULL;
 
 	// loose layer data
 	tiles.clear();
@@ -535,6 +542,9 @@ void SpellMap::Close()
 	
 	// reset gamma to make correctio recalculation
 	last_gamma = 0.0;
+
+	SetDefaultRenderFilter(NULL);
+	SetRenderFilter(NULL);
 }
 
 
@@ -1012,7 +1022,7 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 	filter.resize(x_size*y_size, NULL);
 
 	// init unit pointer PNM
-	pnm_sipka = MapLayer4(spelldata->pnm_sipka);
+	pnm_sipka = MapLayer4(spelldata->gres.pnm_sipka);
 
 	// create events list
 	events = new SpellMapEvents(this);
@@ -1059,7 +1069,7 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 			else if (cmd->name.compare("AddUnit") == 0)
 			{
 				// --- AddUnit(unit_order, unit_id, position, experience, man_count, unit_mode, name) ---				
-				MapUnit *unit = new MapUnit();
+				MapUnit *unit = new MapUnit(this);
 
 				// always os
 				unit->is_enemy = 1;
@@ -1684,7 +1694,7 @@ vector<MapXY> &SpellMap::GetSelections(TScroll *scroll)
 					{
 						// we are somewhere in the expected tile area - check if we are in tile polygons
 						// tile data
-						unsigned char* seld = spelldata->special.solid[sn - 'A'].data;
+						unsigned char* seld = spelldata->special.solid[sn - 'A'].data.data();
 						int sla = 0;
 						for(i = 0; i < sy; i++)
 						{
@@ -1782,7 +1792,7 @@ int SpellMap::GetElevation(TScroll* scroll)
 		return(0);	
 }
 // get L1 terrain tile name
-char *SpellMap::GetL1tileName(TScroll* scroll)
+const char *SpellMap::GetL1tileName(TScroll* scroll)
 {
 	// fix selection
 	MapXY sel = GetSelection(scroll);
@@ -1790,22 +1800,22 @@ char *SpellMap::GetL1tileName(TScroll* scroll)
 	if(sel.IsSelected())
 	{
 		// return tile name
-		return(tiles[ConvXY(sel)].L1->name);
+		return(tiles[ConvXY(sel)].L1->name.c_str());
 	}
 	else
 		return(NULL);
 }
 
 // get L2 object tile name
-char* SpellMap::GetL2tileName(TScroll* scroll)
+const char* SpellMap::GetL2tileName(TScroll* scroll)
 {
 	// fix selection
 	MapXY sel = GetSelection(scroll);
 
-	if(sel.IsSelected())
+	if(sel.IsSelected() && tiles[ConvXY(sel)].L2)
 	{
 		// return tile name
-		return(tiles[ConvXY(sel)].L2->name);
+		return(tiles[ConvXY(sel)].L2->name.c_str());
 	}
 	else
 		return(NULL);
@@ -1906,12 +1916,6 @@ int SpellMap::GetRender(uint8_t* buf, int x_size, int y_size, int x_pos, int y_p
 	return(0);
 }
 
-// get gamma corrected palette
-uint8_t* SpellMap::GetPalette()
-{
-	return(&pal[0][0]);
-}
-
 // render frame
 int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::function<void(void)> hud_buttons_cb)
 {
@@ -2001,9 +2005,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 			int mxy = ConvXY(n + xs_ofs,m + ys_ofs*2);
 
 			// select view area
-			uint8_t *fil = GetUnitRangeFilter(mxy);
-			if(!TileIsVisible(n + xs_ofs,m + ys_ofs*2))
-				fil = terrain->filter.darkpal;
+			uint8_t *fil = GetUnitRangeFilter(n + xs_ofs,m + ys_ofs*2);
 
 			// game mode view range
 			if(game_mode && units_view[mxy] == 0)
@@ -2081,7 +2083,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 			int mxy = ConvXY(anm->x_pos, anm->y_pos);
 
 			// game mode view range
-			uint8_t* fil = GetUnitRangeFilter(mxy);
+			uint8_t* fil = GetUnitRangeFilter(anm->x_pos,anm->y_pos);
 			if(game_mode && units_view[mxy] == 0)
 				continue;
 			else if(game_mode && units_view[mxy] == 1)
@@ -2118,7 +2120,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 				int mxy = ConvXY(pos->x,pos->y);
 
 				// game mode view range
-				uint8_t* fil = GetUnitRangeFilter(mxy);
+				uint8_t* fil = GetUnitRangeFilter(pos->x,pos->y);
 				if(game_mode && units_view[mxy] == 0)
 					continue;
 				else if(game_mode && units_view[mxy] == 1)
@@ -2186,7 +2188,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 			int mxy = ConvXY(n + xs_ofs, m + ys_ofs*2);
 
 			// game mode view range
-			uint8_t* fil = GetUnitRangeFilter(mxy);
+			uint8_t* fil = GetUnitRangeFilter(n + xs_ofs,m + ys_ofs*2);
 			if(game_mode && units_view[mxy] == 0)
 				continue;
 			else if(game_mode && units_view[mxy] == 1)
@@ -2224,7 +2226,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 			int mxy = ConvXY(pnm->x_pos, pnm->y_pos);
 
 			// game mode view range
-			uint8_t* fil = GetUnitRangeFilter(mxy);
+			uint8_t* fil = GetUnitRangeFilter(pnm->x_pos,pnm->y_pos);
 			if(game_mode && units_view[mxy] == 0)
 				continue;
 			else if(game_mode && units_view[mxy] == 1)
@@ -2262,9 +2264,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 			int mxy = ConvXY(n + xs_ofs, m + ys_ofs * 2);
 
 			// select view area
-			uint8_t* filter = GetUnitRangeFilter(mxy);
-			if(!TileIsVisible(n + xs_ofs,m + ys_ofs*2))
-				filter = terrain->filter.darkpal;			
+			uint8_t* filter = GetUnitRangeFilter(n + xs_ofs,m + ys_ofs * 2);
 
 			// tile selected
 			int is_selected = (msel.size() && msel[0].IsSelected() && msel[0].x - xs_ofs == n && msel[0].y - ys_ofs*2 == m);
@@ -2299,7 +2299,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 					if ((pass == 0 && unit->unit->isAir()) || pass == 2)
 					{
 						// render unit
-						uint8_t* filter_unit = NULL;
+						uint8_t* filter_unit = render_filter;
 						if(cursor_unit == unit && !game_mode)
 							filter_unit = terrain->filter.goldpal;
 						int top_y_ofs = unit->Render(terrain, pic, pic_end, mxx, myy, pic_x_size,filter_unit, filter, sid, w_unit_hud);
@@ -2805,11 +2805,12 @@ int SpellMap::FindUnitRange(MapUnit* unit)
 	}
 	
 	// set new unit
+	if(unit_range_th_unit)
+		delete unit_range_th_unit;
+	unit_range_th_unit = NULL;
 	if(unit)
-		unit_range_th_unit = MapUnit(*unit);
-	else
-		unit_range_th_unit.coor = {-1,-1};
-	
+		unit_range_th_unit = new MapUnit(*unit);
+		
 	// start calculation
 	unit_range_th_control = UNIT_RANGE_TH_RUN;
 
@@ -2822,7 +2823,7 @@ int SpellMap::FindUnitRange(MapUnit* unit)
 int SpellMap::FindUnitRange_th()
 {		
 	// target unit
-	MapUnit* unit = &unit_range_th_unit;
+	MapUnit *&unit = unit_range_th_unit;
 
 	// clear range filters
 	vector<int> unit_ap_left;
@@ -2845,7 +2846,7 @@ int SpellMap::FindUnitRange_th()
 		unit_ap_left.assign(x_size*y_size,-1);
 		unit_fire_left.assign(x_size*y_size,-1);
 
-		if(!unit->coor.IsSelected() || unit->radar_up || !unit->isActive())
+		if(!unit || !unit->coor.IsSelected() || unit->radar_up || !unit->isActive())
 		{
 			FindUnitRangeLock(true);
 			this->unit_ap_left = unit_ap_left;
@@ -3150,9 +3151,23 @@ vector<AStarNode> SpellMap::FindUnitPath(MapUnit* unit, MapXY target)
 	return(path);
 }
 
-// get filter pointer or NULL based for the tile
-uint8_t* SpellMap::GetUnitRangeFilter(int mxy)
+// set default (idle) filter for map render (used to darken map when GUI window shown)
+void SpellMap::SetDefaultRenderFilter(uint8_t* filter)
 {
+	default_filter = filter;
+}
+// set priority render filter (overrides all others)
+void SpellMap::SetRenderFilter(uint8_t* filter)
+{
+	render_filter = filter;
+}
+
+// get filter pointer or NULL based for the tile
+uint8_t* SpellMap::GetUnitRangeFilter(int x, int y)
+{
+	int mxy = ConvXY(x,y);
+	if(render_filter)
+		return(render_filter);	
 	if(viewingUnitMoveRange() && unit_fire_left[mxy] > 0)
 		return(terrain->filter.bluepal);
 	if(viewingUnitMoveRange() && unit_ap_left[mxy] >= 0)
@@ -3161,7 +3176,9 @@ uint8_t* SpellMap::GetUnitRangeFilter(int mxy)
 		return(terrain->filter.redpal);
 	if(viewingUnitMoveRange() || viewingUnitAttackRange())
 		return(terrain->filter.darkpal);
-	return(NULL);
+	if(!TileIsVisible(x,y))
+		return(terrain->filter.darkpal);
+	return(default_filter);
 }
 
 // set map view mode (none, move range, fire range)
@@ -3740,7 +3757,7 @@ int SpellMap::RenderHUD(uint8_t *buf,uint8_t* buf_end,int buf_x_size,MapXY *curs
 		double morale = unit->morale;
 		int morale_pix = (int)(morale*48/100);
 		for(int y = 0; y < morale_pix; y++)
-			memset(&buf[hud_left+px_ref+73 + (hud_top+82-y)*buf_x_size],199,6);
+			memset(&buf[hud_left+px_ref+73 + (hud_top+82-y)*buf_x_size],196,6);
 		// pos a: 75,70
 		font->Render(buf,buf_end,buf_x_size,hud_left+px_ref+75,hud_top+70,string_format("%02.0f",morale),252,254,SpellFont::RIGHT_DOWN);
 
@@ -3872,7 +3889,7 @@ int SpellMap::RenderHUD(uint8_t *buf,uint8_t* buf_end,int buf_x_size,MapXY *curs
 			// no unit under cursor: render 8 buttons in the right panel
 			CreateHUDbutton(gres.wm_glyph_map,hud_origin,btn_right[0],buf,buf_end,buf_x_size,HUD_ACTION_MINIMAP,NULL,NULL);
 			CreateHUDbutton((unit_sel_land_preference)?(gres.wm_glyph_ground):(gres.wm_glyph_air),hud_origin,btn_right[1],buf,buf_end,buf_x_size,0,bind(&SpellMap::OnHUDswitchAirLand,this),NULL);
-			CreateHUDbutton(gres.wm_glyph_goto_unit,hud_origin,btn_right[2],buf,buf_end,buf_x_size,0,NULL,NULL);
+			CreateHUDbutton(gres.wm_glyph_goto_unit,hud_origin,btn_right[2],buf,buf_end,buf_x_size,HUD_ACTION_UNITS,NULL,NULL);
 			CreateHUDbutton(gres.wm_glyph_end_turn,hud_origin,btn_right[3],buf,buf_end,buf_x_size,0,bind(&SpellMap::OnHUDswitchEndTurn,this),NULL);
 			
 			CreateHUDbutton(gres.wm_glyph_unit_info,hud_origin,btn_right[4],buf,buf_end,buf_x_size,0,bind(&SpellMap::OnHUDswitchUnitHUD,this),NULL);
@@ -5086,7 +5103,7 @@ int SpellMap::FinishUnits()
 
 
 // returns true when tile is in the normally visible area of map, false for the dark map bevel
-bool SpellMap::TileIsVisible(int x, int y)
+bool SpellMap::TileIsVisible(int x,int y)
 {
 	int is_even = !!(y&1);
 	int x_ok = (x >= (1 + is_even)) && (x < x_size-3);	

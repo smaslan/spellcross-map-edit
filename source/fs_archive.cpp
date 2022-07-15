@@ -77,8 +77,8 @@ void FSarchive::Append(wstring& path,int options)
 		if(m_lzw)
 		{
 			std::string ext = std::filesystem::path(name).extension().string();
-			if(options & Options::DELZ_LZ & ext.compare(".LZ") == 0 
-				|| options & Options::DELZ_LZ0 & ext.compare(".LZ0") == 0)
+			if(options & Options::DELZ_LZ && ext.compare(".LZ") == 0 
+				|| options & Options::DELZ_LZ0 && ext.compare(".LZ0") == 0)
 			{				
 				auto &data = m_lzw->Decode(&file->data[0],&file->data[0] + aflen);
 				if(data.empty())

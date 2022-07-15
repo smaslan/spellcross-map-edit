@@ -117,6 +117,8 @@ public:
 	SpellGraphicItem* wm_map_opt_btn_hover;
 	SpellGraphicItem* wm_map_opt_btn_down;	
 
+	SpellGraphicItem* wm_map_units_list;
+
 	wxCursor* cur_pointer;
 	wxCursor* cur_wait;
 	wxCursor* cur_move;
@@ -125,6 +127,8 @@ public:
 	wxCursor* cur_attack_down;
 	wxCursor* cur_attack_up;
 	wxCursor* cur_attack_up_down;
+
+	AnimPNM* pnm_sipka;
 
 	// projectile lists
 	int SortProjectiles();

@@ -22,6 +22,7 @@
 #include "forms/form_video_box.h"
 #include "forms/form_midi.h"
 #include "forms/form_minimap.h"
+#include "forms/form_map_units_list.h"
 
 #include <wx/ribbon/buttonbar.h>
 #include <wx/ribbon/panel.h>
@@ -148,6 +149,7 @@ private:
     FormMapOptions *form_map_options;
     FormMIDI *form_midi;
     FormMiniMap *form_minimap;
+    FormMapUnits *form_units_list;
     
     void OnPaintHUDbutton(wxPaintEvent& event);
     void OnHUDbuttonsMouseEnter(wxMouseEvent& event);
@@ -171,7 +173,8 @@ private:
         ID_VIDEO_BOX_WIN,
         ID_MAP_OPT_WIN,
         ID_VIDEO_WIN,
-        ID_MIDI_WIN
+        ID_MIDI_WIN,
+        ID_MAP_UNITS_WIN
     };
     static constexpr int ID_HUD_BASE = 3000;
     static constexpr int ID_TOOL_BASE = 10000;

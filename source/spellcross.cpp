@@ -2,7 +2,7 @@
 // Unsorted Spellcross data handling routines.
 // 
 // This code is part of Spellcross Map Editor project.
-// (c) 2021, Stanislav Maslan, s.maslan@seznam.cz
+// (c) 2021-2022, Stanislav Maslan, s.maslan@seznam.cz
 // Distributed under MIT license, https://opensource.org/licenses/MIT.
 //=============================================================================
 #include "spellcross.h"
@@ -21,11 +21,9 @@
 #include <stdexcept>
 #include <regex>
 #include <filesystem>
-//#include <algorithm>
 
-//#include <format>
 
-using namespace std;
+//using namespace std;
 
 
 //=============================================================================
@@ -144,7 +142,7 @@ SpellDefSection *SpellDEF::GetSection(std::string section)
 		
 	while (1)
 	{
-		regex cmdexp("(.*\\r*\\n*) *([a-zA-Z]+)\\(([^\\)]+)\\)\\r*?\\n*?");
+		std::regex cmdexp("(.*\\r*\\n*) *([a-zA-Z]+)\\(([^\\)]+)\\)\\r*?\\n*?");
 		std::regex_search(sectxt, match, cmdexp);
 
 		if (match.size() != 4)
@@ -330,7 +328,7 @@ SpellData::SpellData(wstring &data_path,wstring& cd_data_path,wstring& spec_path
 		status_list("Loading COMMON.FS archive...");	
 	wstring common_path = std::filesystem::path(data_path) / std::filesystem::path("COMMON.FS");
 	try{
-		common_fs = new FSarchive(common_path);
+		common_fs = new FSarchive(common_path,FSarchive::Options::DELZ_ALL);
 	}catch(const runtime_error& error){
 		this->~SpellData();
 		if(status_list)
@@ -489,9 +487,7 @@ SpellData::SpellData(wstring &data_path,wstring& cd_data_path,wstring& spec_path
 			status_list(" - failed!");
 		throw runtime_error(string_format("Loading UNITS.FSU units graphics failed (%s)!",error.what()));
 	}	
-		
-	// hard assign some PNM links
-	pnm_sipka = gres.GetPNM("SIPKA");	
+
 
 	// load JEDNOTKY.DEF units definition file
 	if(status_list)
@@ -571,7 +567,7 @@ SpellData::SpellData(wstring &data_path,wstring& cd_data_path,wstring& spec_path
 	// load special tiles
 	if(status_list)
 		status_list("Loading special tiles (selection, etc.)...");
-	if(LoadSpecialLand(spec_path))
+	if(GenerateSpecialTiles())
 	{
 		this->~SpellData();
 		if(status_list)
@@ -663,15 +659,6 @@ SpellData::~SpellData()
 	terrain_fs = NULL;
 }
 
-// find loaded PNM animation
-/*AnimPNM* SpellData::GetPNM(const char* name)
-{
-	for(auto & pnm : pnms)
-		if(strcmp(pnm->name, name) == 0)
-			return(pnm);
-	return(NULL);
-}*/
-
 // auto build sprite context from all available spellcross maps
 int SpellData::BuildSpriteContextOfMaps(wstring folder, string terrain_name,std::function<void(std::string)> status_cb)
 {
@@ -724,64 +711,58 @@ int SpellData::LoadAuxGraphics(FSarchive *fs,std::function<void(std::string)> st
 	LZWexpand lzw(1000000);
 
 	// for each file:
-	for(int k = 0; k < fs->Count(); k++)
+	for(auto & file : fs->GetFiles())
 	{
 		// get file data
-		const char *name;
-		uint8_t *data;
-		int flen;
-		fs->GetFile(k, &data, &flen, &name);
+		const char *name = file->name.c_str();
+		int flen = file->data.size();
+		uint8_t *data = file->data.data();
 		uint8_t* data_end = &data[flen];
 
-		int is_lzw = false;
-		int no_item = false;
 		if(wildcmp("I_*.LZ", name))
 		{
 			// units icons, fized width 60
-			auto &bin = lzw.Decode(data, data_end);
-			gres.AddRaw(bin.data(), bin.size(), 60,bin.size()/60, name, map_pal);
+			gres.AddRaw(data, flen, 60,flen/60, name, map_pal);
 		}
 		else if(strcmp(name, "LISTA_0.LZ") == 0 || strcmp(name,"LISTA_1.LZ") == 0)
 		{
 			// war map bottom panel
-			auto& bin = lzw.Decode(data,data_end);
-			gres.AddRaw(bin.data(),bin.size(),640,bin.size()/640,name,map_pal);
+			gres.AddRaw(data,flen,640,flen/640,name,map_pal);
 		}
 		else if(strcmp(name,"LISTA_0B.LZ0") == 0)
 		{
 			// war map right panel overlay
-			auto& bin = lzw.Decode(data,data_end);
-			gres.AddRaw(bin.data(),bin.size(),160,bin.size()/160,name,map_pal);
+			gres.AddRaw(data,flen,160,flen/160,name,map_pal);
 		}
 		else if(strcmp(name,"LISTAPAT.LZ") == 0)
 		{
 			// war map bottom panel side filling
-			auto& bin = lzw.Decode(data,data_end);
-			gres.AddRaw(bin.data(),bin.size(),32,bin.size()/32,name,map_pal);
+			gres.AddRaw(data,flen,32,flen/32,name,map_pal);
+		}
+		else if(strcmp(name,"GU_LISTA.LZ") == 0)
+		{
+			// war map unit selection sub-panel
+			gres.AddRaw(data,flen,145,flen/145,name,map_pal);
 		}
 		else if(strcmp(name,"LEV_GFK.LZ") == 0)
 		{
 			// experience mark
-			auto& bin = lzw.Decode(data,data_end);
-			gres.AddRaw(bin.data(),bin.size(),9,bin.size()/9,name,map_pal);
+			gres.AddRaw(data,flen,9,flen/9,name,map_pal);
 		}
 		else if(strcmp(name,"M_ACCOMP.LZ") == 0 || strcmp(name,"M_FAILED.LZ") == 0)
 		{
 			// war map end title
-			auto& bin = lzw.Decode(data,data_end);
-			gres.AddRaw(bin.data(),bin.size(),340,bin.size()/340,name,map_pal);
+			gres.AddRaw(data,flen,340,flen/340,name,map_pal);
 		}
 		else if(strcmp(name,"OPT_BAR.LZ") == 0)
 		{
 			// window frame
-			auto& bin = lzw.Decode(data,data_end);
-			gres.AddRaw(bin.data(),bin.size(),10,bin.size()/10,name,map_pal);
+			gres.AddRaw(data,flen,10,flen/10,name,map_pal);
 		}
 		else if(strcmp(name,"MAP_OPT.LZ") == 0)
 		{
 			// window frame
-			auto& bin = lzw.Decode(data,data_end);
-			gres.AddRaw(bin.data(),bin.size(),436,bin.size()/436,name,map_pal);
+			gres.AddRaw(data,flen,436,flen/436,name,map_pal);
 		}
 		else if(wildcmp("*.ICO",name) || wildcmp("*.BTN",name))
 		{
@@ -824,9 +805,9 @@ int SpellData::LoadAuxGraphics(FSarchive *fs,std::function<void(std::string)> st
 			gres.AddPNM(data,flen,name);
 		}
 		else
-			no_item = true;
+			continue;
 
-		if(!no_item && status_item)
+		if(status_item)
 			status_item(name);
 	}
 
@@ -835,7 +816,7 @@ int SpellData::LoadAuxGraphics(FSarchive *fs,std::function<void(std::string)> st
 	gres.AddLED(253,"RLED_ON",map_pal);
 	gres.AddLED(229,"YLED_ON",map_pal);
 	
-	// --- DO NOT ADD ANYTHING TO LIST FROM HERE!!! it would change memory locations!
+	// --- DO NOT ADD ANYTHING TO LIST AFTER HERE!!! it would change memory locations!
 
 	// make direct (fast) links to some resoruces
 	gres.red_led_off = gres.GetResource("RLED_OFF");
@@ -887,6 +868,7 @@ int SpellData::LoadAuxGraphics(FSarchive *fs,std::function<void(std::string)> st
 	gres.wm_map_opt_btn_idle = gres.GetResource("WMOPT__N");
 	gres.wm_map_opt_btn_hover = gres.GetResource("WMOPT__A");
 	gres.wm_map_opt_btn_down = gres.GetResource("WMOPT__P");
+	gres.wm_map_units_list = gres.GetResource("GU_LISTA");
 
 	// render cursors
 	gres.cur_pointer = gres.RenderCUR("SIPKA.CUR");
@@ -897,6 +879,9 @@ int SpellData::LoadAuxGraphics(FSarchive *fs,std::function<void(std::string)> st
 	gres.cur_attack_down = gres.RenderCUR("TARGT_D.CUR");
 	gres.cur_attack_up = gres.RenderCUR("TARGT_U.CUR");
 	gres.cur_attack_up_down = gres.RenderCUR("OTAZNIK.CUR");
+
+	// unit cursor
+	gres.pnm_sipka = gres.GetPNM("SIPKA");
 	
 	// order projectiles
 	gres.SortProjectiles();
@@ -905,141 +890,113 @@ int SpellData::LoadAuxGraphics(FSarchive *fs,std::function<void(std::string)> st
 }
 
 
-// Load special land images (solid A-M, edge A-M, selection A-M)
-int SpellData::LoadSpecialLand(wstring &spec_folder)
+// generate special tiles (solid A-M, grid A-M, selection A-M), call only after at least one terrain loaded!
+int SpellData::GenerateSpecialTiles()
 {
-
-	// groups to load
-	std::vector<std::string> files = { "solid.fs", "edge.fs", "grid.fs", "select.fs" };
-	Sprite* lists[] = { special.solid, special.edge, special.grid, special.select };
-	
-	// for each group:
-	for (int g = 0; g < sizeof(files)/sizeof(wchar_t*); g++)
+	for(int slope = 'A'; slope <= 'M'; slope++)
 	{
-		// try to load special archive
-		wstring path = std::filesystem::path(spec_folder) / std::filesystem::path("spec") / std::filesystem::path(files[g]);
-		FSarchive *fs = new FSarchive(path);
-
-		// for each slope:
-		char name[6];
-		strcpy_s(name, sizeof(name), "_.BMP");
-		for (char sid = 'A'; sid <= 'M'; sid++)
+		// get any tile for the slope
+		std::string wild = "PLx*";
+		wild[2] = slope;
+		Sprite *spr = terrain[0]->GetSpriteWild(wild.c_str(),Terrain::WildMode::FIRST);
+		if(!spr)
+			return(1);
+		special.select[slope - 'A'] = *spr;
+		special.solid[slope - 'A'] = special.select[slope - 'A'];
+		Sprite *sel = &special.select[slope - 'A'];
+		Sprite* solid = &special.solid[slope - 'A'];
+		
+		// clear selection sprite
+		uint8_t* data = sel->data.data();
+		for(int y = 0; y < sel->y_size; y++)
 		{
-			name[0] = sid;
-			uint8_t* pic;
-			int size;
-			if (fs->GetFile(name, &pic, &size))
-			{
-				// not found?
-				delete[] fs;
-				return(1);
-			}
-
-			// target sprite object
-			Sprite* spr = &lists[g][sid - 'A'];
-
-			// store some name (because of sprite type letter)
-			std::memset(spr->name, '\0', sizeof(spr->name));
-			spr->name[0] = '_';
-			spr->name[1] = '_';
-			spr->name[2] = sid;
-
-
-			// --- very crude BMP decoder:
-			// get width
-			int x = *((DWORD*)&pic[0x12]);
-
-			// get heigth
-			int y = *((DWORD*)&pic[0x16]);
-
-			// get graphics data start
-			int fofs = *((DWORD*)&pic[0x0A]);
-
-			// store x, y
-			spr->x_size = x;
-			spr->y_size = y;
-			
-			// vertical offset (derived from original sprites)
-			if (sid == 'B' || sid == 'D' || sid == 'F' || sid == 'L' || sid == 'M')
-				spr->y_ofs = -18;
-			else if (sid == 'C')
-				spr->y_ofs = -17;
-			else
-				spr->y_ofs = 0;
-
-			// no transparencies
-			spr->has_transp = 0;
-
-			// allocate image buffer
-			spr->data = new uint8_t[(80 + sizeof(int) * 2) * 200];
-
-			// recode bmp->Sprite
-			int pp1 = 0;
-			for (int j = 0; j < y; j++)
-			{
-				// get line
-				int pp2 = 0;
-				uint8_t ss = 0;
-				int oo = 0;
-				uint8_t line[80];
-				for (int k = 0; k < x; k++)
-				{
-					if (pic[fofs + (y - 1) * x - j * x + k] == 0x07u && ss == 0)
-						oo++;
-					else
-					{
-						ss = 1;
-						line[pp2++] = pic[fofs + (y - 1) * x - j * x + k];
-					}
-				}
-
-				// check end transparency
-				int m;
-				for (m = pp2 - 1; m >= 0; m--)
-				{
-					if (line[m] != 0x07)
-						break;
-				}				
-
-				// store offset
-				std::memset((void*)&spr->data[pp1], 0x00, sizeof(int) * 2);
-				spr->data[pp1] = oo;
-				pp1 += sizeof(int);
-
-				// store line len
-				spr->data[pp1] = m + 1;
-				pp1 += sizeof(int);
-
-				// check for transparencies
-				if (memchr(line, 0x07, m + 1) != NULL && !spr->has_transp)
-					spr->has_transp = 1;
-
-				// convert colors
-				for (int n = 0; n < m + 1; n++)
-				{
-					ss = 0x00;
-					switch (line[n])
-					{
-						case 0xFFu: ss = 0xFEu; break;
-						case 0x00u: ss = 0xFFu; break;
-						case 0xF9u: ss = 0xC1u; break;
-					}
-					line[n] = ss;
-				}
-
-				// store line data
-				std::memcpy((void*)&spr->data[pp1], (void*)line, m + 1);
-				pp1 += m + 1;				
-			}
-
-			// ###todo: convert this whole stuff to load alrady converted sprite data! 
-			// ###todo: add destructor for these sprites somewhere?
+			int ofs = *(int*)data; data += sizeof(int);
+			int len = *(int*)data; data += sizeof(int);
+			std::memset(data, 0x00, len);
+			data += len;
 		}
 
-		// loose archive
-		delete fs;
-	}
+		// clear solid sprite
+		data = solid->data.data();
+		for(int y = 0; y < solid->y_size; y++)
+		{
+			int ofs = *(int*)data; data += sizeof(int);
+			int len = *(int*)data; data += sizeof(int);
+			std::memset(data,0xFF,len);
+			data += len;
+		}
+		
+		// make selection frame
+		const int fwidth = 3;
+		const int fxgap = 3;
+		const int fygap = 2;
+		const uint8_t sel_color = 0xC1;
+		/*for(int y = spr->y_ofs+fygap; y < spr->y_ofs + spr->y_size - fygap; y++)
+		{
+			int x_first = -1;
+			int x_last = -1;
+			for(int x = spr->x_ofs; x <= spr->x_ofs + spr->x_size; x++)
+			{
+				auto *pix = spr->GetPixel(x,y);
+				if(pix && x_first < 0)
+					x_first = x;
+				if(pix)
+					x_last = x;
+			}
+			if(x_last < 0 || x_first < 0)
+				continue;
+			for(int x = x_first + fxgap; x <= min(x_first + fxgap + fwidth,x_last - fxgap); x++)
+				spr->SetPixel(x,y,sel_color);
+			for(int x = x_last - fxgap; x >= max(x_last - fxgap - fwidth,x_first + fxgap); x--)
+				spr->SetPixel(x,y,sel_color);
+		}*/
+		for(int x = sel->x_ofs+3; x < sel->x_ofs + sel->x_size - 3; x++)
+		{
+			int y_first = -1000;
+			int y_last = -1000;
+			for(int y = sel->y_ofs; y <= sel->y_ofs + sel->y_size; y++)
+			{
+				auto* pix = sel->GetPixel(x,y);
+				if(pix && y_first <= -1000)
+					y_first = y;
+				if(y_first > -1000 && !pix)
+				{
+					y_last = y - 1;
+					break;
+				}
+			}
+			if(y_last <= -1000 || y_first <= -1000)
+				continue;
+			for(int y = y_first + fygap; y <= min(y_first + fygap + fwidth,y_last - fygap); y++)
+				sel->SetPixel(x,y,sel_color);
+			for(int y = y_last - fygap; y >= max(y_last - fygap - fwidth,y_first + fygap); y--)
+				sel->SetPixel(x,y,sel_color);
+		}
 
+		// make grid edges
+		const uint8_t grid_color = 0xC1;
+		special.grid[slope - 'A'] = special.solid[slope - 'A'];
+		Sprite* grid = &special.grid[slope - 'A'];
+		for(int x = grid->x_ofs; x < grid->x_ofs + grid->x_size; x++)
+		{
+			int y_first = -1000;
+			for(int y = sel->y_ofs; y <= sel->y_ofs + sel->y_size; y++)
+			{
+				auto* pix = sel->GetPixel(x,y);
+				if(pix && y_first <= -1000)
+				{
+					y_first = y;
+					grid->SetPixel(x,y,grid_color);
+				}
+				if(y_first > -1000 && !pix)
+				{
+					grid->SetPixel(x,y - 1,grid_color);
+					break;
+				}
+			}
+		}
+		
+	}
 
 	return(0);
 }

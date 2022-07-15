@@ -95,9 +95,9 @@ class Sprite
 {
 	public:
 		// sprite name tag
-		char name[MAX_SPRITE_NAME + 1];
+		std::string name;
 		// sprite data
-		uint8_t* data;
+		std::vector<uint8_t> data;
 		// sprite size
 		int x_size;
 		int y_size;
@@ -121,13 +121,19 @@ class Sprite
 		
 		// void constructor
 		Sprite();
-		~Sprite();		
+		~Sprite();
+		/*Sprite& operator=(const Sprite& other);
+		Sprite& operator=(const Sprite* other);*/
+		uint8_t* GetPixel(int x,int y);
+		uint8_t* GetPixelNeighbor(int x,int y,int dir);
+		std::tuple<int,int> GetPixelNeighborXY(int x,int y,int dir);
+		int SetPixel(int x, int y,uint8_t color);		
 		void SetIndex(int id);
 		int GetIndex();
 		void Render(uint8_t* buffer,uint8_t* buf_end,int buf_x,int buf_y, int x_size);
 		void Render(uint8_t* buffer, uint8_t* buf_end, int buf_x, int buf_y, int x_size, uint8_t* filter);
 		wxBitmap* Render(uint8_t* pal,double gamma=1.3, int x_size=-1, int y_size=-1, bool no_zoom=true);
-		int Decode(uint8_t* data, char* name);
+		int Decode(uint8_t* data,const char* name);
 		void GetTileModel(TFxyz* vert, int* face=NULL, int* face_count=NULL);
 		int GetTileEdge(int edge,TFxyz* vert);
 		TFxyz ProjectVertex(TFxyz *vert);

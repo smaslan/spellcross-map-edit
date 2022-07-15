@@ -23,6 +23,7 @@
     <ClCompile Include="forms\form_gr_view.cpp" />
     <ClCompile Include="forms\form_loader.cpp" />
     <ClCompile Include="forms\form_map_options.cpp" />
+    <ClCompile Include="forms\form_map_units_list.cpp" />
     <ClCompile Include="forms\form_message_box.cpp" />
     <ClCompile Include="forms\form_midi.cpp" />
     <ClCompile Include="forms\form_minimap.cpp" />
@@ -82,6 +83,7 @@
     <ClInclude Include="forms\form_gr_view.h" />
     <ClInclude Include="forms\form_loader.h" />
     <ClInclude Include="forms\form_map_options.h" />
+    <ClInclude Include="forms\form_map_units_list.h" />
     <ClInclude Include="forms\form_message_box.h" />
     <ClInclude Include="forms\form_midi.h" />
     <ClInclude Include="forms\form_minimap.h" />
@@ -245,6 +247,8 @@
       <AdditionalIncludeDirectories>$(ProjectDir);$(wxwin)src-3.1.7\include;$(wxwin)src-3.1.7\include\msvc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>

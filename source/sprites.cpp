@@ -39,14 +39,12 @@ using namespace std;
 // make empty sprite
 Sprite::Sprite()
 {
-	name[0] = '\0';
 	x_ofs = 0;
 	y_ofs = 0;
 	x_size = 0;
 	y_size = 0;
 	has_transp = 0;
 	land_type = 0;
-	data = NULL;
 	index = 0;
 	destructible = NULL;
 	destructible_alt = NULL;
@@ -65,13 +63,26 @@ Sprite::Sprite()
 // destroy sprite
 Sprite::~Sprite()
 {
-	name[0] = '\0';
-	if (data)
-		delete[] data;
+	/*name[0] = '\0';
 	for(int k = 0;k<4;k++)
 		for(int m = 'A'; m <= 'M'; m++)
-			quad[k][m-'A'].clear();
+			quad[k][m-'A'].clear();*/
 }
+
+// copy
+/*Sprite& Sprite::operator=(const Sprite& other)
+{
+	//*this = other;
+	return *this;
+}
+Sprite& Sprite::operator=(const Sprite *other)
+{
+	if(!other)
+		return(*this);
+	*this = *other;
+	return *this;
+}*/
+
 // check if sprite row quad mask has transparencies or it is just last quad
 int Sprite::MaskHasTransp(uint8_t *mask)
 {
@@ -99,7 +110,7 @@ int Sprite::GetIndex()
 
 // decode sprite from raw FS archive data, return bytes consumed
 // ###todo: check input memory overrun?
-int Sprite::Decode(uint8_t* src, char* name)
+int Sprite::Decode(uint8_t* src, const char* name)
 {
 	// store data start
 	uint8_t* source_start = src;
@@ -120,10 +131,8 @@ int Sprite::Decode(uint8_t* src, char* name)
 	src += 4;
 
 	// allocate sprite data (maximum possible value)
-	//data = new byte[(x_size + sizeof(int)*2) * 256];
-	uint8_t*buf = new uint8_t[(x_size + sizeof(int) * 2) * 256];
-	uint8_t*pdata = buf;
-
+	data.resize((x_size + sizeof(int) * 2) * 256);
+	uint8_t *pdata = data.data();
 
 	//unsigned char* mp = mem;
 	int i,j,k;
@@ -199,22 +208,75 @@ int Sprite::Decode(uint8_t* src, char* name)
 	}
 
 	// sprite data total len
-	int len = pdata - buf;
-
-	// store data to sprite record
-	this->data = new uint8_t[len];
-	std::memcpy((void*)this->data, (void*)buf, len);
-	delete[] buf;
+	int len = pdata - data.data();
+	data.resize(len);
+	data.shrink_to_fit();
 
 	// store sprite name
-	strcpy_s(this->name, sizeof(this->name), name);
+	this->name = name;
+	//strcpy_s(this->name, sizeof(this->name), name);
 
 	// return bytes consumed from the source
 	return(src - source_start);
 }
 
+// put pixel to absolute position (if inside sprite data)
+int Sprite::SetPixel(int x,int y,uint8_t color)
+{
+	auto *pix = GetPixel(x,y);
+	if(!pix)
+		return(1);
+	*pix = color;
+	return(0);
+}
 
+// get neighbor pixel (8 directions)
+std::tuple<int,int> Sprite::GetPixelNeighborXY(int x,int y,int dir)
+{
+	if(dir < 0 || dir >= 8)
+		return(std::tuple(-10000,-10000));
+	static const int x_list[] ={+1,+1, 0,-1,-1,-1, 0,+1};
+	static const int y_list[] ={ 0,+1,+1,+1, 0,-1,-1,-1};
+	return(std::tuple(x + x_list[dir],y + y_list[dir]));
+}
+uint8_t *Sprite::GetPixelNeighbor(int x, int y, int dir)
+{	
+	auto [xx,yy] = GetPixelNeighborXY(x,y,dir);
+	if(xx <= -10000)
+		return(NULL);
+	return(GetPixel(xx,yy));
+}
 
+// get pixel from absolute position (if inside sprite data)
+uint8_t *Sprite::GetPixel(int x,int y)
+{
+	y -= y_ofs;
+	x -= x_ofs;
+	if(y < 0 || x < 0)
+		return(NULL);
+	if(y >= y_size)
+		return(NULL);
+
+	auto* pixels = data.data();
+	for(int py = 0; py < y_size; py++)
+	{
+		// get line
+		int ofs = *(int*)pixels; pixels += sizeof(int);
+		int len = *(int*)pixels; pixels += sizeof(int);
+		if(py != y)
+		{
+			pixels += len;
+			continue;
+		}
+
+		if(x < ofs)
+			return(NULL);
+		if(x - ofs >= len)
+			return(NULL);
+		return(&pixels[x - ofs]);
+	}
+	return(NULL);
+}
 
 // render sprite to target buffer, buffer is sprite origin, x_size is buffer width
 void Sprite::Render(uint8_t* buffer,uint8_t* buf_end,int buf_x,int buf_y,int x_size)
@@ -231,7 +293,7 @@ void Sprite::Render(uint8_t* buffer, uint8_t* buf_end, int buf_x, int buf_y, int
 		return;
 
 	// sprite source data
-	uint8_t* data = this->data;
+	uint8_t* data = this->data.data();
 
 	// render each line:
 	if(filter)
@@ -851,12 +913,14 @@ int AnimPNM::Decode(uint8_t* data, char* name)
 
 		// make sprite object for this frame
 		Sprite *spr = new Sprite();
-		// copy frame pixel data
-		spr->data = new uint8_t[pic - buf];
-		std::memcpy((void*)spr->data, (void*)buf, pic - buf);
+		// copy frame pixel data		
+		//spr->data = new uint8_t[pic - buf];
+		spr->data.resize(pic - buf);
+		std::memcpy((void*)spr->data.data(), (void*)buf, pic - buf);
 		
 		// store name
-		strcpy_s(spr->name, sizeof(spr->name), name);
+		spr->name = name;
+		//strcpy_s(spr->name, sizeof(spr->name), name);
 
 		// store frame geometry
 		spr->has_transp = 1;
@@ -1657,7 +1721,7 @@ int Terrain::Load(FSarchive *terrain_fs, uint8_t map_pal[][3],SpellGraphics* gre
 		for(auto & sprite : sprites)
 		{
 			// check destructibility
-			auto destr = L2->GetClass(sprite->name);
+			auto destr = L2->GetClass(sprite->name.c_str());
 			
 			// store destructible class ref
 			sprite->destructible = destr.destructible;
@@ -1684,7 +1748,7 @@ Sprite* Terrain::GetSprite(const char* name)
 {
 	for (unsigned k = 0; k < this->sprites.size(); k++)
 	{
-		if (_strcmpi(this->sprites[k]->name, name) == 0)
+		if (_strcmpi(this->sprites[k]->name.c_str(), name) == 0)
 			return(this->sprites[k]);
 	}
 	return(NULL);
@@ -1694,7 +1758,7 @@ int Terrain::GetSpriteID(const char* name)
 {
 	for(unsigned k = 0; k < this->sprites.size(); k++)
 	{
-		if(_strcmpi(this->sprites[k]->name,name) == 0)
+		if(_strcmpi(this->sprites[k]->name.c_str(),name) == 0)
 			return(k);
 	}
 	return(-1);
@@ -1730,7 +1794,7 @@ Sprite* Terrain::GetSpriteWild(const char* wild, WildMode mode)
 	{
 		// get first match
 		for(unsigned k = 0; k < sprites.size(); k++)
-			if(wildcmp(wild,sprites[k]->name))
+			if(wildcmp(wild,sprites[k]->name.c_str()))
 				return(sprites[k]);
 		return(NULL);
 	}
@@ -1741,7 +1805,7 @@ Sprite* Terrain::GetSpriteWild(const char* wild, WildMode mode)
 		Sprite *ret = NULL;
 		int count = 0;
 		for(unsigned k = 0; k < sprites.size(); k++)
-			if(wildcmp(wild,sprites[k]->name))
+			if(wildcmp(wild,sprites[k]->name.c_str()))
 				list[count++] = sprites[k];
 		if(count)
 			ret = list[rand()%count];
@@ -1984,7 +2048,7 @@ int Terrain::SaveSpriteContext(wstring& path)
 
 	// store sprite name list, following code will work with indexes corresponding to this list
 	for(int k = 0; k < count;k++)
-		fw.write(sprites[k]->name, sizeof(sprites[k]->name));
+		fw.write(sprites[k]->name.c_str(), sizeof(sprites[k]->name));
 
 	// --- for each sprite:
 	for(int k = 0; k < count;k++)
@@ -2375,7 +2439,7 @@ int Terrain::InitSpriteContextShading()
 	for(int k = 0; k < sprites.size(); k++)
 	{		
 		Sprite *spr = sprites[k];
-		if(wildcmp("PL???_??",spr->name))
+		if(wildcmp("PL???_??",spr->name.c_str()))
 		{
 			// PL[s][c][e]_[nn]
 			//  s - slope

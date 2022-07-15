@@ -460,7 +460,7 @@ int SpellMapEvents::AddSpecialEvent(SpellData *data, SpellDEF* def, SpellDefCmd*
 		if(evcmd->name.compare("AddSpecialUnit") == 0)
 		{
 			// --- AddSpecialUnit(unit_order, unit_id, position, experience, man_count, name) ---				
-			MapUnit* unit = new MapUnit();
+			MapUnit* unit = new MapUnit(map);
 
 			// unit index within map (identifier)
 			unit->id = -1;

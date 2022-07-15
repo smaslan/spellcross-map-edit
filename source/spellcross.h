@@ -22,7 +22,7 @@
 #include "spell_midi.h"
 #include "spell_texts.h"
 
-using namespace std;
+//using namespace std;
 
 class SpellDefCmd
 {
@@ -110,7 +110,7 @@ public:
 class SpellData
 {
 private:
-	int LoadSpecialLand(wstring& path);
+	int GenerateSpecialTiles();
 	int LoadAuxGraphics(FSarchive* fs,std::function<void(std::string)> status_item=NULL);
 	
 	FSarchive* common_fs;
@@ -125,7 +125,6 @@ public:
 	vector<Terrain*> terrain;
 	// special tile graphics
 	struct {
-		Sprite edge[13];
 		Sprite select[13];
 		Sprite grid[13];
 		Sprite solid[13];
@@ -161,9 +160,7 @@ public:
 	Terrain* GetTerrain(const char* name);
 	Terrain* GetTerrain(int index);
 	int GetTerrainCount();
-	int BuildSpriteContextOfMaps(wstring folder,string terrain_name,std::function<void(std::string)> status_cb);
-
-	AnimPNM *pnm_sipka;
+	int BuildSpriteContextOfMaps(wstring folder,string terrain_name,std::function<void(std::string)> status_cb);	
 };
 
 

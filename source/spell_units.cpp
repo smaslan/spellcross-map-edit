@@ -17,6 +17,7 @@
 #include <vector>
 #include <stdexcept>
 #include <random>
+#include <algorithm>
 
 using namespace std;
 
@@ -949,8 +950,10 @@ UnitBonus* UnitBonuses::GetBonus(int level)
 //=============================================================================
 // Map Unit object stuff
 //=============================================================================
-MapUnit::MapUnit()
+MapUnit::MapUnit(SpellMap *map)
 {
+	this->map = map;
+
 	// unit idnetifier index within map
 	id = 0;
 	// unit type ID
@@ -1439,6 +1442,70 @@ int MapUnit::Render(Terrain* data,uint8_t* buffer,uint8_t* buf_end,int buf_x_pos
 	
 	// return top pixel of unit
 	return(y_status_bar);
+}
+
+
+
+// render vertical bar indictator (for GUIs)
+void MapUnit::RenderVertBar(uint8_t* buffer,uint8_t* buf_end,int buf_x_size,int pos_x,int pos_y,int size_x,int size_y,double level,uint8_t color)
+{
+	int pix = min(max((int)(level*size_y), 1),size_y);
+	for(int y = pos_y + size_y - 1; y > pos_y + size_y - pix; y--)
+		for(int x = pos_x; x < pos_x+size_x; x++)
+		{
+			auto *pix = &buffer[x + y*buf_x_size];
+			if(pix < buffer || pix >= buf_end)
+				continue;
+			*pix = color;
+		}
+}
+
+// render unit preview for map units list
+int MapUnit::RenderPreview(uint8_t* buffer,uint8_t* buf_end,int buf_x_size)
+{
+	auto *spell_data = map->spelldata;
+
+	// render background
+	auto *back = spell_data->gres.wm_map_units_list;
+	back->Render(buffer, buf_end,buf_x_size,0,0);
+
+	// title (pos = 4,3, size = 137,16)
+	spell_data->font->Render(buffer, buf_end, buf_x_size, 4,3, 137,16, name, 232, 0, SpellFont::FontShadow::DIAG3);
+
+	// icon (pos = 82,23)
+	unit->icon_glyph->Render(buffer, buf_end, buf_x_size, 82,23);
+
+	// morale (pos = 4,23, size = 6,41)
+	RenderVertBar(buffer, buf_end, buf_x_size, 4,23, 6,41, 0.01*morale, 196);
+	// label (pox = 6,50)
+	spell_data->font->Render(buffer,buf_end,buf_x_size,6,50,string_format("%02.0f",morale),252,254,SpellFont::FontShadow::RIGHT_DOWN);
+
+	// ap (pos = 28,23, size = 6,41)
+	RenderVertBar(buffer, buf_end, buf_x_size, 28,23, 6,41, (double)action_points/GetMaxAP(), 228);
+	// label (pox = 30,50)
+	spell_data->font->Render(buffer,buf_end,buf_x_size,30,50,string_format("%02d",action_points),230,254,SpellFont::FontShadow::RIGHT_DOWN);
+
+	// fire count (pos1 = 36,48, y_step = 5)
+	for(int k = 0; k < GetFireCount(); k++)
+		spell_data->gres.red_led_on->Render(buffer,buf_end,buf_x_size,36,48-k*5);
+	for(int k = GetFireCount(); k < GetMaxFireCount(); k++)
+		spell_data->gres.red_led_off->Render(buffer,buf_end,buf_x_size,36,48-k*5);
+	 
+	// hp (pos = 52,23, size = 6,41)
+	RenderVertBar(buffer,buf_end,buf_x_size,52,23,6,41,(double)(man+wounded)/unit->cnt,216);
+	RenderVertBar(buffer,buf_end,buf_x_size,52,23, 6,41,(double)man/unit->cnt,235);
+	// max man (pox = 60,50)
+	spell_data->font->Render(buffer,buf_end,buf_x_size,60,50,string_format("%02d",unit->cnt),216,254,SpellFont::FontShadow::RIGHT_DOWN);
+	// hp (pox = 60,36)
+	spell_data->font->Render(buffer,buf_end,buf_x_size,60,36,string_format("%02d",man),235,254,SpellFont::FontShadow::RIGHT_DOWN);
+	// wounde (pox = 60,22)
+	spell_data->font->Render(buffer,buf_end,buf_x_size,60,22,string_format("%02d",wounded),215,254,SpellFont::FontShadow::RIGHT_DOWN);
+
+	// experience (pox = 5,66, y_step = 9)
+	for(int k = 0; k < experience_level; k++)
+		spell_data->gres.wm_exp_mark->Render(buffer,buf_end,buf_x_size,5 + k*9,66);
+		
+	return(0);
 }
 
 

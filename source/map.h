@@ -225,9 +225,7 @@ class SpellMap
 		int xs_size;
 		int ys_size;
 		int xs_ofs;
-		int ys_ofs;
-		// local palette (after gamma correction)
-		uint8_t pal[256][3];
+		int ys_ofs;		
 		// special tiles pointers
 		Sprite* start_sprite;
 		Sprite* escape_sprite;
@@ -274,11 +272,13 @@ class SpellMap
 		vector<int> unit_fire_left;
 		thread *unit_range_th;
 		int unit_range_th_control;
-		MapUnit unit_range_th_unit;
+		MapUnit *unit_range_th_unit;
 		mutex unit_range_th_lock;
 		int unit_range_view_mode;
 		int unit_range_view_mode_lock;
-		uint8_t *GetUnitRangeFilter(int mxy);
+		uint8_t *GetUnitRangeFilter(int x,int y);
+		uint8_t *default_filter;
+		uint8_t *render_filter;
 		int FindUnitRangeLock(bool state);
 		int FindUnitRange_th();
 		int InitUnitRangeStuff();		
@@ -399,6 +399,9 @@ class SpellMap
 		// looping sounds
 		MapLoopSounds *sound_loops;
 
+		// local palette (after gamma correction)
+		uint8_t pal[256][3];
+
 		// map state save
 		class SavedState
 		{
@@ -468,8 +471,9 @@ class SpellMap
 		int CommitRenderSurfModified();		
 		int Render(wxBitmap &bmp, TScroll* scroll,SpellTool* tool=NULL,std::function<void(void)> hud_buttons_cb=NULL);
 		int GetRender(uint8_t* buf, int x_size, int y_size, int x_pos, int y_pos);
-		uint8_t *GetPalette();
-		
+		void SetDefaultRenderFilter(uint8_t* filter);
+		void SetRenderFilter(uint8_t* filter);
+				
 		int GetHUDstate();
 		int SetHUDstate(int state);
 		int RenderHUD(uint8_t* buf,uint8_t* buf_end,int buf_x_size,MapXY* cursor,MapUnit *cursor_unit,std::function<void(void)> hud_buttons_cb=NULL);
@@ -572,8 +576,8 @@ class SpellMap
 
 			
 		int GetElevation(TScroll* scroll);
-		char *GetL1tileName(TScroll* scroll);
-		char* GetL2tileName(TScroll* scroll);
+		const char *GetL1tileName(TScroll* scroll);
+		const char* GetL2tileName(TScroll* scroll);
 		tuple<int,int,int> GetTileFlags(TScroll* scroll);
 
 		int EditElev(TScroll* scroll,int step);
@@ -588,6 +592,7 @@ class SpellMap
 
 		enum{
 			HUD_ACTION_MINIMAP = 1000,
+			HUD_ACTION_UNITS,
 			HUD_ACTION_MAP_OPTIONS
 		};
 

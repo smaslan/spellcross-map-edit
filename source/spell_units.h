@@ -21,6 +21,7 @@
 // forward refs
 class SpellMapEventRec;
 class MapSprite;
+class SpellMap;
 
 
 class UnitBonus
@@ -365,6 +366,12 @@ private:
 
 class MapUnit
 {
+private:
+	// back ref to map
+	SpellMap *map;
+
+	void RenderVertBar(uint8_t* buffer,uint8_t* buf_end,int buf_x_size, int pos_x, int pos_y, int size_x, int size_y, double level, uint8_t color);
+
 public:
 	// unit attack state machine states
 	enum class ATTACK_STATE
@@ -418,7 +425,7 @@ public:
 		AIR,
 		OBJECT
 	};
-	
+		
 	// unit idnetifier index within map
 	int id;
 	// unit type ID
@@ -557,12 +564,13 @@ public:
 	SpellMapEventRec *Kill();
 
 
-	MapUnit();
+	MapUnit(SpellMap *map);
 	MapUnit(MapUnit& obj,bool relink_event_trigger=false);
 	int MorphUnit(SpellUnitRec* target,int health=0);
 	int ClearSounds();
 	~MapUnit();
 	int Render(Terrain* data,uint8_t* buffer,uint8_t* buf_end,int buf_x_pos,int buf_y_pos,int buf_x_size,uint8_t* filter,uint8_t* hud_filter,Sprite* sprt,int show_hud);
+	int RenderPreview(uint8_t* buffer,uint8_t* buf_end,int buf_x_size);
 
 	int ResetAP();
 	int GetMaxAP();

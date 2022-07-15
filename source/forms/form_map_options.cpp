@@ -236,7 +236,7 @@ void FormMapOptions::OnPaintTab(wxPaintEvent& event)
 
 
     // blit window
-    uint8_t* pal = m_spell_map->GetPalette();
+    uint8_t (*pal)[3] = m_spell_map->pal;
     uint8_t* ptr = buf;
     wxBitmap bmp(x_size,y_size,24);
     wxNativePixelData pdata(bmp);
@@ -246,9 +246,9 @@ void FormMapOptions::OnPaintTab(wxPaintEvent& event)
         uint8_t* scan = p.m_ptr;
         for(int x = 0; x < x_size; x++)
         {
-            *scan++ = pal[*ptr*3+2];
-            *scan++ = pal[*ptr*3+1];
-            *scan++ = pal[*ptr*3+0];
+            *scan++ = pal[*ptr][2];
+            *scan++ = pal[*ptr][1];
+            *scan++ = pal[*ptr][0];
             ptr++;
         }
         p.OffsetY(pdata,1);
@@ -361,7 +361,7 @@ void FormMapOptions::OnPaintButton(wxPaintEvent& event)
     }
 
     // blit window
-    uint8_t* pal = m_spell_map->GetPalette();
+    uint8_t (*pal)[3] = m_spell_map->pal;
     uint8_t* ptr = buf;
     wxBitmap bmp(x_size,y_size,24);
     wxNativePixelData pdata(bmp);
@@ -371,9 +371,9 @@ void FormMapOptions::OnPaintButton(wxPaintEvent& event)
         uint8_t* scan = p.m_ptr;
         for(int x = 0; x < x_size; x++)
         {
-            *scan++ = pal[*ptr*3+2];
-            *scan++ = pal[*ptr*3+1];
-            *scan++ = pal[*ptr*3+0];
+            *scan++ = pal[*ptr][2];
+            *scan++ = pal[*ptr][1];
+            *scan++ = pal[*ptr][0];
             ptr++;
         }
         p.OffsetY(pdata,1);

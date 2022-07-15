@@ -111,6 +111,7 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     form_video_box = NULL;
     form_midi = NULL;
     form_minimap = NULL;
+    form_units_list = NULL;
 
 
     // view scroller
@@ -430,6 +431,13 @@ void MyFrame::OnClose(wxCloseEvent& ev)
         delete form_map_options;
         form_map_options = NULL;
     }
+    else if(ev.GetId() == ID_MAP_UNITS_WIN && form_units_list)
+    {
+        // unit multi-action menu
+        //form_map_options->ResultCallback(); // exec result callback (calling it from here to have in this thread)
+        delete form_units_list;
+        form_units_list = NULL;
+    }
     else
         ev.Skip();
 }
@@ -635,6 +643,13 @@ void MyFrame::OnHUDbuttonsClick(wxMouseEvent& event)
             // show minimap
             wxCommandEvent cmd(wxEVT_MENU);
             OnViewMiniMap(cmd);
+        }
+        if(btn->action_id == SpellMap::HUD_ACTION_UNITS && !form_units_list)
+        {
+            // show units list
+            
+            form_units_list = new FormMapUnits(canvas,ID_MAP_UNITS_WIN, spell_data, spell_map);
+
         }
         if(btn->action_id == SpellMap::HUD_ACTION_MAP_OPTIONS && !form_map_options)
         {
