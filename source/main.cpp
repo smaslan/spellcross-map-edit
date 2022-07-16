@@ -427,8 +427,11 @@ void MyFrame::OnClose(wxCloseEvent& ev)
     }
     else if(ev.GetId() == ID_MAP_UNITS_WIN && form_units_list)
     {
-        // unit multi-action menu
-        //form_map_options->ResultCallback(); // exec result callback (calling it from here to have in this thread)
+        // map unit list selection        
+        auto *unit = form_units_list->GetSelectedUnit();
+        if(unit)
+            spell_map->SelectUnit(unit,true);
+        
         delete form_units_list;
         form_units_list = NULL;
     }
@@ -449,6 +452,7 @@ void MyFrame::OnSwitchGameMode(wxCommandEvent& event)
         ribbonBar->HidePanels();        
         menuView->FindItem(ID_ViewSoundLoops)->Check(false);
         menuView->FindItem(ID_ViewSounds)->Check(false);
+        menuView->FindItem(ID_ViewEvents)->Check(false);
         OnViewLayer(event);
 
         // exec initial events

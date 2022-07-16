@@ -2,11 +2,9 @@
 // Spellcross MAP related routines: Loading, rendering.
 // 
 // This code is part of Spellcross Map Editor project.
-// (c) 2021, Stanislav Maslan, s.maslan@seznam.cz
+// (c) 2021-2022, Stanislav Maslan, s.maslan@seznam.cz
 // Distributed under MIT license, https://opensource.org/licenses/MIT.
 //=============================================================================
-/*#undef _HAS_STD_BYTE
-#define _HAS_STD_BYTE 0*/
 
 #include "map.h"
 #include "spellcross.h"
@@ -28,8 +26,6 @@
 #include "wx/dcgraph.h"
 #include "wx/dcbuffer.h"
 #include <wx/rawbmp.h>
-
-using namespace std;
 
 
 
@@ -2347,12 +2343,12 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 						if(unit->isAttacker())
 						{
 							attacker = unit;
-							attack_pos = MapXY(mxx + unit->attack_fire_x_org, myy + unit->attack_fire_y_org + sid->y_ofs);
+							attack_pos = MapXY(mxx + unit->attack_fire_x_org, myy + unit->attack_fire_y_org + sid->y_ofs - attacker->unit->isAir()*SpellUnitRec::AIR_UNIT_FLY_HEIGHT);
 						}
 						if(unit->isTarget())
-						{
-							target_pos = MapXY(mxx + 40, myy + sid->y_ofs + sid->y_size/2);
+						{							
 							target = unit->unit;
+							target_pos = MapXY(mxx + 40,myy + sid->y_ofs + sid->y_size/2 - target->isAir()*SpellUnitRec::AIR_UNIT_FLY_HEIGHT);
 						}
 
 						// render fire PNM animation
@@ -3559,7 +3555,7 @@ MapUnit* SpellMap::CanSelectUnit(MapXY pos)
 }
 
 // select unit, if currently selected at the same position, switch between air-land
-MapUnit* SpellMap::SelectUnit(MapUnit* new_unit)
+MapUnit* SpellMap::SelectUnit(MapUnit* new_unit, bool scroll_to)
 {		
 	if(unit_selection && unit_selection == new_unit)
 	{
@@ -3592,6 +3588,10 @@ MapUnit* SpellMap::SelectUnit(MapUnit* new_unit)
 
 	if(new_unit && new_unit->unit->sound_report)
 		new_unit->PlayReport();
+
+	// optional map scroll to the unit position
+	if(scroll_to)
+		ScrollToUnit(unit_selection);	
 
 	// return new selection
 	return(unit_selection);
@@ -6529,7 +6529,7 @@ int SpellMap::MissionStartEvent()
 			{
 				// select first unit, because Aliance unints in map can be only placed via events, so no valid initial selection is possible before this point
 				is_selected = true;
-				SelectUnit(new_unit);
+				SelectUnit(new_unit,true);
 			}
 		}
 

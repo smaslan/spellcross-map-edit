@@ -348,12 +348,29 @@ int SpellFont::Render(uint8_t* buffer,uint8_t* buf_end,int buf_x_size,int x_pos,
 }
 
 // render text
-int SpellFont::Render(uint8_t* buffer,uint8_t* buf_end,int buf_x_size,int x_pos,int y_pos,std::wstring text,int color,int bg_color,FontShadow shadow)
+int SpellFont::Render(uint8_t* buffer,uint8_t* buf_end,int buf_x_size,int x_pos,int y_pos,std::wstring text,int color,int bg_color,FontShadow shadow,FontAlign align)
 {
-	return(Render(buffer, buf_end, buf_x_size, x_pos, y_pos,wstring2stringCP895(text),color, bg_color, shadow));
+	return(Render(buffer, buf_end, buf_x_size, x_pos, y_pos,wstring2stringCP895(text),color, bg_color, shadow,align));
 }
-int SpellFont::Render(uint8_t* buffer,uint8_t* buf_end,int buf_x_size,int x_pos,int y_pos,std::string text,int color,int bg_color,FontShadow shadow)
+int SpellFont::Render(uint8_t* buffer,uint8_t* buf_end,int buf_x_size,int x_pos,int y_pos,std::string text,int color,int bg_color,FontShadow shadow,FontAlign align)
 {
+	if(align == RIGHT)
+	{
+		// get text size
+		int x_shift = 0;
+		for(int k = 0; k < text.size(); k++)
+		{
+			// get symbol
+			int sym = (int)(unsigned char)text[k];
+			int sym_w = m_symbols[sym].GetWidth();
+			// move to next symbol
+			x_shift += sym_w;
+			x_shift += m_symbol_gap_x;
+		}
+		x_shift -= m_symbol_gap_x;
+		x_pos -= x_shift;
+	}
+	
 	int end_x_pos = 0;	
 	for(int sid = 0; sid < 3; sid++)
 	{

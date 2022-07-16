@@ -355,7 +355,6 @@ FormUnits::FormUnits( wxWindow* parent, wxWindowID id, const wxString& title, co
 	// art canvas stuff
 	art_canvas->SetDoubleBuffered(true);
 	art_canvas->Bind(wxEVT_PAINT,&FormUnits::OnPaintArt,this,wxID_CANVAS_ART);
-
 	
 	// graphics canvas stuff
 	grp_canvas->SetDoubleBuffered(true);
@@ -410,9 +409,11 @@ void FormUnits::OnCloseClick(wxCommandEvent& event)
 	if(m_update && lboxUnits->GetSelection() >= 0)
 	{
 		// update unit record (if attached)
-		m_unit->type_id = lboxUnits->GetSelection();
+		
+		m_unit->MorphUnit(m_spell_data->units->GetUnit(lboxUnits->GetSelection()));
+		/*m_unit->type_id = lboxUnits->GetSelection();
 		m_unit->unit = m_spell_data->units->GetUnit(m_unit->type_id);
-		m_unit->man = m_unit->unit->cnt;
+		m_unit->man = m_unit->unit->cnt;*/
 		m_unit->was_moved = true;
 		if(strcmp(m_unit->name,txtName->GetValue().c_str()) != 0)
 			strcpy_s(m_unit->name,sizeof(m_unit->name),txtName->GetValue().c_str());

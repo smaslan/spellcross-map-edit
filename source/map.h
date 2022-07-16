@@ -513,7 +513,7 @@ class SpellMap
 		void SortUnits();
 		MapUnit *GetCursorUnit(TScroll* scroll=NULL);
 		MapUnit* CanSelectUnit(MapXY pos);
-		MapUnit *SelectUnit(MapUnit* new_unit);
+		MapUnit *SelectUnit(MapUnit* new_unit,bool scroll_to=false);
 		int UnitChanged(int clear=false);
 		MapUnit* GetSelectedUnit();
 		int PrepareUnitsViewMask();

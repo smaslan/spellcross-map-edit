@@ -1470,7 +1470,8 @@ int MapUnit::RenderPreview(uint8_t* buffer,uint8_t* buf_end,int buf_x_size)
 	back->Render(buffer, buf_end,buf_x_size,0,0);
 
 	// title (pos = 4,3, size = 137,16)
-	spell_data->font->Render(buffer, buf_end, buf_x_size, 4,3, 137,16, name, 232, 0, SpellFont::FontShadow::DIAG3);
+	int title_color = (is_enemy)?212:232;
+	spell_data->font->Render(buffer, buf_end, buf_x_size, 4,3, 137,16, name,title_color, 254, SpellFont::FontShadow::DIAG3);
 
 	// icon (pos = 82,23)
 	unit->icon_glyph->Render(buffer, buf_end, buf_x_size, 82,23);
@@ -1492,18 +1493,28 @@ int MapUnit::RenderPreview(uint8_t* buffer,uint8_t* buf_end,int buf_x_size)
 		spell_data->gres.red_led_off->Render(buffer,buf_end,buf_x_size,36,48-k*5);
 	 
 	// hp (pos = 52,23, size = 6,41)
+	int hp_color = (is_enemy)?253:235;
+	//int hp_txt_color = (is_enemy)?211:235;
 	RenderVertBar(buffer,buf_end,buf_x_size,52,23,6,41,(double)(man+wounded)/unit->cnt,216);
-	RenderVertBar(buffer,buf_end,buf_x_size,52,23, 6,41,(double)man/unit->cnt,235);
+	RenderVertBar(buffer,buf_end,buf_x_size,52,23, 6,41,(double)man/unit->cnt,hp_color);
 	// max man (pox = 60,50)
 	spell_data->font->Render(buffer,buf_end,buf_x_size,60,50,string_format("%02d",unit->cnt),216,254,SpellFont::FontShadow::RIGHT_DOWN);
 	// hp (pox = 60,36)
-	spell_data->font->Render(buffer,buf_end,buf_x_size,60,36,string_format("%02d",man),235,254,SpellFont::FontShadow::RIGHT_DOWN);
+	spell_data->font->Render(buffer,buf_end,buf_x_size,60,36,string_format("%02d",man),hp_color,254,SpellFont::FontShadow::RIGHT_DOWN);
 	// wounde (pox = 60,22)
 	spell_data->font->Render(buffer,buf_end,buf_x_size,60,22,string_format("%02d",wounded),215,254,SpellFont::FontShadow::RIGHT_DOWN);
 
 	// experience (pox = 5,66, y_step = 9)
 	for(int k = 0; k < experience_level; k++)
 		spell_data->gres.wm_exp_mark->Render(buffer,buf_end,buf_x_size,5 + k*9,66);
+	
+	if(!map->isGameMode())
+	{
+		// unit ID (pos = 141,25)
+		spell_data->font7->SetFilter(map->terrain->filter.darkpal);
+		spell_data->font7->Render(buffer,buf_end,buf_x_size,141,25,string_format("#%d",id),252,254,SpellFont::FontShadow::SOLID,SpellFont::FontAlign::RIGHT);
+		spell_data->font7->SetFilter(NULL);
+	}
 		
 	return(0);
 }
