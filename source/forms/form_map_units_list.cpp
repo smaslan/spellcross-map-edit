@@ -25,7 +25,8 @@ FormMapUnits::FormMapUnits(wxPanel* parent,wxWindowID win_id,SpellData* spell_da
     canvas->SetSizer(sizer);
     canvas->Layout();
     canvas->Bind(wxEVT_SIZE, &FormMapUnits::OnResizeCanvas, this);
-
+    canvas->Bind(wxEVT_KEY_UP,&FormMapUnits::OnCanvasKey,this);
+    
     // initialize grid
     wxSizeEvent szrev;
     OnResizeCanvas(szrev);
@@ -38,10 +39,21 @@ FormMapUnits::FormMapUnits(wxPanel* parent,wxWindowID win_id,SpellData* spell_da
 FormMapUnits::~FormMapUnits()
 {               
     canvas->Unbind(wxEVT_SIZE,&FormMapUnits::OnResizeCanvas,this);
+    canvas->Unbind(wxEVT_KEY_UP,&FormMapUnits::OnCanvasKey,this);
 
     grid->Clear(true);
     sizer->Clear(true);    
     canvas->SetSizer(NULL,true);    
+}
+
+// on key press
+void FormMapUnits::OnCanvasKey(wxKeyEvent &ev)
+{
+    // map filte to idle
+    m_spellmap->SetRenderFilter(NULL);
+
+    // close list
+    wxQueueEvent(canvas->GetParent(),new wxCloseEvent(wxEVT_CLOSE_WINDOW,m_win_id));
 }
 
 // on canvas resize
@@ -140,7 +152,10 @@ void FormMapUnits::OnUnitClick(wxMouseEvent& event)
     auto unit_id = event.GetId() - wxID_PANEL0;
     auto* unit = m_spellmap->GetUnit(unit_id);
     if(unit)
+    {
         m_spellmap->SelectUnit(unit);
+        m_spellmap->ScrollToUnit(unit);
+    }
 
     // map filte to idle
     m_spellmap->SetRenderFilter(NULL);

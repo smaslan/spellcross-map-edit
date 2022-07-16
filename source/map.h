@@ -204,7 +204,7 @@ typedef struct{
 
 class SpellMap
 {
-	private:
+	private:		
 		// game mode
 		int game_mode;		
 		// render surface
@@ -327,9 +327,7 @@ class SpellMap
 
 		
 		int GetFlagHeight(MapXY* sel);
-		int GetFlagFlag(MapXY* sel);
-		MapXY GetTileNeihgborXY(int x,int y,int angle);
-		MapXY GetTileNeihgborXY(MapXY mxy,int angle);
+		int GetFlagFlag(MapXY* sel);		
 		int EditElevNbrQuad(int x,int y,int elv,int* min);
 		int EditElevNbrDbl(int x,int y,int elv);
 		void EditElevNbrRule(uint8_t* flag,TTileElevMod* mod,int x,int y,int elv);
@@ -370,6 +368,9 @@ class SpellMap
 		// map modification locks
 		int LockMap();
 		int ReleaseMap();
+
+		// default scroller
+		TScroll scroller;
 
 		// this map path
 		wstring map_path;
@@ -454,9 +455,9 @@ class SpellMap
 		bool TileIsVisible(int x, int y);
 		tuple<int,int> GetSurfPos(MapXY &pos);
 		
-		MapXY GetSelection(TScroll* scroll);
-		MapXY GetSelection();
-		vector<MapXY> &GetSelections(TScroll* scroll);
+		MapXY GetSelection(TScroll* scroll=NULL);
+		vector<MapXY> &GetSelections(TScroll* scroll=NULL);
+		void ClearSelections();
 		vector<Sprite*> GetL1sprites(vector<MapXY> &selection);
 		vector<Sprite*> GetL2sprites(vector<MapXY>& selection);
 		vector<uint8_t> GetFlags(vector<MapXY>& selection);
@@ -464,15 +465,17 @@ class SpellMap
 		void SelectTiles(vector<MapXY> tiles,int mode);
 		void SelectTiles(int mode);
 		int IvalidateTiles(vector<MapXY> tiles,std::function<void(std::string)> status_cb=NULL);
-		int RenderPrepare(TScroll* scroll);
+		int RenderPrepare(TScroll* scroll=NULL);
 		vector<MapXY> GetVisibleTiles();
 		tuple<int,int> GetMapSurfaceSize();
 		int isRenderSurfModified();
 		int CommitRenderSurfModified();		
-		int Render(wxBitmap &bmp, TScroll* scroll,SpellTool* tool=NULL,std::function<void(void)> hud_buttons_cb=NULL);
+		int Render(wxBitmap &bmp, TScroll* scroll=NULL,SpellTool* tool=NULL,std::function<void(void)> hud_buttons_cb=NULL);
 		int GetRender(uint8_t* buf, int x_size, int y_size, int x_pos, int y_pos);
 		void SetDefaultRenderFilter(uint8_t* filter);
 		void SetRenderFilter(uint8_t* filter);
+		int ScrollToTile(MapXY &tile,TScroll* scroll=NULL);
+		int ScrollToUnit(MapUnit *unit=NULL,TScroll* scroll=NULL);
 				
 		int GetHUDstate();
 		int SetHUDstate(int state);
@@ -508,7 +511,7 @@ class SpellMap
 		int CreateUnit(MapUnit* parent,SpellUnitRec* new_type);
 		int PlaceUnit(MapUnit* unit);
 		void SortUnits();
-		MapUnit *GetCursorUnit(TScroll* scroll);
+		MapUnit *GetCursorUnit(TScroll* scroll=NULL);
 		MapUnit* CanSelectUnit(MapXY pos);
 		MapUnit *SelectUnit(MapUnit* new_unit);
 		int UnitChanged(int clear=false);
@@ -539,7 +542,7 @@ class SpellMap
 		int AttackUnit(MapUnit* target);
 		tuple<int,int> GetPosOrigin(MapXY pos);
 		double GetUnitsAngle(MapUnit* ref,MapUnit* target);
-		int GetUnitOptions(TScroll* scroll);
+		int GetUnitOptions(TScroll* scroll=NULL);
 		enum {
 			UNIT_OPT_UPPER = 1,
 			UNIT_OPT_LOWER = 2,
@@ -557,7 +560,7 @@ class SpellMap
 		int ResetUnitEvents();
 		int MissionStartEvent();
 		int ProcEventsList(SpellMapEventsList &list);
-		SpellMapEventRec *GetCursorEvent(TScroll* scroll);
+		SpellMapEventRec *GetCursorEvent(TScroll* scroll=NULL);
 		int SelectEvent(SpellMapEventRec *evt);
 		SpellMapEventRec* GetSelectEvent();
 		int UpdateEventUnit(SpellMapEventRec *evt, MapUnit* unit);
@@ -575,12 +578,12 @@ class SpellMap
 		int ConvXY(MapXY *mxy);
 
 			
-		int GetElevation(TScroll* scroll);
-		const char *GetL1tileName(TScroll* scroll);
-		const char* GetL2tileName(TScroll* scroll);
-		tuple<int,int,int> GetTileFlags(TScroll* scroll);
+		int GetElevation(TScroll* scroll=NULL);
+		const char *GetL1tileName(TScroll* scroll=NULL);
+		const char* GetL2tileName(TScroll* scroll=NULL);
+		tuple<int,int,int> GetTileFlags(TScroll* scroll=NULL);
 
-		int EditElev(TScroll* scroll,int step);
+		int EditElev(int step,TScroll* scroll=NULL);
 		int ReTexture(uint8_t* modz,std::function<void(std::string)> status_cb=NULL);
 		void SyncL1flags();
 
@@ -588,6 +591,8 @@ class SpellMap
 
 		MapXY GetNeighborTile(int x,int y,int quad);
 		MapXY GetNeighborTile(MapXY xy,int quad);
+		MapXY GetNeighborTile8D(int x,int y,int angle);
+		MapXY GetNeighborTile8D(MapXY mxy,int angle);
 		int BuildSpriteContext();
 
 		enum{

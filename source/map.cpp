@@ -596,6 +596,9 @@ int SpellMap::Create(SpellData* spelldata, const char *terr_name, int x, int y)
 	start_sprite = terrain->GetSprite("START");
 	escape_sprite = terrain->GetSprite("CIEL");
 
+	// reset scroller
+	scroller.Reset();
+
 	return(0);
 }
 
@@ -1142,6 +1145,9 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 	// initialize events
 	events->ResetEvents();
 
+	// reset scroller
+	scroller.Reset();
+
 	// select some unit
 	if(units.size())
 		unit_selection = units[0];
@@ -1162,8 +1168,7 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 	// prefetch pointers to common stuff needed fast when rendering
 	start_sprite = terrain->GetSprite("START");
 	escape_sprite = terrain->GetSprite("CIEL");
-
-	
+		
 	// done
 	return(0);
 }
@@ -1316,6 +1321,9 @@ int SpellMap::RenderPrepare(TScroll* scroll)
 {
 	if(!IsLoaded())
 		return(1);
+	// default scroller
+	if(!scroll)
+		scroll = &scroller;
 
 	// get surface size
 	tie(surf_x, surf_y) = scroll->GetSurface();
@@ -1632,6 +1640,10 @@ vector<MapXY> SpellMap::GetPersistSelections()
 vector<MapXY> &SpellMap::GetSelections(TScroll *scroll)
 {
 	int m,n,i,j;
+
+	// default scroller
+	if(!scroll)
+		scroll = &scroller;
 		
 	// check & fix surface and scroll ranges
 	if(!RenderPrepare(scroll))
@@ -1763,25 +1775,33 @@ vector<MapXY> &SpellMap::GetSelections(TScroll *scroll)
 
 	return(msel);
 }
+// clear last selection (when leaving valid map area)
+void SpellMap::ClearSelections()
+{
+	msel.clear();
+}
+// get center selection
 MapXY SpellMap::GetSelection(TScroll* scroll)
 {
+	// default scroller
+	if(!scroll)
+		scroll = &scroller;
+
 	vector<MapXY>& sel = GetSelections(scroll);
 	if(sel.size())
 		return(sel[0]);
 	else
 		return(MapXY());
 }
-MapXY SpellMap::GetSelection()
-{
-	if(msel.empty() || !msel[0].IsSelected())
-		return(MapXY());
-	else
-		return(msel[0]);
-}
+
 
 // get selection elevation
 int SpellMap::GetElevation(TScroll* scroll)
 {
+	// default scroller
+	if(!scroll)
+		scroll = &scroller;
+
 	// fix selection
 	MapXY sel = GetSelection(scroll);
 	if(sel.IsSelected())
@@ -1794,6 +1814,10 @@ int SpellMap::GetElevation(TScroll* scroll)
 // get L1 terrain tile name
 const char *SpellMap::GetL1tileName(TScroll* scroll)
 {
+	// default scroller
+	if(!scroll)
+		scroll = &scroller;
+
 	// fix selection
 	MapXY sel = GetSelection(scroll);
 
@@ -1809,6 +1833,10 @@ const char *SpellMap::GetL1tileName(TScroll* scroll)
 // get L2 object tile name
 const char* SpellMap::GetL2tileName(TScroll* scroll)
 {
+	// default scroller
+	if(!scroll)
+		scroll = &scroller;
+
 	// fix selection
 	MapXY sel = GetSelection(scroll);
 
@@ -1834,6 +1862,10 @@ int SpellMap::GetFlagFlag(MapXY* sel)
 // get flags for given tile (###todo: decode what those flags actually means?)
 tuple<int,int,int> SpellMap::GetTileFlags(TScroll* scroll)
 {
+	// default scroller
+	if(!scroll)
+		scroll = &scroller;
+
 	// fix selection
 	MapXY sel = GetSelection(scroll);
 	
@@ -1921,6 +1953,13 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 {
 	int i;
 	int m, n;
+
+	// default scroller
+	if(!scroll)
+		scroll = &scroller;
+
+	// rescale scroller surface if needed
+	scroll->SetSurface(bmp.GetWidth(), bmp.GetHeight());
 
 	// skip if invalid pointer
 	if (!IsLoaded())
@@ -2727,18 +2766,52 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 	return(0);
 }
 
+
 tuple<int,int> SpellMap::GetSurfPos(MapXY& pos)
 {
-	// relative pos in visibel part of surface
+	// relative pos in visible part of surface
 	int x_pos = pos.x - xs_ofs;
 	int y_pos = pos.y - ys_ofs*2;
 	auto mxy = ConvXY(pos);
-	Sprite* spr = tiles[mxy].L1;
 	int sof = tiles[mxy].elev;
 	int mxx = x_pos * 80 + (((y_pos & 1) != 0) ? 0 : 40);
 	int myy = y_pos * 24 - sof * 18 + MSYOFS + 50;
 	return tuple(mxx,myy);
 }
+
+// scroll map so tile is in center
+int SpellMap::ScrollToTile(MapXY &tile,TScroll* scroll)
+{
+	// default scroller
+	if(!scroll)
+		scroll = &scroller;
+	
+	if(!tile.IsSelected())
+		return(1);
+	
+	// schmutzig position correction
+	auto [x0,y0] = scroll->GetScroll();
+	auto [tx,ty] = GetSurfPos(tile);
+	scroll->SetPos(x0 + (tx - (surf_x_origin + surf_x/2)), y0 + (ty - (surf_y_origin + surf_y/2)));
+
+	return(0);
+}
+
+// scroll map so unit is visible
+int SpellMap::ScrollToUnit(MapUnit* unit,TScroll* scroll)
+{
+	// default scroller
+	if(!scroll)
+		scroll = &scroller;
+
+	if(!unit)
+		unit = GetSelectedUnit();
+	if(!unit)
+		return(1);
+	ScrollToTile(unit->coor,scroll);
+	return(0);
+}
+
 
 
 
@@ -2875,7 +2948,7 @@ int SpellMap::FindUnitRange_th()
 				break;
 			
 			dirz.back()++;
-			if(dirz.back() >= 4)
+			if(dirz.back() >= 8)
 			{
 				// this tile is done
 				dirz.pop_back();
@@ -2895,7 +2968,7 @@ int SpellMap::FindUnitRange_th()
 			}
 
 			// look for next neighbor
-			MapXY neig_pos = GetNeighborTile(posz.back(), dirz.back());
+			MapXY neig_pos = GetNeighborTile8D(posz.back(), dirz.back());			
 			if(!neig_pos.IsSelected())
 				continue;
 
@@ -3049,7 +3122,7 @@ vector<AStarNode> SpellMap::FindUnitPath(MapUnit* unit, MapXY target)
 		// for each neighbor:
 		for(int nid = 0; nid < 8; nid++)
 		{
-			MapXY n_pos = GetTileNeihgborXY(current_node->pos, nid);
+			MapXY n_pos = GetNeighborTile8D(current_node->pos, nid);
 			if(!n_pos.IsSelected())
 				continue;
 			AStarNode *neighbor_node = &nodes->at(ConvXY(n_pos));
@@ -3297,6 +3370,10 @@ int SpellMap::MoveUnit(MapXY target)
 // get unit action options for cursor position (game mode)
 int SpellMap::GetUnitOptions(TScroll* scroll)
 {	
+	// default scroller
+	if(!scroll)
+		scroll = &scroller;
+	
 	auto select_pos =GetSelection(scroll);
 	int options = 0;
 
@@ -3532,6 +3609,10 @@ int SpellMap::UnitChanged(int clear)
 // get unit at cursor position
 MapUnit *SpellMap::GetCursorUnit(TScroll* scroll)
 {
+	// default scroller
+	if(!scroll)
+		scroll = &scroller;
+
 	// find selection tiles
 	auto msel = GetSelections(scroll);
 
@@ -6517,6 +6598,10 @@ int SpellMap::ProcEventsList(SpellMapEventsList &list)
 // get first event at cursor position or NULL if not found
 SpellMapEventRec* SpellMap::GetCursorEvent(TScroll* scroll)
 {
+	// default scroller
+	if(!scroll)
+		scroll = &scroller;
+
 	// find selection tiles
 	auto msel = GetSelections(scroll);
 
@@ -6955,7 +7040,7 @@ int SpellMap::EditElevNbrQuad(int x, int y, int elv, int* min)
 			int tile = (7 + i + j*2)%8;
 
 			// neighbour position
-			MapXY nxy = GetTileNeihgborXY(x,y,tile);
+			MapXY nxy = GetNeighborTile8D(x,y,tile);
 
 			// skip if outside map
 			if(nxy.x < 0 || nxy.x >= x_size || nxy.y < 0 || nxy.y >= y_size)
@@ -7006,7 +7091,7 @@ int SpellMap::EditElevNbrDbl(int x,int y,int elv)
 			int tile = (7 + k + j*2)%8;
 
 			// neighbour position
-			MapXY nxy = GetTileNeihgborXY(x,y,tile);
+			MapXY nxy = GetNeighborTile8D(x,y,tile);
 
 			// done if outside map
 			if(nxy.x < 0 || nxy.x >= x_size || nxy.y < 0 || nxy.y >= y_size)
@@ -7066,7 +7151,7 @@ void SpellMap::EditElevNbr(uint8_t* flag,int elv,int edir,int x,int y)
 	for(i = 0; i < 8 && edir != 0; i++)
 	{
 		// neighbour position
-		MapXY nxy = GetTileNeihgborXY(x,y,i);
+		MapXY nxy = GetNeighborTile8D(x,y,i);
 
 		// done if outside map
 		if(nxy.x < 0 || nxy.x >= x_size || nxy.y < 0 || nxy.y >= y_size)
@@ -7114,7 +7199,7 @@ void SpellMap::EditElevNbr(uint8_t* flag,int elv,int edir,int x,int y)
 			int tile = (7 + i + qminid*2)%8;
 
 			// neighbour position
-			MapXY nxy = GetTileNeihgborXY(x,y,tile);
+			MapXY nxy = GetNeighborTile8D(x,y,tile);
 
 			// done if outside map
 			if(nxy.x < 0 || nxy.x >= x_size || nxy.y < 0 || nxy.y >= y_size)
@@ -7147,7 +7232,7 @@ void SpellMap::EditElevNbr(uint8_t* flag,int elv,int edir,int x,int y)
 			int tile = 4 + i*2;
 
 			// neighbour position
-			MapXY nxy = GetTileNeihgborXY(x,y,tile);
+			MapXY nxy = GetNeighborTile8D(x,y,tile);
 
 			// done if outside map
 			if(nxy.x < 0 || nxy.x >= x_size || nxy.y < 0 || nxy.y >= y_size)
@@ -7176,7 +7261,7 @@ void SpellMap::EditElevNbr(uint8_t* flag,int elv,int edir,int x,int y)
 	for(i = 0; i < 8; i++)
 	{
 		// neighbour position
-		MapXY nxy = GetTileNeihgborXY(x,y,i);
+		MapXY nxy = GetNeighborTile8D(x,y,i);
 
 		// done if outside map
 		if(nxy.x < 0 || nxy.x >= x_size || nxy.y < 0 || nxy.y >= y_size)
@@ -7230,7 +7315,7 @@ void SpellMap::EditElevSlope(uint8_t* flag)
 			for(k = 0; k < 8 && flag[ConvXY(i,j)] == 1; k++)
 			{
 				// neighbour position				
-				MapXY nxy = GetTileNeihgborXY(i,j,k);
+				MapXY nxy = GetNeighborTile8D(i,j,k);
 
 				// done if outside map
 				if(nxy.x < 0 || nxy.x >= x_size || nxy.y < 0 || nxy.y >= y_size)
@@ -7265,7 +7350,7 @@ void SpellMap::EditElevSlope(uint8_t* flag)
 						int tile = (7 + m + k*2)%8;
 
 						// neighbour position
-						MapXY nxy = GetTileNeihgborXY(i,j,tile);
+						MapXY nxy = GetNeighborTile8D(i,j,tile);
 
 						// done if outside map
 						if(nxy.x < 0 || nxy.x >= x_size || nxy.y < 0 || nxy.y >= y_size)
@@ -7316,7 +7401,7 @@ void SpellMap::EditElevText(uint8_t* flag)
 			for(k = 0; k < 8 && flag[ConvXY(i,j)] == 2; k++)
 			{
 				// neighbour position
-				MapXY nxy = GetTileNeihgborXY(i,j,k);
+				MapXY nxy = GetNeighborTile8D(i,j,k);
 
 				// done if outside map
 				if(nxy.x < 0 || nxy.x >= x_size || nxy.y < 0 || nxy.y >= y_size)
@@ -7351,7 +7436,7 @@ void SpellMap::EditElevText(uint8_t* flag)
 					{
 						// neighbour tile
 						int tile = (7+k*2)%8;
-						MapXY nxy = GetTileNeihgborXY(i,j,tile);
+						MapXY nxy = GetNeighborTile8D(i,j,tile);
 
 						// center tile alt
 						int nalt = tiles[ConvXY(nxy)].elev;
@@ -7366,8 +7451,8 @@ void SpellMap::EditElevText(uint8_t* flag)
 					int did = (7+2*sid)%8;
 					int uid = (7+2*(sid+2))%8;
 
-					MapXY dxy = GetTileNeihgborXY(i,j,did);
-					MapXY uxy = GetTileNeihgborXY(i,j,uid);
+					MapXY dxy = GetNeighborTile8D(i,j,did);
+					MapXY uxy = GetNeighborTile8D(i,j,uid);
 					//MapXY sxy = GetTileNeihgborXY(i,j,uid);
 
 					if(tiles[ConvXY(dxy)].elev == alt)
@@ -7385,9 +7470,9 @@ void SpellMap::EditElevText(uint8_t* flag)
 					int dnb = (7+sid*2)%8;
 					int uid = (2+sid*2)%8;
 
-					MapXY dnaxy = GetTileNeihgborXY(i,j,dna);
-					MapXY dnbxy = GetTileNeihgborXY(i,j,dnb);
-					MapXY uxy = GetTileNeihgborXY(i,j,uid);
+					MapXY dnaxy = GetNeighborTile8D(i,j,dna);
+					MapXY dnbxy = GetNeighborTile8D(i,j,dnb);
+					MapXY uxy = GetNeighborTile8D(i,j,uid);
 					
 					if(tiles[ConvXY(dnaxy)].elev == alt)
 						msk |= (1<<((sid+3)%4));
@@ -7406,9 +7491,9 @@ void SpellMap::EditElevText(uint8_t* flag)
 					int unb = (7+sid*2)%8;
 					int did = (2+sid*2)%8;
 
-					MapXY axy = GetTileNeihgborXY(i,j,una);
+					MapXY axy = GetNeighborTile8D(i,j,una);
 					Sprite* spr1 = tiles[ConvXY(axy)].L1;
-					MapXY bxy = GetTileNeihgborXY(i,j,unb);								
+					MapXY bxy = GetNeighborTile8D(i,j,unb);
 					Sprite* spr2 = tiles[ConvXY(bxy)].L1;
 					if(spr1->GetSlope() == 'A' && spr2->GetSlope() == 'A')
 					{
@@ -7416,7 +7501,7 @@ void SpellMap::EditElevText(uint8_t* flag)
 						msk |= (1<<((sid+3)%4));
 					}
 
-					MapXY dxy = GetTileNeihgborXY(i,j,did);
+					MapXY dxy = GetNeighborTile8D(i,j,did);
 					if(tiles[ConvXY(dxy)].elev == alt)
 						mskh |= (1<<((sid+2)%4));
 				}
@@ -7445,13 +7530,49 @@ void SpellMap::EditElevText(uint8_t* flag)
 
 
 
+// get neighboring map tile pos
+MapXY SpellMap::GetNeighborTile(MapXY xy,int quad)
+{
+	return(GetNeighborTile(xy.x,xy.y,quad));
+}
+MapXY SpellMap::GetNeighborTile(int x,int y,int quad)
+{
+	MapXY tile;
+	if(quad > 4 || quad < 0)
+		return(tile);
+
+	// get neighbor
+	const int y_ofs[4] ={-1,-1,+1,+1};
+	if(y&1)
+	{
+		// odd row
+		const int x_ofs[4] ={0,-1,-1,0};
+		tile.x = x + x_ofs[quad];
+	}
+	else
+	{
+		// even row
+		const int x_ofs[4] ={1,0,0,1};
+		tile.x = x + x_ofs[quad];
+	}
+	tile.y = y + y_ofs[quad];
+
+	// check range
+	if(tile.y < 0 || tile.y >= y_size || tile.x < 0 || tile.x >= x_size)
+	{
+		tile.x = -1;
+		tile.y = -1;
+	}
+	return(tile);
+}
+
 
 // returns XY of tiles neighboring the XY tile at angle = <0;7>
-MapXY SpellMap::GetTileNeihgborXY(MapXY mxy,int angle)
+MapXY SpellMap::GetNeighborTile8D(MapXY mxy,int angle)
 {
-	return(GetTileNeihgborXY(mxy.x, mxy.y, angle));
+	return(GetNeighborTile8D(mxy.x, mxy.y, angle));
 }
-MapXY SpellMap::GetTileNeihgborXY(int x, int y, int angle)
+MapXY SpellMap::GetNeighborTile8D(int x, int y, int angle)
 {
 	const int xlsta[8]={+1,+1, 0, 0,-1, 0, 0,+1};
 	const int xlstb[8]={+1, 0, 0,-1,-1,-1, 0, 0};
@@ -7465,13 +7586,17 @@ MapXY SpellMap::GetTileNeihgborXY(int x, int y, int angle)
 }
 
 // change elevation of terrain by step for all selected tiles
-int SpellMap::EditElev(TScroll* scroll, int step)
+int SpellMap::EditElev(int step,TScroll* scroll)
 {
 	int i,j;
 
 	// leave if map not loaded
 	if(!IsLoaded())
 		return(1);
+
+	// default scroller
+	if(!scroll)
+		scroll = &scroller;
 
 	// update map L1 flags
 	SyncL1flags();
@@ -7506,7 +7631,7 @@ int SpellMap::EditElev(TScroll* scroll, int step)
 			// shaped tile - check neighbours
 			for(j=0;j<8;j++)
 			{
-				MapXY nxy = GetTileNeihgborXY(msel[i],j);
+				MapXY nxy = GetNeighborTile8D(msel[i],j);
 				
 				// done if outside map
 				if(nxy.x < 0 || nxy.x >= x_size || nxy.y < 0 || nxy.y >= y_size)
@@ -7562,7 +7687,7 @@ int SpellMap::EditElev(TScroll* scroll, int step)
 			for(j = 0; j < 8; j++)
 			{				
 				// skip if outside map
-				MapXY nxy = GetTileNeihgborXY(msel[i],j);
+				MapXY nxy = GetNeighborTile8D(msel[i],j);
 				if(nxy.x < 0 || nxy.x >= x_size || nxy.y < 0 || nxy.y >= y_size)
 					continue;
 				
@@ -7639,42 +7764,6 @@ int SpellMap::EditElev(TScroll* scroll, int step)
 	//DrawCMapSectorForce();
 
 	return(0);
-}
-
-// get neighboring map tile pos
-MapXY SpellMap::GetNeighborTile(MapXY xy,int quad)
-{
-	return(GetNeighborTile(xy.x, xy.y, quad));
-}
-MapXY SpellMap::GetNeighborTile(int x, int y, int quad)
-{
-	MapXY tile;
-	if(quad > 4 || quad < 0)
-		return(tile);
-
-	// get neighbor
-	const int y_ofs[4] ={-1,-1,+1,+1};
-	if(y&1)
-	{
-		// odd row
-		const int x_ofs[4] ={0,-1,-1,0};		
-		tile.x = x + x_ofs[quad];
-	}
-	else
-	{
-		// even row
-		const int x_ofs[4] = {1,0,0,1};
-		tile.x = x + x_ofs[quad];
-	}
-	tile.y = y + y_ofs[quad];
-
-	// check range
-	if(tile.y < 0 || tile.y >= y_size || tile.x < 0 || tile.x >= x_size)
-	{
-		tile.x = -1;
-		tile.y = -1;
-	}
-	return(tile);
 }
 
 // this routine tries to fix textures of modified tiles
@@ -9003,7 +9092,7 @@ int SpellMap::EditClass(vector<MapXY>& selection, SpellTool *tool, std::function
 			{
 				// neighbor tile agnle (45, 135, 225, 315, 0, 90, 180, 270)
 				int n_angle = (nid&3)*2 + !(nid>>2);
-				MapXY n_pos = GetTileNeihgborXY(task.pos, n_angle);
+				MapXY n_pos = GetNeighborTile8D(task.pos, n_angle);
 				if(!n_pos.IsSelected())
 					continue;
 				int nxy = ConvXY(n_pos);
@@ -9050,7 +9139,7 @@ int SpellMap::EditClass(vector<MapXY>& selection, SpellTool *tool, std::function
 		{
 			for(int nid = 0; nid<8; nid++)
 			{
-				MapXY n_pos = GetTileNeihgborXY(x,y,nid);
+				MapXY n_pos = GetNeighborTile8D(x,y,nid);
 				int nxy = ConvXY(n_pos);
 
 				if(!n_pos.IsSelected())

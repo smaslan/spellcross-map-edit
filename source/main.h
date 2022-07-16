@@ -133,7 +133,7 @@ private:
 
     
     wxTimer m_timer;
-    TScroll scroll;
+    //TScroll scroll;
 
     FormSprite* form_sprites;
     FormObjects* form_objects;

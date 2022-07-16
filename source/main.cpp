@@ -112,10 +112,6 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     form_midi = NULL;
     form_minimap = NULL;
     form_units_list = NULL;
-
-
-    // view scroller
-    scroll.Reset();
         
     // File menu
     wxMenu* menuFile = new wxMenu;
@@ -248,9 +244,7 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     canvas->Bind(wxEVT_KEY_DOWN,&MyFrame::OnCanvasKeyDown,this);
     canvas->Bind(wxEVT_LEFT_DOWN,&MyFrame::OnCanvasLMouseDown,this);
     canvas->Bind(wxEVT_THREAD,&MyFrame::OnThreadCanvas,this);
-
-
-
+    
 
     this->SetSizer(sizer);    
     this->SetAutoLayout(true);
@@ -504,7 +498,8 @@ void MyFrame::OnTimer(wxTimerEvent& event)
 // on main panel resizing
 void MyFrame::OnResize(wxSizeEvent& event)
 {
-    scroll.SetSurface(canvas->GetClientSize().GetWidth(),canvas->GetClientSize().GetHeight());
+    if(spell_map)
+        spell_map->scroller.SetSurface(canvas->GetClientSize().GetWidth(),canvas->GetClientSize().GetHeight());
     Refresh();
 }
 
@@ -518,11 +513,10 @@ void MyFrame::OnPaintCanvas(wxPaintEvent& event)
     // make buffer
     if(!m_buffer.IsOk() || m_buffer.GetSize() != canvas->GetClientSize())
         m_buffer = wxBitmap(canvas->GetClientSize(),24);
-    scroll.SetSurface(m_buffer.GetWidth(),m_buffer.GetHeight());
-
+    
     // render map
     wxPaintDC pdc(canvas);
-    spell_map->Render(m_buffer,&scroll,&spell_tool,bind(&MyFrame::CreateHUDbuttons,this));
+    spell_map->Render(m_buffer,NULL,&spell_tool,bind(&MyFrame::CreateHUDbuttons,this));
     pdc.DrawBitmap(m_buffer,wxPoint(0,0));
 
     event.Skip();
@@ -699,8 +693,6 @@ void MyFrame::OnOpenMap(wxCommandEvent& event)
     // reset layers visibility
     spell_map->SetGamma(1.30);
     OnViewLayer(event);
-    // reset scroller
-    scroll.Reset();
     // reload toolset ribbon
     LoadToolsetRibbon();
 }
@@ -713,8 +705,6 @@ void MyFrame::OnNewMap(wxCommandEvent& event)
     // reset layers visibility
     spell_map->SetGamma(1.30);
     OnViewLayer(event);
-    // reset scroller
-    scroll.Reset();
 }
 
 // set gamma correction
@@ -864,7 +854,7 @@ void MyFrame::OnViewVoxZ(wxCommandEvent& event)
         auto [map_x,map_y] = spell_map->GetMapSurfaceSize();
         
         // ceate panel
-        TMiniMap minimap ={bmp, &scroll, spell_map, 0, 0, map_x, map_y};
+        TMiniMap minimap ={bmp, &spell_map->scroller, spell_map, 0, 0, map_x, map_y};
         form_minimap = new FormMiniMap(canvas,ID_MINIMAP_WIN,spell_data,minimap);
     }
     else if(event.GetId() == ID_ExportVoxZ)
@@ -918,11 +908,8 @@ void MyFrame::OnViewMiniMap(wxCommandEvent& event)
     scrl.SetSurface(canvas->GetClientSize().GetWidth(),canvas->GetClientSize().GetHeight());
     
     // ceate panel
-    TMiniMap minimap = {buf, &scroll, spell_map, x1, y1, x2-x1, y2-y1};
+    TMiniMap minimap = {buf, &spell_map->scroller, spell_map, x1, y1, x2-x1, y2-y1};
     form_minimap = new FormMiniMap(canvas,ID_MINIMAP_WIN,spell_data,minimap);
-    
-    /*CreateMiniMapDialog(minimap);
-    delete buf;*/
 
 }
 
@@ -1004,7 +991,7 @@ void MyFrame::OnCanvasPopupSelect(wxCommandEvent& event)
     else if(event.GetId() == ID_POP_EDIT_EVENT)
     {
         // edit event        
-        auto cur_evt = spell_map->GetCursorEvent(&scroll);
+        auto cur_evt = spell_map->GetCursorEvent();
         spell_map->SelectEvent(cur_evt);
         OnEditEvent(event);
     }
@@ -1025,15 +1012,15 @@ void MyFrame::OnCanvasRMouse(wxMouseEvent& event)
         return;
     
     if(event.RightDown())
-        scroll.SetRef(event.GetX(), event.GetY());
+        spell_map->scroller.SetRef(event.GetX(), event.GetY());
     else if(event.RightUp())
     {
-        int was_moved = scroll.Idle();
+        int was_moved = spell_map->scroller.Idle();
         if(!was_moved && !spell_map->isGameMode())
         {
             // --- editor mode popup menu stuff:
-            auto cur_unit = spell_map->GetCursorUnit(&scroll);
-            auto cur_evt = spell_map->GetCursorEvent(&scroll);
+            auto cur_unit = spell_map->GetCursorUnit();
+            auto cur_evt = spell_map->GetCursorEvent();
 
             wxMenu menu;
             menu.SetClientData(cur_unit);
@@ -1088,7 +1075,7 @@ void MyFrame::OnCanvasMouseEnter(wxMouseEvent& event)
     if(inUnitOptions())
         return;
 
-    //canvas->SetFocus();
+    canvas->SetFocus();
 }
 void MyFrame::OnCanvasMouseLeave(wxMouseEvent& event)
 {
@@ -1098,7 +1085,7 @@ void MyFrame::OnCanvasMouseLeave(wxMouseEvent& event)
         return;
 
     spell_map->SetUnitRangeViewMode(SpellMap::UNIT_RANGE_NONE);
-    scroll.Idle();
+    spell_map->scroller.Idle();
 }
 void MyFrame::OnCanvasMouseMove(wxMouseEvent& event)
 {
@@ -1114,19 +1101,22 @@ void MyFrame::OnCanvasMouseMove(wxMouseEvent& event)
         spell_map->SetUnitRangeViewMode(SpellMap::UNIT_RANGE_NONE);
         if(!last_in_hud)
             spell_map->InvalidateHUDbuttons();
-        scroll.Idle();
+        spell_map->scroller.Idle();
         last_in_hud = true;
+
+        // invalidate cursor
+        spell_map->ClearSelections();
 
         // default game cursor
         SetCursor(*spell_data->gres.cur_pointer);
     }
     else  
     {
-        scroll.Move(event.GetX(), event.GetY());
+        spell_map->scroller.Move(event.GetX(), event.GetY());
         last_in_hud = false;
 
         // resolve cursor
-        auto options = spell_map->GetUnitOptions(&scroll);
+        auto options = spell_map->GetUnitOptions();
         wxCursor *cur = spell_data->gres.cur_pointer;
         if(!spell_map->isGameMode())
             cur = spell_data->gres.cur_pointer;
@@ -1149,16 +1139,16 @@ void MyFrame::OnCanvasMouseMove(wxMouseEvent& event)
     
     
     // update map selection
-    MapXY mxy = spell_map->GetSelection(&scroll);
-    int elev = spell_map->GetElevation(&scroll);
+    MapXY mxy = spell_map->GetSelection();
+    int elev = spell_map->GetElevation();
     SetStatusText(wxString::Format(wxT("x=%d"),mxy.x),0);
     SetStatusText(wxString::Format(wxT("y=%d"),mxy.y),1);    
     SetStatusText(wxString::Format(wxT("z=%d"),elev),2);
     SetStatusText(wxString::Format(wxT("xy=%d"),spell_map->ConvXY(mxy)),3);
-    SetStatusText(wxString::Format(wxT("L1: %s"),spell_map->GetL1tileName(&scroll)),4);
-    SetStatusText(wxString::Format(wxT("L2: %s"),spell_map->GetL2tileName(&scroll)),5);
+    SetStatusText(wxString::Format(wxT("L1: %s"),spell_map->GetL1tileName()),4);
+    SetStatusText(wxString::Format(wxT("L2: %s"),spell_map->GetL2tileName()),5);
     //int height, flags, code;
-    auto [flags,height,code] = spell_map->GetTileFlags(&scroll);
+    auto [flags,height,code] = spell_map->GetTileFlags();
     SetStatusText(wxString::Format(wxT("(0x%02X)"),code),6);
 
     auto sel_evt = spell_map->GetSelectEvent();
@@ -1184,7 +1174,7 @@ void MyFrame::OnCanvasMouseMove(wxMouseEvent& event)
 }
 void MyFrame::OnCanvasMouseWheel(wxMouseEvent& event)
 {
-    scroll.ResizeSelection(event.GetWheelRotation()/event.GetWheelDelta());
+    spell_map->scroller.ResizeSelection(event.GetWheelRotation()/event.GetWheelDelta());
     canvas->Refresh();
 }
 void MyFrame::OnCanvasKeyDown(wxKeyEvent& event)
@@ -1204,7 +1194,7 @@ void MyFrame::OnCanvasKeyDown(wxKeyEvent& event)
             step--;
         if(step != 0)
         {
-            spell_map->EditElev(&scroll, step);
+            spell_map->EditElev(step);
             Refresh();
         }
 
@@ -1212,13 +1202,13 @@ void MyFrame::OnCanvasKeyDown(wxKeyEvent& event)
         if(key == '=' || key == '+')
         {
             // add selection
-            auto list = spell_map->GetSelections(&scroll);
+            auto list = spell_map->GetSelections();
             spell_map->SelectTiles(list, SpellMap::SELECT_ADD);
         }
         else if(key == '-')
         {
             // clear selection
-            auto list = spell_map->GetSelections(&scroll);
+            auto list = spell_map->GetSelections();
             spell_map->SelectTiles(list,SpellMap::SELECT_CLEAR);
         }        
     }   
@@ -1240,7 +1230,7 @@ void MyFrame::OnInvalidateSelection(wxCommandEvent& event)
     std::vector<MapXY> list;    
     list = spell_map->GetPersistSelections();
     if(list.empty())
-        list = spell_map->GetSelections(&scroll);
+        list = spell_map->GetSelections();
 
     // invalidate region    
     spell_map->IvalidateTiles(list, bind(&MyFrame::StatusStringCallback,this,placeholders::_1));
@@ -1255,7 +1245,7 @@ void MyFrame::OnCanvasLMouseDown(wxMouseEvent& event)
         return;    
        
     // get selection
-    auto xy_list = spell_map->GetSelections(&scroll);
+    auto xy_list = spell_map->GetSelections();
 
     if(event.LeftDown())
     {
@@ -1270,11 +1260,11 @@ void MyFrame::OnCanvasLMouseDown(wxMouseEvent& event)
         {
             // try select/move unit:            
 
-            select_pos = spell_map->GetSelection(&scroll);
+            select_pos = spell_map->GetSelection(NULL);
             sel_unit = spell_map->GetSelectedUnit();
-            cur_unit = spell_map->GetCursorUnit(&scroll);
+            cur_unit = spell_map->GetCursorUnit();
             auto sel_evt = spell_map->GetSelectEvent();
-            auto cur_evt = spell_map->GetCursorEvent(&scroll);
+            auto cur_evt = spell_map->GetCursorEvent();
             if(!spell_map->isGameMode())
             {
                 int wEvents = GetMenuBar()->FindItem(ID_ViewEvents)->IsChecked(); // ###todo: optimize?
@@ -1317,7 +1307,7 @@ void MyFrame::OnCanvasLMouseDown(wxMouseEvent& event)
             else
             {
                 // game mode:
-                int options = spell_map->GetUnitOptions(&scroll);
+                int options = spell_map->GetUnitOptions();
                 
                 // reduce attack options if only one target is possible
                 if(!!(options & SpellMap::UNIT_OPT_LOWER) != !!(options & SpellMap::UNIT_OPT_UPPER))

@@ -28,8 +28,8 @@ private:
     std::vector<wxPanel*> panels;
 
     void OnResizeCanvas(wxSizeEvent& ev);
-
-    //void OnClose(wxCloseEvent& ev);
+    void OnCanvasKey(wxKeyEvent& ev);
+    
     void OnPaintUnit(wxPaintEvent& event);    
     void OnUnitClick(wxMouseEvent& event);
 
