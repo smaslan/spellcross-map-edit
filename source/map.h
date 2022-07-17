@@ -261,6 +261,7 @@ class SpellMap
 		static constexpr int units_view_mask_size = 10;
 		int units_view_mask_x_size;
 		int units_view_mask_y_size;
+		int units_view_debug_mode;
 		// unit attack range stuff
 		vector<int> unit_attack_map;
 		int UnitAttackRangeInit();
@@ -521,6 +522,7 @@ class SpellMap
 		int ClearUnitsView(int to_unseen=false);
 		int AddUnitView(MapUnit* unit, vector<SpellMapEventRec*> *event_list=NULL);
 		int AddUnitsView(int unit_type=UNIT_TYPE_ALIANCE,int clear=true,MapUnit *except_unit=NULL);
+		void SetUnitsViewDebugMode(bool debug);
 		int StoreUnitsView();
 		int RestoreUnitsView();
 		void InvalidateUnitsView();

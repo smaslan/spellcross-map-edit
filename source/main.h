@@ -84,6 +84,7 @@ private:
     void OnViewMidi(wxCommandEvent& event);
     void OnViewVoxZ(wxCommandEvent& event);
     void OnViewMiniMap(wxCommandEvent& event);
+    void OnUnitViewDebug(wxCommandEvent& event);
     void OnUpdateTileContext(wxCommandEvent& event);
     void OnUpdateTileContextMaps(wxCommandEvent& event);    
     void OnSelectAll(wxCommandEvent& event);
@@ -235,6 +236,7 @@ enum
     ID_ViewSprites,
     ID_ViewPal,
     ID_ViewGRes,
+    ID_UnitViewDbg,
     ID_EditUnit,
     ID_EditEvent,
     ID_UpdateSprContext,

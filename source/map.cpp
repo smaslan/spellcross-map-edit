@@ -541,6 +541,8 @@ void SpellMap::Close()
 
 	SetDefaultRenderFilter(NULL);
 	SetRenderFilter(NULL);
+
+	units_view_debug_mode = false;
 }
 
 
@@ -2004,12 +2006,20 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 	if(units_moved)
 		SortUnits();
 
+	int use_view_mask = game_mode || units_view_debug_mode;
 	if(units_moved && game_mode)
 	{
 		// update view mask (this should be probably somewhere else?)
 		ClearUnitsView(false);
-		AddUnitsView();				
+		AddUnitsView();
 	}	
+	else if(units_moved && !game_mode && units_view_debug_mode)
+	{
+		// debug mode: show only selected unit view
+		ClearUnitsView(false);
+		auto unit = GetSelectedUnit();
+		AddUnitView(unit);
+	}
 	
 	MapUnit* unit = GetSelectedUnit();	
 	if((units_moved || unit_changed || !unit) && !unit->isMoving())
@@ -2043,9 +2053,9 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 			uint8_t *fil = GetUnitRangeFilter(n + xs_ofs,m + ys_ofs*2);
 
 			// game mode view range
-			if(game_mode && units_view[mxy] == 0)
+			if(use_view_mask && units_view[mxy] == 0)
 				continue;
-			else if(game_mode && units_view[mxy] == 1)
+			else if(use_view_mask && units_view[mxy] == 1)
 				fil = terrain->filter.darkpal;
 
 			// apply optional filter mask
@@ -2119,9 +2129,9 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 
 			// game mode view range
 			uint8_t* fil = GetUnitRangeFilter(anm->x_pos,anm->y_pos);
-			if(game_mode && units_view[mxy] == 0)
+			if(use_view_mask && units_view[mxy] == 0)
 				continue;
-			else if(game_mode && units_view[mxy] == 1)
+			else if(use_view_mask && units_view[mxy] == 1)
 				fil = terrain->filter.darkpal;
 
 			// L1 elevation
@@ -2156,9 +2166,9 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 
 				// game mode view range
 				uint8_t* fil = GetUnitRangeFilter(pos->x,pos->y);
-				if(game_mode && units_view[mxy] == 0)
+				if(use_view_mask && units_view[mxy] == 0)
 					continue;
-				else if(game_mode && units_view[mxy] == 1)
+				else if(use_view_mask && units_view[mxy] == 1)
 					fil = terrain->filter.darkpal;
 
 				// L1 elevation
@@ -2224,9 +2234,9 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 
 			// game mode view range
 			uint8_t* fil = GetUnitRangeFilter(n + xs_ofs,m + ys_ofs*2);
-			if(game_mode && units_view[mxy] == 0)
+			if(use_view_mask && units_view[mxy] == 0)
 				continue;
-			else if(game_mode && units_view[mxy] == 1)
+			else if(use_view_mask && units_view[mxy] == 1)
 				fil = terrain->filter.darkpal;
 
 			// get map tile
@@ -2262,9 +2272,9 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 
 			// game mode view range
 			uint8_t* fil = GetUnitRangeFilter(pnm->x_pos,pnm->y_pos);
-			if(game_mode && units_view[mxy] == 0)
+			if(use_view_mask && units_view[mxy] == 0)
 				continue;
-			else if(game_mode && units_view[mxy] == 1)
+			else if(use_view_mask && units_view[mxy] == 1)
 				fil = terrain->filter.darkpal;
 
 			// L1 elevation
@@ -2315,8 +2325,8 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 			Sprite* sid2 = tile->L2;
 
 			// game mode view range
-			int hide_units = game_mode && units_view[mxy] == 1;
-			if(game_mode && units_view[mxy] == 0)
+			int hide_units = use_view_mask && units_view[mxy] == 1;
+			if(use_view_mask && units_view[mxy] == 0)
 				continue;
 			else if(hide_units)
 				filter = terrain->filter.darkpal;
@@ -2335,7 +2345,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 					{
 						// render unit
 						uint8_t* filter_unit = render_filter;
-						if(cursor_unit == unit && !game_mode)
+						if(cursor_unit == unit && !use_view_mask)
 							filter_unit = terrain->filter.goldpal;
 						int top_y_ofs = unit->Render(terrain, pic, pic_end, mxx, myy, pic_x_size,filter_unit, filter, sid, w_unit_hud);
 						
@@ -3470,54 +3480,6 @@ int SpellMap::Attack(MapXY pos, int prefer_air)
 	unit->ResetTurnsCounter();
 	return(0);
 }
-/*int SpellMap::AttackUnit(MapUnit *target)
-{
-	// get target position
-	if(!target)
-		return(1);
-	auto target_pos = target->coor;
-	int target_mxy = ConvXY(target_pos);	
-	
-	// skip if out of range
-	if(!unit_attack_map[target_mxy])
-		return(1);
-
-	// get attacking unit
-	auto* unit = GetSelectedUnit();
-	if(!unit)
-		return(1);
-
-	// check fires count
-	int fires = unit->GetFireCount();
-	if(!fires)
-		return(1);
-	
-	if(unit->unit->isActionKamikaze())
-	{
-		// kamikaze atack is processed via special actions
-		unit->attack_target = target;
-		unit->altitude = 100;
-		unit->action_state = MapUnit::ACTION_STATE::KAMIKAZE;
-
-		// play attack sound (if exist)
-		unit->PlayFire(target);
-
-		unit->ResetTurnsCounter();
-		return(0);
-	}
-			
-	// play FSU animation	
-	int frame_stop;
-	FSU_resource* fsu_anim = unit->GetShotAnim(target,&frame_stop);
-	unit->attack_target = target;
-	unit->in_animation = fsu_anim;
-	unit->frame = 0;		
-	unit->frame_stop = frame_stop;
-	unit->attack_state = MapUnit::ATTACK_STATE_DIR;
-
-	unit->ResetTurnsCounter();
-	return(0);
-}*/
 
 
 // check if some selectable unit is at postion (game mode only!)
@@ -4335,7 +4297,7 @@ SpellBtnHUD* SpellMap::CreateHUDbutton(SpellGraphicItem* glyph,t_xypos &hud_pos,
 
 
 
-// creates height map for unit view calculation, call this whenever map static content changes (destroyed walls)
+// creates height map for unit view&fire range calculation, call this whenever map static content changes (destroyed walls)
 int SpellMap::PrepareUnitsViewMask()
 {
 	// allocate mask
@@ -4632,99 +4594,124 @@ int SpellMap::AddUnitView(MapUnit *unit, vector<SpellMapEventRec*>* event_list)
 		}
 		else if(!is_radar && units_view[next_mxy] < 5) // only if was not visible before
 		{
-			// multisampling mode
-			const int msx_ofs[4] ={1,-1,0,0};
-			const int msy_ofs[4] ={0,0,1,-1};
-			const int ms_count = 4;
+			// multisampling mode (target)
+			const int msx_ofs[5] = {0,1,-1,0,0};
+			const int msy_ofs[5] = {0,0,0,1,-1};
+			const int ms_count = 5;
+			const int ms_count_min = 2;
+
+			// multisampling mode (origin)
+			const int msx_org_ofs[4] ={ 0,-1,-1, 0};
+			const int msy_org_ofs[4] ={ 0, 0,-1,-1};
+			const int ms_org_count = 4;
 		
 			// get list of all points belonging target tile (in view mask coordinate system)
-			auto target_pix = GetUnitsViewTilePixels(next_pos);
+			auto target_pix = GetUnitsViewTilePixels(next_pos);			
 			// for each target point: send ray and check if the tartget point is visible, if at least one ray is, mark tile as visible
+			
 			for(auto & target_pos : target_pix)
 			{
-				// get view ray initial coordinates (unit)
-				auto [x0,y0,z0b] = GetUnitsViewTileCenter(ref_pos);				
-				int z0 = (int)z0b;
-				if(unit->unit->isAir())
-					z0 += 100; // air-unit height estimate
-				else
-					z0 += 15; // unit height estimate
+				int rays_hit = 0;
+				for(int org = 0; org < ms_org_count; org++)
+				{
+					// get view ray initial coordinates (unit)
+					auto [x0b,y0b,z0b] = GetUnitsViewTileCenter(ref_pos);
+					int x0 = x0b + msx_org_ofs[org];
+					int y0 = y0b + msy_org_ofs[org];
+					int z0 = (int)z0b;
+					if(unit->unit->isAir())
+						z0 += 100; // air-unit height estimate
+					else
+						z0 += 15; // unit height estimate
 
-				count++;
+					count++;
 
-				// get target coordinates
-				int x1 = target_pos.x;
-				int y1 = target_pos.y;
-				int z1 = target_pos.z;
-				z1 += 4; // target height estimate
+					// get target coordinates
+					int x1 = target_pos.x;
+					int y1 = target_pos.y;
+					int z1 = target_pos.z;
+					z1 += 4; // target height estimate
 		
-				// based on: http://members.chello.at/easyfilter/bresenham.html
-				int dx = abs(x1-x0),sx = x0<x1 ? 1 : -1;
-				int dy = abs(y1-y0),sy = y0<y1 ? 1 : -1;
-				int dz = abs(z1-z0),sz = z0<z1 ? 1 : -1;
-				int dm = max(max(dx,dy),dz),i = dm; // maximum difference
-				x1 = y1 = z1 = dm/2; // error offset
+					// based on: http://members.chello.at/easyfilter/bresenham.html
+					int dx = abs(x1-x0),sx = x0<x1 ? 1 : -1;
+					int dy = abs(y1-y0),sy = y0<y1 ? 1 : -1;
+					int dz = abs(z1-z0),sz = z0<z1 ? 1 : -1;
+					int dm = max(max(dx,dy),dz),i = dm; // maximum difference
+					x1 = y1 = z1 = dm/2; // error offset
 
-				int last_tile_id = -1;
-				for(;;) {  // loop
+					int last_tile_id = -1;
+					for(;;) {  // loop
 				
-					auto [tile_id,hx] = GetUnitsViewMask(x0,y0,ref_mxy);
-					// multisampling test (tries to send ray with +-1pixel offset)
-					int pass = (ms_count == 0);
-					for(int k = 0; k < ms_count; k++)
-					{
-						auto [ms_tile_id,ms_hx] = GetUnitsViewMask(x0 + msx_ofs[k],y0 + msy_ofs[k],ref_mxy);
-						if(z0 >= ms_hx/* && ms_tile_id == tile_id*/)
+						// multisampling test (tries to send ray with +-1pixel offset)
+						auto [tile_id,ms_hx] = GetUnitsViewMask(x0,y0,ref_mxy);
+						int pass = 0;
+						for(int k = 0; k < ms_count; k++)
 						{
-							pass = true;
-							break;
-						}
-					}
-					if(tile_id == next_mxy)
-					{
-						// target reached: mark tile as visible and done
-						units_view[next_mxy] = 5;
-
-						// check new unit contact
-						if(!Lunit.empty())
-						{
-							MapUnit* unit = Lunit[next_mxy];
-							while(unit)
+							auto [ms_tile_id,ms_hx] = GetUnitsViewMask(x0 + msx_ofs[k],y0 + msy_ofs[k],ref_mxy);
+							if(z0 >= ms_hx/* && ms_tile_id == tile_id*/)
 							{
-								// new contact?
-								if(!unit->is_visible && unit->is_enemy)
-									new_contact = true;
-								// check linked SeeUnit() event?
-								if(event_list && unit->trig_event && unit->trig_event->isSeeUnit())
-									event_list->push_back(unit->trig_event);
-								// set unit seen flag
-								unit->is_visible = 2;
-								unit->was_seen = true;								
-								unit = unit->next;
+								pass++;
+								if(pass >= ms_count_min)
+									break;
 							}
 						}
-						if(event_list && events->CheckEvent(next_mxy))
+						if(pass < ms_count_min)
+							pass = 0;
+
+						if(tile_id == next_mxy)
 						{
-							// possibly some event here: get all undone events							
-							auto list = events->GetEvents(next_mxy, true);
-							event_list->insert(event_list->end(), list.begin(), list.end());
+							// target reached: mark tile as visible and done
+							//units_view[next_mxy] = 5;
+							rays_hit++;
+
+							// check new unit contact
+							if(!Lunit.empty())
+							{
+								MapUnit* unit = Lunit[next_mxy];
+								while(unit)
+								{
+									// new contact?
+									if(!unit->is_visible && unit->is_enemy)
+										new_contact = true;
+									// check linked SeeUnit() event?
+									if(event_list && unit->trig_event && unit->trig_event->isSeeUnit())
+										event_list->push_back(unit->trig_event);
+									// set unit seen flag
+									unit->is_visible = 2;
+									unit->was_seen = true;								
+									unit = unit->next;
+								}
+							}
+							if(event_list && events->CheckEvent(next_mxy))
+							{
+								// possibly some event here: get all undone events							
+								auto list = events->GetEvents(next_mxy, true);
+								event_list->insert(event_list->end(), list.begin(), list.end());
+							}						
+							break;
 						}
+						// at least one pixel of crossed tile must be visible
+						if(!pass)
+							break;
+			
+						last_tile_id = tile_id;
+
+						if(i-- == 0) break;
+						x1 -= dx; if(x1 < 0) { x1 += dm; x0 += sx; }
+						y1 -= dy; if(y1 < 0) { y1 += dm; y0 += sy; }
+						z1 -= dz; if(z1 < 0) { z1 += dm; z0 += sz; }
+					}
+				
+					// done if ray passed to target
+					/*if(units_view[next_mxy] == 5)
+						break;*/
+					if(rays_hit >= 2)
+					{
+						units_view[next_mxy] = 5;
 						break;
 					}
-					// at least one pixel of crossed tile must be visible
-					if(!pass)
-						break;
-			
-					last_tile_id = tile_id;
-
-					if(i-- == 0) break;
-					x1 -= dx; if(x1 < 0) { x1 += dm; x0 += sx; }
-					y1 -= dy; if(y1 < 0) { y1 += dm; y0 += sy; }
-					z1 -= dz; if(z1 < 0) { z1 += dm; z0 += sz; }
 				}
-				// done if ray passed to target
-				if(units_view[next_mxy] == 5)
-					break;
+				break;
 			}
 		}
 
@@ -4811,6 +4798,12 @@ int SpellMap::AddUnitView(MapUnit *unit, vector<SpellMapEventRec*>* event_list)
 			tile -= 3;
 
 	return(new_contact);
+}
+
+// set debug mode for units view (runtime selected unit view)
+void SpellMap::SetUnitsViewDebugMode(bool debug)
+{
+	units_view_debug_mode = debug;
 }
 
 // add view range of all moved units of given type, clear moved flags

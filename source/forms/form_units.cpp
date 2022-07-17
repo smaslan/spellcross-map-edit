@@ -411,9 +411,6 @@ void FormUnits::OnCloseClick(wxCommandEvent& event)
 		// update unit record (if attached)
 		
 		m_unit->MorphUnit(m_spell_data->units->GetUnit(lboxUnits->GetSelection()));
-		/*m_unit->type_id = lboxUnits->GetSelection();
-		m_unit->unit = m_spell_data->units->GetUnit(m_unit->type_id);
-		m_unit->man = m_unit->unit->cnt;*/
 		m_unit->was_moved = true;
 		if(strcmp(m_unit->name,txtName->GetValue().c_str()) != 0)
 			strcpy_s(m_unit->name,sizeof(m_unit->name),txtName->GetValue().c_str());

@@ -149,7 +149,8 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     menuView->Append(ID_ViewEvents,"Show events\tF9","",wxITEM_CHECK);
     menuView->FindItem(ID_ViewEvents)->Check(false);
     menuView->Append(ID_ViewHUD,"Show mission HUD panel\tCtrl+H","",wxITEM_CHECK);
-    menuView->FindItem(ID_ViewHUD)->Check(spell_map->GetHUDstate());    
+    menuView->FindItem(ID_ViewHUD)->Check(spell_map->GetHUDstate());
+    menuView->Append(ID_UnitViewDbg,"Enable unit view debug mode\tCtrl+D","",wxITEM_CHECK);    
     menuView->Append(wxID_ANY,"","",wxITEM_SEPARATOR);
     menuView->Append(ID_SetGamma,"Set gamma","",wxITEM_NORMAL);    
 
@@ -285,6 +286,7 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     Bind(wxEVT_MENU,&MyFrame::OnViewVoxZ,this,ID_ViewVoxZ);
     Bind(wxEVT_MENU,&MyFrame::OnViewVoxZ,this,ID_ExportVoxZ);
     Bind(wxEVT_MENU,&MyFrame::OnViewMiniMap,this,ID_ViewMiniMap);
+    Bind(wxEVT_MENU,&MyFrame::OnUnitViewDebug,this,ID_UnitViewDbg);
     Bind(wxEVT_MENU,&MyFrame::OnUpdateTileContext,this,ID_UpdateSprContext);
     Bind(wxEVT_MENU,&MyFrame::OnUpdateTileContextMaps,this,ID_UpdateSprContextMaps);
 
@@ -675,6 +677,12 @@ void MyFrame::OnViewLayer(wxCommandEvent& event)
     bool hud = GetMenuBar()->FindItem(ID_ViewHUD)->IsChecked();
     spell_map->SetHUDstate(hud);
     Refresh();
+}
+
+// enable disable unit view debug mode
+void MyFrame::OnUnitViewDebug(wxCommandEvent& event)
+{    
+    spell_map->SetUnitsViewDebugMode(GetMenuBar()->FindItem(ID_UnitViewDbg)->IsChecked());
 }
 
 // open new map
