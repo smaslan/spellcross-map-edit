@@ -457,11 +457,13 @@ void MyFrame::OnSwitchGameMode(wxCommandEvent& event)
         menuView->FindItem(ID_ViewEvents)->Check(false);
         OnViewLayer(event);
 
-        // exec initial events
+        // reset map
         spell_map->saves->Clear();
         spell_map->events->ResetEvents();
         spell_map->saves->SaveInitial();        
+        // exec initial events
         spell_map->MissionStartEvent();
+        // reset units view/attack ranges
         spell_map->unit_view->ClearEvents();
         spell_map->unit_view->ClearUnitsView(SpellMap::ViewRange::ClearMode::RESET);
         spell_map->unit_view->AddUnitsView();

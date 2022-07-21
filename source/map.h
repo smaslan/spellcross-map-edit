@@ -427,7 +427,8 @@ class SpellMap
 			int ClearUnitsView(ClearMode clear=ClearMode::HIDE, bool immediate=false);
 			void ClearEvents(bool cleanup=false);
 			void AddUnitView(MapUnit* unit,ClearMode clear=ClearMode::NONE,int* new_contact=NULL,vector<SpellMapEventRec*>* events=NULL);
-			int WaitResult(vector<SpellMapEventRec*>* events=NULL);
+			int GetResults(vector<SpellMapEventRec*>* events=NULL);
+			int WaitResults(vector<SpellMapEventRec*>* events=NULL);
 			int AddUnitsView(int unit_type=UNIT_TYPE_ALIANCE,int clear=true,MapUnit* except_unit=NULL);
 			int StoreUnitsView(bool immediate=false);
 			int RestoreUnitsView(bool immediate=false);

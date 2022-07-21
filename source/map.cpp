@@ -444,8 +444,8 @@ int SpellMap::SetGameMode(int new_mode)
 	game_mode = new_mode;
 
 	// force recalculation of units view map
-	if(game_mode)
-		InvalidateUnitsView();
+	/*if(game_mode)
+		InvalidateUnitsView();*/
 
 	return(old_state);
 }
@@ -1999,32 +1999,23 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 		obj->PlaceMapTiles(tool_L1, x_size, y_size, msel[0]);
 
 	}
+	
+	// check unit on cursor
+	MapUnit* cursor_unit = GetCursorUnit(scroll);
 
-	// check if units position moved since last test (and clear movement flags)
-	int units_moved = UnitsMoved(true);
-
-	// check if unit selection changed
-	int unit_changed = UnitChanged(true);
+	// lock stuff while rendering
+	FindUnitRangeLock(true);
+	unit_view->ResultLock(true);
+	LockMap();
 
 	// sort units positions for rendering
+	int units_moved = UnitsMoved(true);
 	if(units_moved)
 		SortUnits();
 
 	int use_view_mask = game_mode || units_view_debug_mode;
-	/*if(units_moved && game_mode)
-	{
-		// update view mask (this should be probably somewhere else?)
-		unit_view->ClearUnitsView(ViewRange::ClearMode::HIDE);
-		unit_view->AddUnitsView();
-	}	
-	else if(units_moved && !game_mode && units_view_debug_mode)
-	{
-		// debug mode: show only selected unit view
-		auto unit = GetSelectedUnit();
-		unit_view->AddUnitView(unit,ViewRange::ClearMode::HIDE);
-	}*/
-	
-	MapUnit* unit = GetSelectedUnit();	
+
+	MapUnit* unit = GetSelectedUnit();
 	/*if((units_moved || unit_changed || !unit) && !unit->isMoving())
 	{
 		// initialize unit walk range recalculation
@@ -2033,14 +2024,6 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 		// calculate attack range (###todo: move elsewhere)
 		unit_view->CalcAttackRange(unit);
 	}*/
-
-	// check unit on cursor
-	MapUnit* cursor_unit = GetCursorUnit(scroll);
-
-	// lock stuff while rendering
-	FindUnitRangeLock(true);
-	unit_view->ResultLock(true);
-	LockMap();
 	
 	// --- Render Layer 1 - ground sprites ---
 	for (m = 0; m < ys_size; m++)
@@ -4646,7 +4629,8 @@ int SpellMap::ViewRange::ClearUnitsViewCore(ClearMode clear, std::vector<int> *p
 
 		// no units seen yet
 		for(auto& unit : map->units)
-			unit->is_visible = max(unit->is_visible - 1,0);
+			if(unit->is_visible > 1)
+				unit->is_visible = 1;
 	}
 	return(0);
 }
@@ -4702,7 +4686,7 @@ void SpellMap::ViewRange::AddUnitView(MapUnit *unit, ClearMode clear, int *new_c
 	if(!new_contact && !events)
 		return;	
 	
-	int contact = WaitResult(events);
+	int contact = WaitResults(events);
 	if(new_contact)
 		*new_contact = contact;
 }
@@ -4721,12 +4705,9 @@ int SpellMap::ViewRange::CalcAttackRange(MapUnit *unit, bool immediate)
 	return(0);
 }
 
-// calculate unit view range, returns true if new contact detected and returns activated events list
-int SpellMap::ViewRange::WaitResult(std::vector<SpellMapEventRec*>* events)
+// get unread events and new contacts
+int SpellMap::ViewRange::GetResults(std::vector<SpellMapEventRec*>* events)
 {
-	// wait to finish all tasks
-	WaitIdle();
-
 	// get events
 	result_lock.lock();
 	int new_contact = was_new_contact;
@@ -4741,12 +4722,18 @@ int SpellMap::ViewRange::WaitResult(std::vector<SpellMapEventRec*>* events)
 	return(new_contact);
 }
 
-// add view range of all moved units of given type, clear moved flags
+// wait for pending tasks, return events and new contacts
+int SpellMap::ViewRange::WaitResults(std::vector<SpellMapEventRec*>* events)
+{
+	// wait to finish all tasks
+	WaitIdle();
+	// get'em		
+	return(GetResults(events));
+}
+
+// add view range of all moved units of given type, clear moved flags (assynchronous)
 int SpellMap::ViewRange::AddUnitsView(int unit_type,int clear,MapUnit* except_unit)
 {
-	SpellMapEventsList events;
-	int new_contact = false;
-
 	for(auto& unit : map->units)
 	{
 		// filter unit types to view
@@ -4758,25 +4745,8 @@ int SpellMap::ViewRange::AddUnitsView(int unit_type,int clear,MapUnit* except_un
 			unit->was_moved = false;
 
 		// add view mask
-		SpellMapEventsList events_batch;
-		int contact;
-		AddUnitView(unit,ClearMode::NONE,&contact,&events_batch);
-		new_contact |= contact;
-
-		// collect events
-		events.insert(events.end(),events_batch.begin(),events_batch.end());
+		AddUnitView(unit,ClearMode::NONE);
 	}
-
-	if(new_contact)
-	{
-		// play contact sound
-		auto unit = map->GetSelectedUnit();
-		if(unit && !unit->is_enemy)
-			unit->PlayContact();
-	}
-
-	// process events
-	//map->ProcEventsList(events);
 
 	return(0);
 }
@@ -5090,32 +5060,7 @@ void SpellMap::ViewRange::Worker()
 							{
 								// target reached: mark tile as visible and done
 								//units_view[next_mxy] = 5;
-								rays_hit++;
-
-								// check new unit contact
-								if(!is_fire && !map->Lunit.empty())
-								{
-									MapUnit* unit = map->Lunit[next_mxy];
-									while(unit)
-									{
-										// new contact?
-										if(!unit->is_visible && unit->is_enemy)
-											new_contact = true;
-										// check linked SeeUnit() event?
-										if(detect_events && unit->trig_event && unit->trig_event->isSeeUnit())
-											events_list.push_back(unit->trig_event);
-										// set unit seen flag
-										unit->is_visible = 2;
-										unit->was_seen = true;								
-										unit = unit->next;
-									}
-								}
-								if(!is_fire && detect_events && map->events->CheckEvent(next_mxy))
-								{
-									// possibly some event here: get all undone events							
-									auto list = map->events->GetEvents(next_mxy, true);
-									events_list.insert(events_list.end(), list.begin(), list.end());
-								}						
+								rays_hit++;								
 								break;
 							}
 							// at least one pixel of crossed tile must be visible
@@ -5136,6 +5081,32 @@ void SpellMap::ViewRange::Worker()
 						if(rays_hit >= 2)
 						{
 							units_view[next_mxy] = 5;
+
+							// check new unit contact
+							if(!is_fire && !map->Lunit.empty())
+							{
+								MapUnit* unit = map->Lunit[next_mxy];
+								while(unit)
+								{
+									// new contact?
+									if(detect_events && unit->is_visible < 2 && unit->is_enemy)
+										new_contact = true;
+									// check linked SeeUnit() event?
+									if(detect_events && unit->trig_event && unit->trig_event->isSeeUnit())
+										events_list.push_back(unit->trig_event);
+									// set unit seen flag
+									unit->is_visible = 2;
+									unit->was_seen = true;
+									unit = unit->next;
+								}
+							}
+							if(!is_fire && detect_events && map->events->CheckEvent(next_mxy))
+							{
+								// possibly some event here: get all undone events							
+								auto list = map->events->GetEvents(next_mxy,true);
+								events_list.insert(events_list.end(),list.begin(),list.end());
+							}
+
 							break;
 						}
 					}
@@ -5192,7 +5163,7 @@ void SpellMap::ViewRange::Worker()
 							while(unit)
 							{
 								// new contact?
-								if(!unit->is_visible && unit->is_enemy)
+								if(detect_events && unit->is_visible < 2 && unit->is_enemy)
 									new_contact = true;
 								// check linked SeeUnit() event?
 								if(detect_events && unit->trig_event && unit->trig_event->isSeeUnit())
@@ -5774,11 +5745,11 @@ int SpellMap::Tick()
 
 				unit->action_points -= (next_pos.g_cost - ap_prev);
 				unit->coor = next_pos.pos;
-				//unit->was_moved = true; // not needed, this would trigger full view recalc in renderer
 			
 				double azimuth = this_pos.Angle(next_pos.pos);
 
 				// resort units in map
+				unit_view->WaitIdle();
 				SortUnits();
 			
 				// update this unit view
@@ -5791,7 +5762,7 @@ int SpellMap::Tick()
 					// enemy contact event:
 					unit->PlayContact();
 				}
-				// append events
+				// append eventual events
 				event_list.insert(event_list.end(),events.begin(),events.end());
 
 				// check and append TransportUnit/SaveUnit events
@@ -6186,6 +6157,9 @@ int SpellMap::Tick()
 							event_list.push_back(kill_evt);
 					}
 					SortUnits();
+					
+					// update view mask
+					unit_view->PrepareUnitsViewMask();
 				}								
 			}
 			else if(!target)
@@ -6463,7 +6437,7 @@ int SpellMap::Tick()
 
 				//
 				unit_view->RestoreUnitsView();
-				SortUnits();
+				//SortUnits();
 				unit->was_moved = true; // this will force range recalculation				
 
 				InvalidateHUDbuttons();
@@ -6483,7 +6457,7 @@ int SpellMap::Tick()
 			unit->action_state = MapUnit::ACTION_STATE::AIR_FINISH;
 			unit->was_moved = true; // this will force range recalculation			
 			// resort units in map
-			SortUnits();
+			//SortUnits();
 			// update this unit view
 			unit_view->RestoreUnitsView();
 			SpellMapEventsList events;
@@ -6506,11 +6480,34 @@ int SpellMap::Tick()
 
 	}
 
-	// try process pending events
-	ProcEventsList(event_list);
+	// check if units position moved since last test (and clear movement flags)
+	int units_moved = UnitsMoved(true);
+	
+	// check if unit selection changed
+	int unit_changed = UnitChanged(true);
 
 	ReleaseMap();
 
+	// initialize unit move range recalculation?
+	if((units_moved || unit_changed || !unit) && !unit->isMoving())
+	{
+		FindUnitRange(unit);
+		unit_view->CalcAttackRange(unit);
+	}
+
+	// try fetch unread view events
+	SpellMapEventsList new_events;
+	int new_contact = unit_view->GetResults(&new_events);
+	// new contact detected?
+	if(unit && new_contact)
+		unit->PlayContact();
+	// add new events to pending list
+	if(!new_events.empty())
+		event_list.insert(event_list.end(), new_events.begin(), new_events.end());
+		
+	// try process pending events
+	ProcEventsList(event_list);
+	
 	// repaint
 	return(update);
 }
