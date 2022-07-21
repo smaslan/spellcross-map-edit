@@ -460,8 +460,11 @@ void MyFrame::OnSwitchGameMode(wxCommandEvent& event)
         // exec initial events
         spell_map->saves->Clear();
         spell_map->events->ResetEvents();
-        spell_map->saves->SaveInitial();
+        spell_map->saves->SaveInitial();        
         spell_map->MissionStartEvent();
+        spell_map->unit_view->ClearEvents();
+        spell_map->unit_view->ClearUnitsView(SpellMap::ViewRange::ClearMode::RESET);
+        spell_map->unit_view->AddUnitsView();
     }
     else
     {
@@ -474,7 +477,7 @@ void MyFrame::OnSwitchGameMode(wxCommandEvent& event)
 // on reset view range in game mode
 void MyFrame::OnResetUnitView(wxCommandEvent& event)
 {
-    spell_map->ClearUnitsView(true);
+    spell_map->unit_view->ClearUnitsView(SpellMap::ViewRange::ClearMode::RESET);
     spell_map->InvalidateUnitsView();
     canvas->Refresh();
 }
@@ -859,7 +862,7 @@ void MyFrame::OnViewMidi(wxCommandEvent& event)
 // export voxel map elevation raster
 void MyFrame::OnViewVoxZ(wxCommandEvent& event)
 {    
-    wxBitmap* bmp = spell_map->ExportUnitsViewZmap();
+    wxBitmap* bmp = spell_map->unit_view->ExportUnitsViewZmap();
     if(event.GetId() == ID_ViewVoxZ)
     {
         // view only:
@@ -1176,9 +1179,9 @@ void MyFrame::OnCanvasMouseMove(wxMouseEvent& event)
         // change unit position
         unit->coor = mxy;
         unit->was_moved = true;
-
-        // force recalculation of units view map
-        spell_map->InvalidateUnitsView();         
+        
+        spell_map->unit_view->AddUnitView(unit,
+            spell_map->isUnitsViewDebugMode()?(SpellMap::ViewRange::ClearMode::HIDE):(SpellMap::ViewRange::ClearMode::NONE));
     }
     
     canvas->Refresh();

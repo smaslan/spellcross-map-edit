@@ -12,6 +12,7 @@
 //#include "windows.h"
 #include "cstdint"
 #include <vector>
+#include <queue>
 #include <thread>
 #include <mutex>
 #include <list>
@@ -247,25 +248,18 @@ class SpellMap
 		// attack state stuff
 		std::vector<MapSprite*> attack_explosion_list;
 
+		
+		int units_view_debug_mode;
+
 		// currently selected unit
 		MapUnit *unit_selection;
 		int unit_selection_mod;
 		int unit_sel_land_preference;
-		// current view state of map tiles
-		vector<int> units_view;
-		vector<int> units_view_mem; /* this is copy used to keep view of all but selected unit */
-		// units view mask map
-		vector<uint8_t> units_view_mask; // mask with objects
-		vector<uint8_t> units_view_mask_0; // mask without object
-		vector<uint16_t> units_view_map;
-		static constexpr int units_view_mask_size = 10;
-		int units_view_mask_x_size;
-		int units_view_mask_y_size;
-		int units_view_debug_mode;
+				
 		// unit attack range stuff
-		vector<int> unit_attack_map;
-		int UnitAttackRangeInit();
-		int CalcUnitAttackRange(MapUnit* unit);
+		//vector<int> unit_attack_map;
+		//int UnitAttackRangeInit();
+		//int CalcUnitAttackRange(MapUnit* unit);
 		// unit range map
 		vector<AStarNode> unit_range_nodes_buffer; // this is preinitialized buffer holding the nodes
 		vector<AStarNode> unit_range_nodes; // this is working buffer
@@ -291,12 +285,7 @@ class SpellMap
 		static constexpr int UNIT_RANGE_TH_EXIT = 0x03;		
 		// units moved flag (can be set to force view tiles recalc)
 		//int units_moved;		
-		int UnitsMoved(int clear=false);
-		tuple<int,int> GetUnitsViewMask(int x,int y,int plain_tile_id=-1);
-		tuple<int,int,int> GetUnitsViewTileCenter(int x,int y);
-		tuple<int,int,int> GetUnitsViewTileCenter(MapXY mxy);
-		vector<Txyz> GetUnitsViewTilePixels(int x,int y,int all=false);
-		vector<Txyz> GetUnitsViewTilePixels(MapXY mxy,int all=false);
+		int UnitsMoved(int clear=false);		
 		// unit types
 		static constexpr int UNIT_TYPE_ALIANCE = 0x01;
 		static constexpr int UNIT_TYPE_OS = 0x02;
@@ -403,6 +392,125 @@ class SpellMap
 
 		// local palette (after gamma correction)
 		uint8_t pal[256][3];
+
+		// --- unit view range stuff
+		class ViewRange
+		{
+		public:
+
+			// current view state of map tiles
+			vector<int> view;
+			vector<int> view_mem; /* this is copy used to keep view of all but selected unit */
+
+			// attack range map
+			vector<int> attack_map;
+
+			// units view mask map
+			vector<uint8_t> view_mask; // mask with objects
+			vector<uint8_t> view_mask_0; // mask without object
+			vector<uint16_t> view_map;
+			
+			enum class ClearMode
+			{
+				NONE = 0, /* no view clear */
+				HIDE, /* clear to currently not visible */
+				RESET /* clear to never seen */
+			};
+
+			ViewRange(SpellMap* map);
+			~ViewRange();
+			void ResultLock(bool lock);
+			int isIdle();
+			void WaitIdle(bool stop=false);
+			int PrepareUnitsViewMask(bool immediate=false);
+			wxBitmap* ExportUnitsViewZmap();
+			int ClearUnitsView(ClearMode clear=ClearMode::HIDE, bool immediate=false);
+			void ClearEvents(bool cleanup=false);
+			void AddUnitView(MapUnit* unit,ClearMode clear=ClearMode::NONE,int* new_contact=NULL,vector<SpellMapEventRec*>* events=NULL);
+			int WaitResult(vector<SpellMapEventRec*>* events=NULL);
+			int AddUnitsView(int unit_type=UNIT_TYPE_ALIANCE,int clear=true,MapUnit* except_unit=NULL);
+			int StoreUnitsView(bool immediate=false);
+			int RestoreUnitsView(bool immediate=false);
+			int CalcAttackRange(MapUnit *unit, bool immediate=false);
+
+		private:
+
+			enum class Action
+			{
+				NONE = 0, /* no special action */
+				MASK, /* update view mask */
+				CLEAR, /* clear unit(s) view */
+				STORE, /* store current view state */
+				RESTORE, /* restore stored view state */
+				FIRE /* update unit fire range */
+			};
+			
+			class Task
+			{
+			public:
+				// reference unit
+				MapUnit *unit;
+				// clear mode
+				ClearMode clear;
+				// action id
+				Action action;
+				// collect events
+				int detect_events;
+
+				Task(MapUnit *unit, ClearMode clear, Action action, bool detect_events)
+				{
+					this->unit = NULL;
+					if(unit)
+						this->unit = new MapUnit(*unit);
+					this->clear = clear;
+					this->action = action;
+					this->detect_events = detect_events;
+				};
+			};
+
+			// back ref to map
+			SpellMap* map;
+
+			// worker thread
+			std::thread* thread;
+			std::mutex result_lock;
+			std::mutex ctrl_lock;
+			std::deque<Task> pending;
+			enum ThreadCtrl
+			{
+				IDLE = 0,
+				BUSY,
+				STOP,
+				EXIT
+			};
+			volatile ThreadCtrl state;
+
+			// Z-mask grid size
+			static constexpr int VIEW_MASK_GRID = 10;
+			int view_mask_x_size;
+			int view_mask_y_size;
+
+			// collection of detected events
+			int was_new_contact;
+			std::vector<SpellMapEventRec*> event_list;
+			
+
+			void ClearTasks();
+			void Worker();
+			void Stop();
+			int AddViewUnitTask(MapUnit *unit,ClearMode clear=ClearMode::NONE,bool rec_events=false,bool force=false);
+			int ClearUnitsViewCore(ClearMode clear,std::vector<int>* p_view=NULL);
+			int PrepareUnitsViewMaskCore();
+			int RestoreUnitsViewCore();
+			tuple<int,int> GetUnitsViewMask(int x,int y,int plain_tile_id);
+			tuple<int,int,int> GetUnitsViewTileCenter(MapXY mxy);
+			tuple<int,int,int> GetUnitsViewTileCenter(int x,int y);
+			vector<Txyz> GetUnitsViewTilePixels(MapXY mxy,int all);
+			vector<Txyz> GetUnitsViewTilePixels(int x,int y,int all);
+			int AttackRangeInit();
+
+		};
+		ViewRange* unit_view;
 
 		// map state save
 		class SavedState
@@ -517,14 +625,15 @@ class SpellMap
 		MapUnit *SelectUnit(MapUnit* new_unit,bool scroll_to=false);
 		int UnitChanged(int clear=false);
 		MapUnit* GetSelectedUnit();
-		int PrepareUnitsViewMask();
-		wxBitmap *ExportUnitsViewZmap();
-		int ClearUnitsView(int to_unseen=false);
-		int AddUnitView(MapUnit* unit, vector<SpellMapEventRec*> *event_list=NULL);
-		int AddUnitsView(int unit_type=UNIT_TYPE_ALIANCE,int clear=true,MapUnit *except_unit=NULL);
+		//int PrepareUnitsViewMask();
+		//wxBitmap *ExportUnitsViewZmap();
+		//int ClearUnitsView(int to_unseen=false);
+		//int AddUnitView(MapUnit* unit, vector<SpellMapEventRec*> *event_list=NULL);
+		//int AddUnitsView(int unit_type=UNIT_TYPE_ALIANCE,int clear=true,MapUnit *except_unit=NULL);
 		void SetUnitsViewDebugMode(bool debug);
-		int StoreUnitsView();
-		int RestoreUnitsView();
+		bool isUnitsViewDebugMode();
+		//int StoreUnitsView();
+		//int RestoreUnitsView();
 		void InvalidateUnitsView();
 		vector<AStarNode> FindUnitPath(MapUnit* unit,MapXY target);
 		int FindUnitRange(MapUnit* unit);
