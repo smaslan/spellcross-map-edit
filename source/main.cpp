@@ -18,6 +18,7 @@
 #include <tuple>
 #include <string>
 #include <chrono>
+#include <future>
 
 #include "main.h"
 #include "other.h"
@@ -617,6 +618,24 @@ void MyFrame::OnHUDbuttonsMouseEnter(wxMouseEvent& event)
         // click event callback?
         if(btn->is_hover && btn->cb_hover)
             btn->cb_hover();
+        if(!btn->is_disabled)
+        {
+            // play hover sound            
+            auto *hover_sound = new SpellSound(*spell_data->sounds->aux_samples.btn_hover);
+            hover_sound->Play(true);
+
+            /*std::thread snd(&SpellSound::PlayAsync,hover_sound);
+            snd.detach();*/
+
+            //std::async(std::launch::async,&SpellSound::PlayAsync,hover_sound);
+            
+            /*chrono::steady_clock::time_point ref_time = std::chrono::high_resolution_clock::now();            
+            hover_sound->Play(true);
+            auto now_time = std::chrono::high_resolution_clock::now();
+            auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(now_time - ref_time).count();
+            StatusStringCallback(string_format("%d",duration));*/
+            
+        }
     }
 
     // default game cursor
@@ -640,9 +659,17 @@ void MyFrame::OnHUDbuttonsClick(wxMouseEvent& event)
     {
         btn->is_press = (event.GetEventType() == wxEVT_LEFT_DOWN);        
         pan->Refresh();
+        // play click sound        
+        if(!btn->is_press && !btn->is_disabled)
+        {
+            auto* click_sound = new SpellSound(*spell_data->sounds->aux_samples.btn_end_turn);
+            click_sound->Play(true);
+        }
         // click event callback?
         if(!btn->is_press && btn->cb_press)
             btn->cb_press();
+        if(btn->is_press)
+            return;
         if(btn->action_id == SpellMap::HUD_ACTION_MINIMAP)
         {
             // show minimap
@@ -651,10 +678,8 @@ void MyFrame::OnHUDbuttonsClick(wxMouseEvent& event)
         }
         if(btn->action_id == SpellMap::HUD_ACTION_UNITS && !form_units_list)
         {
-            // show units list
-            
+            // show units list            
             form_units_list = new FormMapUnits(canvas,ID_MAP_UNITS_WIN, spell_data, spell_map);
-
         }
         if(btn->action_id == SpellMap::HUD_ACTION_MAP_OPTIONS && !form_map_options)
         {

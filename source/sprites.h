@@ -134,7 +134,7 @@ class Sprite
 		void Render(uint8_t* buffer, uint8_t* buf_end, int buf_x, int buf_y, int x_size, uint8_t* filter);
 		wxBitmap* Render(uint8_t* pal,double gamma=1.3, int x_size=-1, int y_size=-1, bool no_zoom=true);
 		int Decode(uint8_t* data,const char* name);
-		void GetTileModel(TFxyz* vert, int* face=NULL, int* face_count=NULL);
+		void GetTileModel(TFxyz* vert, int* face=NULL, int* face_count=NULL,int triangle_faces=false);
 		int GetTileEdge(int edge,TFxyz* vert);
 		TFxyz ProjectVertex(TFxyz *vert);
 		void RenderTileWires(uint8_t* buffer, uint8_t* buf_end, int buf_x, int buf_y, int x_size, uint8_t color);

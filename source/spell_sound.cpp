@@ -40,6 +40,7 @@ SoundChannels::SoundChannels(int count)
 {
     chn_index.assign(count,0);
     channels.assign(count,NULL);
+    is_loop.assign(count,0);
     for(auto & chn : channels)
         chn = new RtAudio();    
     last_channel = 0;
@@ -63,8 +64,9 @@ SoundChannels::~SoundChannels()
     channels.clear();
 }
 // get first available channel
-RtAudio* SoundChannels::GetChannel()
-{
+RtAudio* SoundChannels::GetChannel(int is_loop)
+{    
+    lock.lock();
     // look for first free stream
     for(int cid = 0; cid < channels.size(); cid++)
     {
@@ -74,25 +76,30 @@ RtAudio* SoundChannels::GetChannel()
             if(chn->isStreamOpen())
                 chn->closeStream();
             chn_index[cid] = ++last_channel;
+            this->is_loop[cid] = is_loop;
+            lock.unlock();
             return(chn);
         }
     }
+    lock.unlock();
+    return(NULL);
     // no empty channels found: use oldest one
-    int min_index = 1<<30;
+    /*int min_index = 1<<30;
     int chn_id = 0;
     for(int cid = 0; cid < channels.size(); cid++)
     {
-        if(chn_index[cid] < min_index)
+        if(chn_index[cid] < min_index && !this->is_loop[cid])
         {
             min_index = chn_index[cid];
             chn_id = cid;
         }
     }
     chn_index[chn_id] = ++last_channel;
+    this->is_loop[chn_id] = is_loop;
     auto *chn = channels[chn_id];
     chn->abortStream();
     chn->closeStream();
-    return(chn);
+    return(chn);*/
 }
 // set/get global volume
 void SoundChannels::SetVolume(double vol)
@@ -303,7 +310,7 @@ SpellSounds::SpellSounds(FSarchive *common_fs, wstring& fs_data_path, int count,
         // assign shortcuts
         vector<SpellSound **> list = {
             NULL, /* 0 - strategy map buttons */
-            NULL, /* 1 - mission selection hover */
+            &aux_samples.btn_hover, /* 1 - mission selection hover */
             NULL, /* 2 - mission selection click  */
             &aux_samples.turret_rotate, /* 3 - rotate turret */
             NULL, /* 4 - big map button */
@@ -846,6 +853,12 @@ int SpellSound::SetPanning(double left_vol,double right_vol)
     return(0);
 }
 
+// async playback
+void SpellSound::PlayAsync()
+{
+    Play(true);
+}
+
 // start playback, optional auto-object delete after playback, optional loop, optional callback function to be called every frame (time critical!)
 int SpellSound::Play(bool auto_delete, bool loop, std::function<void(void)> frame_callback, double frame_step)
 {    
@@ -867,7 +880,13 @@ int SpellSound::Play(bool auto_delete, bool loop, std::function<void(void)> fram
     }
     
     // get some stream channel
-    dac = streams->GetChannel();
+    dac = streams->GetChannel(loop);
+    if(!dac)
+    {
+        if(auto_delete)
+            delete this;
+        return(1);
+    }
     
 
     // pick first (or random) substream

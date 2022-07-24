@@ -47,14 +47,16 @@ public:
 class SoundChannels
 {    
 private:
-    vector<RtAudio*> channels;
-    vector<int> chn_index;
+    std::mutex lock;
+    std::vector<RtAudio*> channels;
+    std::vector<int> chn_index;
     int last_channel;
     double volume;
+    std::vector<int> is_loop;
 public:
     SoundChannels(int count=4);
     ~SoundChannels();
-    RtAudio *GetChannel();
+    RtAudio *GetChannel(int is_loop=false);
     void SetVolume(double vol);
     double GetVolume();
     
@@ -107,6 +109,7 @@ public:
 
     int SetPanning(double left_vol=1.0,double right_vol=1.0);
     int Play(bool auto_delete=false, bool loop=false, std::function<void(void)> frame_callback=NULL, double frame_step=0.02);
+    void PlayAsync();
     double GetPlaybackTime();
     int StopMove();
     int Stop(double wait=0.0);
@@ -180,6 +183,7 @@ public:
         SpellSound* oponent_fire_aliance;
         SpellSound* oponent_fire_os;
         SpellSound* unit_level_up;
+        SpellSound* btn_hover;
     };
     AuxSamples aux_samples;
         

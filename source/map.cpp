@@ -2312,7 +2312,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 			Sprite* sid2 = tile->L2;
 
 			// game mode view range
-			int hide_units = use_view_mask && unit_view->view[mxy] == 1;
+			int hide_units = use_view_mask && unit_view->view[mxy] < 1;
 			if(use_view_mask && unit_view->view[mxy] == 0)
 				continue;
 			else if(hide_units)
@@ -2330,6 +2330,12 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 				{
 					if ((pass == 0 && unit->unit->isAir()) || pass == 2)
 					{
+						if(unit->is_visible < 2 && use_view_mask)
+						{
+							unit = unit->next;
+							continue;
+						}
+
 						// render unit
 						uint8_t* filter_unit = render_filter;
 						if(cursor_unit == unit && !use_view_mask)
@@ -3995,14 +4001,15 @@ void SpellMap::OnHUDswitchUnitHUD()
 void SpellMap::OnHUDswitchEndTurn()
 {	
 	// play button sound
-	auto sound = new SpellSound(*spelldata->sounds->aux_samples.btn_end_turn);
-	sound->Play(true);
+	/*auto sound = new SpellSound(*spelldata->sounds->aux_samples.btn_end_turn);
+	sound->Play(true);*/
 	
 	FinishUnits();
 	ResetUnitsAP();
 	
 	// todo: replace by something that will trigger range recalculation
 	unit_selection_mod = true;
+	unit_view->ClearUnitsView(SpellMap::ViewRange::ClearMode::HIDE_ENEMY);
 	InvalidateHUDbuttons();
 }
 // heal unit HUD button pressed
@@ -4419,10 +4426,10 @@ int SpellMap::ViewRange::PrepareUnitsViewMaskCore()
 			int flag = map->tiles[mxy].flags;
 
 			// sprite origin (sprite coordinate system)
-			double sxx = -40.0;
-			double syy = -40.0;
-			double ssx = 80.0/(tile_size-2);
-			double ssy = 80.0/(tile_size-1);
+			double sxx = -40.0 + 0.5*80.0/(tile_size-1);
+			double syy = -40.0 + 0.5*80.0/(tile_size-0);
+			double ssx = 80.0/(tile_size-1);
+			double ssy = 80.0/(tile_size-0);
 
 			for(int n = 0; n < tile_size; n++)
 			{
@@ -4618,20 +4625,23 @@ int SpellMap::ViewRange::ClearUnitsViewCore(ClearMode clear, std::vector<int> *p
 			unit->is_visible = 0;
 		}
 	}
-	else if(clear == ClearMode::HIDE)
+	else if(clear == ClearMode::HIDE || clear == ClearMode::HIDE_ALL)
 	{
 		// all visible to seen, but not visible
 		if(p_view->size() != map->x_size*map->y_size)
 			p_view->assign(map->x_size*map->y_size,0);
 		for(auto& pos : *p_view)
 			if(pos == 2)
-				pos = 1;
-
-		// no units seen yet
+				pos = 1;		
+	}
+	else if(clear == ClearMode::HIDE_UNITS || clear == ClearMode::HIDE_ALL || clear == ClearMode::HIDE_ENEMY)
+	{
+		// hide units
 		for(auto& unit : map->units)
-			if(unit->is_visible > 1)
+			if(unit->is_visible > 1 && (clear != ClearMode::HIDE_ENEMY || unit->is_enemy))
 				unit->is_visible = 1;
 	}
+
 	return(0);
 }
 
@@ -4993,10 +5003,12 @@ void SpellMap::ViewRange::Worker()
 			else if(!is_fire || !is_radar && units_view[next_mxy] < 5) // only if was not visible before
 			{
 				// multisampling mode (target)
-				const int msx_ofs[5] = {0,1,-1,0,0};
-				const int msy_ofs[5] = {0,0,0,1,-1};
-				const int ms_count = 5;
-				const int ms_count_min = 2;
+				//const int msx_ofs[5] = {0,1,-1,0,0};
+				//const int msy_ofs[5] = {0,0,0,1,-1};
+				const int msx_ofs[5] ={0,-1,-1, 0};
+				const int msy_ofs[5] ={0, 0,-1,-1};
+				const int ms_count = 4;
+				const int ms_count_min = 1;
 
 				// multisampling mode (origin)
 				const int msx_org_ofs[4] ={ 0,-1,-1, 0};
@@ -5028,7 +5040,7 @@ void SpellMap::ViewRange::Worker()
 						int x1 = target_pos.x;
 						int y1 = target_pos.y;
 						int z1 = target_pos.z;
-						z1 += 4; // target height estimate
+						z1 += 8; // target height estimate
 		
 						// based on: http://members.chello.at/easyfilter/bresenham.html
 						int dx = abs(x1-x0),sx = x0<x1 ? 1 : -1;
@@ -9146,7 +9158,9 @@ void SpellMap::SyncShading()
 				if(nxy_pos.IsSelected())
 				{
 					// make two fake sprites					
+					ref.name.assign(9,'_');
 					ref.name[2] = tiles[mxy].L1->name[2];					
+					neig.name.assign(9,'_');
 					neig.name[2] = tiles[nxy].L1->name[2];
 
 					if(ref.name[2] == 'M')

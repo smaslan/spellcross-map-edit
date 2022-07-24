@@ -413,7 +413,10 @@ class SpellMap
 			enum class ClearMode
 			{
 				NONE = 0, /* no view clear */
-				HIDE, /* clear to currently not visible */
+				HIDE, /* clear map to currently not visible, leave just seen units visible */
+				HIDE_UNITS, /* hide units */
+				HIDE_ENEMY, /* hide enemy units */
+				HIDE_ALL, /* HIDE & HIDE_UNITS */
 				RESET /* clear to never seen */
 			};
 

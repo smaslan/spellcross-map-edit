@@ -463,7 +463,7 @@ int Sprite::GetTileEdge(int edge,TFxyz* vert)
 }
 
 // returns 4 vertices of tile and/or max two faces [vert_count, vert_1, vert_2, ..., vert_count, vert_1, vert_2, ...]
-void Sprite::GetTileModel(TFxyz* vert, int* face, int* face_count)
+void Sprite::GetTileModel(TFxyz* vert, int* face, int* face_count,int triangle_faces)
 {
 	// step elevation
 	const double el = TILE_ELEVATION;
@@ -506,7 +506,7 @@ void Sprite::GetTileModel(TFxyz* vert, int* face, int* face_count)
 		}
 	}
 
-	const int fa[13][7] = {
+	const int fav[13][7] = {
 		{1, 0,1,2,3, 0,0}, /* A */
 		{2, 0,1,3, 1,2,3}, /* B */
 		{2, 0,1,3, 1,2,3}, /* C */
@@ -521,10 +521,27 @@ void Sprite::GetTileModel(TFxyz* vert, int* face, int* face_count)
 		{2, 0,1,2, 0,2,3}, /* L */
 		{1, 0,1,2,3, 0,0}  /* M */ };
 
+	const int fat[13][7] ={
+		{2, 0,1,2, 2,3,0}, /* A */
+		{2, 0,1,3, 1,2,3}, /* B */
+		{2, 0,1,3, 1,2,3}, /* C */
+		{2, 0,1,2, 2,3,0}, /* D */
+		{2, 0,1,2, 0,2,3}, /* E */
+		{2, 0,1,2, 0,2,3}, /* F */
+		{2, 0,1,2, 2,3,0}, /* G */
+		{2, 0,1,3, 1,2,3}, /* H */
+		{2, 0,1,3, 1,2,3}, /* I */
+		{2, 0,1,2, 2,3,0}, /* J */
+		{2, 0,1,2, 0,2,3}, /* K */
+		{2, 0,1,2, 0,2,3}, /* L */
+		{2, 0,1,2, 2,3,0}  /* M */};
+
 	// return faces
-	if (face && face_count)
+	if(face && face_count)
 	{
-		if (fa[tile][0] == 1)
+		const int (*fa)[7] = (triangle_faces)?fat:fav;
+
+		if(fa[tile][0] == 1)
 		{
 			// single face
 			*face++ = 4;
@@ -615,10 +632,39 @@ double Sprite::GetTileZ(double x, double y)
 	
 	// get tile vertices
 	TFxyz vert[4];
-	this->GetTileModel(vert, NULL, NULL);
+	int faces[8];
+	int face_n;
+	GetTileModel(vert,faces, &face_n, true);
+
+	int *pface = faces;
+	double last_dev = 1e9;
+	double z = 0.0;
+	for(int k = 0; k < face_n; k++)
+	{
+		pface++;
+		TFxyz &v1 = vert[*pface++];
+		TFxyz &v2 = vert[*pface++];
+		TFxyz &v3 = vert[*pface++];
+		
+		double xc = (v1.x + v2.x + v3.x)/3.0;
+		double yc = (v1.y + v2.y + v3.y)/3.0;
+		double dev = (x-xc)*(x-xc) + (y-yc)*(y-yc);
+		
+		if(dev < last_dev)
+		{
+			// barycentric coordinates interpolation (https://math.stackexchange.com/questions/349444/triangle-z-index-interpolation-between-the-vertices)
+			double bx = ((v2.y-v3.y)*(x-v3.x)+(v3.x-v2.x)*(y-v3.y))/((v2.y-v3.y)*(v1.x-v3.x)+(v3.x-v2.x)*(v1.y-v3.y));
+			double by = ((v3.y-v1.y)*(x-v3.x)+(v1.x-v3.x)*(y-v3.y))/((v2.y-v3.y)*(v1.x-v3.x)+(v3.x-v2.x)*(v1.y-v3.y));			
+			double bz = 1.0 - bx - by;
+			z = v1.z*bx + v2.z*by + v3.z*bz;
+		}
+		last_dev = dev;
+	}
+	//z *= TILE_ELEVATION;
+		
 
 	// protect div by zero
-	if (fabs(x) < 0.001)
+	/*if (fabs(x) < 0.001)
 		x += 0.002;
 	
 	// tile edge points
@@ -690,7 +736,7 @@ double Sprite::GetTileZ(double x, double y)
 	double Dz = (tile == 'A')?(0.0):(0.5*TILE_ELEVATION);
 
 	// finally Z elevation
-	double z = sqrt((x * x + y * y) / (Cx * Cx + Cy * Cy)) * (Cz - Dz) + Dz;
+	double z = sqrt((x * x + y * y) / (Cx * Cx + Cy * Cy)) * (Cz - Dz) + Dz;*/
 
 	return(z);
 }
