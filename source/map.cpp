@@ -4634,11 +4634,14 @@ int SpellMap::ViewRange::ClearUnitsViewCore(ClearMode clear, std::vector<int> *p
 			if(pos == 2)
 				pos = 1;		
 	}
-	else if(clear == ClearMode::HIDE_UNITS || clear == ClearMode::HIDE_ALL || clear == ClearMode::HIDE_ENEMY)
+	if(clear == ClearMode::HIDE_UNITS || clear == ClearMode::HIDE_ALL || clear == ClearMode::HIDE_ENEMY)
 	{
+		if(p_view->size() != map->x_size*map->y_size)
+			p_view->assign(map->x_size*map->y_size,0);
+
 		// hide units
 		for(auto& unit : map->units)
-			if(unit->is_visible > 1 && (clear != ClearMode::HIDE_ENEMY || unit->is_enemy))
+			if(unit->is_visible > 1 && (clear != ClearMode::HIDE_ENEMY || unit->is_enemy) && p_view->at(map->ConvXY(unit->coor)) != 2)
 				unit->is_visible = 1;
 	}
 
