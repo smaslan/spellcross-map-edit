@@ -255,28 +255,24 @@ class SpellMap
 		MapUnit *unit_selection;
 		int unit_selection_mod;
 		int unit_sel_land_preference;
-				
-		// unit attack range stuff
-		//vector<int> unit_attack_map;
-		//int UnitAttackRangeInit();
-		//int CalcUnitAttackRange(MapUnit* unit);
+
 		// unit range map
-		vector<AStarNode> unit_range_nodes_buffer; // this is preinitialized buffer holding the nodes
-		vector<AStarNode> unit_range_nodes; // this is working buffer
-		vector<int> unit_ap_left;
-		vector<int> unit_fire_left;
-		thread *unit_range_th;
-		int unit_range_th_control;
-		MapUnit *unit_range_th_unit;
-		mutex unit_range_th_lock;
+		//vector<AStarNode> unit_range_nodes_buffer; // this is preinitialized buffer holding the nodes
+		//vector<AStarNode> unit_range_nodes; // this is working buffer
+		//vector<int> unit_ap_left;
+		//vector<int> unit_fire_left;
+		//thread *unit_range_th;
+		//int unit_range_th_control;
+		//MapUnit *unit_range_th_unit;
+		//mutex unit_range_th_lock;
 		int unit_range_view_mode;
 		int unit_range_view_mode_lock;
 		uint8_t *GetUnitRangeFilter(int x,int y);
 		uint8_t *default_filter;
 		uint8_t *render_filter;
-		int FindUnitRangeLock(bool state);
-		int FindUnitRange_th();
-		int InitUnitRangeStuff();		
+		//int FindUnitRangeLock(bool state);
+		//int FindUnitRange_th();
+		//int InitUnitRangeStuff();		
 		int viewingUnitMoveRange() {return(unit_range_view_mode == UNIT_RANGE_MOVE);};
 		int viewingUnitAttackRange() { return(unit_range_view_mode == UNIT_RANGE_ATTACK);};
 		static constexpr int UNIT_RANGE_TH_IDLE = 0x00;
@@ -393,7 +389,7 @@ class SpellMap
 		// local palette (after gamma correction)
 		uint8_t pal[256][3];
 
-		// --- unit view range stuff
+		// --- unit view/attack range stuff
 		class ViewRange
 		{
 		public:
@@ -515,6 +511,64 @@ class SpellMap
 
 		};
 		ViewRange* unit_view;
+
+		
+		// --- unit move range stuff
+		class MoveRange
+		{
+		public:
+			MoveRange(SpellMap* map);
+			~MoveRange();
+			int isIdle();
+			void WaitIdle(bool stop=false);
+			void FindRange(MapUnit* unit);
+			void LockResult(bool state);
+			vector<AStarNode> FindPath(MapUnit* unit,MapXY target);
+
+			vector<AStarNode> range_nodes_buffer; // this is preinitialized buffer holding the nodes
+			vector<AStarNode> range_nodes; // this is working buffer
+			
+			vector<int> ap_left;
+			vector<int> fire_left;
+
+		private:
+			// back ref to map
+			SpellMap* map;
+
+			class Task
+			{
+			public:
+				MapUnit *unit;
+				Task(MapUnit *unit)
+				{
+					this->unit = NULL;
+					if(unit)
+						this->unit = new MapUnit(*unit);
+				}
+			};
+
+			// worker thread
+			std::thread* thread;
+			std::mutex result_lock;
+			std::mutex ctrl_lock;
+			std::deque<Task> pending;
+			enum ThreadCtrl
+			{
+				IDLE = 0,
+				BUSY,
+				STOP,
+				EXIT
+			};
+			volatile ThreadCtrl state;
+
+			void Worker();
+			
+
+			//MapUnit* unit_range_th_unit;
+
+		};
+		MoveRange *unit_range;
+
 
 		// map state save
 		class SavedState
@@ -639,8 +693,8 @@ class SpellMap
 		//int StoreUnitsView();
 		//int RestoreUnitsView();
 		void InvalidateUnitsView();
-		vector<AStarNode> FindUnitPath(MapUnit* unit,MapXY target);
-		int FindUnitRange(MapUnit* unit);
+		//vector<AStarNode> FindUnitPath(MapUnit* unit,MapXY target);
+		//int FindUnitRange(MapUnit* unit);
 		int SetUnitRangeViewMode(int mode);
 		int CanUnitMove(MapXY target);
 		int MoveUnit(MapXY target);		
