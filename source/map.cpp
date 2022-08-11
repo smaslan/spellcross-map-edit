@@ -435,6 +435,33 @@ int SpellMap::ReleaseMap()
 	return(0);
 }
 
+// lock/unlock unit move, view, attack range async calculator (call whenever modifying units list)
+void SpellMap::LockUnitRanging(bool lock)
+{
+	if(lock)
+	{
+		if(unit_view)
+			unit_view->Lock();
+		if(unit_range)
+			unit_range->Lock();
+	}
+	else
+	{
+		if(unit_view)
+			unit_view->Unlock();
+		if(unit_view)
+			unit_range->Unlock();
+	}
+}
+// halt unit move, view, attack range async calculator (call whenever changing map arrays or e.g. changing unit parameters)
+void SpellMap::HaltUnitRanging(bool halt)
+{
+	if(unit_view)
+		unit_view->Halt(halt);
+	if(unit_range)
+		unit_range->Halt(halt);
+}
+
 // switch game mode
 int SpellMap::SetGameMode(int new_mode)
 {
@@ -1222,9 +1249,11 @@ void SpellMap::InvalidateUnitsView()
 	}
 }
 
-// this sorts units list for proper render order, call after load or units changes
+// this sorts units list for proper render order, call after load or units changes, optional thread safe lock
 void SpellMap::SortUnits()
 {	
+	HaltUnitRanging(true);
+
 	// clear units layer array
 	Lunit.assign(x_size*y_size, NULL);
 
@@ -1281,6 +1310,8 @@ void SpellMap::SortUnits()
 			}
 		}
 	}
+
+	HaltUnitRanging(false);
 }
 
 // is some valid map data loaded?
@@ -1990,27 +2021,14 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 	// check unit on cursor
 	MapUnit* cursor_unit = GetCursorUnit(scroll);
 
-	// lock stuff while rendering
-	unit_range->LockResult(true);
-	unit_view->ResultLock(true);
+	// lock stuff while rendering	
 	LockMap();
-
-	// sort units positions for rendering
-	int units_moved = UnitsMoved(true);
-	if(units_moved)
-		SortUnits();
+	unit_range->ResultLock(true);
+	unit_view->ResultLock(true);
 
 	int use_view_mask = game_mode || units_view_debug_mode;
 
 	MapUnit* unit = GetSelectedUnit();
-	/*if((units_moved || unit_changed || !unit) && !unit->isMoving())
-	{
-		// initialize unit walk range recalculation
-		FindUnitRange(unit);
-
-		// calculate attack range (###todo: move elsewhere)
-		unit_view->CalcAttackRange(unit);
-	}*/
 	
 	// --- Render Layer 1 - ground sprites ---
 	for (m = 0; m < ys_size; m++)
@@ -2704,7 +2722,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 
 	// unlock stuff while rendering
 	unit_view->ResultLock(false);
-	unit_range->LockResult(false);
+	unit_range->ResultLock(false);
 	ReleaseMap();
 	
 	
@@ -2836,12 +2854,15 @@ SpellMap::MoveRange::MoveRange(SpellMap *map)
 	state = IDLE;
 	thread = new std::thread(&SpellMap::MoveRange::Worker,this);
 
+	// ready to accept data
+	is_halted = false;
 }
 
 // cleanup move range finder
 SpellMap::MoveRange::~MoveRange()
 {
 	ctrl_lock.lock();
+	is_halted = false;
 	state = EXIT;
 	ctrl_lock.unlock();
 	WaitIdle();
@@ -2862,7 +2883,7 @@ int SpellMap::MoveRange::isIdle()
 }
 
 // wait for worker to go idle
-void SpellMap::MoveRange::WaitIdle(bool stop)
+void SpellMap::MoveRange::WaitIdle(bool stop, bool lock)
 {
 	if(stop)
 	{
@@ -2870,8 +2891,34 @@ void SpellMap::MoveRange::WaitIdle(bool stop)
 		state = STOP;
 		ctrl_lock.unlock();
 	}
+
+	if(lock)
+		queue_lock.lock();
 	
 	while(!isIdle())
+		std::this_thread::sleep_for(1ms);
+}
+
+// wait for worked idle and lock new tasks
+void SpellMap::MoveRange::Lock()
+{
+	WaitIdle(false, true);
+}
+
+// unlock new tasks
+void SpellMap::MoveRange::Unlock()
+{
+	queue_lock.unlock();
+}
+
+// halt taks processing (curent task is finished, all others stays halted)
+void SpellMap::MoveRange::Halt(bool halt)
+{
+	ctrl_lock.lock();
+	is_halted = halt;
+	ctrl_lock.unlock();
+	// wait till thread halted
+	while(halt && state == BUSY)
 		std::this_thread::sleep_for(1ms);
 }
 
@@ -2882,13 +2929,15 @@ void SpellMap::MoveRange::FindRange(MapUnit* unit)
 	WaitIdle(true);
 
 	// make new job
+	queue_lock.lock();
 	ctrl_lock.lock();
 	pending.emplace_back(unit);
 	ctrl_lock.unlock();
+	queue_lock.unlock();
 }
 
 // locks/unlocks data related to unit range
-void SpellMap::MoveRange::LockResult(bool state)
+void SpellMap::MoveRange::ResultLock(bool state)
 {
 	if(state)
 		result_lock.lock();
@@ -2914,19 +2963,18 @@ void SpellMap::MoveRange::Worker()
 	// clear range filters
 	vector<int> unit_ap_left;
 	vector<int> unit_fire_left;
-
-	MapUnit *unit = NULL;
 	
 	while(true)
 	{		
-		if(unit)
-		{
-			delete unit;
-			unit = NULL;
-		}
+		MapUnit* unit = NULL;
 
 		ctrl_lock.lock();
-		if(!pending.empty())
+		if(is_halted)
+		{
+			// go to halt state
+			state = HALTED;
+		}
+		else if(!pending.empty())
 		{
 			// take some task
 			auto task = pending.front();
@@ -2963,10 +3011,10 @@ void SpellMap::MoveRange::Worker()
 
 		if(!unit || !unit->coor.IsSelected() || unit->radar_up || !unit->isActive())
 		{
-			LockResult(true);
+			ResultLock(true);
 			ap_left = unit_ap_left;
 			fire_left = unit_fire_left;
-			LockResult(false);
+			ResultLock(false);
 			continue;
 		}
 
@@ -2997,10 +3045,10 @@ void SpellMap::MoveRange::Worker()
 				if(dirz.empty())
 				{
 					// all done: store range data atomically					
-					LockResult(true);
+					ResultLock(true);
 					ap_left = unit_ap_left;
 					fire_left = unit_fire_left;
-					LockResult(false);
+					ResultLock(false);
 					break;
 				}			
 			}
@@ -4341,7 +4389,10 @@ SpellMap::ViewRange::ViewRange(SpellMap* map)
 	ClearUnitsView(ClearMode::RESET,true);
 
 	// init attack range
-	AttackRangeInit();
+	AttackRangeInit();	
+
+	// worker allowed to do stuff
+	is_halted = false;
 }
 SpellMap::ViewRange::~ViewRange()
 {
@@ -4370,8 +4421,8 @@ int SpellMap::ViewRange::isIdle()
 	return((state == ThreadCtrl::IDLE) && pending.empty());
 }
 
-// wait to idle state (thread safe), optional stop
-void SpellMap::ViewRange::WaitIdle(bool stop)
+// wait to idle state (thread safe), optional stop, optional lock of new tasks
+void SpellMap::ViewRange::WaitIdle(bool stop,bool lock)
 {
 	if(stop)
 	{
@@ -4380,7 +4431,30 @@ void SpellMap::ViewRange::WaitIdle(bool stop)
 		ctrl_lock.unlock();
 	}
 	
+	if(lock)
+		queue_lock.lock();
+		
 	while(!isIdle())
+		std::this_thread::sleep_for(1ms);
+}
+// wait to finish tasks, then lock addition of new tasks
+void SpellMap::ViewRange::Lock()
+{
+	WaitIdle(false,true);
+}
+// unlock new tasks
+void SpellMap::ViewRange::Unlock()
+{
+	queue_lock.unlock();
+}
+// halt execution of tasks, use it when changing map arrays, e.g. when SortUnits()
+void SpellMap::ViewRange::Halt(bool halt)
+{
+	ctrl_lock.lock();
+	is_halted = halt;
+	ctrl_lock.unlock();
+	
+	while(halt && state == BUSY)
 		std::this_thread::sleep_for(1ms);
 }
 
@@ -4391,8 +4465,9 @@ void SpellMap::ViewRange::Stop()
 		return;
 	
 	// terminate pending operations and wait to idle
-	WaitIdle(true);
-	ClearTasks();	
+	WaitIdle(true, true);
+	ClearTasks();
+	Unlock();
 }
 
 // clear pending tasks (thread safe)
@@ -4400,10 +4475,7 @@ void SpellMap::ViewRange::ClearTasks()
 {	
 	ctrl_lock.lock();
 	while(!pending.empty())
-	{
-		delete pending.front().unit;
 		pending.pop_front();
-	}
 	ctrl_lock.unlock();
 }
 
@@ -4418,9 +4490,11 @@ int SpellMap::ViewRange::PrepareUnitsViewMask(bool immediate)
 		Stop();
 	
 	// add task
+	queue_lock.lock();
 	ctrl_lock.lock();
 	pending.emplace_back((MapUnit*)NULL, ClearMode::NONE, Action::MASK, false);
 	ctrl_lock.unlock();
+	queue_lock.unlock();
 
 	// optional wait to finish
 	if(immediate)
@@ -4631,9 +4705,11 @@ int SpellMap::ViewRange::ClearUnitsView(ClearMode clear, bool immediate)
 	else
 	{
 		// task mode
+		queue_lock.lock();
 		ctrl_lock.lock();
 		pending.emplace_back((MapUnit*)NULL, clear, Action::CLEAR, false);
 		ctrl_lock.unlock();
+		queue_lock.unlock();
 	}
 
 	return(0);
@@ -4695,6 +4771,7 @@ void SpellMap::ViewRange::ClearEvents(bool cleanup)
 // add unit to task list with filtering of duplicite tasks
 int SpellMap::ViewRange::AddViewUnitTask(MapUnit* unit,ClearMode clear,bool rec_events,bool force)
 {
+	queue_lock.lock();
 	ctrl_lock.lock();	
 	if(!force)
 	{
@@ -4711,12 +4788,14 @@ int SpellMap::ViewRange::AddViewUnitTask(MapUnit* unit,ClearMode clear,bool rec_
 				continue;		
 			// dupla found
 			ctrl_lock.unlock();
+			queue_lock.unlock();
 			return(1);
 		}
 	}
-	// no dupla found: add task
+	// no dupla found: add task	
 	pending.emplace_back(unit,clear,Action::NONE,rec_events);
 	ctrl_lock.unlock();
+	queue_lock.unlock();
 
 	return(0);
 }
@@ -4739,9 +4818,11 @@ void SpellMap::ViewRange::AddUnitView(MapUnit *unit, ClearMode clear, int *new_c
 // calculate unit view
 int SpellMap::ViewRange::CalcAttackRange(MapUnit *unit, bool immediate)
 {
+	queue_lock.lock();
 	ctrl_lock.lock();
 	pending.emplace_back(unit, ClearMode::NONE, Action::FIRE, false);
 	ctrl_lock.unlock();
+	queue_lock.unlock();
 
 	// optional wait to finish
 	if(immediate)
@@ -4813,16 +4894,11 @@ int SpellMap::ViewRange::AttackRangeInit()
 
 // view calculator worker thread
 void SpellMap::ViewRange::Worker()
-{
-	// processed unit
-	MapUnit* unit = NULL;
-
+{	
 	while(true)
 	{
-		// clear processed unit
-		if(unit)
-			delete unit;
-		unit = NULL;
+		// task data
+		MapUnit* target = NULL;
 		ClearMode clear = ClearMode::NONE;
 		Action action = Action::NONE;
 		int detect_events = false;
@@ -4836,15 +4912,20 @@ void SpellMap::ViewRange::Worker()
 			ctrl_lock.unlock();
 			return;
 		}
-		else if(state == IDLE && !pending.empty())
+		else if(is_halted)
+		{
+			// halted state
+			state = HALTED;
+		}
+		else if(!pending.empty())
 		{
 			// new task
 			state = BUSY;
-			unit = pending.front().unit;
+			target = pending.front().unit;
 			clear = pending.front().clear;
 			action = pending.front().action;
 			detect_events = pending.front().detect_events;
-			pending.pop_front();
+			pending.pop_front();			
 		}
 		else
 		{
@@ -4852,11 +4933,12 @@ void SpellMap::ViewRange::Worker()
 			state = IDLE;
 		}
 		ctrl_lock.unlock();
-		if(!unit && action == Action::NONE)
+		if(!target && action == Action::NONE)
 		{
 			std::this_thread::sleep_for(2ms);
 			continue;
 		}
+			
 
 		// fire range calculation mode?
 		int is_fire = (action == Action::FIRE);
@@ -4875,11 +4957,11 @@ void SpellMap::ViewRange::Worker()
 			continue;
 		}
 
-		// get current view/attack map
+		// get current view/attack map (all units combined view)
 		std::vector<int> units_view;
 		if(is_fire)
 			units_view.assign(map->x_size*map->y_size, 0);
-		else
+		else		
 			units_view = view;
 
 		// clear view before new calculation?
@@ -4888,7 +4970,7 @@ void SpellMap::ViewRange::Worker()
 			// ###todo: maybe exclusive lock to units before this?
 			ClearUnitsViewCore(clear,&units_view);
 			
-			if(!unit)
+			if(!target)
 			{
 				ResultLock(true);
 				view = units_view;
@@ -4912,10 +4994,9 @@ void SpellMap::ViewRange::Worker()
 			ResultLock(false);
 		}
 
-		if(!unit)
-			continue;
-
-
+		if(!target)
+			continue;	
+		
 		// no new contact
 		int new_contact = false;
 		// no events detected
@@ -4925,24 +5006,24 @@ void SpellMap::ViewRange::Worker()
 		int is_radar = false;
 		int ref_view;
 		if(is_fire)
-			ref_view = unit->unit->fire_range;
+			ref_view = target->unit->fire_range;
 		else
-			ref_view = unit->unit->sdir;
+			ref_view = target->unit->sdir;
 
 		// reference position
-		MapXY ref_pos = unit->coor;
+		MapXY ref_pos = target->coor;
 		int ref_mxy = map->ConvXY(ref_pos);
 		int ref_alt = map->tiles[map->ConvXY(ref_pos)].elev;
 		int ref_slope = map->tiles[ref_mxy].L1->GetSlope();
 
-		if(unit->radar_up && unit->unit->isActionToggleRadar())
+		if(target->radar_up && target->unit->isActionToggleRadar())
 		{
 			// radar mode
-			ref_view = unit->unit->action_params[2];
+			ref_view = target->unit->action_params[2];
 			is_radar = true;
 		}
 				
-		if(is_fire && ref_slope != 'A' && unit->unit->fire_flags & SpellUnitRec::FIRE_NOT_SLOPES)
+		if(is_fire && ref_slope != 'A' && target->unit->fire_flags & SpellUnitRec::FIRE_NOT_SLOPES)
 		{
 			// cannot fire from slopes: finito
 			ResultLock(true);
@@ -4951,7 +5032,7 @@ void SpellMap::ViewRange::Worker()
 			continue;
 		}
 
-		if(is_fire && unit->unit->isActionKamikaze())
+		if(is_fire && target->unit->isActionKamikaze())
 		{
 			// kamikaze can attack only to target directly below
 			ResultLock(true);
@@ -4960,11 +5041,15 @@ void SpellMap::ViewRange::Worker()
 			continue;
 		}
 
+		// list of units in view range
+		std::vector<int> seen_units;
+		seen_units.reserve(100);
+
 		// recursion buffer
 		vector<int> dirz;
 		vector<MapXY> posz;
 		dirz.reserve(500);
-		posz.reserve(500);
+		posz.reserve(500);		
 
 		// first tile
 		if(!dirz.size())
@@ -5015,18 +5100,15 @@ void SpellMap::ViewRange::Worker()
 			if((next_pos.Distance(ref_pos)-0.5) > view)
 				continue; // nope: goto next tile
 			// mark this tile as potentially visible (to stop recursion)
-			/*if(is_fire)
-				units_view[next_mxy] = 2;
-			else*/
-				units_view[next_mxy] += 3;
-		
+			units_view[next_mxy] += 3;
+					
 			// -- send ray to target tile to find out if it is visible:				
 			if(is_radar)
 			{
 				// in case of radar do not bother sending rays: all tiles in range visible
 				units_view[next_mxy] = 5;
 			}
-			else if(is_fire && unit->unit->isIndirectFire())
+			else if(is_fire && target->unit->isIndirectFire())
 			{
 				// indirect fire: no need to check direct sight, only min distance
 				if((next_pos.Distance(ref_pos)-0.5) > 2.0)
@@ -5064,7 +5146,7 @@ void SpellMap::ViewRange::Worker()
 						int x0 = x0b + msx_org_ofs[org];
 						int y0 = y0b + msy_org_ofs[org];
 						int z0 = (int)z0b;
-						if(unit->unit->isAir())
+						if(target->unit->isAir())
 							z0 += 100; // air-unit height estimate
 						else
 							z0 += 15; // unit height estimate
@@ -5135,9 +5217,14 @@ void SpellMap::ViewRange::Worker()
 								MapUnit* unit = map->Lunit[next_mxy];
 								while(unit)
 								{
-									// new contact?
-									if(detect_events && unit->is_visible < 2 && unit->is_enemy)
-										new_contact = true;
+									// new oponent contact?
+									if(unit->is_visible < 2 && unit->is_enemy != target->is_enemy)
+									{										
+										// add seen oponents to list
+										seen_units.push_back(unit->id);
+										if(detect_events)
+											new_contact = true;
+									}
 									// check linked SeeUnit() event?
 									if(detect_events && unit->trig_event && unit->trig_event->isSeeUnit())
 										events_list.push_back(unit->trig_event);
@@ -5202,6 +5289,7 @@ void SpellMap::ViewRange::Worker()
 
 						// mark as seen
 						units_view[hnext_mxy] = 5;
+
 						// check new enemy contact
 						// check new unit contact
 						if(!map->Lunit.empty())
@@ -5209,9 +5297,14 @@ void SpellMap::ViewRange::Worker()
 							MapUnit* unit = map->Lunit[next_mxy];
 							while(unit)
 							{
-								// new contact?
-								if(detect_events && unit->is_visible < 2 && unit->is_enemy)
-									new_contact = true;
+								// new oponent contact?
+								if(unit->is_visible < 2 && unit->is_enemy != target->is_enemy)
+								{
+									// add seen oponents to list
+									seen_units.push_back(unit->id);
+									if(detect_events)
+										new_contact = true;
+								}
 								// check linked SeeUnit() event?
 								if(detect_events && unit->trig_event && unit->trig_event->isSeeUnit())
 									events_list.push_back(unit->trig_event);
@@ -5244,6 +5337,7 @@ void SpellMap::ViewRange::Worker()
 		// clear potentially visible tiles (temps)
 		if(is_fire)
 		{
+			// fire range mode:
 			for(auto& tile : units_view)
 				if(tile < 2)
 					tile = 0;
@@ -5257,14 +5351,23 @@ void SpellMap::ViewRange::Worker()
 		}
 		else
 		{
+			// view range mode:
 			for(auto & tile : units_view)
 				if(tile > 2)
 					tile -= 3;
 
+			// detect newly seen oponents
+			for(auto & id : seen_units)
+				if(std::find(target->units_in_view.begin(),target->units_in_view.end(),id) == target->units_in_view.end())
+				{
+					// newly seen oponent: ###todo: implement oponent fire events?
+				}
+			target->units_in_view = seen_units;
+
 			// copy results
 			result_lock.lock();
 			view = units_view;
-			was_new_contact = new_contact;
+			was_new_contact |= new_contact;
 			event_list.insert(event_list.end(),events_list.begin(),events_list.end());
 			result_lock.unlock();
 		}
@@ -5289,9 +5392,11 @@ int SpellMap::ViewRange::StoreUnitsView(bool immediate)
 	else
 	{
 		// task mode
+		queue_lock.lock();
 		ctrl_lock.lock();
 		pending.emplace_back((MapUnit*)NULL, ClearMode::NONE, Action::STORE, false);
 		ctrl_lock.unlock();
+		queue_lock.unlock();
 	}
 	return(0);
 }
@@ -5308,9 +5413,11 @@ int SpellMap::ViewRange::RestoreUnitsView(bool immediate)
 	else
 	{
 		// task mode
+		queue_lock.lock();
 		ctrl_lock.lock();
 		pending.emplace_back((MapUnit*)NULL,ClearMode::NONE,Action::RESTORE, false);
 		ctrl_lock.unlock();
+		queue_lock.unlock();
 	}
 	return(0);
 }
@@ -5790,8 +5897,10 @@ int SpellMap::Tick()
 
 				auto next_pos = unit->move_nodes[unit->move_step++];
 
-				unit->action_points -= (next_pos.g_cost - ap_prev);
+				HaltUnitRanging(true);
+				unit->action_points -= (next_pos.g_cost - ap_prev);				
 				unit->coor = next_pos.pos;
+				HaltUnitRanging(false);
 			
 				double azimuth = this_pos.Angle(next_pos.pos);
 
@@ -6538,6 +6647,7 @@ int SpellMap::Tick()
 	// initialize unit move range recalculation?
 	if((units_moved || unit_changed || !unit) && !unit->isMoving())
 	{
+		SortUnits();
 		unit_range->FindRange(unit);
 		unit_view->CalcAttackRange(unit);
 	}
@@ -6589,6 +6699,8 @@ int SpellMap::RemoveAllUnits()
 // removes unit from map list (used e.g. for kamikaze attacks)
 int SpellMap::RemoveUnit(MapUnit* unit)
 {
+	LockUnitRanging(true);
+
 	// try find unit in the list
 	auto uid = find(units.begin(),units.end(),unit);
 	if(uid == units.end())
@@ -6597,6 +6709,8 @@ int SpellMap::RemoveUnit(MapUnit* unit)
 	// delete unit
 	delete unit;
 	units.erase(uid);
+
+	LockUnitRanging(false);
 
 	// resort units
 	SortUnits();
@@ -6607,6 +6721,8 @@ int SpellMap::RemoveUnit(MapUnit* unit)
 // extracts unit from map units list, but not deletes it (used to move unit elsewhere)
 MapUnit* SpellMap::ExtractUnit(MapUnit* unit)
 {
+	LockUnitRanging(true);
+
 	// try find unit in the list
 	auto uid = find(units.begin(),units.end(),unit);
 	if(uid == units.end())
@@ -6614,6 +6730,8 @@ MapUnit* SpellMap::ExtractUnit(MapUnit* unit)
 	
 	// remove from list
 	units.erase(uid);
+
+	LockUnitRanging(false);
 	
 	// resort units
 	SortUnits();

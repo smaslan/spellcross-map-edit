@@ -24,7 +24,7 @@ std::string wstring2string(const std::wstring& str)
 // convert char str to wstring using CZ CP852 encoding
 std::wstring char2wstringCP852(const char* str)
 {
-    wstring codes = {L"ÇüéâäůćçłëŐőîŹÄĆ"
+    std::wstring codes = {L"ÇüéâäůćçłëŐőîŹÄĆ"
                      L"ÉĹĺôöĽľŚśÖÜŤťŁ×č"
                      L"áíóúĄąŽžĘę¬źČş«»"
                      L"░▒▓│┤ÁÂĚŞ╣║╗╝Żż┐"
@@ -33,7 +33,7 @@ std::wstring char2wstringCP852(const char* str)
                      L"ÓßÔŃńňŠšŔÚŕŰýÝţ´"
                      L" ˝˛ˇ˘§÷¸°¨˙űŘř■ "};
     
-    wstring result;
+    std::wstring result;
     result.resize(strlen(str));
     wchar_t *data = result.data();
     while(*str)
@@ -50,7 +50,7 @@ std::wstring char2wstringCP852(const char* str)
 // convert char str to wstring using CZ CP895 encoding
 std::wstring char2wstringCP895(const char* str)
 {
-    wstring codes ={ L"ČüéďäĎŤčěĚĹÍľĺÄÁ"
+    std::wstring codes ={ L"ČüéďäĎŤčěĚĹÍľĺÄÁ"
                      L"ÉžŽôöÓůÚýÖÜŠĽÝŘť"
                      L"áíóúňŇŮÔšřŕŔ¼§«»"
                      L"░▒▓│┤╡╢╖╕╣║╗╝╜╛┐"
@@ -59,7 +59,7 @@ std::wstring char2wstringCP895(const char* str)
                      L"αßΓπΣσµτΦΘΩδ∞φε∩"
                      L"≡±≥≤⌠⌡÷≈°∙·√ⁿ²■ "};
 
-    wstring result;
+    std::wstring result;
     result.resize(strlen(str));
     wchar_t* data = result.data();
     while(*str)
@@ -76,7 +76,7 @@ std::wstring char2wstringCP895(const char* str)
 // convert unicode symbol to char using CP895 table
 char wchar2charCP895(wchar_t sym)
 {
-    wstring codes = {L"ČüéďäĎŤčěĚĹÍľĺÄÁ"
+    std::wstring codes = {L"ČüéďäĎŤčěĚĹÍľĺÄÁ"
                      L"ÉžŽôöÓůÚýÖÜŠĽÝŘť"
                      L"áíóúňŇŮÔšřŕŔ¼§«»"
                      L"░▒▓│┤╡╢╖╕╣║╗╝╜╛┐"
@@ -87,7 +87,7 @@ char wchar2charCP895(wchar_t sym)
     if(sym < 128)
         return(char(sym));
     int unisym = codes.find(sym);
-    if(unisym == wstring::npos)
+    if(unisym == std::wstring::npos)
         return(' ');
     return(128 + unisym);
 }
@@ -95,7 +95,7 @@ char wchar2charCP895(wchar_t sym)
 // convert wstring using CZ CP895 encoding to string
 std::string wstring2stringCP895(std::wstring str)
 {
-    string result;
+    std::string result;
     result.assign(str.size(),'\0');
     for(int k = 0; k < str.size(); k++)        
         result[k] = wchar2charCP895(str[k]);
@@ -203,15 +203,15 @@ bool iequals(const std::string& a,const std::string& b)
 
 
 // write string with string size prefix (16bit)
-int ostream_write_string(ofstream& fw,std::string &str)
+int ostream_write_string(std::ofstream& fw,std::string &str)
 {
     return(ostream_write_string(fw,str.c_str()));
 }
-int ostream_write_string(ofstream& fw,std::string str)
+int ostream_write_string(std::ofstream& fw,std::string str)
 {
     return(ostream_write_string(fw, str.c_str()));
 }
-int ostream_write_string(ofstream& fw, const char *str)
+int ostream_write_string(std::ofstream& fw, const char *str)
 {
     uint16_t len = std::strlen(str) + 1;
     fw.write((char*)&len,sizeof(uint16_t));
@@ -220,7 +220,7 @@ int ostream_write_string(ofstream& fw, const char *str)
 }
 
 // read string item with size prefix (16bit)
-std::string istream_read_string(ifstream& fr)
+std::string istream_read_string(std::ifstream& fr)
 {
     uint16_t len;
     fr.read((char*)&len,sizeof(uint16_t));
@@ -232,21 +232,21 @@ std::string istream_read_string(ifstream& fr)
 }
 
 // write u32 value
-int ostream_write_u32(ofstream& fw,uint32_t val)
+int ostream_write_u32(std::ofstream& fw,uint32_t val)
 {
     fw.write((char*)&val,sizeof(uint32_t));
     return(0);
 }
 
 // write i32 value
-int ostream_write_i32(ofstream& fw,int32_t val)
+int ostream_write_i32(std::ofstream& fw,int32_t val)
 {
     fw.write((char*)&val,sizeof(int32_t));
     return(0);
 }
 
 // read uint32_t
-uint32_t istream_read_u32(ifstream& fr)
+uint32_t istream_read_u32(std::ifstream& fr)
 {
     uint32_t val;
     fr.read((char*)&val,sizeof(uint32_t));
@@ -254,7 +254,7 @@ uint32_t istream_read_u32(ifstream& fr)
 }
 
 // read int32_t
-int32_t istream_read_i32(ifstream& fr)
+int32_t istream_read_i32(std::ifstream& fr)
 {
     int32_t val;
     fr.read((char*)&val,sizeof(int32_t));
@@ -339,3 +339,5 @@ double randgman(double shape,double scale,double max, double min)
 
     return(num);
 }
+
+

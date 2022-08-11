@@ -354,6 +354,8 @@ class SpellMap
 		// map modification locks
 		int LockMap();
 		int ReleaseMap();
+		void LockUnitRanging(bool lock);
+		void HaltUnitRanging(bool halt);
 
 		// default scroller
 		TScroll scroller;
@@ -420,7 +422,10 @@ class SpellMap
 			~ViewRange();
 			void ResultLock(bool lock);
 			int isIdle();
-			void WaitIdle(bool stop=false);
+			void WaitIdle(bool stop=false,bool lock=false);
+			void Lock();
+			void Unlock();
+			void Halt(bool halt);
 			int PrepareUnitsViewMask(bool immediate=false);
 			wxBitmap* ExportUnitsViewZmap();
 			int ClearUnitsView(ClearMode clear=ClearMode::HIDE, bool immediate=false);
@@ -459,9 +464,7 @@ class SpellMap
 
 				Task(MapUnit *unit, ClearMode clear, Action action, bool detect_events)
 				{
-					this->unit = NULL;
-					if(unit)
-						this->unit = new MapUnit(*unit);
+					this->unit = unit;
 					this->clear = clear;
 					this->action = action;
 					this->detect_events = detect_events;
@@ -473,24 +476,28 @@ class SpellMap
 
 			// worker thread
 			std::thread* thread;
-			std::mutex result_lock;
-			std::mutex ctrl_lock;
-			std::deque<Task> pending;
+			std::mutex result_lock; // result access lock
+			std::mutex ctrl_lock; // worker control lock
+			std::mutex queue_lock; // task queue lock
+			std::deque<Task> pending; // pending worker tasks
 			enum ThreadCtrl
 			{
 				IDLE = 0,
 				BUSY,
 				STOP,
+				HALTED,
 				EXIT
 			};
-			volatile ThreadCtrl state;
+			volatile ThreadCtrl state; // worker state/control variable
+			int is_halted;
+			
 
 			// Z-mask grid size
 			static constexpr int VIEW_MASK_GRID = 10;
 			int view_mask_x_size;
 			int view_mask_y_size;
 
-			// collection of detected events
+			// collected detected events
 			int was_new_contact;
 			std::vector<SpellMapEventRec*> event_list;
 			
@@ -520,9 +527,12 @@ class SpellMap
 			MoveRange(SpellMap* map);
 			~MoveRange();
 			int isIdle();
-			void WaitIdle(bool stop=false);
+			void WaitIdle(bool stop=false, bool lock=false);
+			void Lock();
+			void Unlock();
+			void Halt(bool halt);
 			void FindRange(MapUnit* unit);
-			void LockResult(bool state);
+			void ResultLock(bool state);
 			vector<AStarNode> FindPath(MapUnit* unit,MapXY target);
 
 			vector<AStarNode> range_nodes_buffer; // this is preinitialized buffer holding the nodes
@@ -541,31 +551,28 @@ class SpellMap
 				MapUnit *unit;
 				Task(MapUnit *unit)
 				{
-					this->unit = NULL;
-					if(unit)
-						this->unit = new MapUnit(*unit);
+					this->unit = unit;
 				}
 			};
 
 			// worker thread
 			std::thread* thread;
-			std::mutex result_lock;
-			std::mutex ctrl_lock;
-			std::deque<Task> pending;
+			std::mutex result_lock; // result data lock
+			std::mutex ctrl_lock; // thread control lock
+			std::mutex queue_lock; // task queue lock
+			std::deque<Task> pending; // tasks queue
 			enum ThreadCtrl
 			{
 				IDLE = 0,
 				BUSY,
 				STOP,
+				HALTED,
 				EXIT
 			};
 			volatile ThreadCtrl state;
+			int is_halted;
 
 			void Worker();
-			
-
-			//MapUnit* unit_range_th_unit;
-
 		};
 		MoveRange *unit_range;
 

@@ -713,6 +713,9 @@ void MyFrame::OnViewLayer(wxCommandEvent& event)
 void MyFrame::OnUnitViewDebug(wxCommandEvent& event)
 {    
     spell_map->SetUnitsViewDebugMode(GetMenuBar()->FindItem(ID_UnitViewDbg)->IsChecked());
+    auto unit = spell_map->GetSelectedUnit();
+    spell_map->unit_view->AddUnitView(unit,
+        spell_map->isUnitsViewDebugMode()?(SpellMap::ViewRange::ClearMode::HIDE):(SpellMap::ViewRange::ClearMode::NONE));
 }
 
 // open new map
@@ -992,7 +995,7 @@ void MyFrame::OnMoveUnit(wxCommandEvent& event)
     auto *unit = spell_map->GetSelectedUnit();
     if(unit)
     {
-        // start unti movement
+        // start unit movement
         unit->in_placement = true;
     }
 }
@@ -1204,11 +1207,13 @@ void MyFrame::OnCanvasMouseMove(wxMouseEvent& event)
     else if(unit && unit->in_placement && mxy.IsSelected())
     {
         // change unit position
+        if(unit->coor != mxy)
+            unit->was_moved = true;
         unit->coor = mxy;
-        unit->was_moved = true;
         
-        spell_map->unit_view->AddUnitView(unit,
-            spell_map->isUnitsViewDebugMode()?(SpellMap::ViewRange::ClearMode::HIDE):(SpellMap::ViewRange::ClearMode::NONE));
+        if(unit->was_moved)
+            spell_map->unit_view->AddUnitView(unit,
+                spell_map->isUnitsViewDebugMode()?(SpellMap::ViewRange::ClearMode::HIDE):(SpellMap::ViewRange::ClearMode::NONE));
     }
     
     canvas->Refresh();

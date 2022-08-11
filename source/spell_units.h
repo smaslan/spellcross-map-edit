@@ -472,6 +472,8 @@ public:
 	int was_seen;
 	// unit visible level (this is used for in-game checking of the unit in view range)
 	int is_visible;
+	// list of other units in view range
+	std::vector<int> units_in_view;
 
 
 	// pointer to next unit to draw (for correct render order)
@@ -525,6 +527,7 @@ public:
 	ACTION_STATE action_state;
 	int action_step;
 
+	
 	
 		
 	

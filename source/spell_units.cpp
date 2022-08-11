@@ -1024,7 +1024,34 @@ MapUnit::MapUnit(SpellMap *map)
 	move_state = MapUnit::MOVE_STATE::IDLE;
 	attack_state = MapUnit::ATTACK_STATE::IDLE;
 	action_state = MapUnit::ACTION_STATE::IDLE;
+
 }
+
+// copy without sound refs because delete would loose the sounds for source object!
+MapUnit::MapUnit(MapUnit& obj,bool relink_event_trigger)
+{
+	*this = obj;
+	sound_move = NULL;
+
+	parent = NULL;
+	child = NULL;
+	map_event = NULL;
+
+	if(relink_event_trigger)
+	{
+		// disconnect event trigger from source unit, move it to new unit
+		obj.trig_event = NULL;
+		if(trig_event)
+			trig_event->trig_unit = this;
+	}
+	else
+		trig_event = NULL;
+
+	action_state = ACTION_STATE::IDLE;
+	move_state = MOVE_STATE::IDLE;
+	attack_state = ATTACK_STATE::IDLE;
+}
+
 // clear sound refs
 int MapUnit::ClearSounds()
 {
@@ -1056,30 +1083,7 @@ MapUnit::~MapUnit()
 		trig_event = NULL;
 	}
 }
-// copy without sound refs because delete would loose the sounds for source object!
-MapUnit::MapUnit(MapUnit &obj, bool relink_event_trigger)
-{
-	*this = obj;
-	sound_move = NULL;
 
-	parent = NULL;
-	child = NULL;	
-	map_event = NULL;
-
-	if(relink_event_trigger)
-	{
-		// disconnect event trigger from source unit, move it to new unit
-		obj.trig_event = NULL;
-		if(trig_event)
-			trig_event->trig_unit = this;
-	}
-	else
-		trig_event = NULL;
-	
-	action_state = ACTION_STATE::IDLE;
-	move_state = MOVE_STATE::IDLE;
-	attack_state = ATTACK_STATE::IDLE;
-}
 // morph unit type to target (used e.g. for land/take off action)
 int MapUnit::MorphUnit(SpellUnitRec* target, int health)
 {
