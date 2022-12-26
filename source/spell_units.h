@@ -524,8 +524,13 @@ public:
 	// unit flight altitude [%]
 	int altitude;
 
+	// special unit action stuff
 	ACTION_STATE action_state;
 	int action_step;
+
+	// view/attack range stuff
+	std::vector<int> view_map;
+	std::vector<int> attack_map;
 
 	
 	

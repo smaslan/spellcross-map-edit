@@ -15,6 +15,8 @@
 #include <vector>
 #include <stdexcept>
 
+using namespace std;
+
 
 //=============================================================================
 // MIDI related stuff.

@@ -1021,6 +1021,10 @@ MapUnit::MapUnit(SpellMap *map)
 	azimuth_turret = 0;
 	frame = 0;
 
+	// view/attack maps
+	view_map.assign(map->x_size*map->y_size, 0);
+	attack_map.assign(map->x_size*map->y_size,0);
+
 	move_state = MapUnit::MOVE_STATE::IDLE;
 	attack_state = MapUnit::ATTACK_STATE::IDLE;
 	action_state = MapUnit::ACTION_STATE::IDLE;

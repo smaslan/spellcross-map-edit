@@ -4964,6 +4964,9 @@ void SpellMap::ViewRange::Worker()
 		else		
 			units_view = view;
 
+		// this unit view/attack map
+		vector<int> this_unit_view(map->x_size*map->y_size,0);
+
 		// clear view before new calculation?
 		if(clear != ClearMode::NONE)
 		{
@@ -5028,6 +5031,7 @@ void SpellMap::ViewRange::Worker()
 			// cannot fire from slopes: finito
 			ResultLock(true);
 			attack_map = units_view;
+			target->attack_map = units_view;
 			ResultLock(false);
 			continue;
 		}
@@ -5036,7 +5040,9 @@ void SpellMap::ViewRange::Worker()
 		{
 			// kamikaze can attack only to target directly below
 			ResultLock(true);
-			attack_map[ref_mxy] = 2;
+			units_view[ref_mxy] = 2;
+			attack_map = units_view;
+			target->attack_map = units_view;
 			ResultLock(false);
 			continue;
 		}
@@ -5058,8 +5064,12 @@ void SpellMap::ViewRange::Worker()
 			posz.push_back(ref_pos);
 		}
 	
+		
+
 		// mark my position as visible
 		units_view[map->ConvXY(ref_pos)] = 2;
+		this_unit_view[map->ConvXY(ref_pos)] = 2;
+		
 
 		// proceed recoursively till max visibility
 		int count = 0;
@@ -5101,12 +5111,14 @@ void SpellMap::ViewRange::Worker()
 				continue; // nope: goto next tile
 			// mark this tile as potentially visible (to stop recursion)
 			units_view[next_mxy] += 3;
+			this_unit_view[next_mxy] += 3;
 					
 			// -- send ray to target tile to find out if it is visible:				
 			if(is_radar)
 			{
 				// in case of radar do not bother sending rays: all tiles in range visible
 				units_view[next_mxy] = 5;
+				this_unit_view[next_mxy] = 5;
 			}
 			else if(is_fire && target->unit->isIndirectFire())
 			{
@@ -5115,6 +5127,7 @@ void SpellMap::ViewRange::Worker()
 				{
 					// min range ok
 					units_view[next_mxy] += 3;
+					this_unit_view[next_mxy] += 3;
 				}
 			}
 			else if(!is_fire || !is_radar && units_view[next_mxy] < 5) // only if was not visible before
@@ -5210,6 +5223,7 @@ void SpellMap::ViewRange::Worker()
 						if(rays_hit >= 2)
 						{
 							units_view[next_mxy] = 5;
+							this_unit_view[next_mxy] = 5;
 
 							// check new unit contact
 							if(!is_fire && !map->Lunit.empty())
@@ -5289,6 +5303,7 @@ void SpellMap::ViewRange::Worker()
 
 						// mark as seen
 						units_view[hnext_mxy] = 5;
+						this_unit_view[next_mxy] = 5;
 
 						// check new enemy contact
 						// check new unit contact
@@ -5334,6 +5349,7 @@ void SpellMap::ViewRange::Worker()
 			posz.push_back(next_pos);		
 		}
 
+		
 		// clear potentially visible tiles (temps)
 		if(is_fire)
 		{
@@ -5347,12 +5363,16 @@ void SpellMap::ViewRange::Worker()
 			// copy results
 			result_lock.lock();
 			attack_map = units_view;
+			target->attack_map = units_view;
 			result_lock.unlock();
 		}
 		else
 		{
 			// view range mode:
 			for(auto & tile : units_view)
+				if(tile > 2)
+					tile -= 3;
+			for(auto& tile : this_unit_view)
 				if(tile > 2)
 					tile -= 3;
 
@@ -5367,6 +5387,7 @@ void SpellMap::ViewRange::Worker()
 			// copy results
 			result_lock.lock();
 			view = units_view;
+			target->view_map = this_unit_view;
 			was_new_contact |= new_contact;
 			event_list.insert(event_list.end(),events_list.begin(),events_list.end());
 			result_lock.unlock();
