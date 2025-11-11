@@ -299,10 +299,24 @@ FormEvent::~FormEvent()
 // reset event changes to initial state
 void FormEvent::ResetChanges()
 {
+	auto unit = spell_map->GetSelectedUnit();
+	spell_map->SelectUnit(NULL);
+		
 	// restore events
 	spell_map->events->ClearEvents();
 	for(auto & evt : spell_orig_events)
+	{
 		spell_map->events->AddEvent(evt);		
+		if(unit)
+		{
+			// ###todo: fix unit selection (not nice solution - needs to be optimized? also possibly not thread safe)
+			for(auto & eunit: evt->units)
+			{
+				if(eunit.unit->id == unit->id)
+					spell_map->SelectUnit(eunit.unit);
+			}
+		}
+	}
 
 	spell_new_event = NULL;
 	spell_event = NULL;
@@ -540,7 +554,7 @@ void FormEvent::FillMsgItems()
 		return;		
 	chbMsgItem->Freeze();
 	for(int k = 0; k < spell_event->texts.size(); k++)
-		chbMsgItem->Append(string_format("#%d - %s",k+1,spell_event->texts[k].text->name));
+		chbMsgItem->Append(string_format("#%d - %s",k+1,spell_event->texts[k].text->name.c_str()));
 	if(chbMsgItem->GetCount())
 		chbMsgItem->Select(0);
 	chbMsgItem->Thaw();

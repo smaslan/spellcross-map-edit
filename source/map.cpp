@@ -1262,7 +1262,7 @@ void SpellMap::SortUnits()
 	units_list.reserve(100);
 	if(!isGameMode())
 	{
-		// in editor mode show event untis too!
+		// in editor mode show event units too!
 		for(auto & evt : events->GetEvents())
 			for(auto & unit : evt->units)
 				units_list.push_back(unit.unit);
@@ -1310,6 +1310,8 @@ void SpellMap::SortUnits()
 			}
 		}
 	}
+
+	//unit_selection = NULL;
 
 	HaltUnitRanging(false);
 }
@@ -3918,21 +3920,21 @@ int SpellMap::RenderHUD(uint8_t *buf,uint8_t* buf_end,int buf_x_size,MapXY *curs
 		// render command level mark
 		// pos a: 48,25
 		// pos b: 626,25
-		int command_level = rand()%4;
+		int command_level = 0;//rand()%4;
 		if(command_level)
 			gres.wm_form[command_level-1]->Render(buf,buf_end,buf_x_size,hud_left+ix_ref+48,hud_top+25);
 
 		// render freeze mark
 		// pos a: 13,5
 		// pos b: 593,5
-		int freeze_mark = rand()%2;
+		int freeze_mark = 0;//rand()%2;
 		if(freeze_mark)
 			gres.wm_freeze->Render(buf,buf_end,buf_x_size,hud_left+ix_ref+(pid==1)+13,hud_top+5);
 		
 		// render paralysed mark
 		// pos a: 36,5
 		// pos b: 616,5
-		int paralyze_mark = rand()%2;
+		int paralyze_mark = 0;//rand()%2;
 		if(paralyze_mark)
 			gres.wm_paralyze->Render(buf,buf_end,buf_x_size,hud_left+ix_ref+(pid==1)+36,hud_top+5);
 	
