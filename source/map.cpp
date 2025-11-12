@@ -400,6 +400,7 @@ SpellMap::SpellMap()
 	hud_enabled = true;
 	selected_event = NULL;
 
+	unit_view = NULL;
 	unit_range = NULL;
 	
 	unit_range_view_mode = UNIT_RANGE_NONE;
@@ -493,6 +494,18 @@ void SpellMap::Close()
 {
 	int k;	
 
+	// these must go before touching anything else as they are async!
+	if(unit_view)
+		delete unit_view;
+	unit_view = NULL;
+
+	if(unit_range)
+		delete unit_range;
+	unit_range = NULL;
+	SetUnitRangeViewMode(UNIT_RANGE_NONE);
+
+
+
 	// loose layer data
 	tiles.clear();
 	L3.clear();
@@ -526,16 +539,7 @@ void SpellMap::Close()
 	selected_event = NULL;
 	unit_sel_land_preference = true;
 	w_unit_hud = true;
-	
-	if(unit_view)
-		delete unit_view;
-	unit_view = NULL;
 		
-	if(unit_range)
-		delete unit_range;
-	unit_range = NULL;
-	
-	SetUnitRangeViewMode(UNIT_RANGE_NONE);
 	
 	msel.clear();
 
@@ -9547,10 +9551,11 @@ int SpellMap::BuildSpriteContext()
 				continue;
 
 			// get center tile
+			auto &this_tile = tiles[mxy];
 			Sprite *tile = tiles[mxy].L1;
 			int tid = terrain->GetSpriteID(tile);
 			if(tid < 0)
-				return(1);
+				return(1);				
 
 			// for each neighbor
 			for(int qid = 0; qid < 4; qid++)
@@ -9563,6 +9568,17 @@ int SpellMap::BuildSpriteContext()
 					Sprite* sprite = tiles[ConvXY(nxy)].L1;
 					terrain->sprites[tid]->AddContext(qid, sprite);
 				}
+			}
+
+			if(this_tile.flags && this_tile.L2)
+			{
+				// layer 2 object exist
+				this_tile.L2->SetMapFlags(this_tile.flags);
+			}
+			else if(this_tile.flags)
+			{
+				// layer 1 only exist
+				this_tile.L1->SetMapFlags(this_tile.flags);
 			}
 		}
 	}

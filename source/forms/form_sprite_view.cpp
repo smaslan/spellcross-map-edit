@@ -8,6 +8,7 @@
 #include "form_sprite_view.h"
 #include "spellcross.h"
 #include "sprites.h"
+#include "other.h"
 
 #include <wx/filedlg.h>
 
@@ -376,6 +377,13 @@ FormSprite::FormSprite( wxWindow* parent,SpellData* spell_data,wxWindowID id, co
 
 
 	sbSizer3->Add(gSizer1,0,0,5);
+
+	txtFlags = new wxStaticText(sbSizer3->GetStaticBox(),wxID_ANY,wxT("Map tile flags:"),wxDefaultPosition,wxDefaultSize,0);
+	txtFlags->Wrap(-1);
+	sbSizer3->Add(txtFlags,0,wxLEFT|wxRIGHT|wxTOP,5);
+
+	editMapFlags = new wxTextCtrl(sbSizer3->GetStaticBox(),wxID_ANY,wxEmptyString,wxDefaultPosition,wxDefaultSize,0);
+	sbSizer3->Add(editMapFlags,0,wxBOTTOM|wxLEFT|wxRIGHT,5);
 
 
 	bSizer10->Add(sbSizer3,0,wxLEFT|wxTOP|wxEXPAND,5);
@@ -948,9 +956,10 @@ void FormSprite::SetFlags()
 	{
 		// get this terrain
 		Terrain* terr = FindTerrain();
+		auto *sprite = terr->sprites[sprite_id];
 
 		// set particular checkboxes
-		flags = terr->sprites[sprite_id]->GetFlags();
+		flags = sprite->GetFlags();
 		int flag_id = 0;
 		while(list[flag_id].cb)
 		{
@@ -959,14 +968,21 @@ void FormSprite::SetFlags()
 		}
 
 		// set special flags
-		flags = terr->sprites[sprite_id]->GetGlyphFlags();
+		flags = sprite->GetGlyphFlags();
 		flag_id = 0;
 		while(list2[flag_id].cb)
 		{
 			list2[flag_id].cb->SetValue(flags & list2[flag_id].flag);
 			flag_id++;
 		}
+		
+		// special map layer 2 flags (extracted from maps)
+		auto map_flags = sprite->GetMapFlags();
+		editMapFlags->SetValue(string_format("0x%02X",map_flags));
 	}
+
+
+
 }
 
 

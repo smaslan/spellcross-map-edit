@@ -28,6 +28,7 @@
 #include <wx/frame.h>
 #include <wx/slider.h>
 #include <wx/checkbox.h>
+#include <wx/textctrl.h>
 
 #include "spellcross.h"
 #include "sprites.h"
@@ -171,7 +172,7 @@ class FormSprite : public wxFrame
 			wxID_CB_SHADE_C4,
 			wxID_CHB_TOOL_CLASS,
 			wxID_CHB_TOOL_OBJ_GROUP,
-			wxID_CB_TOOL_GLYPH
+			wxID_CB_TOOL_GLYPH,
 		};
 
 		wxMenuBar* mMenu;
@@ -238,6 +239,8 @@ class FormSprite : public wxFrame
 		wxCheckBox* cbShadeC2;
 		wxCheckBox* cbShadeC3;
 		wxCheckBox* cbShadeC4;
+		wxStaticText* txtFlags;
+		wxTextCtrl* editMapFlags;
 		wxStaticText* m_staticText13;
 		wxChoice* chbToolClass;
 		wxStaticText* m_staticText14;

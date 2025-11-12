@@ -97,7 +97,6 @@ private:
     void OnInvalidateSelection(wxCommandEvent& event);
     void OnCreateNewObject(wxCommandEvent& event);
     void OnMoveUnit(wxCommandEvent& event);
-    void OnPlaceStartExit(wxCommandEvent& event);
 
     void OnToolBtnClick(wxRibbonButtonBarEvent& event);
     void OnToolPageClick(wxRibbonBarEvent& event);

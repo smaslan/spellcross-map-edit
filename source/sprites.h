@@ -179,6 +179,8 @@ class Sprite
 		bool isSideShaded(int side);
 		bool isSideShadedMask(int side);
 		bool isCornerShaded(int corner);
+		uint32_t GetMapFlags() {return(this->map_flags);};
+		void SetMapFlags(uint32_t flags) { this->map_flags = flags; };
 
 		int GetSpecClassCount();
 		std::string GetSpecClassName(int id);
@@ -286,6 +288,7 @@ class Sprite
 		uint32_t flags2;
 		uint32_t edge_class[4];
 		uint32_t spec_class;
+		uint32_t map_flags; // map L2 flags
 
 		// randomized context
 		std::vector<std::vector<Sprite*>> quad_rng[4]['M'-'A'+1];

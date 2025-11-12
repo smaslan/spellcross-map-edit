@@ -172,9 +172,6 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     menuEdit->Append(ID_PasteBuf,"Paste from buffer\tCtrl+V","",wxITEM_NORMAL);
     menuEdit->Append(ID_ClearBuf,"Clear buffer\tESC","",wxITEM_NORMAL);
     menuEdit->Append(wxID_ANY,"","",wxITEM_SEPARATOR);
-    menuEdit->Append(ID_PlaceStart,"Place Start tile(s)\t","",wxITEM_NORMAL);
-    menuEdit->Append(ID_PlaceExit,"Place Exit tile(s)\t","",wxITEM_NORMAL);
-    menuEdit->Append(wxID_ANY,"","",wxITEM_SEPARATOR);
     menuEdit->Append(ID_InvalidateSel,"Invalidate selection\tCtrl+I","",wxITEM_NORMAL);
     menuEdit->Append(wxID_ANY,"","",wxITEM_SEPARATOR);
     menuEdit->Append(ID_ElevUp,"Elevate terrain\tCtrl+PageUp","",wxITEM_NORMAL);
@@ -314,8 +311,6 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     Bind(wxEVT_MENU,&MyFrame::OnClearBuf,this,ID_ClearBuf);
     Bind(wxEVT_MENU,&MyFrame::OnChangeElevation,this,ID_ElevUp);
     Bind(wxEVT_MENU,&MyFrame::OnChangeElevation,this,ID_ElevDown);
-    Bind(wxEVT_MENU,&MyFrame::OnPlaceStartExit,this,ID_PlaceStart);
-    Bind(wxEVT_MENU,&MyFrame::OnPlaceStartExit,this,ID_PlaceExit);
     Bind(wxEVT_MENU,&MyFrame::OnSelectAll,this,ID_SelectAll);
     Bind(wxEVT_MENU,&MyFrame::OnDeselectAll,this,ID_DeselectAll);
     Bind(wxEVT_MENU,&MyFrame::OnSelectDeselect,this,ID_SelectDeselect);
@@ -1318,14 +1313,6 @@ void MyFrame::OnPasteBuf(wxCommandEvent& event)
     Refresh();
 }
 
-// place/remove start/exit special tiles
-void MyFrame::OnPlaceStartExit(wxCommandEvent& event)
-{
-    if(event.GetId() == ID_PlaceStart)
-    {
-        
-    }
-}
 
 // try place copy buffer to map
 void MyFrame::OnChangeElevation(wxCommandEvent& event)
