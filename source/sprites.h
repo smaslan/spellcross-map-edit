@@ -21,6 +21,7 @@
 #include "fs_archive.h"
 #include "fsu_archive.h"
 #include "map_types.h"
+//#include "map.h"
 #include "spell_font.h"
 #include "spell_filter.h"
 #include "spell_sound.h"
@@ -336,6 +337,7 @@ class AnimPNM
 
 };
 
+class MapSprite;
 
 // spellcross terrain object (group of sprites forming e.g. house)
 class SpellObject
@@ -374,7 +376,7 @@ public:
 	int WriteToFile(ofstream& fw);	
 	std::string GetDescription();
 	void SetDescription(std::string name);
-	int PlaceMapTiles(Sprite** L1,int x_size,int y_size,MapXY sel);
+	int PlaceMapTiles(std::vector<MapSprite>& tiles,int x_size,int y_size,MapXY sel);
 
 	void SetToolClass(int id);
 	void SetToolClassGroup(int id);
@@ -398,6 +400,26 @@ public:
 	static constexpr int SCALE_MEAN = 0;
 	static constexpr int SCALE_MAX = 1;
 	static constexpr int SCALE_MAX_NOZOOM = 2;
+};
+
+
+// editing tool selection pointer (can point to class/tools (sprite) or objects)
+class SpellTool
+{
+private:
+	SpellObject* obj;
+	int class_id;
+	int tool_id;
+public:
+	SpellTool() { obj = NULL; class_id = -1; tool_id = -1; };
+	void Set(int class_id,int tool_id) { this->class_id = class_id; this->tool_id = tool_id; this->obj = NULL; };
+	void Set() { this->class_id = -1; this->tool_id = -1; this->obj = NULL; };
+	void Set(SpellObject* obj) { this->class_id = -1; this->tool_id = -1; this->obj = obj; };
+	bool isObject() { return(!!obj); };
+	bool isTool() { return(class_id >=0 && tool_id >= 0); };
+	bool isActive() { return(isObject() || isTool()); };
+	SpellObject* GetObject() { return(obj); };
+	std::tuple<int,int> GetTool() { return(std::make_tuple(class_id,tool_id)); };
 };
 
 
@@ -454,7 +476,7 @@ public:
 	Sprite* GetSpriteWild(const char* wild,WildMode mode);
 	AnimL1* GetANM(const char* name);
 	AnimPNM* GetPNM(const char* name);
-	
+		
 	int InitSpriteContext(wstring& path);
 	int SaveSpriteContext(wstring& path);	
 	std::wstring &GetSpriteContextPath();
@@ -486,6 +508,7 @@ public:
 	tuple<int, int> GetToolSetGlyphScaling(int id);
 	int SetToolSetGlyphScaling(int id, int x, int y);
 	int GetToolSetItemsCount(int id);
+	int GetToolSetItem(int toolset_id,std::string tool_name);
 	std::vector<std::string> GetToolSetItems(int toolset_id);
 	std::string GetToolSetItem(int toolset_id, int tool_id);
 	int AddToolSetItem(int toolset_id,std::string item, int position = -1);
@@ -500,6 +523,10 @@ public:
 	wxBitmap* RenderToolSetItemImage(int tool_id, int item_id, double gamma=1.30, int x_size=-1, int y_size=-1, bool no_zoom=true);
 	tuple<int, int> GetToolSetItemImageSize(int tool_id, int item_id);
 
+	std::vector<Sprite*> GetToolSprites(SpellTool &tool);
+	int AddSpecialTools();
+
+
 	int RenderPalette(wxBitmap& bmp,uint8_t* filter=NULL,int relative_time=0);
 	int RenderPaletteColor(wxBitmap& bmp,int x_size,int x_pos,uint8_t* filter=NULL);
 	
@@ -509,23 +536,6 @@ public:
 };
 
 
-// editing tool selection pointer (can point to class/tools (sprite) or objects)
-class SpellTool
-{
-private:
-	SpellObject* obj;
-	int class_id;
-	int tool_id;
-public:	
-	SpellTool() {obj = NULL; class_id = -1; tool_id = -1;};
-	void Set(int class_id, int tool_id) {this->class_id = class_id; this->tool_id = tool_id; this->obj = NULL;};
-	void Set() { this->class_id = -1; this->tool_id = -1; this->obj = NULL; };
-	void Set(SpellObject *obj) {this->class_id = -1; this->tool_id = -1; this->obj = obj;};
-	bool isObject() {return(!!obj);};
-	bool isTool() { return(class_id >=0 && tool_id >= 0); };
-	bool isActive() { return(isObject() || isTool()); };
-	SpellObject* GetObject() {return(obj);};
-	std::tuple<int,int> GetTool() { return(std::make_tuple(class_id, tool_id)); };
-};
+
 
 #endif

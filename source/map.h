@@ -43,8 +43,8 @@ private:
 
 public:
 	// sprite data pointer
-	Sprite *L1;
-	Sprite *L2;
+	Sprite* L1;
+	Sprite* L2;
 	// elevation
 	int elev;
 	// elevation
@@ -53,14 +53,14 @@ public:
 	int hp;
 	// being attack PNM animation
 	int is_target;
-	AnimPNM *hit_pnm;
+	AnimPNM* hit_pnm;
 	int hit_pnm_frame;
-	
-	
+
+
 	//MapSprite(Sprite* sprite);
 	MapSprite();
 	~MapSprite();
-	
+
 	void SetL1(Sprite* sprite,int elev=-1);
 	void SetL2(Sprite* sprite,int flags=-1);
 	int UpdateDestructible();
@@ -69,10 +69,11 @@ public:
 	int GetMaxHP();
 	int isDestructible();
 	int isTarget();
-	
+
 	int PlayHit();
 	int PlayDestruct();
 };
+
 
 class MapLayer3
 {
@@ -290,9 +291,6 @@ class SpellMap
 		vector<SpellBtnHUD*> hud_buttons;
 		int hud_enabled;
 
-
-		// sound stuff
-		
 
 		// layer visibility flags
 		bool wL1, wL2, wL3, wL4, wSTCI, wUnits;
@@ -778,6 +776,33 @@ class SpellMap
 		};
 
 		MapSound* GetRandomSound(double* left=NULL,double* right=NULL);
+
+		
+		
+		
+		// copy&paste stuff
+		class Layers{
+		public:
+			int lay1;
+			int lay2;
+		};
+		
+		class CopyBuffer{
+		public:
+			std::vector<MapXY> pos;
+			std::vector<MapSprite> tiles;
+			int is_start_ciel;
+		};
+		CopyBuffer copy_buf;
+
+		void ClearBuffer();
+		void CopyBuffer(std::vector<MapXY> &posxy,Layers layers);
+		void PasteBuffer(std::vector<MapSprite> &tiles,std::vector<MapXY> &sel);
+		int PasteRandSprites(std::vector<MapSprite>& tiles,std::vector<MapXY>& posxy,std::vector<Sprite*>& sprites,bool force_rand);
+
+		int PlaceStartEscape(vector<MapXY>& posxy,int is_escape);
+
+
 		
 };
 

@@ -147,6 +147,8 @@ void FormLoader::Loader(std::wstring config_path,SpellData* &spell_data)
 		{
 			UpdateList(string_format("   - context ''%ls'' not found...",cont_path.c_str()));
 		}
+		// try add special tools
+		terr->AddSpecialTools();
 	}			
 
 	// exit

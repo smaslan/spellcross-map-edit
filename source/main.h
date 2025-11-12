@@ -89,9 +89,15 @@ private:
     void OnUpdateTileContextMaps(wxCommandEvent& event);    
     void OnSelectAll(wxCommandEvent& event);
     void OnDeselectAll(wxCommandEvent& event);
+    void OnSelectDeselect(wxCommandEvent& event);
+    void OnCopyBuf(wxCommandEvent& event);
+    void OnPasteBuf(wxCommandEvent& event);
+    void OnClearBuf(wxCommandEvent& event);
+    void OnChangeElevation(wxCommandEvent& event);
     void OnInvalidateSelection(wxCommandEvent& event);
     void OnCreateNewObject(wxCommandEvent& event);
     void OnMoveUnit(wxCommandEvent& event);
+    void OnPlaceStartExit(wxCommandEvent& event);
 
     void OnToolBtnClick(wxRibbonButtonBarEvent& event);
     void OnToolPageClick(wxRibbonBarEvent& event);
@@ -243,9 +249,19 @@ enum
     ID_SaveSprContext,
     ID_ViewObjects,
     ID_ViewTools,
+    ID_SelectLay1,
+    ID_SelectLay2,
     ID_SelectAll,
     ID_DeselectAll,
+    ID_SelectDeselect,
     ID_InvalidateSel,
+    ID_ElevUp,
+    ID_ElevDown,
+    ID_CopyBuf,
+    ID_PasteBuf,
+    ID_ClearBuf,
+    ID_PlaceStart,
+    ID_PlaceExit,
     ID_CreateNewObject,
     ID_MoveUnit,
     ID_UpdateSprContextMaps,

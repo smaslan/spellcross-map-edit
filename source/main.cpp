@@ -155,17 +155,35 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     menuView->Append(wxID_ANY,"","",wxITEM_SEPARATOR);
     menuView->Append(ID_SetGamma,"Set gamma","",wxITEM_NORMAL);    
 
-
+    // Layer selection submenu for copy/paste editor
+    wxMenu* menuLayer = new wxMenu;
+    menuLayer->Append(ID_SelectLay1,"Layer 1 - Terrain\t","",wxITEM_CHECK);
+    menuLayer->FindItem(ID_SelectLay1)->Check(true);
+    menuLayer->Append(ID_SelectLay2,"Layer 2 - Objects\t","",wxITEM_CHECK);
+    menuLayer->FindItem(ID_SelectLay2)->Check(true);
     // edit menu
     wxMenu* menuEdit = new wxMenu;
+    menuEdit->AppendSubMenu(menuLayer,"Select layer(s)","");
     menuEdit->Append(ID_SelectAll,"Select all tiles\tCtrl+A","",wxITEM_NORMAL);
     menuEdit->Append(ID_DeselectAll,"Deselect all tiles\tCtrl+Shift+A","",wxITEM_NORMAL);
+    menuEdit->Append(ID_SelectDeselect,"Select/deselect tiles\tCtrl+Insert","",wxITEM_NORMAL);
+    menuEdit->Append(wxID_ANY,"","",wxITEM_SEPARATOR);
+    menuEdit->Append(ID_CopyBuf,"Copy selection to buffer\tCtrl+C","",wxITEM_NORMAL);
+    menuEdit->Append(ID_PasteBuf,"Paste from buffer\tCtrl+V","",wxITEM_NORMAL);
+    menuEdit->Append(ID_ClearBuf,"Clear buffer\tESC","",wxITEM_NORMAL);
+    menuEdit->Append(wxID_ANY,"","",wxITEM_SEPARATOR);
+    menuEdit->Append(ID_PlaceStart,"Place Start tile(s)\t","",wxITEM_NORMAL);
+    menuEdit->Append(ID_PlaceExit,"Place Exit tile(s)\t","",wxITEM_NORMAL);
     menuEdit->Append(wxID_ANY,"","",wxITEM_SEPARATOR);
     menuEdit->Append(ID_InvalidateSel,"Invalidate selection\tCtrl+I","",wxITEM_NORMAL);
+    menuEdit->Append(wxID_ANY,"","",wxITEM_SEPARATOR);
+    menuEdit->Append(ID_ElevUp,"Elevate terrain\tCtrl+PageUp","",wxITEM_NORMAL);
+    menuEdit->Append(ID_ElevDown,"Lower terrain\tCtrl+PageDown","",wxITEM_NORMAL);
     menuEdit->Append(wxID_ANY,"","",wxITEM_SEPARATOR);
     menuEdit->Append(ID_CreateNewObject,"Create new object\tCtrl+Shift+O","",wxITEM_NORMAL);
     menuEdit->Append(wxID_ANY,"","",wxITEM_SEPARATOR);
     menuEdit->Append(ID_MoveUnit,"Move unit\tCtrl+M","",wxITEM_NORMAL);
+
 
     
     // tools
@@ -290,9 +308,17 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     Bind(wxEVT_MENU,&MyFrame::OnUnitViewDebug,this,ID_UnitViewDbg);
     Bind(wxEVT_MENU,&MyFrame::OnUpdateTileContext,this,ID_UpdateSprContext);
     Bind(wxEVT_MENU,&MyFrame::OnUpdateTileContextMaps,this,ID_UpdateSprContextMaps);
-
+    
+    Bind(wxEVT_MENU,&MyFrame::OnCopyBuf,this,ID_CopyBuf);
+    Bind(wxEVT_MENU,&MyFrame::OnPasteBuf,this,ID_PasteBuf);
+    Bind(wxEVT_MENU,&MyFrame::OnClearBuf,this,ID_ClearBuf);
+    Bind(wxEVT_MENU,&MyFrame::OnChangeElevation,this,ID_ElevUp);
+    Bind(wxEVT_MENU,&MyFrame::OnChangeElevation,this,ID_ElevDown);
+    Bind(wxEVT_MENU,&MyFrame::OnPlaceStartExit,this,ID_PlaceStart);
+    Bind(wxEVT_MENU,&MyFrame::OnPlaceStartExit,this,ID_PlaceExit);
     Bind(wxEVT_MENU,&MyFrame::OnSelectAll,this,ID_SelectAll);
     Bind(wxEVT_MENU,&MyFrame::OnDeselectAll,this,ID_DeselectAll);
+    Bind(wxEVT_MENU,&MyFrame::OnSelectDeselect,this,ID_SelectDeselect);
     Bind(wxEVT_MENU,&MyFrame::OnInvalidateSelection,this,ID_InvalidateSel);
     Bind(wxEVT_MENU,&MyFrame::OnCreateNewObject,this,ID_CreateNewObject);
     Bind(wxEVT_MENU,&MyFrame::OnMoveUnit,this,ID_MoveUnit);
@@ -1230,34 +1256,8 @@ void MyFrame::OnCanvasKeyDown(wxKeyEvent& event)
 
     if(event.ControlDown())
     {        
-        if(key == WXK_CONTROL)
-            return;
 
-        // --- edit terrain elevation:
-        int step = 0;
-        if(key == WXK_PAGEUP)
-            step++;
-        else if(key == WXK_PAGEDOWN)
-            step--;
-        if(step != 0)
-        {
-            spell_map->EditElev(step);
-            Refresh();
-        }
 
-        // --- edit selection:
-        if(key == '=' || key == '+')
-        {
-            // add selection
-            auto list = spell_map->GetSelections();
-            spell_map->SelectTiles(list, SpellMap::SELECT_ADD);
-        }
-        else if(key == '-')
-        {
-            // clear selection
-            auto list = spell_map->GetSelections();
-            spell_map->SelectTiles(list,SpellMap::SELECT_CLEAR);
-        }        
     }   
             
 }
@@ -1270,6 +1270,81 @@ void MyFrame::OnDeselectAll(wxCommandEvent& event)
 {
     spell_map->SelectTiles(SpellMap::SELECT_CLEAR);
 }
+void MyFrame::OnSelectDeselect(wxCommandEvent& event)
+{
+    // add/remove selection
+    auto list = spell_map->GetSelections();
+    spell_map->SelectTiles(list,SpellMap::SELECT_XOR);
+}
+// copy map selection to copy buffer
+void MyFrame::OnCopyBuf(wxCommandEvent& event)
+{
+    // get layers mask
+    SpellMap::Layers lay;
+    lay.lay1 = GetMenuBar()->FindItem(ID_SelectLay1)->IsChecked();
+    lay.lay2 = GetMenuBar()->FindItem(ID_SelectLay2)->IsChecked();
+    
+    // get selected area (preference of persistent selection over cursor)
+    std::vector<MapXY> list;
+    list = spell_map->GetPersistSelections();
+    if(list.empty())
+        list = spell_map->GetSelections();
+
+    spell_map->LockMap();
+    spell_map->CopyBuffer(list, lay);
+    spell_map->ReleaseMap();
+}
+// clear map copy buffer
+void MyFrame::OnClearBuf(wxCommandEvent& event)
+{
+    // clear copy buffer and also clear tool
+    spell_map->LockMap();
+    spell_map->ClearBuffer();    
+    wxRibbonBarEvent rev;
+    OnToolPageClick(rev);        
+    spell_map->ReleaseMap();
+    Refresh();
+}
+// try place copy buffer to map
+void MyFrame::OnPasteBuf(wxCommandEvent& event)
+{
+    auto list = spell_map->GetSelections();
+    if(list.empty())
+        return;
+
+    spell_map->LockMap();
+    spell_map->PasteBuffer(spell_map->tiles,list);
+    spell_map->ReleaseMap();
+    Refresh();
+}
+
+// place/remove start/exit special tiles
+void MyFrame::OnPlaceStartExit(wxCommandEvent& event)
+{
+    if(event.GetId() == ID_PlaceStart)
+    {
+        
+    }
+}
+
+// try place copy buffer to map
+void MyFrame::OnChangeElevation(wxCommandEvent& event)
+{
+    int step = 0;
+    if(event.GetId() == ID_ElevUp)
+        step++;
+    else if(event.GetId() == ID_ElevDown)
+        step--;
+    if(step != 0)
+    {
+        spell_map->LockMap();
+        spell_map->EditElev(step);
+        spell_map->ReleaseMap();
+        Refresh();
+    }
+}
+
+
 // invalidate map region (retexturing)
 void MyFrame::OnInvalidateSelection(wxCommandEvent& event)
 {

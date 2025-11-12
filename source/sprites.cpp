@@ -13,6 +13,7 @@
 #include "fs_archive.h"
 #include "fsu_archive.h"
 #include "map_types.h"
+#include "map.h"
 #include "spellcross.h"
 
 #include "simpleini.h"
@@ -2989,7 +2990,7 @@ int SpellObject::RenderPreview(wxBitmap &bmp,double gamma)
 }
 
 // place object's tiles to map array at given position
-int SpellObject::PlaceMapTiles(Sprite **L1, int x_size, int y_size, MapXY sel)
+int SpellObject::PlaceMapTiles(std::vector<MapSprite> &tiles, int x_size, int y_size, MapXY sel)
 {
 	if(!sel.IsSelected())
 		return(1);
@@ -3015,7 +3016,7 @@ int SpellObject::PlaceMapTiles(Sprite **L1, int x_size, int y_size, MapXY sel)
 		int x = sel.x + pos.x + (((sel.y&1)&&(pos.y&1))?-1:0);
 		int y = sel.y + pos.y;
 		if(x >= 0 && y >= 0 && x < x_size && y < y_size)
-			L1[x + y*x_size] = L1_sprites[k];
+			tiles[x + y*x_size].L1 = L1_sprites[k];
 	}
 
 	return(0);
@@ -3248,8 +3249,36 @@ int SpellObject::GetToolClassGroup()
 
 
 
+// add special tools (start, escape, ...)
+int Terrain::AddSpecialTools()
+{	
+	// get/create special toolset
+	auto ts_id = GetToolSetID("Special");
+	if(ts_id < 0)
+		AddToolSet("Special","Special stuff");
+	ts_id = GetToolSetID("Special");
 
+	// get/create start/escape tiles
+	std::vector<std::string> sprite_names = {"CIEL","START"};
+	std::vector<std::string> tool_names = {"Escape tile","Start tile"};
+	for(int k = 0; k < sprite_names.size(); k++)
+	{
+		auto tool_id = GetToolSetItem(ts_id,tool_names[k]);
+		if(tool_id < 0)
+			AddToolSetItem(ts_id,tool_names[k], 0);
+		tool_id = GetToolSetItem(ts_id,tool_names[k]);
+		auto sprite = GetSprite(sprite_names[k].c_str());
+		if(sprite)
+		{
+			sprite->land_type = 0; // ### fix for CIEL which has wrong land type, may move to sprites loader??
+			sprite->SetToolClass(ts_id + 1);
+			sprite->SetToolClassGroup(tool_id + 1);
+			sprite->SetGlyphFlags(Sprite::IS_TOOL_ITEM_GLYPH);
+		}
+	}
 
+	return(0);
+}
 
 
 // get tool classes count
@@ -3587,12 +3616,48 @@ vector<std::string> Terrain::GetToolSetItems(int toolset_id)
 	}
 	return(tools[toolset_id]->items);
 }
+// get toolset item id by name string
+int Terrain::GetToolSetItem(int toolset_id, std::string tool_name)
+{
+	if(toolset_id < 0 || toolset_id >= tools.size())
+		return(-1);
+	for(int k = 0; k < tools[toolset_id]->items.size(); k++)
+	{
+		if(tools[toolset_id]->items[k].compare(tool_name) == 0)
+			return(k);
+	}
+	return(-1);
+}
 // get toolset item (name string)
 string Terrain::GetToolSetItem(int toolset_id, int tool_id)
 {
 	if (toolset_id < 0 || toolset_id >= tools.size() || tool_id < 0 || tool_id >= tools[toolset_id]->items.size())
 		return("");
 	return(tools[toolset_id]->items[tool_id]);
+}
+// get all sprites matching given tool
+std::vector<Sprite*> Terrain::GetToolSprites(SpellTool &tool)
+{
+	std::vector<Sprite*> list;
+	if(tool.isObject())
+		return(list);
+
+	// get tool
+	auto [tool_id,item_id] = tool.GetTool();
+
+	// find all matching sprites for the tool class
+	Sprite* tspr = NULL;
+	for(auto const& sid : sprites)
+	{
+		if(sid->GetToolClass() == tool_id + 1 &&
+			sid->GetToolClassGroup() == item_id + 1)
+		{
+			// matching sprite class 
+			list.push_back(sid);
+		}
+	}
+
+	return(list);
 }
 
 

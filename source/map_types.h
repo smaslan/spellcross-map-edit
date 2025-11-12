@@ -9,6 +9,7 @@
 
 #include <tuple>
 #include <cmath>
+//#include "sprites.h"
 
 #ifndef M_PI
 #define M_PI 3.141592653589793238463
@@ -83,6 +84,4 @@ public:
 		return(this->x != par.x || this->y != par.y);
 	}
 };
-
-
 
