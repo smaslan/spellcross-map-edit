@@ -281,12 +281,12 @@ FormEvent::FormEvent(wxWindow* parent,SpellData* spell_data,wxWindowID id,const 
 	Bind(wxEVT_COMMAND_BUTTON_CLICKED,&FormEvent::OnPlayNarration,this,wxID_BTN_STOP_MSG);
 
 	Bind(wxEVT_TEXT_ENTER,&FormEvent::OnSelectMsgResource,this,wxID_TXT_OBJ_DESC);
-	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormEvent::OnSelectMsgResource,this,wxID_CB_IS_OBJECTIVE);
-	Bind(wxEVT_COMMAND_CHOICE_SELECTED,&FormEvent::OnSelectMsgResource,this,wxID_CHB_TYPE);
-	Bind(wxEVT_COMMAND_SPINCTRL_UPDATED,&FormEvent::OnSelectMsgResource,this,wxID_SPIN_PROB);
-	Bind(wxEVT_COMMAND_SPINCTRL_UPDATED,&FormEvent::OnSelectMsgResource,this,wxID_SPIN_XPOS);
-	Bind(wxEVT_COMMAND_SPINCTRL_UPDATED,&FormEvent::OnSelectMsgResource,this,wxID_SPIN_YPOS);
-	Bind(wxEVT_COMMAND_SPINCTRL_UPDATED,&FormEvent::OnSelectMsgResource,this,wxID_SPIN_TRIG_UNIT);
+	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormEvent::OnEditParams,this,wxID_CB_IS_OBJECTIVE);
+	Bind(wxEVT_COMMAND_CHOICE_SELECTED,&FormEvent::OnEditParams,this,wxID_CHB_TYPE);
+	Bind(wxEVT_COMMAND_SPINCTRL_UPDATED,&FormEvent::OnEditParams,this,wxID_SPIN_PROB);
+	Bind(wxEVT_COMMAND_SPINCTRL_UPDATED,&FormEvent::OnEditParams,this,wxID_SPIN_XPOS);
+	Bind(wxEVT_COMMAND_SPINCTRL_UPDATED,&FormEvent::OnEditParams,this,wxID_SPIN_YPOS);
+	Bind(wxEVT_COMMAND_SPINCTRL_UPDATED,&FormEvent::OnEditParams,this,wxID_SPIN_TRIG_UNIT);
 
 }
 
@@ -300,6 +300,9 @@ FormEvent::~FormEvent()
 void FormEvent::ResetChanges()
 {
 	auto unit = spell_map->GetSelectedUnit();
+	int unit_id = -1;
+	if(unit)
+		unit_id = unit->id;
 	spell_map->SelectUnit(NULL);
 		
 	// restore events
@@ -307,13 +310,13 @@ void FormEvent::ResetChanges()
 	for(auto & evt : spell_orig_events)
 	{
 		spell_map->events->AddEvent(evt);		
-		if(unit)
+		if(unit_id >= 0)
 		{
 			// ###todo: fix unit selection (not nice solution - needs to be optimized? also possibly not thread safe)
-			for(auto & eunit: evt->units)
+			for(auto & unit: evt->units)
 			{
-				if(eunit.unit->id == unit->id)
-					spell_map->SelectUnit(eunit.unit);
+				if(unit.unit->id == unit_id)
+					spell_map->SelectUnit(unit.unit);
 			}
 		}
 	}
@@ -499,24 +502,7 @@ void FormEvent::SelectEvent(SpellMapEventRec *evt)
 		}
 
 	// fill event types
-	/*chbType->Freeze();
-	chbType->Clear();
-	for(auto& type : spell_event->GetEventTypes())
-		chbType->Append(type);*/
 	chbType->Select(spell_event->evt_type);
-	//chbType->Thaw();
-
-	// fill available text message resources
-	/*lbMsg->Freeze();
-	lbMsg->Clear();
-	for(auto& txt : spell_data->texts->GetTexts())
-	{
-		wstring name = char2wstring(txt->name);
-		if(txt->audio)
-			name += L"  \x266B";
-		lbMsg->Append(name);
-	}
-	lbMsg->Thaw();*/
 
 	// fill probability
 	spinProb->SetValue(spell_event->probability);
@@ -539,6 +525,10 @@ void FormEvent::SelectEvent(SpellMapEventRec *evt)
 	// objective label
 	txtObjectiveDesc->SetValue(spell_event->label);
 
+	// update edits
+	wxCommandEvent ev;
+	OnEditParams(ev);
+	
 	// fill text messages list
 	FillMsgItems();
 	SelectMsgItem();
@@ -554,7 +544,7 @@ void FormEvent::FillMsgItems()
 		return;		
 	chbMsgItem->Freeze();
 	for(int k = 0; k < spell_event->texts.size(); k++)
-		chbMsgItem->Append(string_format("#%d - %s",k+1,spell_event->texts[k].text->name.c_str()));
+		chbMsgItem->Append(string_format("#%d - %s",k+1,spell_event->texts[k].text->name.c_str()));	
 	if(chbMsgItem->GetCount())
 		chbMsgItem->Select(0);
 	chbMsgItem->Thaw();
@@ -611,23 +601,17 @@ void FormEvent::OnRemoveMsgClick(wxCommandEvent& event)
 
 	// get resource selection
 	int sel = chbMsgItem->GetSelection();
-	if(chbMsgItem->IsEmpty() || sel < 0)
+	if(chbMsgItem->IsEmpty() || sel < 0 || sel >= spell_event->texts.size())
 		return;
-	auto text = spell_data->texts->GetText(sel);
+	// remove it
+	spell_event->texts.erase(spell_event->texts.begin() + sel);
 	
-	// try remove it
-	for(int k = 0; k < spell_event->texts.size(); k++)
-		if(spell_event->texts[k].text == text)
-		{
-			spell_event->texts.erase(spell_event->texts.begin() + k);
-			break;
-		}
-
 	// update list
 	FillMsgItems();
 	if(!chbMsgItem->IsEmpty())
 		chbMsgItem->Select(chbMsgItem->GetCount() - 1);
-	SelectMsgResource();
+	SelectMsgItem();
+	//SelectMsgResource();
 }
 
 
@@ -643,6 +627,58 @@ void FormEvent::OnSelectMsgResource(wxCommandEvent& event)
 	CleanupSound();
 	txtMessage->Clear();
 
+	if(!spell_event || spell_event->texts.empty())
+	{
+		// show message with no assignement to event
+		int sel_res = lbMsg->GetSelection();
+		if(lbMsg->IsEmpty() || sel_res < 0)
+			return;
+		auto text = spell_data->texts->GetText(sel_res);
+		txtMessage->SetValue(text->text);
+		if(text->audio)
+		{
+			btnMsgPlay->Enable(true);
+			btnMsgStop->Enable(true);
+		}
+		return;	
+	}
+
+	// get message item selection
+	auto sel = chbMsgItem->GetSelection();
+	if(chbMsgItem->IsEmpty() || sel < 0)
+	{
+		txtMessage->SetValue("");
+		btnMsgPlay->Enable(false);
+		btnMsgStop->Enable(false);
+		return;
+	}
+	auto &msg = spell_event->texts[sel];
+
+	// get resource selection
+	int sel_res = lbMsg->GetSelection();
+	if(lbMsg->IsEmpty() || sel_res < 0)
+		return;
+	auto text = spell_data->texts->GetText(sel_res);
+	
+	// update text in event record
+	msg.text = text;
+
+	FillMsgItems();
+		
+	// show text
+	txtMessage->SetValue(text->text);
+
+	// show narration play buttons?
+	if(text->audio)
+	{
+		btnMsgPlay->Enable(true);
+		btnMsgStop->Enable(true);
+	}	
+}
+
+// edit event parameters
+void FormEvent::OnEditParams(wxCommandEvent& event)
+{
 	if(!spell_event)
 		return;
 
@@ -682,22 +718,20 @@ void FormEvent::OnSelectMsgResource(wxCommandEvent& event)
 		txtObjectiveDesc->Enable(false);
 	}
 
-	
-	
 	// update coordinates
-	spell_event->position = MapXY(spinXpos->GetValue(),spinYpos->GetValue());	
+	spell_event->position = MapXY(spinXpos->GetValue(),spinYpos->GetValue());
 	spinXpos->Enable(spell_event->hasPosition());
 	spinYpos->Enable(spell_event->hasPosition());
 
 	// update target unit id
 	spell_event->trig_unit_id = spinTrigUnit->GetValue();
-	spinTrigUnit->Enable(spell_event->hasTargetUnit());	
+	spinTrigUnit->Enable(spell_event->hasTargetUnit());
 
 	if(spell_event->is_objective)
 	{
 		// clear event stuff (messages and units)
 		spell_event->ClearUnits();
-		spell_event->ClearTexts();		
+		spell_event->ClearTexts();
 	}
 	lbMsg->Enable(!spell_event->is_objective);
 	btnDelMsg->Enable(!spell_event->is_objective);
@@ -710,38 +744,22 @@ void FormEvent::OnSelectMsgResource(wxCommandEvent& event)
 	// resort events (note: possibly slow?)
 	spell_map->events->ResetEvents();
 
-	// get message item selection
-	FillMsgItems();
-	auto sel = chbMsgItem->GetSelection();
-	if(chbMsgItem->IsEmpty() || sel < 0)
-	{
-		txtMessage->SetValue("");
-		btnMsgPlay->Enable(false);
-		btnMsgStop->Enable(false);
-		return;
-	}
-	auto &msg = spell_event->texts[sel];
+	/*spell_event->SetType(chbType->GetSelection());
+	spell_event->probability = spinProb->GetValue();	
+	spell_event->position = MapXY(spinXpos->GetValue(),spinYpos->GetValue());
+	spell_event->is_objective = cbIsObjective->GetValue();
+	spell_event->label = txtObjectiveDesc->GetValue();
+	
+	// ###not sure if I need also pointer to unit?
+	spell_event->trig_unit_id = spinTrigUnit->GetValue();*/
 
-	// get resource selection
-	int sel_res = lbMsg->GetSelection();
-	if(lbMsg->IsEmpty() || sel_res < 0)
-		return;
-	auto text = spell_data->texts->GetText(sel_res);
-	
-	// update text in event record
-	msg.text = text;
-	
-	
-	// show text
-	txtMessage->SetValue(text->text);
 
-	// show narration play buttons?
-	if(text->audio)
-	{
-		btnMsgPlay->Enable(true);
-		btnMsgStop->Enable(true);
-	}	
+
 }
+
+
+
+
 
 // play/stop narration sound
 void FormEvent::CleanupSound()

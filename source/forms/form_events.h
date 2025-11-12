@@ -61,6 +61,7 @@ private:
 	void OnSelectMsgItem(wxCommandEvent& event);
 	void OnSelectMsgResource(wxCommandEvent& event);
 	void OnPlayNarration(wxCommandEvent& event);
+	void OnEditParams(wxCommandEvent& event);
 	
 	void ResetChanges();
 
