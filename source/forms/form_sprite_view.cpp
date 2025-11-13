@@ -72,6 +72,10 @@ FormSprite::FormSprite( wxWindow* parent,SpellData* spell_data,wxWindowID id, co
 
 	mnuEdit->AppendSeparator();
 
+	wxMenuItem* btnSetKnownParams;
+	btnSetKnownParams = new wxMenuItem(mnuEdit,wxID_BTN_SET_KNOWS,wxString(wxT("Set parameters of known sprites")),wxEmptyString,wxITEM_NORMAL);
+	mnuEdit->Append(btnSetKnownParams);
+
 	wxMenuItem* btnClearContext;
 	btnClearContext = new wxMenuItem(mnuEdit,wxID_BTN_CLR_CONTEXT,wxString(wxT("Clear tile context")),wxEmptyString,wxITEM_NORMAL);
 	mnuEdit->Append(btnClearContext);
@@ -382,7 +386,7 @@ FormSprite::FormSprite( wxWindow* parent,SpellData* spell_data,wxWindowID id, co
 	txtFlags->Wrap(-1);
 	sbSizer3->Add(txtFlags,0,wxLEFT|wxRIGHT|wxTOP,5);
 
-	editMapFlags = new wxTextCtrl(sbSizer3->GetStaticBox(),wxID_ANY,wxEmptyString,wxDefaultPosition,wxDefaultSize,0);
+	editMapFlags = new wxTextCtrl(sbSizer3->GetStaticBox(),wxID_EDIT_MAP_TILE_FLAGS,wxEmptyString,wxDefaultPosition,wxDefaultSize,wxTE_PROCESS_ENTER);
 	sbSizer3->Add(editMapFlags,0,wxBOTTOM|wxLEFT|wxRIGHT,5);
 
 
@@ -465,6 +469,7 @@ FormSprite::FormSprite( wxWindow* parent,SpellData* spell_data,wxWindowID id, co
 	Bind(wxEVT_MENU,&FormSprite::OnCloseClick, this, wxID_BTN_CLOSE);
 	Bind(wxEVT_MENU,&FormSprite::OnSelectSpriteBtn,this,wxID_BTN_NEXT);
 	Bind(wxEVT_MENU,&FormSprite::OnSelectSpriteBtn,this,wxID_BTN_PREV);
+	Bind(wxEVT_MENU,&FormSprite::OnAssignKnowns,this,wxID_BTN_SET_KNOWS);
 	Bind(wxEVT_MENU,&FormSprite::OnClearContext,this,wxID_BTN_CLR_CONTEXT);
 	Bind(wxEVT_MENU,&FormSprite::OnUpdateContext,this,wxID_EDIT_TILE_CONTEXT_AUTO);	
 	Bind(wxEVT_MENU,&FormSprite::OnAutoShadeFlags,this,wxID_BTN_AUTO_SHADING);
@@ -514,6 +519,7 @@ FormSprite::FormSprite( wxWindow* parent,SpellData* spell_data,wxWindowID id, co
 	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormSprite::OnFlagsChange,this,wxID_CB_Q2_NOFILT);
 	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormSprite::OnFlagsChange,this,wxID_CB_Q3_NOFILT);
 	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormSprite::OnFlagsChange,this,wxID_CB_Q4_NOFILT);
+	Bind(wxEVT_TEXT_ENTER,&FormSprite::OnFlagsChange,this,wxID_EDIT_MAP_TILE_FLAGS);
 
 	//Bind(wxEVT_COMMAND_CHOICE_SELECTED,&FormSprite::OnSpecClassChange,this,wxID_CHB_SPEC_CLASS);
 
@@ -676,6 +682,15 @@ void FormSprite::OnToolClassItemChange(wxCommandEvent& event)
 }
 
 
+// assign known parameter of sprites
+void FormSprite::OnAssignKnowns(wxCommandEvent& event)
+{
+	// get this terrain
+	Terrain* terr = FindTerrain();
+	// init map tile flags
+	terr->InitSpriteMapTileFlags();
+	Refresh();
+}
 // clear tiles context
 void FormSprite::OnClearContext(wxCommandEvent& event)
 {
@@ -903,6 +918,12 @@ void FormSprite::OnFlagsChange(wxCommandEvent& event)
 			flag_id++;
 		}
 		terr->sprites[sprite_id]->SetGlyphFlags(flags);
+
+		// get map tile flag
+		int map_flags;
+		if(std::sscanf(editMapFlags->GetValue().c_str(),"%x",&map_flags) == 1)
+			terr->sprites[sprite_id]->SetMapFlags(map_flags);
+		editMapFlags->SetValue(string_format("0x%02X",map_flags));
 	}	
 }
 // show tile flags

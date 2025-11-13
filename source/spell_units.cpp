@@ -966,8 +966,10 @@ MapUnit::MapUnit(SpellMap *map)
 	experience_level = 1;
 	// man count
 	man = 1;
-	// unit type/behaviour
-	type = MapUnitType::NormalUnit;
+	// spec unit type
+	spec_type = MapUnitType::Unknown;
+	// unit behave
+	behave = MapUnitType::NormalUnit;
 	// custom name
 	name[0] = '\0';
 	// commander id or zero	
@@ -1404,9 +1406,9 @@ int MapUnit::Render(Terrain* data,uint8_t* buffer,uint8_t* buf_end,int buf_x_pos
 
 	// render special unit type mark
 	int type_color = 0;
-	if(type == MapUnitType::MissionUnit)
+	if(spec_type == MapUnitType::MissionUnit)
 		type_color = 230;
-	else if(type == MapUnitType::SpecUnit)
+	else if(spec_type == MapUnitType::SpecUnit)
 		type_color = 253;
 	for(int y = 9; y < bar_h; y+=2)
 	{

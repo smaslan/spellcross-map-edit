@@ -46,7 +46,7 @@ FormUnits::FormUnits( wxWindow* parent, wxWindowID id, const wxString& title, co
 	mmEdit->AppendSeparator();
 
 	wxMenuItem* mmSet;
-	mmSet = new wxMenuItem(mmEdit,wxID_MM_SET,wxString(wxT("Update unit")) + wxT('\t') + wxT("Enter"),wxEmptyString,wxITEM_NORMAL);
+	mmSet = new wxMenuItem(mmEdit,wxID_MM_SET,wxString(wxT("Update/place unit")) + wxT('\t') + wxT("Enter"),wxEmptyString,wxITEM_NORMAL);
 	mmEdit->Append(mmSet);
 
 	mmenu->Append(mmEdit,wxT("Edit"));
@@ -108,7 +108,7 @@ FormUnits::FormUnits( wxWindow* parent, wxWindowID id, const wxString& title, co
 
 	m_staticText39 = new wxStaticText(this,wxID_ANY,wxT("Custom name:"),wxDefaultPosition,wxDefaultSize,0);
 	m_staticText39->Wrap(-1);
-	szProps->Add(m_staticText39,0,wxTOP|wxRIGHT|wxLEFT,5);
+	szProps->Add(m_staticText39,0,wxLEFT|wxRIGHT,5);
 
 	txtName = new wxTextCtrl(this,wxID_NAME,wxEmptyString,wxDefaultPosition,wxDefaultSize,0);
 	szProps->Add(txtName,0,wxEXPAND|wxBOTTOM|wxRIGHT|wxLEFT,5);
@@ -119,6 +119,24 @@ FormUnits::FormUnits( wxWindow* parent, wxWindowID id, const wxString& title, co
 
 	spinHealth = new wxSpinCtrl(this,wxID_SPIN_HEALTH,wxEmptyString,wxDefaultPosition,wxDefaultSize,wxSP_ARROW_KEYS,0,10,0);
 	szProps->Add(spinHealth,0,wxEXPAND|wxBOTTOM|wxRIGHT|wxLEFT,5);
+
+	m_staticText401 = new wxStaticText(this,wxID_ANY,wxT("Behaviour:"),wxDefaultPosition,wxDefaultSize,0);
+	m_staticText401->Wrap(-1);
+	szProps->Add(m_staticText401,0,wxLEFT|wxRIGHT,5);
+
+	wxArrayString chUnitBehaveChoices;
+	chUnitBehave = new wxChoice(this,wxID_UNIT_BEHAVE,wxDefaultPosition,wxDefaultSize,chUnitBehaveChoices,0);
+	chUnitBehave->SetSelection(0);
+	szProps->Add(chUnitBehave,0,wxBOTTOM|wxEXPAND|wxLEFT|wxRIGHT,5);
+
+	m_staticText74 = new wxStaticText(this,wxID_ANY,wxT("Unit type (event-units only):"),wxDefaultPosition,wxDefaultSize,0);
+	m_staticText74->Wrap(-1);
+	szProps->Add(m_staticText74,0,wxLEFT|wxRIGHT,5);
+
+	wxArrayString chUnitTypeChoices;
+	chUnitType = new wxChoice(this,wxID_UNIT_TYPE,wxDefaultPosition,wxDefaultSize,chUnitTypeChoices,0);
+	chUnitType->SetSelection(0);
+	szProps->Add(chUnitType,0,wxBOTTOM|wxEXPAND|wxLEFT|wxRIGHT,5);
 
 
 	szMain->Add(szProps,0,wxEXPAND,5);
@@ -186,7 +204,7 @@ FormUnits::FormUnits( wxWindow* parent, wxWindowID id, const wxString& title, co
 	pageArt->SetSizer(bSizer35);
 	pageArt->Layout();
 	bSizer35->Fit(pageArt);
-	pages->AddPage(pageArt,wxT("Unit art"),false);
+	pages->AddPage(pageArt,wxT("Unit art"),true);
 	pageGrp = new wxPanel(pages,wxID_PAGE_GRP,wxDefaultPosition,wxDefaultSize,wxTAB_TRAVERSAL);
 	wxBoxSizer* bSizer36;
 	bSizer36 = new wxBoxSizer(wxVERTICAL);
@@ -315,7 +333,7 @@ FormUnits::FormUnits( wxWindow* parent, wxWindowID id, const wxString& title, co
 	pageGrp->SetSizer(bSizer36);
 	pageGrp->Layout();
 	bSizer36->Fit(pageGrp);
-	pages->AddPage(pageGrp,wxT("Unit graphics"),true);
+	pages->AddPage(pageGrp,wxT("Unit graphics"),false);
 
 	szArt->Add(pages,1,wxEXPAND | wxALL,5);
 
@@ -389,6 +407,21 @@ FormUnits::FormUnits( wxWindow* parent, wxWindowID id, const wxString& title, co
 	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormUnits::OnChangeGrpFrame,this,wxID_CB_GRP_FIRE_ORG);
 	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormUnits::OnChangeGrpFrame,this,wxID_CB_GRP_FIRE_CENTER);
 	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormUnits::OnChangeGrpFrame,this,wxID_CB_GRP_FIRE_ORG_MEAN);
+
+
+	// unit behaviour list
+	std::vector<MapUnitType::Values> beh_list = {MapUnitType::Values::NormalUnit, MapUnitType::Values::PatrolUnit, MapUnitType::Values::WaitForContact, MapUnitType::Values::ToughDefence};
+	chUnitBehave->Clear();
+	chUnitBehave->Append("not applicable");
+	for(auto beh: beh_list)
+		chUnitBehave->Append(MapUnitType(beh).GetString());
+
+	// unit type list
+	std::vector<MapUnitType::Values> spec_list ={MapUnitType::Values::EnemyUnit, MapUnitType::Values::MissionUnit, MapUnitType::Values::SpecUnit};
+	chUnitType->Clear();
+	chUnitType->Append("non-event enemy unit");
+	for(auto spec: spec_list)
+		chUnitType->Append(MapUnitType(spec).GetString());
 
 }
 
@@ -505,6 +538,50 @@ void FormUnits::SelectUnit(MapUnit *unit)
 	if(m_unit)
 		name = m_unit->name;
 	txtName->SetValue(name);
+		
+	// unit behaviour
+	if(m_unit)
+	{		
+		auto bid = chUnitBehave->FindString(m_unit->spec_type.GetString());
+		if(bid < 0)
+		{
+			chUnitBehave->Enable(false);
+			chUnitBehave->Select(0);
+		}
+		else
+		{
+			chUnitBehave->Enable(true);
+			chUnitBehave->Select(bid);
+		}
+	}
+	else
+	{
+		chUnitBehave->Select(0);
+		chUnitBehave->Enable(false);
+	}
+
+	// spec unit type
+	if(m_unit)
+	{
+		auto bid = chUnitType->FindString(m_unit->spec_type.GetString());
+		if(bid < 0)
+		{
+			chUnitType->Enable(false);
+			chUnitType->Select(0);
+		}
+		else
+		{
+			chUnitType->Enable(true);
+			chUnitType->Select(bid);
+		}
+	}
+	else
+	{
+		chUnitType->Select(0);
+		chUnitType->Enable(false);
+	}
+
+
 
 	// fill art list
 	lboxArt->Freeze();

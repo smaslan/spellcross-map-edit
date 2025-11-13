@@ -1941,7 +1941,7 @@ int Terrain::InitSpriteContext(wstring &path)
 	for(int k = 0; k < count; k++)
 	{
 		// get tile name
-		char tile_name[9];
+		char tile_name[MAX_SPRITE_NAME+1];
 		fr.read(tile_name, sizeof(tile_name));
 		
 		// try to find its index in terrain list
@@ -2000,6 +2000,9 @@ int Terrain::InitSpriteContext(wstring &path)
 
 		// load special tile class
 		sprites[list[k]]->SetSpecClass(istream_read_u32(fr));
+
+		// load map tile flags
+		sprites[list[k]]->SetMapFlags(istream_read_u32(fr));
 
 		// load shading flags		
 		uint32_t flags = istream_read_u32(fr);
@@ -2095,7 +2098,13 @@ int Terrain::SaveSpriteContext(wstring& path)
 
 	// store sprite name list, following code will work with indexes corresponding to this list
 	for(int k = 0; k < count;k++)
-		fw.write(sprites[k]->name.c_str(), sizeof(sprites[k]->name));
+	{
+		char name[MAX_SPRITE_NAME+1];
+		memset(name,'\0',sizeof(name));
+		strncpy(name,sprites[k]->name.c_str(),sizeof(name));
+		name[MAX_SPRITE_NAME] = '\0';
+		fw.write(name, sizeof(name));
+	}
 
 	// --- for each sprite:
 	for(int k = 0; k < count;k++)
@@ -2133,6 +2142,9 @@ int Terrain::SaveSpriteContext(wstring& path)
 		
 		// store special tile class
 		ostream_write_u32(fw,sprites[k]->GetSpecClass());
+
+		// store map tile flags
+		ostream_write_u32(fw,sprites[k]->GetMapFlags());
 		
 		// store shading flags and masks
 		ostream_write_u32(fw,sprites[k]->GetShadingFlags() | (sprites[k]->GetShadingMask() << 8));
@@ -2536,6 +2548,101 @@ int Terrain::InitSpriteContextShading()
 				cont->SetFlags(Sprite::IS_SAND);
 			}			
 		}
+	}
+	return(0);
+}
+
+// initialize sprite map tile layer 2 flags for known sprite names
+int Terrain::InitSpriteMapTileFlags()
+{
+	for(auto spr: sprites)
+	{		
+		if(wildcmp("STA_????",spr->name.c_str()))
+		{
+			// trees
+			spr->SetMapFlags(0x90);
+		}
+		else if(wildcmp("SOA0_???",spr->name.c_str()))
+		{
+			// special objects (portal arms, ...)
+			spr->SetMapFlags(0x50);
+		}
+		else if(wildcmp("SOA1_???",spr->name.c_str()))
+		{
+			// special objects - destroyed (portal arms, ...)
+			spr->SetMapFlags(0x00);
+		}
+		else if(wildcmp("RKA0_???",spr->name.c_str()))
+		{
+			// river fords
+			spr->SetMapFlags(0x00);
+		}
+		else if(wildcmp("RKA1_???",spr->name.c_str()))
+		{
+			// river - not accessiable
+			spr->SetMapFlags(0x60);
+		}
+		else if(wildcmp("POA1_???",spr->name.c_str()))
+		{
+			// generic objects
+			spr->SetMapFlags(0x80);
+		}
+		else if(wildcmp("POA9_???",spr->name.c_str()))
+		{
+			// generic objects
+			spr->SetMapFlags(0x88);
+		}
+		else if(wildcmp("PL???_??",spr->name.c_str()))
+		{
+			// generap terrain plain
+			spr->SetMapFlags(0x00);
+		}
+		else if(wildcmp("MTA0?_??",spr->name.c_str()) || wildcmp("MTA2?_??",spr->name.c_str()) || wildcmp("MTA3?_??",spr->name.c_str()))
+		{
+			// bridge parts not accessible
+			spr->SetMapFlags(0x60);
+		}
+		else if(wildcmp("MTA1?_??",spr->name.c_str()))
+		{
+			// bridge parts accessible
+			spr->SetMapFlags(0x70);
+		}
+		else if(wildcmp("MRA?3_??",spr->name.c_str()))
+		{
+			// wall left edge
+			spr->SetMapFlags(0xF0);
+		}
+		else if(wildcmp("MRA?6_??",spr->name.c_str()))
+		{
+			// wall bottom edge
+			spr->SetMapFlags(0xC0);
+		}
+		else if(wildcmp("MRA?9_??",spr->name.c_str()))
+		{
+			// wall top edge
+			spr->SetMapFlags(0xE0);
+		}
+		else if(wildcmp("MRA?C_??",spr->name.c_str()))
+		{
+			// wall rigt edge
+			spr->SetMapFlags(0xD0);
+		}
+		else if(wildcmp("MRA?5_??",spr->name.c_str()))
+		{
+			// wall straight section
+			spr->SetMapFlags(0xA0);
+		}
+		else if(wildcmp("MRA?A_??",spr->name.c_str()))
+		{
+			// wall straight section
+			spr->SetMapFlags(0xB0);
+		}
+		else if(wildcmp("CP?_???",spr->name.c_str()))
+		{
+			// not accessible tiles (ridges, graves, ...)
+			spr->SetMapFlags(0x40);
+		}
+
 	}
 	return(0);
 }
@@ -3259,8 +3366,8 @@ int Terrain::AddSpecialTools()
 	ts_id = GetToolSetID("Special");
 
 	// get/create start/escape tiles
-	std::vector<std::string> sprite_names = {"CIEL","START"};
-	std::vector<std::string> tool_names = {"Escape tile","Start tile"};
+	std::vector<std::string> sprite_names = {"TARGET","CIEL","START"};
+	std::vector<std::string> tool_names = {"Target tile","Escape tile","Start tile"};
 	for(int k = 0; k < sprite_names.size(); k++)
 	{
 		auto tool_id = GetToolSetItem(ts_id,tool_names[k]);

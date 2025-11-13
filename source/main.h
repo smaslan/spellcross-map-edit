@@ -93,6 +93,7 @@ private:
     void OnCopyBuf(wxCommandEvent& event);
     void OnPasteBuf(wxCommandEvent& event);
     void OnClearBuf(wxCommandEvent& event);
+    void OnDeleteSel(wxCommandEvent& event);
     void OnChangeElevation(wxCommandEvent& event);
     void OnInvalidateSelection(wxCommandEvent& event);
     void OnCreateNewObject(wxCommandEvent& event);
@@ -254,6 +255,7 @@ enum
     ID_DeselectAll,
     ID_SelectDeselect,
     ID_InvalidateSel,
+    ID_DeleteSel,
     ID_ElevUp,
     ID_ElevDown,
     ID_CopyBuf,

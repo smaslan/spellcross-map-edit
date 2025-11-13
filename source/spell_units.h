@@ -333,7 +333,8 @@ public:
 		NormalUnit,
 		ToughDefence,
 		SpecUnit,
-		MissionUnit
+		MissionUnit,
+		EnemyUnit,
 	};
 	MapUnitType() = default;
 	constexpr MapUnitType(Values type) : value(type) { }
@@ -355,8 +356,29 @@ public:
 			value = Values::SpecUnit;
 		else if(_strcmpi(type,"SpecUnit2") == 0)
 			value = Values::SpecUnit;
+		else if(_strcmpi(type,"EnemyUnit") == 0)
+			value = Values::EnemyUnit;
 		else
 			value = Values::Unknown;
+	};
+	
+	std::string GetString(){
+		if(value == Values::EnemyUnit)
+			return("EnemyUnit");
+		else if(value == Values::MissionUnit)
+			return("MissionUnit");
+		else if(value == Values::PatrolUnit)
+			return("PatrolUnit");
+		else if(value == Values::WaitForContact)
+			return("WaitForContact");
+		else if(value == Values::NormalUnit)
+			return("NormalUnit");
+		else if(value == Values::ToughDefence)
+			return("ToughDefence");
+		else if(value == Values::SpecUnit)
+			return("SpecUnit");
+		else 
+			return("Unknown");		
 	}
 
 private:
@@ -439,8 +461,10 @@ public:
 	// man count (health)
 	int man;
 	int wounded;
-	// unit type/behaviour
-	MapUnitType type;
+	// spec unit type (event generated units)
+	MapUnitType spec_type;
+	// unit behaviour (non-event enemy units)
+	MapUnitType behave;
 	// custom name
 	char name[100];
 	// commander id or zero	

@@ -63,6 +63,7 @@ class FormSprite : public wxFrame
 		void OnEdgeShadeChange(wxCommandEvent& event);
 		//void OnSpecClassChange(wxCommandEvent& event);
 
+		void OnAssignKnowns(wxCommandEvent& event);
 		void OnClearContext(wxCommandEvent& event);
 		void OnUpdateContext(wxCommandEvent& event);
 		void OnUpdateContextCb(string status);
@@ -118,6 +119,7 @@ class FormSprite : public wxFrame
 			wxID_BTN_SEL_Q4,
 			wxID_BTN_NEXT,
 			wxID_BTN_PREV,
+			wxID_BTN_SET_KNOWS,
 			wxID_BTN_CLR_CONTEXT,
 			wxID_EDIT_TILE_CONTEXT_AUTO,
 			wxID_BTN_AUTO_SHADING,
@@ -170,6 +172,7 @@ class FormSprite : public wxFrame
 			wxID_CB_SHADE_C2,
 			wxID_CB_SHADE_C3,
 			wxID_CB_SHADE_C4,
+			wxID_EDIT_MAP_TILE_FLAGS,
 			wxID_CHB_TOOL_CLASS,
 			wxID_CHB_TOOL_OBJ_GROUP,
 			wxID_CB_TOOL_GLYPH,

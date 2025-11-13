@@ -173,6 +173,7 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     menuEdit->Append(ID_ClearBuf,"Clear buffer\tESC","",wxITEM_NORMAL);
     menuEdit->Append(wxID_ANY,"","",wxITEM_SEPARATOR);
     menuEdit->Append(ID_InvalidateSel,"Invalidate selection\tCtrl+I","",wxITEM_NORMAL);
+    menuEdit->Append(ID_DeleteSel,"Delete stuff\tCtrl+Delete","",wxITEM_NORMAL);
     menuEdit->Append(wxID_ANY,"","",wxITEM_SEPARATOR);
     menuEdit->Append(ID_ElevUp,"Elevate terrain\tCtrl+PageUp","",wxITEM_NORMAL);
     menuEdit->Append(ID_ElevDown,"Lower terrain\tCtrl+PageDown","",wxITEM_NORMAL);
@@ -315,6 +316,7 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     Bind(wxEVT_MENU,&MyFrame::OnDeselectAll,this,ID_DeselectAll);
     Bind(wxEVT_MENU,&MyFrame::OnSelectDeselect,this,ID_SelectDeselect);
     Bind(wxEVT_MENU,&MyFrame::OnInvalidateSelection,this,ID_InvalidateSel);
+    Bind(wxEVT_MENU,&MyFrame::OnDeleteSel,this,ID_DeleteSel);
     Bind(wxEVT_MENU,&MyFrame::OnCreateNewObject,this,ID_CreateNewObject);
     Bind(wxEVT_MENU,&MyFrame::OnMoveUnit,this,ID_MoveUnit);
 
@@ -1313,7 +1315,6 @@ void MyFrame::OnPasteBuf(wxCommandEvent& event)
     Refresh();
 }
 
-
 // try place copy buffer to map
 void MyFrame::OnChangeElevation(wxCommandEvent& event)
 {
@@ -1331,7 +1332,6 @@ void MyFrame::OnChangeElevation(wxCommandEvent& event)
     }
 }
 
-
 // invalidate map region (retexturing)
 void MyFrame::OnInvalidateSelection(wxCommandEvent& event)
 {
@@ -1343,6 +1343,21 @@ void MyFrame::OnInvalidateSelection(wxCommandEvent& event)
 
     // invalidate region    
     spell_map->IvalidateTiles(list, bind(&MyFrame::StatusStringCallback,this,placeholders::_1));
+}
+
+// delete object or stuff
+void MyFrame::OnDeleteSel(wxCommandEvent& event)
+{
+    // get selected area (preference of persistent selection over cursor)
+    std::vector<MapXY> list;
+    list = spell_map->GetPersistSelections();
+    if(list.empty())
+        list = spell_map->GetSelections();
+
+    spell_map->LockMap();
+    spell_map->DeleteSelObjects(list);
+    spell_map->ReleaseMap();
+    Refresh();
 }
 
 

@@ -231,6 +231,7 @@ class SpellMap
 		// special tiles pointers
 		Sprite* start_sprite;
 		Sprite* escape_sprite;
+		Sprite* target_sprite;
 		// unit pointer animation
 		MapLayer4 pnm_sipka;
 
@@ -374,6 +375,7 @@ class SpellMap
 		vector<MapLayer4> L4; // PNM list				
 		vector<MapXY> start; // start tiles list
 		vector<MapXY> escape; // escape tiles list
+		vector<MapXY> target; // target tiles list
 		vector<MapUnit*> Lunit; // units layer array
 		vector<uint8_t> select; // selection flags array
 		vector<uint32_t> L1_flags; // terrain class flags array
@@ -799,8 +801,14 @@ class SpellMap
 		void CopyBuffer(std::vector<MapXY> &posxy,Layers layers);
 		void PasteBuffer(std::vector<MapSprite> &tiles,std::vector<MapXY> &sel);
 		int PasteRandSprites(std::vector<MapSprite>& tiles,std::vector<MapXY>& posxy,std::vector<Sprite*>& sprites,bool force_rand);
+		void DeleteSelObjects(std::vector<MapXY>& posxy);
 
-		int PlaceStartEscape(vector<MapXY>& posxy,int is_escape);
+		enum{
+			SPEC_TILE_START = 0,
+			SPEC_TILE_ESCAPE,
+			SPEC_TILE_TARGET
+		};
+		int PlaceStartEscape(vector<MapXY>& posxy,int spec_tile_type);
 
 
 		

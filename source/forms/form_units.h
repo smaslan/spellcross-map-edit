@@ -117,6 +117,8 @@ class FormUnits : public wxFrame
 			wxID_SPIN_ID,
 			wxID_NAME,
 			wxID_SPIN_HEALTH,
+			wxID_UNIT_BEHAVE,
+			wxID_UNIT_TYPE,
 			wxID_PAGE_CTRL,
 			wxID_PAGE_ART,
 			wxID_CANVAS_ART,
@@ -135,7 +137,7 @@ class FormUnits : public wxFrame
 			wxID_CB_GRP_ORG,
 			wxID_CB_GRP_FIRE_ORG,
 			wxID_CB_GRP_FIRE_ORG_MEAN,
-			wxID_CB_GRP_FIRE_CENTER
+			wxID_CB_GRP_FIRE_CENTER,
 		};
 
 		wxStatusBar* sbar;
@@ -156,6 +158,10 @@ class FormUnits : public wxFrame
 		wxTextCtrl* txtName;
 		wxStaticText* m_staticText40;
 		wxSpinCtrl* spinHealth;
+		wxStaticText* m_staticText401;
+		wxChoice* chUnitBehave;
+		wxStaticText* m_staticText74;
+		wxChoice* chUnitType;
 		wxStaticLine* m_staticline10;
 		wxNotebook* pages;
 		wxPanel* pageArt;

@@ -1,4 +1,5 @@
 #include "spell_map_event.h"
+#include "spell_units.h"
 #include "map.h"
 #include <stdexcept>
 #include <tuple>
@@ -464,24 +465,25 @@ int SpellMapEvents::AddSpecialEvent(SpellData *data, SpellDEF* def, SpellDefCmd*
 
 			// unit index within map (identifier)
 			unit->id = -1;
-			
+
 			// decode unit type
 			if(evcmd->parameters->at(0).compare("EnemyUnit") == 0)
 			{
+				unit->spec_type = MapUnitType::EnemyUnit;
 				unit->is_enemy = 1;
 			}
 			else if(evcmd->parameters->at(0).compare("MissionUnit") == 0)
 			{
-				unit->type = MapUnitType::MissionUnit;
+				unit->spec_type = MapUnitType::MissionUnit;
 			}
 			else if(evcmd->parameters->at(0).compare("SpecUnit1") == 0)
 			{
-				unit->type = MapUnitType::SpecUnit;
+				unit->spec_type = MapUnitType::SpecUnit;
 				unit->id = 48; // this idiocy is original Spellcross hard defined designation for SpecUnit1
 			}
 			else if(evcmd->parameters->at(0).compare("SpecUnit2") == 0)
 			{
-				unit->type = MapUnitType::SpecUnit;
+				unit->spec_type = MapUnitType::SpecUnit;
 				unit->id = 49; // this idiocy is original Spellcross hard defined designation for SpecUnit2
 			}
 			

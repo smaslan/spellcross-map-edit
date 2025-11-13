@@ -615,6 +615,7 @@ int SpellMap::Create(SpellData* spelldata, const char *terr_name, int x, int y)
 	// prefetch pointers to common stuff needed fast when rendering
 	start_sprite = terrain->GetSprite("START");
 	escape_sprite = terrain->GetSprite("CIEL");
+	target_sprite = terrain->GetSprite("TARGET"); //### to be sourced from aux data (not in all terrains!)
 
 	// reset scroller
 	scroller.Reset();
@@ -1004,7 +1005,7 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 	{
 		int pxy = *(uint16_t*)data; data += 2;
 		int sid = (int)*data; data++;
-		sound_loops->sounds.emplace_back(MapXY(pxy% x_size,pxy / x_size),sound_loops->list[sid]->GetSample());
+		sound_loops->sounds.emplace_back(MapXY(pxy % x_size,pxy / x_size),sound_loops->list[sid]->GetSample());
 	}
 	sound_loops->UpdateMaps();
 
@@ -1091,9 +1092,21 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 					escape.push_back(coor);
 				}
 			}
+			else if(cmd->name.compare("AddTargetSquare") == 0)
+			{
+				// --- AddTargetSquare(s) ---				
+				for(int p = 0; p < cmd->parameters->size(); p++)
+				{
+					int xy = stoi(cmd->parameters->at(p));
+					MapXY coor;
+					coor.y = (xy / x_size);
+					coor.x = xy - coor.y * x_size;
+					target.push_back(coor);
+				}
+			}
 			else if (cmd->name.compare("AddUnit") == 0)
 			{
-				// --- AddUnit(unit_order, unit_id, position, experience, man_count, unit_mode, name) ---				
+				// --- AddUnit(unit_order, unit_id, position, experience, man_count, unit_behave, name) ---				
 				MapUnit *unit = new MapUnit(this);
 
 				// always os
@@ -1126,7 +1139,7 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 				unit->man = stoi(cmd->parameters->at(4));
 
 				// unit behaviour type
-				unit->type = cmd->parameters->at(5).c_str();
+				unit->behave = cmd->parameters->at(5).c_str();
 
 				// unit active (to change in game mode)
 				unit->is_active = 1;
@@ -1188,6 +1201,7 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 	// prefetch pointers to common stuff needed fast when rendering
 	start_sprite = terrain->GetSprite("START");
 	escape_sprite = terrain->GetSprite("CIEL");
+	target_sprite = terrain->GetSprite("TARGET");
 		
 	// done
 	return(0);
@@ -1710,18 +1724,42 @@ void SpellMap::PasteBuffer(std::vector<MapSprite>& tiles, std::vector<MapXY> &po
 			int mxy = ConvXY(x,y);
 			if(x >= 0 && y >= 0 && x < x_size && y < y_size)
 			{
-				auto &tile = copy_buf.tiles[k];
+				auto &tile = copy_buf.tiles[k];				
+				if(tile.L1 && !tile.L2 && !tiles[mxy].L2)
+					tiles[mxy].flags = tile.flags;
 				if(tile.L1)
 				{
 					tiles[mxy].L1 = tile.L1;
 					tiles[mxy].elev += tile.elev;
 				}
 				if(tile.L2)
+				{				
 					tiles[mxy].L2 = tile.L2;
+					tiles[mxy].flags = tile.flags;
+				}
 			}
 		}
 	}
 }
+
+// delete selected objects from map
+void SpellMap::DeleteSelObjects(std::vector<MapXY>& posxy)
+{
+	for(int k = 0; k < posxy.size(); k++)
+	{
+		auto &pos = posxy[k];
+		auto &tile = tiles[ConvXY(pos)];
+		if(tile.L2)
+		{
+			tile.L2 = 0;
+			tile.flags = 0x00;
+		}
+	}
+}
+
+
+
+
 
 
 // paste random sprites from a list
@@ -2286,14 +2324,17 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 		}
 	}
 
-	// --- Redner special tiles - START/CIEL ---
+	// --- Redner special tiles - START/ESCAPE/TARGET---
 	if (wSTCI)
 	{
 		// for each special sprite type
-		vector<MapXY> *spec[] = { &start, &escape };
-		Sprite* spec_sprite[] = { start_sprite, escape_sprite };
-		for (int sid = 0; sid < 2; sid++)
+		vector<MapXY> *spec[] = { &start, &escape, &target};
+		Sprite* spec_sprite[] = { start_sprite, escape_sprite, target_sprite };
+		for (int sid = 0; sid < 3; sid++)
 		{
+			if(!spec_sprite[sid])
+				continue;
+
 			for (i = 0; i < spec[sid]->size(); i++)
 			{
 				MapXY* pos = &(*spec[sid])[i];
@@ -6917,7 +6958,7 @@ int SpellMap::CreateUnit(MapUnit *parent, SpellUnitRec *new_type)
 	unit->MorphUnit(new_type,100);
 
 	// set some initial parameters
-	unit->type = MapUnitType::MissionUnit;
+	unit->spec_type = MapUnitType::MissionUnit;
 	unit->ResetAP();
 	unit->ClearDigLevel();
 	unit->ResetHealth();
@@ -9570,6 +9611,7 @@ int SpellMap::BuildSpriteContext()
 				}
 			}
 
+			// get map layer 2 flags from all sprites
 			if(this_tile.flags && this_tile.L2)
 			{
 				// layer 2 object exist
@@ -9587,20 +9629,32 @@ int SpellMap::BuildSpriteContext()
 }
 
 
-
 // place/remove start/escape tiles to map data
-int SpellMap::PlaceStartEscape(vector<MapXY>& posxy, int is_escape)
+int SpellMap::PlaceStartEscape(vector<MapXY>& posxy, int spec_tile_type)
 {
 	if(posxy.empty())
 		return(1);
 
-	auto list = &start;
-	auto other_list = &escape;
-	if(is_escape)
+	std::vector<MapXY>* list;
+	std::vector<std::vector<MapXY>*> other_lists;
+	if(spec_tile_type == SpellMap::SPEC_TILE_START)
 	{
-		list = &escape;	
-		other_list = &start;
+		list = &start;
+		other_lists = {&escape, &target};
 	}
+	else if(spec_tile_type == SpellMap::SPEC_TILE_ESCAPE)
+	{
+		list = &escape;
+		other_lists ={&start, &target};
+	}
+	else if(spec_tile_type == SpellMap::SPEC_TILE_TARGET)
+	{
+		list = &target;
+		other_lists ={&start, &escape};
+	}
+	else
+		return(1);
+	
 	std::vector<MapXY> new_list = *list;
 	for(auto &new_pos: posxy)
 	{
@@ -9612,10 +9666,14 @@ int SpellMap::PlaceStartEscape(vector<MapXY>& posxy, int is_escape)
 		{
 			// add new tile
 			new_list.push_back(new_pos);
-			auto other_pos = std::find(other_list->begin(),other_list->end(),new_pos);
-			// make sure the same tile is not in the other list!
-			if(other_pos != other_list->end())
-				other_list->erase(other_pos);			
+						
+			// make sure the same tile is not in the other lists!
+			for(auto other_list: other_lists)
+			{
+				auto other_pos = std::find(other_list->begin(),other_list->end(),new_pos);
+				if(other_pos != other_list->end())
+					other_list->erase(other_pos);			
+			}
 		}
 		else
 		{
@@ -9649,12 +9707,17 @@ int SpellMap::EditClass(vector<MapXY>& selection, SpellTool *tool, std::function
 	{
 		if(tool_sprites[0] == start_sprite)
 		{
-			PlaceStartEscape(selection, false);
+			PlaceStartEscape(selection, SpellMap::SPEC_TILE_START);
 			return(0);
 		}
 		if(tool_sprites[0] == escape_sprite)
 		{
-			PlaceStartEscape(selection,true);
+			PlaceStartEscape(selection,SpellMap::SPEC_TILE_ESCAPE);
+			return(0);
+		}
+		if(tool_sprites[0] == target_sprite)
+		{
+			PlaceStartEscape(selection,SpellMap::SPEC_TILE_TARGET);
 			return(0);
 		}
 		

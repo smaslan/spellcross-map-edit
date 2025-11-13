@@ -488,6 +488,7 @@ public:
 	int ShuffleSpriteContext();
 	int UpdateSpriteContext(std::function<void(std::string)> status_cb=NULL);
 	int InitSpriteContextShading();
+	int InitSpriteMapTileFlags();
 	int UpdateTileGlyphs();
 	Sprite *GetTileGlyph(Sprite *sprite,uint32_t flags = 0);
 
