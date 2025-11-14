@@ -1250,29 +1250,29 @@ void MyFrame::OnCanvasMouseWheel(wxMouseEvent& event)
 void MyFrame::OnCanvasKeyDown(wxKeyEvent& event)
 {
     int key = event.GetKeyCode();
-
     if(event.ControlDown())
     {        
-
-
-    }   
-            
+    }               
 }
+
 // select all tiles
 void MyFrame::OnSelectAll(wxCommandEvent& event)
 {
     spell_map->SelectTiles(SpellMap::SELECT_ADD);
 }
+// deselect all tiles
 void MyFrame::OnDeselectAll(wxCommandEvent& event)
 {
     spell_map->SelectTiles(SpellMap::SELECT_CLEAR);
 }
+// select or deselect tiles
 void MyFrame::OnSelectDeselect(wxCommandEvent& event)
 {
     // add/remove selection
     auto list = spell_map->GetSelections();
     spell_map->SelectTiles(list,SpellMap::SELECT_XOR);
 }
+
 // copy map selection to copy buffer
 void MyFrame::OnCopyBuf(wxCommandEvent& event)
 {
@@ -1473,7 +1473,9 @@ void MyFrame::OnUnitClick_cb(int option)
 }
 
 
-
+//--------------------------------------------------------------------------------------------------------------------
+// Message display stuff
+//--------------------------------------------------------------------------------------------------------------------
 // show message function wrapper
 void MyFrame::ShowMessage(SpellTextRec *message,bool is_yesno,std::function<void(bool)> exit_cb)
 {
@@ -1487,7 +1489,9 @@ bool MyFrame::CheckMessageState()
 }
 
 
-
+//--------------------------------------------------------------------------------------------------------------------
+// Tool bar stuff
+//--------------------------------------------------------------------------------------------------------------------
 // tool selected
 void MyFrame::OnToolBtnClick(wxRibbonButtonBarEvent& event)
 {
@@ -1542,6 +1546,7 @@ void MyFrame::OnToolBtnClick(wxRibbonButtonBarEvent& event)
         }
     }
 }
+// tool page selected
 void MyFrame::OnToolPageClick(wxRibbonBarEvent& event)
 {
     // no tool selection
@@ -1570,7 +1575,6 @@ void MyFrame::OnToolPageClick(wxRibbonBarEvent& event)
         }
     }
 }
-
 // fill toolset ribbon
 void MyFrame::LoadToolsetRibbon(Terrain *terr)
 {    
@@ -1675,7 +1679,6 @@ void MyFrame::LoadToolsetRibbon(Terrain *terr)
     sizer->Insert(0,ribbonBar, 0, wxALL | wxEXPAND, 2);
     sizer->Layout();
 }
-
 
 
 //--------------------------------------------------------------------------------------------------------------------

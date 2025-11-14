@@ -67,6 +67,7 @@ class FormUnits : public wxFrame
 
 		void SelectUnit(MapUnit *unit=NULL);
 		void WriteInfo();
+		void EditUnit();
 
 		SpellData *m_spell_data;
 		MapUnit *m_unit;

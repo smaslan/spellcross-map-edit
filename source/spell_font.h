@@ -61,7 +61,7 @@ public:
     int Merge(SpellFont& font);
     int RenderSymbol(uint8_t* buffer,uint8_t* buf_end,int buf_x_size,int x_pos,int y_pos,int code,int color,int bg_color=-1);    
     int Render(uint8_t* buffer,uint8_t* buf_end,int buf_x_size,int x_pos,int y_pos,std::wstring text,int color,int bg_color=-1,FontShadow shadow=NONE,FontAlign align=LEFT);
-    int Render(uint8_t *buffer, uint8_t *buf_end, int buf_x_size, int x_pos, int y_pos, std::string text, int color, int bg_color=-1,FontShadow shadow=NONE,FontAlign align=LEFT);
+    int Render(uint8_t* buffer,uint8_t* buf_end,int buf_x_size,int x_pos,int y_pos,std::string text, int color,int bg_color=-1,FontShadow shadow=NONE,FontAlign align=LEFT);
     int Render(uint8_t* buffer,uint8_t* buf_end,int buf_x_size,int x_pos,int y_pos,int x_limit,int y_limit,vector<std::string> text,int color,int bg_color,FontShadow shadow=NONE);
     int Render(uint8_t* buffer,uint8_t* buf_end,int buf_x_size,int x_pos,int y_pos,int x_limit,int y_limit,std::string text,int color,int bg_color,FontShadow shadow=NONE);
     int GetHeight();

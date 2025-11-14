@@ -525,10 +525,10 @@ int SpellMapEvents::AddSpecialEvent(SpellData *data, SpellDEF* def, SpellDefCmd*
 			unit->map_event = evt;
 			
 			// copy unit name
-			strcpy_s(unit->name,sizeof(unit->name),unit->unit->name);
+			unit->name = unit->unit->name;
 			auto& custom_name = evcmd->parameters->at(5);
 			if(custom_name.size() && custom_name.compare("-")!=0)
-				strcpy_s(unit->name,sizeof(unit->name),custom_name.c_str());
+				unit->name = custom_name;
 
 			// default action points
 			unit->ResetAP();

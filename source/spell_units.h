@@ -14,6 +14,7 @@
 #include "spell_graphics.h"
 #include "spell_sound.h"
 #include <vector>
+#include <string>
 #include <tuple>
 
 //using namespace std;
@@ -334,6 +335,7 @@ public:
 		ToughDefence,
 		SpecUnit,
 		MissionUnit,
+		ArmyUnit,
 		EnemyUnit,
 	};
 	MapUnitType() = default;
@@ -350,8 +352,12 @@ public:
 			value = Values::NormalUnit;
 		else if(_strcmpi(type,"ToughDefence") == 0)
 			value = Values::ToughDefence;
+		else if(_strcmpi(type,"ArmyUnit") == 0)
+			value = Values::ArmyUnit;
 		else if(_strcmpi(type,"MissionUnit") == 0)
 			value = Values::MissionUnit;
+		else if(_strcmpi(type,"SpecUnit") == 0)
+			value = Values::SpecUnit;
 		else if(_strcmpi(type,"SpecUnit1") == 0)
 			value = Values::SpecUnit;
 		else if(_strcmpi(type,"SpecUnit2") == 0)
@@ -377,6 +383,8 @@ public:
 			return("ToughDefence");
 		else if(value == Values::SpecUnit)
 			return("SpecUnit");
+		else if(value == Values::ArmyUnit)
+			return("ArmyUnit");
 		else 
 			return("Unknown");		
 	}
@@ -466,7 +474,7 @@ public:
 	// unit behaviour (non-event enemy units)
 	MapUnitType behave;
 	// custom name
-	char name[100];
+	std::string name;
 	// commander id or zero	
 	int commander_id;
 	int is_commander;

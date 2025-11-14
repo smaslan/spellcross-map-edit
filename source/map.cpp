@@ -1145,10 +1145,10 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 				unit->is_active = 1;
 				
 				// copy unit name
-				strcpy_s(unit->name,sizeof(unit->name),unit->unit->name);
+				unit->name = unit->unit->name;
 				auto & custom_name = cmd->parameters->at(6);
 				if(custom_name.size() && custom_name.compare("-")!=0)
-					strcpy_s(unit->name,sizeof(unit->name),custom_name.c_str());
+					unit->name = custom_name;
 
 				// initial action points
 				unit->ResetAP();
@@ -4129,6 +4129,12 @@ int SpellMap::RenderHUD(uint8_t *buf,uint8_t* buf_end,int buf_x_size,MapXY *curs
 		string name = unit->name;		
 		font->Render(buf,buf_end,buf_x_size,hud_left+px_ref+95,hud_top+28,137,16,name,232,254,SpellFont::DIAG2);
 
+		// render unit ID
+		if(!isGameMode())
+		{
+			std::string id_str = string_format("#%d",unit->id);
+			spelldata->font7->Render(buf,buf_end,buf_x_size,hud_left+px_ref+95+137,hud_top+28,id_str,252,254,SpellFont::FontShadow::DIAG,SpellFont::FontAlign::RIGHT);
+		}
 	}	
 
 	// destructible object selected?
@@ -4594,7 +4600,7 @@ SpellMap::ViewRange::~ViewRange()
 	ClearTasks();
 }
 
-// lock/release result varoables
+// lock/release result variables
 void SpellMap::ViewRange::ResultLock(bool lock)
 {
 	if(lock)
@@ -4769,8 +4775,6 @@ int SpellMap::ViewRange::PrepareUnitsViewMaskCore()
 	return(0);
 }
 
-
-
 // render units view elevation map (mask) to bitmap (thread safe)
 // do not forget destroy returned object!
 wxBitmap *SpellMap::ViewRange::ExportUnitsViewZmap()
@@ -4902,7 +4906,7 @@ int SpellMap::ViewRange::ClearUnitsView(ClearMode clear, bool immediate)
 
 	return(0);
 }
-// reset units view state to desired state (core function without mutex locks to be called from Worker())
+// reset units view state to desired state (core function without mutex locks to be called from Worker() only)
 int SpellMap::ViewRange::ClearUnitsViewCore(ClearMode clear, std::vector<int> *p_view)
 {
 	// update result directly (default)?
@@ -4956,7 +4960,7 @@ void SpellMap::ViewRange::ClearEvents(bool cleanup)
 	ResultLock(false);
 }
 
-// add unit to task list with filtering of duplicite tasks
+// add unit to task list with filtering of duplicite tasks (thread safe)
 int SpellMap::ViewRange::AddViewUnitTask(MapUnit* unit,ClearMode clear,bool rec_events,bool force)
 {
 	queue_lock.lock();
@@ -4988,7 +4992,8 @@ int SpellMap::ViewRange::AddViewUnitTask(MapUnit* unit,ClearMode clear,bool rec_
 	return(0);
 }
 
-// calculate unit view range, returns true if new contact detected and returns activated events list
+// calculate unit view range, returns true if new contact detected and returns activated events list (thread safe)
+//  with events new_contact waits to complete operation
 void SpellMap::ViewRange::AddUnitView(MapUnit *unit, ClearMode clear, int *new_contact, vector<SpellMapEventRec*>* events)
 {
 	// insert new task 	
@@ -5003,7 +5008,7 @@ void SpellMap::ViewRange::AddUnitView(MapUnit *unit, ClearMode clear, int *new_c
 		*new_contact = contact;
 }
 
-// calculate unit view
+// calculate unit view (thread safe), immediate = true wait for result
 int SpellMap::ViewRange::CalcAttackRange(MapUnit *unit, bool immediate)
 {
 	queue_lock.lock();
@@ -5019,7 +5024,7 @@ int SpellMap::ViewRange::CalcAttackRange(MapUnit *unit, bool immediate)
 	return(0);
 }
 
-// get unread events and new contacts
+// return new contact and optional unread events, does not wait to complete calcs (thread safe)
 int SpellMap::ViewRange::GetResults(std::vector<SpellMapEventRec*>* events)
 {
 	// get events
@@ -5036,7 +5041,7 @@ int SpellMap::ViewRange::GetResults(std::vector<SpellMapEventRec*>* events)
 	return(new_contact);
 }
 
-// wait for pending tasks, return events and new contacts
+// wait for pending tasks, return new contact and optional unread events (thread safe)
 int SpellMap::ViewRange::WaitResults(std::vector<SpellMapEventRec*>* events)
 {
 	// wait to finish all tasks
@@ -5045,7 +5050,7 @@ int SpellMap::ViewRange::WaitResults(std::vector<SpellMapEventRec*>* events)
 	return(GetResults(events));
 }
 
-// add view range of all moved units of given type, clear moved flags (assynchronous)
+// add view range of all moved units of given type, clear moved flags (assynchronous), thread safe
 int SpellMap::ViewRange::AddUnitsView(int unit_type,int clear,MapUnit* except_unit)
 {
 	for(auto& unit : map->units)
@@ -5079,8 +5084,7 @@ int SpellMap::ViewRange::AttackRangeInit()
 	return(0);
 }
 
-
-// view calculator worker thread
+// view/attack calculator worker thread
 void SpellMap::ViewRange::Worker()
 {	
 	while(true)
@@ -5125,8 +5129,7 @@ void SpellMap::ViewRange::Worker()
 		{
 			std::this_thread::sleep_for(2ms);
 			continue;
-		}
-			
+		}		
 
 		// fire range calculation mode?
 		int is_fire = (action == Action::FIRE);
@@ -5584,7 +5587,7 @@ void SpellMap::ViewRange::Worker()
 }
 
 
-// store/restore units view to mem
+// store/restore units view to mem (thread safe)
 int SpellMap::ViewRange::StoreUnitsView(bool immediate)
 {
 	// optional wait to idle
@@ -5609,6 +5612,7 @@ int SpellMap::ViewRange::StoreUnitsView(bool immediate)
 	}
 	return(0);
 }
+// restore view from mem (thread safe)
 int SpellMap::ViewRange::RestoreUnitsView(bool immediate)
 {
 	if(immediate)

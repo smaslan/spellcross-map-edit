@@ -417,7 +417,7 @@ FormUnits::FormUnits( wxWindow* parent, wxWindowID id, const wxString& title, co
 		chUnitBehave->Append(MapUnitType(beh).GetString());
 
 	// unit type list
-	std::vector<MapUnitType::Values> spec_list ={MapUnitType::Values::EnemyUnit, MapUnitType::Values::MissionUnit, MapUnitType::Values::SpecUnit};
+	std::vector<MapUnitType::Values> spec_list ={MapUnitType::Values::EnemyUnit, MapUnitType::Values::ArmyUnit, MapUnitType::Values::MissionUnit, MapUnitType::Values::SpecUnit};
 	chUnitType->Clear();
 	chUnitType->Append("non-event enemy unit");
 	for(auto spec: spec_list)
@@ -445,8 +445,10 @@ void FormUnits::OnCloseClick(wxCommandEvent& event)
 		
 		m_unit->MorphUnit(m_spell_data->units->GetUnit(lboxUnits->GetSelection()));
 		m_unit->was_moved = true;
-		if(strcmp(m_unit->name,txtName->GetValue().c_str()) != 0)
-			strcpy_s(m_unit->name,sizeof(m_unit->name),txtName->GetValue().c_str());
+		m_unit->man = spinHealth->GetValue();
+		if(m_unit->name.compare(txtName->GetValue()) != 0)
+			m_unit->name = txtName->GetValue();
+		EditUnit();
 	}
 	Close();
 }
@@ -680,6 +682,39 @@ void FormUnits::SelectUnit(MapUnit *unit)
 		chbGrpType->Select(0);
 	ChangeGrpResource();
 }
+
+// edit unit params
+void FormUnits::EditUnit()
+{
+	if(!m_unit)
+		return;
+	
+	// update spec type selection
+	auto utid = chUnitType->GetSelection();
+	if(utid >= 0)
+	{
+		MapUnitType spec_type;
+		spec_type = chUnitType->GetString(utid);
+		if(spec_type != MapUnitType::Values::Unknown)
+			m_unit->spec_type = spec_type;
+		if(m_unit->spec_type == MapUnitType::Values::SpecUnit || m_unit->spec_type == MapUnitType::Values::MissionUnit)
+			m_unit->is_enemy = false;
+		if(m_unit->spec_type == MapUnitType::Values::EnemyUnit)
+			m_unit->is_enemy = true;
+	}
+
+	// update unit behaviour selection
+	auto beid = chUnitBehave->GetSelection();
+	if(beid >= 0)
+	{
+		MapUnitType behave;
+		behave = chUnitBehave->GetString(beid);
+		if(behave != MapUnitType::Values::Unknown && !m_unit->is_event)
+			m_unit->behave = behave;
+	}
+
+}
+
 
 // show unit info
 void FormUnits::WriteInfo()
