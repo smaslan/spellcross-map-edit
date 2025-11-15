@@ -51,6 +51,7 @@ class FormUnits : public wxFrame
 		void OnCloseClick(wxCommandEvent& event);
 		void OnSaveAuxClick(wxCommandEvent& event);
 		void OnSelectUnit(wxCommandEvent& event);
+		void OnSelectSpecUnit(wxCommandEvent& event);
 		void OnSelectArt(wxCommandEvent& event);
 		void OnPaintIcon(wxPaintEvent& event);
 		void OnPaintArt(wxPaintEvent& event);
@@ -71,7 +72,8 @@ class FormUnits : public wxFrame
 
 		SpellData *m_spell_data;
 		MapUnit *m_unit;
-		bool m_update;		
+		bool m_update;
+		bool m_new_unit;
 
 		vector<uint8_t> m_grpbuf;
 		int m_grp_x;
@@ -159,6 +161,8 @@ class FormUnits : public wxFrame
 		wxTextCtrl* txtName;
 		wxStaticText* m_staticText40;
 		wxSpinCtrl* spinHealth;
+		wxStaticText* m_staticText75;
+		wxSlider* slideXP;
 		wxStaticText* m_staticText401;
 		wxChoice* chUnitBehave;
 		wxStaticText* m_staticText74;
@@ -207,8 +211,9 @@ class FormUnits : public wxFrame
 		~FormUnits();
 
 		void SetSpellData(SpellData *spelldata);
-		void SetMapUnit(MapUnit* unit=NULL);
+		void SetMapUnit(MapUnit* unit=NULL, SpellMap *map=NULL);
 		bool DoUpdateUnit();
+		MapUnit *DoAddUnit();
 		
 
 };

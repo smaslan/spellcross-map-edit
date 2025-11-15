@@ -52,6 +52,9 @@ public:
 class SpellUnitRec
 {
 	public:
+		// type ID (order id)
+		int type_id;
+		
 		// name
 		char name[28];
 
@@ -396,9 +399,7 @@ private:
 
 class MapUnit
 {
-private:
-	// back ref to map
-	SpellMap *map;
+private:	
 
 	void RenderVertBar(uint8_t* buffer,uint8_t* buf_end,int buf_x_size, int pos_x, int pos_y, int size_x, int size_y, double level, uint8_t color);
 
@@ -455,6 +456,9 @@ public:
 		AIR,
 		OBJECT
 	};
+	
+	// back ref to map
+	SpellMap* map;
 		
 	// unit idnetifier index within map
 	int id;
@@ -466,6 +470,7 @@ public:
 	// experience
 	int experience; // discrete experience (big number)
 	int experience_level; // level 1 to 12
+	int experience_init; // initial experience from map DEF 0 to 12
 	// man count (health)
 	int man;
 	int wounded;

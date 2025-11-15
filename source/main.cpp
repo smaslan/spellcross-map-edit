@@ -180,7 +180,7 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     menuEdit->Append(wxID_ANY,"","",wxITEM_SEPARATOR);
     menuEdit->Append(ID_CreateNewObject,"Create new object\tCtrl+Shift+O","",wxITEM_NORMAL);
     menuEdit->Append(wxID_ANY,"","",wxITEM_SEPARATOR);
-    menuEdit->Append(ID_MoveUnit,"Move unit\tCtrl+M","",wxITEM_NORMAL);
+    menuEdit->Append(ID_AddUnit,"Add unit\tCtrl+Shift+U","",wxITEM_NORMAL);
 
 
     
@@ -318,7 +318,7 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     Bind(wxEVT_MENU,&MyFrame::OnInvalidateSelection,this,ID_InvalidateSel);
     Bind(wxEVT_MENU,&MyFrame::OnDeleteSel,this,ID_DeleteSel);
     Bind(wxEVT_MENU,&MyFrame::OnCreateNewObject,this,ID_CreateNewObject);
-    Bind(wxEVT_MENU,&MyFrame::OnMoveUnit,this,ID_MoveUnit);
+    Bind(wxEVT_MENU,&MyFrame::OnAddUnit,this,ID_AddUnit);
 
 
 
@@ -397,13 +397,38 @@ void MyFrame::OnClose(wxCloseEvent& ev)
     else if(ev.GetId() == ID_UNITS_WIN)
     {
         // unit editor closed
+        auto new_unit = form_units->DoAddUnit();
+        if(new_unit)
+        {
+            // add new unit to map
+            spell_map->HaltUnitRanging(true);            
+            new_unit->in_placement = true;
+            new_unit->is_active = true;
+            new_unit->ResetAP();
+            auto pos = spell_map->GetSelection();
+            if(pos.IsSelected())
+                new_unit->coor = pos;
+            else
+                new_unit->coor = MapXY(0,0);
+            if(new_unit->is_event)
+            {
+                // event unit - place to MissionStart
+                spell_map->events->AddMissionStartUnit(new_unit);
+            }
+            else
+            {
+                // normal unit - place to map
+                spell_map->AddUnit(new_unit);
+            }
+            spell_map->SelectUnit(new_unit);
+            spell_map->ResumeUnitRanging(false);
+        }
         if(form_units->DoUpdateUnit())
         {
             // update current unit:
             spell_map->SortUnits();
             canvas->Refresh();
-        }
-        
+        }        
         form_units->Destroy();
     }
     else if(ev.GetId() == ID_EVENT_WIN)
@@ -815,7 +840,6 @@ void MyFrame::OnUpdateTileContextMaps(wxCommandEvent& event)
     spell_data->BuildSpriteContextOfMaps(path, "T11", bind(&MyFrame::StatusStringCallback,this,placeholders::_1));
 }
 
-
 // open tools editor
 void MyFrame::OnViewTools(wxCommandEvent& event)
 {
@@ -884,7 +908,7 @@ void MyFrame::OnEditEvent(wxCommandEvent& event)
     }
 }
 
-// open video viwer
+// open video viewer
 void MyFrame::OnViewVideo(wxCommandEvent& event)
 {
     /*if(!FindWindowById(ID_VIDEO_BOX_WIN))
@@ -1012,15 +1036,32 @@ void MyFrame::OnCreateNewObject(wxCommandEvent& event)
     delete form;    
 }
 
-// move unit (if selected)
-void MyFrame::OnMoveUnit(wxCommandEvent& event)
+// add new unit
+void MyFrame::OnAddUnit(wxCommandEvent& event)
 {
-    auto *unit = spell_map->GetSelectedUnit();
+    
+    if(!FindWindowById(ID_UNITS_WIN))
+    {
+        // make new unit        
+        /*MapUnit *new_unit = spell_map->CreateUnit();
+        spell_map->SelectUnit(new_unit);
+        new_unit->in_placement = true;
+        new_unit->is_active = true;*/               
+
+        form_units = new FormUnits(this,ID_UNITS_WIN);
+        form_units->SetSpellData(spell_data);
+        form_units->SetMapUnit(NULL, spell_map);
+        form_units->Show();
+    }
+
+
+    /*auto *unit = spell_map->GetSelectedUnit();
     if(unit)
     {
         // start unit movement
         unit->in_placement = true;
-    }
+    }*/
+    
 }
 
 
@@ -1140,7 +1181,7 @@ void MyFrame::OnCanvasRMouse(wxMouseEvent& event)
 }
 void MyFrame::OnCanvasMouseEnter(wxMouseEvent& event)
 {
-    if(inUnitOptions())
+    if(inSubForm())
         return;
 
     canvas->SetFocus();

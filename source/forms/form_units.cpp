@@ -120,6 +120,13 @@ FormUnits::FormUnits( wxWindow* parent, wxWindowID id, const wxString& title, co
 	spinHealth = new wxSpinCtrl(this,wxID_SPIN_HEALTH,wxEmptyString,wxDefaultPosition,wxDefaultSize,wxSP_ARROW_KEYS,0,10,0);
 	szProps->Add(spinHealth,0,wxEXPAND|wxBOTTOM|wxRIGHT|wxLEFT,5);
 
+	m_staticText75 = new wxStaticText(this,wxID_ANY,wxT("Experience:"),wxDefaultPosition,wxDefaultSize,0);
+	m_staticText75->Wrap(-1);
+	szProps->Add(m_staticText75,0,wxLEFT|wxRIGHT,5);
+
+	slideXP = new wxSlider(this,wxID_ANY,50,0,12,wxDefaultPosition,wxDefaultSize,wxSL_AUTOTICKS|wxSL_HORIZONTAL|wxSL_MIN_MAX_LABELS|wxSL_SELRANGE|wxSL_VALUE_LABEL);
+	szProps->Add(slideXP,0,wxEXPAND|wxLEFT|wxRIGHT,5);
+
 	m_staticText401 = new wxStaticText(this,wxID_ANY,wxT("Behaviour:"),wxDefaultPosition,wxDefaultSize,0);
 	m_staticText401->Wrap(-1);
 	szProps->Add(m_staticText401,0,wxLEFT|wxRIGHT,5);
@@ -129,7 +136,7 @@ FormUnits::FormUnits( wxWindow* parent, wxWindowID id, const wxString& title, co
 	chUnitBehave->SetSelection(0);
 	szProps->Add(chUnitBehave,0,wxBOTTOM|wxEXPAND|wxLEFT|wxRIGHT,5);
 
-	m_staticText74 = new wxStaticText(this,wxID_ANY,wxT("Unit type (event-units only):"),wxDefaultPosition,wxDefaultSize,0);
+	m_staticText74 = new wxStaticText(this,wxID_ANY,wxT("Special unit type (event-units only):"),wxDefaultPosition,wxDefaultSize,0);
 	m_staticText74->Wrap(-1);
 	szProps->Add(m_staticText74,0,wxLEFT|wxRIGHT,5);
 
@@ -204,7 +211,7 @@ FormUnits::FormUnits( wxWindow* parent, wxWindowID id, const wxString& title, co
 	pageArt->SetSizer(bSizer35);
 	pageArt->Layout();
 	bSizer35->Fit(pageArt);
-	pages->AddPage(pageArt,wxT("Unit art"),true);
+	pages->AddPage(pageArt,wxT("Unit art"),false);
 	pageGrp = new wxPanel(pages,wxID_PAGE_GRP,wxDefaultPosition,wxDefaultSize,wxTAB_TRAVERSAL);
 	wxBoxSizer* bSizer36;
 	bSizer36 = new wxBoxSizer(wxVERTICAL);
@@ -333,7 +340,7 @@ FormUnits::FormUnits( wxWindow* parent, wxWindowID id, const wxString& title, co
 	pageGrp->SetSizer(bSizer36);
 	pageGrp->Layout();
 	bSizer36->Fit(pageGrp);
-	pages->AddPage(pageGrp,wxT("Unit graphics"),false);
+	pages->AddPage(pageGrp,wxT("Unit graphics"),true);
 
 	szArt->Add(pages,1,wxEXPAND | wxALL,5);
 
@@ -352,6 +359,9 @@ FormUnits::FormUnits( wxWindow* parent, wxWindowID id, const wxString& title, co
 	this->Centre(wxBOTH);
 
 	// === AUTO GENERATED END ===
+
+	// unit ID is read only
+	spinID->Enable(false);
 
 	m_spell_data = NULL;
 	m_unit = NULL;
@@ -408,20 +418,12 @@ FormUnits::FormUnits( wxWindow* parent, wxWindowID id, const wxString& title, co
 	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormUnits::OnChangeGrpFrame,this,wxID_CB_GRP_FIRE_CENTER);
 	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormUnits::OnChangeGrpFrame,this,wxID_CB_GRP_FIRE_ORG_MEAN);
 
+	Bind(wxEVT_COMMAND_CHOICE_SELECTED,&FormUnits::OnSelectSpecUnit,this,wxID_UNIT_TYPE);
 
-	// unit behaviour list
-	std::vector<MapUnitType::Values> beh_list = {MapUnitType::Values::NormalUnit, MapUnitType::Values::PatrolUnit, MapUnitType::Values::WaitForContact, MapUnitType::Values::ToughDefence};
-	chUnitBehave->Clear();
-	chUnitBehave->Append("not applicable");
-	for(auto beh: beh_list)
-		chUnitBehave->Append(MapUnitType(beh).GetString());
 
-	// unit type list
-	std::vector<MapUnitType::Values> spec_list ={MapUnitType::Values::EnemyUnit, MapUnitType::Values::ArmyUnit, MapUnitType::Values::MissionUnit, MapUnitType::Values::SpecUnit};
-	chUnitType->Clear();
-	chUnitType->Append("non-event enemy unit");
-	for(auto spec: spec_list)
-		chUnitType->Append(MapUnitType(spec).GetString());
+	
+
+	
 
 }
 
@@ -441,22 +443,38 @@ void FormUnits::OnCloseClick(wxCommandEvent& event)
 	m_update = (event.GetId() == wxID_MM_SET) && m_unit;
 	if(m_update && lboxUnits->GetSelection() >= 0)
 	{
-		// update unit record (if attached)
-		
-		m_unit->MorphUnit(m_spell_data->units->GetUnit(lboxUnits->GetSelection()));
+		// update unit record (if attached)		
+		m_unit->map->HaltUnitRanging(true);
+		m_unit->MorphUnit(m_spell_data->units->GetUnit(lboxUnits->GetSelection()));		
 		m_unit->was_moved = true;
-		m_unit->man = spinHealth->GetValue();
-		if(m_unit->name.compare(txtName->GetValue()) != 0)
-			m_unit->name = txtName->GetValue();
 		EditUnit();
+		m_unit->map->AssignUnitID(m_unit);
+		m_unit->map->ResumeUnitRanging(false);
 	}
+	else if(m_unit && m_new_unit)
+	{
+		// cancel - remove temp new unit
+		delete m_unit;
+		m_unit = NULL;
+		m_update = false;
+	}
+
 	Close();
 }
 
-// check if unit shall be updated or not
+// check if unit shall be updated or not?
 bool FormUnits::DoUpdateUnit()
 {
 	return(m_update);
+}
+
+// check if unit shall be added to map?
+MapUnit *FormUnits::DoAddUnit()
+{
+	if(m_update && m_new_unit && m_unit)
+		return(m_unit);
+	else
+		return(NULL);
 }
 
 // set spellcross data ref
@@ -477,8 +495,26 @@ void FormUnits::SetSpellData(SpellData* spelldata)
 }
 
 // set spellcross map unit ref (or null to deselect unit)
-void FormUnits::SetMapUnit(MapUnit *unit)
+void FormUnits::SetMapUnit(MapUnit *unit, SpellMap* map)
 {
+	m_new_unit = false;
+	if(!unit && map)
+	{
+		// no map unit link provided - make new unit
+		unit = new MapUnit(map);
+		
+		unit->unit = m_spell_data->units->GetUnit(unit->type_id);
+		unit->is_event = true;
+		unit->behave = MapUnitType::Values::NormalUnit;
+		unit->spec_type = MapUnitType::Values::MissionUnit;
+		unit->ResetHealth();
+
+		// try assign new unit ID
+		map->AssignUnitID(unit);
+
+		m_new_unit = true;
+	}
+	
 	m_unit = unit;
 	SelectUnit(unit);
 }
@@ -486,7 +522,17 @@ void FormUnits::SetMapUnit(MapUnit *unit)
 // on unit selection change
 void FormUnits::OnSelectUnit(wxCommandEvent& event)
 {
-	SelectUnit();
+	SelectUnit();	
+}
+
+// on unit selection change
+void FormUnits::OnSelectSpecUnit(wxCommandEvent& event)
+{
+	if(m_new_unit)
+	{
+		EditUnit();
+		SelectUnit();
+	}
 }
 
 // fill form stuff when unit selected
@@ -535,6 +581,12 @@ void FormUnits::SelectUnit(MapUnit *unit)
 	spinHealth->SetRange(1, unit_rec->cnt);
 	spinHealth->SetValue(health);
 
+	// XP points
+	int xp = 0;
+	if(m_unit)
+		xp = m_unit->experience_init;
+	slideXP->SetValue(xp);
+
 	// show map unit name
 	string name = "";
 	if(m_unit)
@@ -544,45 +596,59 @@ void FormUnits::SelectUnit(MapUnit *unit)
 	// unit behaviour
 	if(m_unit)
 	{		
-		auto bid = chUnitBehave->FindString(m_unit->spec_type.GetString());
-		if(bid < 0)
+		if(m_unit->is_event)
 		{
+			// no beahave when event-unit
+			chUnitBehave->Clear();
 			chUnitBehave->Enable(false);
-			chUnitBehave->Select(0);
-		}
-		else
-		{
-			chUnitBehave->Enable(true);
-			chUnitBehave->Select(bid);
-		}
-	}
-	else
-	{
-		chUnitBehave->Select(0);
-		chUnitBehave->Enable(false);
-	}
 
-	// spec unit type
-	if(m_unit)
-	{
-		auto bid = chUnitType->FindString(m_unit->spec_type.GetString());
-		if(bid < 0)
-		{
-			chUnitType->Enable(false);
-			chUnitType->Select(0);
+			// unit spec type list
+			std::vector<MapUnitType::Values> spec_list ={MapUnitType::Values::EnemyUnit, MapUnitType::Values::ArmyUnit, MapUnitType::Values::MissionUnit, MapUnitType::Values::SpecUnit};
+			chUnitType->Clear();
+			if(m_new_unit)
+				chUnitType->Append("Non-event EnemyUnit");
+			for(auto spec: spec_list)
+				chUnitType->Append(MapUnitType(spec).GetString());
+			auto bid = chUnitType->FindString(m_unit->spec_type.GetString());
+			if(bid >= 0)
+			{
+				chUnitType->Enable(true);
+				chUnitType->Select(bid);
+			}
 		}
 		else
 		{
-			chUnitType->Enable(true);
-			chUnitType->Select(bid);
-		}
+			// show unit behaviour
+			std::vector<MapUnitType::Values> beh_list ={MapUnitType::Values::NormalUnit, MapUnitType::Values::PatrolUnit, MapUnitType::Values::WaitForContact, MapUnitType::Values::ToughDefence};
+			chUnitBehave->Clear();
+			for(auto beh: beh_list)
+				chUnitBehave->Append(MapUnitType(beh).GetString());
+			auto bid = chUnitBehave->FindString(m_unit->behave.GetString());
+			if(bid >= 0)
+			{
+				chUnitBehave->Enable(true);
+				chUnitBehave->Select(bid);
+			}
+
+			if(!m_new_unit)
+			{
+				chUnitType->Select(0);
+				chUnitType->Enable(false);
+			}
+			else
+			{
+				chUnitType->Select(0);
+				chUnitType->Enable(true);
+			}
+		}		
 	}
 	else
 	{
-		chUnitType->Select(0);
+		chUnitBehave->Clear();
+		chUnitBehave->Enable(false);
+		chUnitType->Clear();
 		chUnitType->Enable(false);
 	}
-
 
 
 	// fill art list
@@ -695,12 +761,22 @@ void FormUnits::EditUnit()
 	{
 		MapUnitType spec_type;
 		spec_type = chUnitType->GetString(utid);
-		if(spec_type != MapUnitType::Values::Unknown)
-			m_unit->spec_type = spec_type;
-		if(m_unit->spec_type == MapUnitType::Values::SpecUnit || m_unit->spec_type == MapUnitType::Values::MissionUnit)
-			m_unit->is_enemy = false;
-		if(m_unit->spec_type == MapUnitType::Values::EnemyUnit)
+		m_unit->spec_type = spec_type;
+		if(spec_type == MapUnitType::Values::Unknown)
+		{
 			m_unit->is_enemy = true;
+			m_unit->is_event = false;
+		}
+		if(m_unit->spec_type == MapUnitType::Values::SpecUnit || m_unit->spec_type == MapUnitType::Values::MissionUnit || m_unit->spec_type == MapUnitType::Values::ArmyUnit)
+		{
+			m_unit->is_enemy = false;
+			m_unit->is_event = true;
+		}
+		if(m_unit->spec_type == MapUnitType::Values::EnemyUnit)
+		{
+			m_unit->is_enemy = true;
+			m_unit->is_event = true;
+		}
 	}
 
 	// update unit behaviour selection
@@ -712,6 +788,17 @@ void FormUnits::EditUnit()
 		if(behave != MapUnitType::Values::Unknown && !m_unit->is_event)
 			m_unit->behave = behave;
 	}
+
+	// set experience
+	m_unit->experience_init = slideXP->GetValue();
+	m_unit->InitExperience(m_unit->experience_init);
+
+	// other params
+	m_unit->ResetAP();
+	m_unit->morale = 100;
+	m_unit->man = spinHealth->GetValue();
+	if(m_unit->name.compare(txtName->GetValue()) != 0)
+		m_unit->name = txtName->GetValue();
 
 }
 

@@ -353,8 +353,10 @@ class SpellMap
 		// map modification locks
 		int LockMap();
 		int ReleaseMap();
-		void LockUnitRanging(bool lock);
-		void HaltUnitRanging(bool halt);
+		//void LockUnitRanging(bool lock);
+		void HaltUnitRanging(bool clear_tasks=false);
+		void ResumeUnitRanging(bool resume=true);
+
 
 		// default scroller
 		TScroll scroller;
@@ -422,10 +424,14 @@ class SpellMap
 			~ViewRange();
 			void ResultLock(bool lock);
 			int isIdle();
-			void WaitIdle(bool stop=false,bool lock=false);
-			void Lock();
-			void Unlock();
-			void Halt(bool halt);
+			int WaitIdle();
+			//void Lock();
+			//void Unlock();
+			
+			bool Halt(bool clear_tasks=false);
+			void Resume(bool resume=true);
+			void ClearTasks();
+			
 			int PrepareUnitsViewMask(bool immediate=false);
 			wxBitmap* ExportUnitsViewZmap();
 			int ClearUnitsView(ClearMode clear=ClearMode::HIDE, bool immediate=false);
@@ -489,7 +495,8 @@ class SpellMap
 				EXIT
 			};
 			volatile ThreadCtrl state; // worker state/control variable
-			int is_halted;
+			bool is_halted;
+			int was_halted;
 			
 
 			// Z-mask grid size
@@ -501,10 +508,9 @@ class SpellMap
 			int was_new_contact;
 			std::vector<SpellMapEventRec*> event_list;
 			
-
-			void ClearTasks();
+			
 			void Worker();
-			void Stop();
+			//void Stop();
 			int AddViewUnitTask(MapUnit *unit,ClearMode clear=ClearMode::NONE,bool rec_events=false,bool force=false);
 			int ClearUnitsViewCore(ClearMode clear,std::vector<int>* p_view=NULL);
 			int PrepareUnitsViewMaskCore();
@@ -526,11 +532,8 @@ class SpellMap
 		public:
 			MoveRange(SpellMap* map);
 			~MoveRange();
-			int isIdle();
-			void WaitIdle(bool stop=false, bool lock=false);
-			void Lock();
-			void Unlock();
-			void Halt(bool halt);
+			void Halt(bool clear_tasks=false);
+			void Resume(bool resume=true);
 			void FindRange(MapUnit* unit);
 			void ResultLock(bool state);
 			vector<AStarNode> FindPath(MapUnit* unit,MapXY target);
@@ -570,7 +573,8 @@ class SpellMap
 				EXIT
 			};
 			volatile ThreadCtrl state;
-			int is_halted;
+			bool is_halted;
+			int was_halted;
 
 			void Worker();
 		};
@@ -682,8 +686,10 @@ class SpellMap
 		int RemoveAllUnits();
 		MapUnit *ExtractUnit(MapUnit* unit);
 		int AddUnit(MapUnit* unit);		
-		int CreateUnit(MapUnit* parent,SpellUnitRec* new_type);
+		MapUnit* CreateUnit(MapUnit* parent=NULL,SpellUnitRec* new_type=NULL);
 		int PlaceUnit(MapUnit* unit);
+		int AssignUnitID(MapUnit* unit);
+		int SortUnitIDs(MapUnit* unit);
 		void SortUnits();
 		MapUnit *GetCursorUnit(TScroll* scroll=NULL);
 		MapUnit* CanSelectUnit(MapXY pos);

@@ -422,13 +422,12 @@ SpellMap::~SpellMap()
 	Close();
 }
 
-// lock map access
+// lock map access (use whenever chaning any map stuff because of async render)
 int SpellMap::LockMap()
 {
 	map_lock.lock();
 	return(0);
 }
-
 // release map access
 int SpellMap::ReleaseMap()
 {
@@ -436,8 +435,8 @@ int SpellMap::ReleaseMap()
 	return(0);
 }
 
-// lock/unlock unit move, view, attack range async calculator (call whenever modifying units list)
-void SpellMap::LockUnitRanging(bool lock)
+// lock/unlock unit move, view, attack range async calculator (call whenever modifying units list or events)
+/*void SpellMap::LockUnitRanging(bool lock)
 {
 	if(lock)
 	{
@@ -453,15 +452,26 @@ void SpellMap::LockUnitRanging(bool lock)
 		if(unit_view)
 			unit_range->Unlock();
 	}
-}
+}*/
+
 // halt unit move, view, attack range async calculator (call whenever changing map arrays or e.g. changing unit parameters)
-void SpellMap::HaltUnitRanging(bool halt)
+//  optional clear_tasks=true will remove any pending tasks
+void SpellMap::HaltUnitRanging(bool clear_tasks)
 {
 	if(unit_view)
-		unit_view->Halt(halt);
+		unit_view->Halt(clear_tasks);
 	if(unit_range)
-		unit_range->Halt(halt);
+		unit_range->Halt(clear_tasks);
 }
+// resume halted ranging, optional resume=false will restore previous state before HaltUnitRanging()
+void SpellMap::ResumeUnitRanging(bool resume)
+{
+	if(unit_view)
+		unit_view->Resume(resume);
+	if(unit_range)
+		unit_range->Resume(resume);
+}
+
 
 // switch game mode
 int SpellMap::SetGameMode(int new_mode)
@@ -1154,9 +1164,9 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 				unit->ResetAP();
 
 				unit->dig_level = 0;
-				unit->commander_id = rand()%9;
-				unit->is_commander = rand()%2;
-				unit->morale = 50 + rand()%51;
+				unit->commander_id = 0;
+				unit->is_commander = false;
+				unit->morale = 100;
 
 				// add unit to list
 				units.push_back(unit);
@@ -1270,7 +1280,7 @@ void SpellMap::InvalidateUnitsView()
 // this sorts units list for proper render order, call after load or units changes, optional thread safe lock
 void SpellMap::SortUnits()
 {	
-	HaltUnitRanging(true);
+	HaltUnitRanging();
 
 	// clear units layer array
 	Lunit.assign(x_size*y_size, NULL);
@@ -1303,6 +1313,10 @@ void SpellMap::SortUnits()
 			if (ut == 0)
 				allowed = new_unit->unit->isAir();
 
+			// just in case of unit placement outside
+			if(new_unit->coor.x < 0 ||new_unit->coor.y < 0 || new_unit->coor.x >= x_size ||new_unit->coor.y >= y_size)
+				continue;
+
 			if (allowed && !new_unit->assigned)
 			{
 				// not assigned air unit:
@@ -1331,7 +1345,7 @@ void SpellMap::SortUnits()
 
 	//unit_selection = NULL;
 
-	HaltUnitRanging(false);
+	ResumeUnitRanging(false);
 }
 
 // is some valid map data loaded?
@@ -3044,6 +3058,7 @@ SpellMap::MoveRange::MoveRange(SpellMap *map)
 
 	// ready to accept data
 	is_halted = false;
+	was_halted = 0;
 }
 
 // cleanup move range finder
@@ -3051,77 +3066,77 @@ SpellMap::MoveRange::~MoveRange()
 {
 	ctrl_lock.lock();
 	is_halted = false;
-	state = EXIT;
-	ctrl_lock.unlock();
-	WaitIdle();
+	state = ThreadCtrl::EXIT;
+	ctrl_lock.unlock();	
 	thread->join();
 	delete thread;
 
-	for(auto & task : pending)
+	/*for(auto & task : pending)
 	{
 		if(task.unit)
 			delete task.unit;
-	}
+	}*/
 }
 
-// is worker ready?
-int SpellMap::MoveRange::isIdle()
-{
-	return(state == IDLE && pending.empty());
-}
-
-// wait for worker to go idle
-void SpellMap::MoveRange::WaitIdle(bool stop, bool lock)
-{
-	if(stop)
-	{
-		ctrl_lock.lock();
-		state = STOP;
-		ctrl_lock.unlock();
-	}
-
-	if(lock)
-		queue_lock.lock();
-	
-	while(!isIdle())
-		std::this_thread::sleep_for(1ms);
-}
-
-// wait for worked idle and lock new tasks
-void SpellMap::MoveRange::Lock()
-{
-	WaitIdle(false, true);
-}
-
-// unlock new tasks
-void SpellMap::MoveRange::Unlock()
-{
-	queue_lock.unlock();
-}
 
 // halt taks processing (curent task is finished, all others stays halted)
-void SpellMap::MoveRange::Halt(bool halt)
+void SpellMap::MoveRange::Halt(bool clear_tasks)
 {
 	ctrl_lock.lock();
-	is_halted = halt;
+	was_halted++;
+	is_halted = true;
 	ctrl_lock.unlock();
+	
 	// wait till thread halted
-	while(halt && state == BUSY)
+	while(state == ThreadCtrl::BUSY)
 		std::this_thread::sleep_for(1ms);
+
+	if(clear_tasks)
+	{
+		//queue_lock.lock();
+		ctrl_lock.lock();
+		pending.clear();
+		ctrl_lock.unlock();
+		//queue_lock.unlock();
+	}
+}
+
+// resume processing after Halt(), optional resume=false will restore previous state before Halt()
+void SpellMap::MoveRange::Resume(bool resume)
+{
+	ctrl_lock.lock();
+	if(resume)
+	{
+		is_halted = false;
+		was_halted = 0;
+	}
+	else
+	{
+		was_halted--;
+		if(was_halted <= 0)
+		{
+			was_halted = 0;
+			is_halted = false;
+		}		
+	}
+	was_halted = is_halted;
+	ctrl_lock.unlock();
 }
 
 // init range calculation
 void SpellMap::MoveRange::FindRange(MapUnit* unit)
 {
 	// terminate current operation
-	WaitIdle(true);
+	Halt(true);
 
 	// make new job
-	queue_lock.lock();
+	//queue_lock.lock();
 	ctrl_lock.lock();
 	pending.emplace_back(unit);
 	ctrl_lock.unlock();
-	queue_lock.unlock();
+	//queue_lock.unlock();
+
+	Resume(false);
 }
 
 // locks/unlocks data related to unit range
@@ -3157,10 +3172,23 @@ void SpellMap::MoveRange::Worker()
 		MapUnit* unit = NULL;
 
 		ctrl_lock.lock();
-		if(is_halted)
+		if(state == ThreadCtrl::EXIT)
+		{
+			// terminate
+			state = IDLE;
+			ctrl_lock.unlock();
+			break;
+		}
+		else if(is_halted)
 		{
 			// go to halt state
-			state = HALTED;
+			if(pending.empty())
+			{
+				// go to IDLE if nothing to do
+				state = ThreadCtrl::IDLE;
+			}
+			else			
+				state = ThreadCtrl::HALTED;
 		}
 		else if(!pending.empty())
 		{
@@ -3168,19 +3196,12 @@ void SpellMap::MoveRange::Worker()
 			auto task = pending.front();
 			pending.pop_front();
 			unit = task.unit;
-			state = BUSY;
-		}
-		else if(state == EXIT)
-		{
-			// terminate
-			state = IDLE;
-			ctrl_lock.unlock();
-			break;
+			state = ThreadCtrl::BUSY;
 		}
 		else
 		{
 			// nothing to do: idle
-			state = IDLE;
+			state = ThreadCtrl::IDLE;
 		}
 		ctrl_lock.unlock();		
 		if(!unit)
@@ -3545,7 +3566,6 @@ int SpellMap::SetUnitRangeViewMode(int mode)
 	}
 	return(old_state);
 }
-
 
 // check if unit can move to target position
 int SpellMap::CanUnitMove(MapXY target)
@@ -4126,7 +4146,9 @@ int SpellMap::RenderHUD(uint8_t *buf,uint8_t* buf_end,int buf_x_size,MapXY *curs
 	
 		// render unit name
 		// pos a: 95,25   size: 137,16
-		string name = unit->name;		
+		string name = unit->name;
+		if(name.empty())
+			name = unit->unit->name; // show default unit name if no explicit provided
 		font->Render(buf,buf_end,buf_x_size,hud_left+px_ref+95,hud_top+28,137,16,name,232,254,SpellFont::DIAG2);
 
 		// render unit ID
@@ -4566,7 +4588,7 @@ SpellBtnHUD* SpellMap::CreateHUDbutton(SpellGraphicItem* glyph,t_xypos &hud_pos,
 
 
 // ----------------------------------------------------------------------------
-// Unit View Range Stuff
+// Unit View/Attack Ranging Stuff (uses thread, so carefuly handle race conditions!)
 // ----------------------------------------------------------------------------
 SpellMap::ViewRange::ViewRange(SpellMap* map)
 {
@@ -4587,6 +4609,7 @@ SpellMap::ViewRange::ViewRange(SpellMap* map)
 
 	// worker allowed to do stuff
 	is_halted = false;
+	was_halted = false;
 }
 SpellMap::ViewRange::~ViewRange()
 {
@@ -4600,7 +4623,16 @@ SpellMap::ViewRange::~ViewRange()
 	ClearTasks();
 }
 
-// lock/release result variables
+// clear all pending tasks in queue, current task may still be running (thread safe)
+void SpellMap::ViewRange::ClearTasks()
+{
+	ctrl_lock.lock();
+	while(!pending.empty())
+		pending.pop_front();
+	ctrl_lock.unlock();
+}
+
+// lock/release result variables (use when accessing ranging results outside ranging functions)
 void SpellMap::ViewRange::ResultLock(bool lock)
 {
 	if(lock)
@@ -4609,51 +4641,74 @@ void SpellMap::ViewRange::ResultLock(bool lock)
 		result_lock.unlock();
 }
 
-// is worker ready to next command (IDLE?)
+// is worker ready to process next command (IDLE?)
 int SpellMap::ViewRange::isIdle()
 {
 	return((state == ThreadCtrl::IDLE) && pending.empty());
 }
 
 // wait to idle state (thread safe), optional stop, optional lock of new tasks
-void SpellMap::ViewRange::WaitIdle(bool stop,bool lock)
+int SpellMap::ViewRange::WaitIdle()
 {
-	if(stop)
-	{
-		ctrl_lock.lock();
-		state = ThreadCtrl::STOP;
-		ctrl_lock.unlock();
-	}
-	
-	if(lock)
-		queue_lock.lock();
+	if(is_halted)
+		return(1);
 		
 	while(!isIdle())
 		std::this_thread::sleep_for(1ms);
+	return(0);
 }
 // wait to finish tasks, then lock addition of new tasks
-void SpellMap::ViewRange::Lock()
+/*void SpellMap::ViewRange::Lock()
 {
 	WaitIdle(false,true);
-}
+}*/
 // unlock new tasks
-void SpellMap::ViewRange::Unlock()
+/*void SpellMap::ViewRange::Unlock()
 {
 	queue_lock.unlock();
-}
-// halt execution of tasks, use it when changing map arrays, e.g. when SortUnits()
-void SpellMap::ViewRange::Halt(bool halt)
-{
+}*/
+// halt execution of tasks, use it when changing anything in map arrays (map, units, events, ...)
+//  optional clear_tasks=true will remove pending tasks from queue
+//  returns previous state so it can be resumed
+bool SpellMap::ViewRange::Halt(bool clear_tasks)
+{	
 	ctrl_lock.lock();
-	is_halted = halt;
+	was_halted++;
+	is_halted = true;
 	ctrl_lock.unlock();
 	
-	while(halt && state == BUSY)
+	while(state == ThreadCtrl::IDLE)
 		std::this_thread::sleep_for(1ms);
+
+	if(clear_tasks)
+		ClearTasks();
+	
+	return(was_halted);
+}
+// resume execution of tasks after Halt(), optional resume=false will restore state before Halt()
+void SpellMap::ViewRange::Resume(bool resume)
+{
+	ctrl_lock.lock();
+	if(resume)
+	{
+		is_halted = false;
+		was_halted = 0;
+	}
+	else
+	{
+		was_halted--;
+		if(was_halted <= 0)
+		{
+			was_halted = 0;
+			is_halted = false;
+		}
+	}
+	was_halted = is_halted;
+	ctrl_lock.unlock();
 }
 
 // stop all pending calculations (thread safe)
-void SpellMap::ViewRange::Stop()
+/*void SpellMap::ViewRange::Stop()
 {
 	if(isIdle())
 		return;
@@ -4662,16 +4717,8 @@ void SpellMap::ViewRange::Stop()
 	WaitIdle(true, true);
 	ClearTasks();
 	Unlock();
-}
+}*/
 
-// clear pending tasks (thread safe)
-void SpellMap::ViewRange::ClearTasks()
-{	
-	ctrl_lock.lock();
-	while(!pending.empty())
-		pending.pop_front();
-	ctrl_lock.unlock();
-}
 
 
 
@@ -4681,7 +4728,10 @@ int SpellMap::ViewRange::PrepareUnitsViewMask(bool immediate)
 {
 	// optional stop pending calculations
 	if(immediate)
-		Stop();
+	{
+		// cleanup pending tasks
+		Halt(true);		
+	}
 	
 	// add task
 	queue_lock.lock();
@@ -4692,7 +4742,10 @@ int SpellMap::ViewRange::PrepareUnitsViewMask(bool immediate)
 
 	// optional wait to finish
 	if(immediate)
+	{
+		Resume();
 		WaitIdle();
+	}
 
 	return(0);
 }
@@ -4780,9 +4833,10 @@ int SpellMap::ViewRange::PrepareUnitsViewMaskCore()
 wxBitmap *SpellMap::ViewRange::ExportUnitsViewZmap()
 {	
 	// wait for valid data
+	Halt();
 	WaitIdle();
-	
-	result_lock.lock();
+	ResultLock(true);
+	Resume(false);
 	
 	// make raster for entire map
 	wxBitmap *bmp = new wxBitmap(wxSize(view_mask_x_size, view_mask_y_size), 24);
@@ -4811,7 +4865,7 @@ wxBitmap *SpellMap::ViewRange::ExportUnitsViewZmap()
 		p.OffsetY(data,1);
 	}
 	
-	result_lock.unlock();
+	ResultLock(false);
 	
 	return(bmp);	
 }
@@ -4887,12 +4941,13 @@ int SpellMap::ViewRange::ClearUnitsView(ClearMode clear, bool immediate)
 	if(immediate)
 	{
 		// immediate mode
-		Stop();
+		Halt(true);
 		ctrl_lock.lock();
 		ResultLock(true);
 		ClearUnitsViewCore(clear);
 		ResultLock(false);
 		ctrl_lock.unlock();
+		Resume(false);
 	}
 	else
 	{
@@ -4948,16 +5003,18 @@ int SpellMap::ViewRange::ClearUnitsViewCore(ClearMode clear, std::vector<int> *p
 	return(0);
 }
 
-// clear unread deteted events
+// clear unread detected events
 void SpellMap::ViewRange::ClearEvents(bool cleanup)
 {
 	if(cleanup)
-		WaitIdle(true);
+		Halt(true);
 
 	ResultLock(true);
 	was_new_contact = false;
 	event_list.clear();	
 	ResultLock(false);
+
+	Resume(false);
 }
 
 // add unit to task list with filtering of duplicite tasks (thread safe)
@@ -5618,10 +5675,11 @@ int SpellMap::ViewRange::RestoreUnitsView(bool immediate)
 	if(immediate)
 	{
 		// immediate mode
-		Stop();		
+		Halt(true);		
 		result_lock.lock();
 		RestoreUnitsViewCore();
 		result_lock.unlock();
+		Resume(false);
 	}
 	else
 	{
@@ -6113,7 +6171,7 @@ int SpellMap::Tick()
 				HaltUnitRanging(true);
 				unit->action_points -= (next_pos.g_cost - ap_prev);				
 				unit->coor = next_pos.pos;
-				HaltUnitRanging(false);
+				ResumeUnitRanging(false);
 			
 				double azimuth = this_pos.Angle(next_pos.pos);
 
@@ -6912,18 +6970,21 @@ int SpellMap::RemoveAllUnits()
 // removes unit from map list (used e.g. for kamikaze attacks)
 int SpellMap::RemoveUnit(MapUnit* unit)
 {
-	LockUnitRanging(true);
+	HaltUnitRanging(true);
 
 	// try find unit in the list
 	auto uid = find(units.begin(),units.end(),unit);
 	if(uid == units.end())
+	{
+		ResumeUnitRanging(false);
 		return(1); // not found
+	}
 
 	// delete unit
 	delete unit;
 	units.erase(uid);
 
-	LockUnitRanging(false);
+	ResumeUnitRanging(false);
 
 	// resort units
 	SortUnits();
@@ -6934,17 +6995,20 @@ int SpellMap::RemoveUnit(MapUnit* unit)
 // extracts unit from map units list, but not deletes it (used to move unit elsewhere)
 MapUnit* SpellMap::ExtractUnit(MapUnit* unit)
 {
-	LockUnitRanging(true);
+	HaltUnitRanging(true);
 
 	// try find unit in the list
 	auto uid = find(units.begin(),units.end(),unit);
 	if(uid == units.end())
+	{
+		ResumeUnitRanging(false);
 		return(NULL); // not found
+	}
 	
 	// remove from list
 	units.erase(uid);
 
-	LockUnitRanging(false);
+	ResumeUnitRanging(false);
 	
 	// resort units
 	SortUnits();
@@ -6952,14 +7016,36 @@ MapUnit* SpellMap::ExtractUnit(MapUnit* unit)
 	return(unit);
 }
 
-// create new map unit (by parent unit)
-int SpellMap::CreateUnit(MapUnit *parent, SpellUnitRec *new_type)
+// create new map unit (optionally by parent unit)
+MapUnit *SpellMap::CreateUnit(MapUnit *parent, SpellUnitRec *new_type)
 {
-	// copy creator
-	MapUnit *unit = new MapUnit(*parent);	
+	HaltUnitRanging(true);
+	
+	MapUnit* unit;
+	if(parent)
+	{
+		// copy creator from parent
+		unit = new MapUnit(*parent);	
 
-	// morhp to new type
-	unit->MorphUnit(new_type,100);
+		// morhp to new type
+		unit->MorphUnit(new_type,100);
+	}
+	else
+	{
+		// make new unit
+		unit = new MapUnit(this);		
+
+		// define unit type
+		if(new_type)
+			unit->type_id = new_type->type_id;
+		unit->unit = spelldata->units->GetUnit(unit->type_id);
+		
+		// default position
+		unit->coor = GetSelection();
+
+		// default params
+		unit->morale = 100;
+	}
 
 	// set some initial parameters
 	unit->spec_type = MapUnitType::MissionUnit;
@@ -6971,14 +7057,20 @@ int SpellMap::CreateUnit(MapUnit *parent, SpellUnitRec *new_type)
 	if(PlaceUnit(unit))
 	{
 		delete unit;
-		return(1);
+		ResumeUnitRanging(false);
+		return(NULL);
 	}
 
 	// make link between parent and child
-	unit->parent = parent;
-	parent->child = unit;		
+	if(parent)
+	{
+		unit->parent = parent;
+		parent->child = unit;		
+	}
+
+	ResumeUnitRanging(false);
 	
-	return(0);
+	return(unit);
 }
 
 // add unit to map list (assuming there is no conflict)
@@ -7065,6 +7157,77 @@ int SpellMap::PlaceUnit(MapUnit* unit)
 	SortUnits();
 	return(0);
 }
+
+// try to assign new unit number not colliding with existing
+int SpellMap::AssignUnitID(MapUnit *unit)
+{
+	// make list of existing IDs from map and all events
+	std::vector<int> list;
+	for(auto u: units)
+		list.push_back(u->id);
+	for(auto ev: events->GetEvents())
+		for(auto u: ev->units)
+			list.push_back(u.unit->id);
+
+	// find first possible ID
+	int ret = 0;
+	int id = 0;
+	while(true)
+	{
+		if(!unit->is_event)
+		{
+			// non event units - start at 50
+			id = max(id,50);			
+		}
+		else
+		{
+			// event units start at 0, 48-49 reserved for SpecUnit, then continues from 100
+			if(unit->spec_type == MapUnitType::Values::SpecUnit)
+			{
+				id = max(id,48);
+				if(id > 49)
+				{
+					// ###error - original spelcros cannot handle more than two SpecUnits!
+					ret = 1;
+				}
+			}
+			if(id >= 50 && id < 100)
+				id = 100;
+		}
+		// is unique?
+		if(std::find(list.begin(),list.end(),id) == list.end())
+			break;
+		// nope, try next
+		id++;
+	}
+
+	// assign new ID
+	unit->id = id;
+
+	// fix eventual SeeUnit event ID
+	if(unit->trig_event)
+		unit->trig_event->trig_unit_id = id;
+	
+	// fix eventual map event ID
+	if(unit->map_event)
+		unit->map_event->trig_unit_id = id;
+
+	return(ret);
+}
+
+// try reassign unit IDs for all map and event units
+int SpellMap::SortUnitIDs(MapUnit* unit)
+{
+	int ret = 0;
+	for(auto u: units)
+		ret += AssignUnitID(u);
+	for(auto ev: events->GetEvents())		
+		for(auto u: ev->units)
+			ret += AssignUnitID(u.unit);
+	return(ret);
+}
+
+
 
 // get pixel position of position origin in rendered map
 tuple<int,int> SpellMap::GetPosOrigin(MapXY pos)

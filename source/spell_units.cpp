@@ -43,6 +43,8 @@ SpellUnitRec::SpellUnitRec()
 	sound_attack_light = NULL;
 	sound_attack_armor = NULL;
 	sound_attack_air = NULL;
+
+	type_id = 0;
 }
 
 SpellUnitRec::~SpellUnitRec()
@@ -116,6 +118,9 @@ SpellUnits::SpellUnits(uint8_t* data, int dlen, FSUarchive *fsu, SpellGraphics *
 		
 		// new unit record
 		SpellUnitRec *unit = new SpellUnitRec();
+
+		// unit type ID
+		unit->type_id = k;
 
 #define rdu8(rdu8_r) ((int)((unsigned int)*(rdu8_r)))
 #define rdu16(rdu16_r) ((int)((unsigned int)*((unsigned short*)(rdu16_r))))
@@ -1293,6 +1298,7 @@ int MapUnit::CanSpecAction()
 int MapUnit::InitExperience(int level)
 {
 	// set experience level
+	experience_init = min(max(level,0),12);
 	experience_level = min(max(level,1),12);
 	
 	// generate random experience points based on level
@@ -1481,7 +1487,10 @@ int MapUnit::RenderPreview(uint8_t* buffer,uint8_t* buf_end,int buf_x_size)
 
 	// title (pos = 4,3, size = 137,16)
 	int title_color = (is_enemy)?212:232;
-	spell_data->font->Render(buffer, buf_end, buf_x_size, 4,3, 137,16, name,title_color, 254, SpellFont::FontShadow::DIAG3);
+	std::string unit_name = name;
+	if(unit_name.empty())
+		unit_name = unit->name;
+	spell_data->font->Render(buffer, buf_end, buf_x_size, 4,3, 137,16, unit_name,title_color, 254, SpellFont::FontShadow::DIAG3);
 
 	// icon (pos = 82,23)
 	unit->icon_glyph->Render(buffer, buf_end, buf_x_size, 82,23);
@@ -1511,7 +1520,7 @@ int MapUnit::RenderPreview(uint8_t* buffer,uint8_t* buf_end,int buf_x_size)
 	spell_data->font->Render(buffer,buf_end,buf_x_size,60,50,string_format("%02d",unit->cnt),216,254,SpellFont::FontShadow::RIGHT_DOWN);
 	// hp (pox = 60,36)
 	spell_data->font->Render(buffer,buf_end,buf_x_size,60,36,string_format("%02d",man),hp_color,254,SpellFont::FontShadow::RIGHT_DOWN);
-	// wounde (pox = 60,22)
+	// wounded (pox = 60,22)
 	spell_data->font->Render(buffer,buf_end,buf_x_size,60,22,string_format("%02d",wounded),215,254,SpellFont::FontShadow::RIGHT_DOWN);
 
 	// experience (pox = 5,66, y_step = 9)

@@ -97,7 +97,7 @@ private:
     void OnChangeElevation(wxCommandEvent& event);
     void OnInvalidateSelection(wxCommandEvent& event);
     void OnCreateNewObject(wxCommandEvent& event);
-    void OnMoveUnit(wxCommandEvent& event);
+    void OnAddUnit(wxCommandEvent& event);
 
     void OnToolBtnClick(wxRibbonButtonBarEvent& event);
     void OnToolPageClick(wxRibbonBarEvent& event);
@@ -134,6 +134,22 @@ private:
     MapUnit* cur_unit;
     MapUnit* sel_unit;
     int inUnitOptions() {return(form_unit_opts != NULL || form_message != NULL);};
+    int inSubForm() {return(
+        form_sprites != NULL ||
+        form_objects != NULL ||
+        form_tools != NULL ||
+        form_pal != NULL ||
+        form_gres != NULL ||
+        form_units != NULL ||
+        form_events != NULL ||
+        form_videos != NULL ||
+        form_unit_opts != NULL ||
+        form_message != NULL ||
+        form_video_box != NULL ||
+        form_map_options != NULL ||
+        form_midi != NULL ||
+        form_minimap != NULL ||
+        form_units_list != NULL); };
 
     void ShowMessage(SpellTextRec *message, bool is_yesno, std::function<void(bool)> exit_cb=NULL);
     bool CheckMessageState();
@@ -142,21 +158,21 @@ private:
     wxTimer m_timer;
     //TScroll scroll;
 
-    FormSprite* form_sprites;
-    FormObjects* form_objects;
-    FormTools* form_tools;
-    FormPalView* form_pal;
-    FormGResView* form_gres;
-    FormUnits* form_units;
-    FormEvent* form_events;
-    FormVideo* form_videos;
-    FormUnitOpts *form_unit_opts;
-    FormMsgBox *form_message;
-    FormVideoBox* form_video_box;
-    FormMapOptions *form_map_options;
-    FormMIDI *form_midi;
-    FormMiniMap *form_minimap;
-    FormMapUnits *form_units_list;
+    FormSprite* form_sprites = NULL;
+    FormObjects* form_objects = NULL;
+    FormTools* form_tools = NULL;
+    FormPalView* form_pal = NULL;
+    FormGResView* form_gres = NULL;
+    FormUnits* form_units = NULL;
+    FormEvent* form_events = NULL;
+    FormVideo* form_videos = NULL;
+    FormUnitOpts *form_unit_opts = NULL;
+    FormMsgBox *form_message = NULL;
+    FormVideoBox* form_video_box = NULL;
+    FormMapOptions *form_map_options = NULL;
+    FormMIDI *form_midi = NULL;
+    FormMiniMap *form_minimap = NULL;
+    FormMapUnits *form_units_list = NULL;
     
     void OnPaintHUDbutton(wxPaintEvent& event);
     void OnHUDbuttonsMouseEnter(wxMouseEvent& event);
@@ -264,7 +280,7 @@ enum
     ID_PlaceStart,
     ID_PlaceExit,
     ID_CreateNewObject,
-    ID_MoveUnit,
+    ID_AddUnit,
     ID_UpdateSprContextMaps,
     ID_ViewVideo,
     ID_ViewMIDI
