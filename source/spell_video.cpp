@@ -14,6 +14,88 @@
 #include <fstream>
 #include <filesystem>
 
+// ------------------------------------------------------------------------------------------------
+// Video resources handling
+// ------------------------------------------------------------------------------------------------
+
+// search all available videos
+SpellVideoResources::SpellVideoResources(std::vector<std::wstring> folders)
+{	
+	// make list of all possible source archives
+	std::vector<std::filesystem::path> archives;
+	for(auto &folder: folders)
+	{		
+		archives.push_back(std::filesystem::path(folder) / std::filesystem::path("SPEAKER.FS"));
+		archives.push_back(std::filesystem::path(folder) / std::filesystem::path("MOVIE.FS"));
+	}
+
+	// for each candidate:
+	for(auto &archive: archives)
+	{
+		if(!std::filesystem::exists(archive))
+			continue;
+				
+		// load archive
+		FSarchive* fs = NULL;
+		try {
+			fs = new FSarchive(archive.wstring(),FSarchive::Options::NO_LOAD);
+		}
+		catch(const runtime_error& error) {
+			throw runtime_error(string_format("Loading archive file \"%ls\" failed (%s)!",archive.wstring().c_str(),error.what()));
+		}
+
+		std::vector<std::string> list;
+		int fs_used = 0;
+
+		// scan for CAN videos
+		list = fs->GetFileNames("*.CAN");
+		for(auto &vid: list)
+			vid_list.emplace_back(vid, fs);
+		fs_used += list.size();
+
+		// scan for DPK videos
+		list = fs->GetFileNames("*.DPK");
+		for(auto& vid: list)
+			vid_list.emplace_back(vid,fs);
+		fs_used += list.size();
+
+		// scan for DP2 videos
+		list = fs->GetFileNames("*.DP2");
+		for(auto& vid: list)
+			vid_list.emplace_back(vid,fs);
+		fs_used += list.size();
+
+		// get rid of fs archive if nothing in there
+		if(fs_used)
+			fs_list.push_back(fs);
+		else
+			delete fs;
+	}
+}
+
+// destructor
+SpellVideoResources::~SpellVideoResources()
+{
+	vid_list.clear();
+	for(auto fs: fs_list)
+		delete fs;
+}
+
+// return list of wildcard filtered video names
+std::vector<std::string> SpellVideoResources::GetNames(std::string wild)
+{
+	std::vector<std::string> list;
+	for(auto &vid: vid_list)
+		if(wildcmp(wild.c_str(), vid.name.c_str()))
+			list.push_back(vid.name);
+	return(list);
+}
+
+
+// ------------------------------------------------------------------------------------------------
+// Video file handling
+// ------------------------------------------------------------------------------------------------
+
 // load video file from path
 SpellVideo::SpellVideo(std::wstring path)
 {

@@ -312,6 +312,7 @@ SpellData::SpellData(wstring &data_path,wstring& cd_data_path,wstring& spec_path
 	unit_bonuses = NULL;		
 	common_fs = NULL;
 	terrain_fs = NULL;
+	videos = NULL;
 
 	// store data paths for dynamic loading
 	this->data_path = data_path;
@@ -608,6 +609,20 @@ SpellData::SpellData(wstring &data_path,wstring& cd_data_path,wstring& spec_path
 		terr->font = font;
 		terr->font7 = font7;
 	}
+
+	// load video resoruces
+	if(status_list)
+		status_list("Loading video resources (MOVIE.FS, SPEAKER.FS)...");		
+	try {
+		auto vid_paths ={cd_data_path,data_path};
+		videos = new SpellVideoResources(vid_paths);
+	}
+	catch(const runtime_error& error) {
+		this->~SpellData();
+		if(status_list)
+			status_list(" - failed!");
+		throw runtime_error(string_format("Loading video resources from MOVIE.FS and SPEAKER.FS failed (%s)!",error.what()));
+	}
 	
 }
 
@@ -657,6 +672,9 @@ SpellData::~SpellData()
 	if(terrain_fs)
 		delete terrain_fs;
 	terrain_fs = NULL;
+	if(videos)
+		delete videos;
+	videos = NULL;
 }
 
 // auto build sprite context from all available spellcross maps

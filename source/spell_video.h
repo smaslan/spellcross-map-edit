@@ -5,6 +5,36 @@
 #include "fs_archive.h"
 #include "spell_sound.h"
 
+
+
+// video resource
+class SpellVideoResource
+{
+public:
+    SpellVideoResource(std::string name,FSarchive* fs) { this->name = name; this->fs = fs; };
+    std::string name;
+    FSarchive* fs;
+};
+
+// list of all found spellcross video resources
+class SpellVideoResources
+{
+private:
+
+    std::vector<SpellVideoResource> vid_list;
+    std::vector<FSarchive*> fs_list; // list of loaded FS archives
+    
+public:
+
+    SpellVideoResources(std::vector<std::wstring> folders);
+    ~SpellVideoResources();
+
+    std::vector<std::string> GetNames(std::string wild="*");
+
+};
+
+
+// vide file
 class SpellVideo
 {
 private:

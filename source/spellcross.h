@@ -21,6 +21,7 @@
 #include "spell_sound.h"
 #include "spell_midi.h"
 #include "spell_texts.h"
+#include "spell_video.h"
 
 //using namespace std;
 
@@ -154,6 +155,9 @@ public:
 	SpellL2classes *L2_classes;
 	// unit bonuses (BONUSES.DEF)
 	UnitBonuses *unit_bonuses;
+	// videos
+	SpellVideoResources *videos;
+
 
 	SpellData(wstring& data_path,wstring& cd_data_path,wstring& spec_path,std::function<void(std::string)> status_list=NULL,std::function<void(std::string)> status_item=NULL);
 	~SpellData();	
