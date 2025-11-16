@@ -14,6 +14,11 @@ std::wstring char2wstring(const char* str)
     return converter.from_bytes(str);
 }
 
+std::wstring string2wstring(std::string str)
+{
+    return char2wstring(str.c_str());
+}
+
 // convert wstring to UTF-8 string
 std::string wstring2string(const std::wstring& str)
 {
@@ -229,6 +234,20 @@ std::string istream_read_string(std::ifstream& fr)
     fr.read(str.data(),len);
     str.resize(len-1);
     return(str);
+}
+
+// write u8 value
+int ostream_write_u8(std::ofstream& fw,uint8_t val)
+{
+    fw.write((char*)&val,sizeof(uint8_t));
+    return(0);
+}
+
+// write u16 value
+int ostream_write_u16(std::ofstream& fw,uint16_t val)
+{
+    fw.write((char*)&val,sizeof(uint16_t));
+    return(0);
 }
 
 // write u32 value

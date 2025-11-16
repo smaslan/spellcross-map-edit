@@ -51,13 +51,14 @@ class FormSprite : public wxFrame
 	protected:
 		enum
 		{
-			wxID_BTN_CLOSE = 1000,
+			wxID_BTN_CLOSE = 5999,
 			wxID_BTN_SEL_Q1,
 			wxID_BTN_SEL_Q2,
 			wxID_BTN_SEL_Q3,
 			wxID_BTN_SEL_Q4,
 			wxID_BTN_NEXT,
 			wxID_BTN_PREV,
+			wxID_BTN_SET_KNOWS,
 			wxID_BTN_CLR_CONTEXT,
 			wxID_EDIT_TILE_CONTEXT_AUTO,
 			wxID_BTN_AUTO_SHADING,
@@ -110,6 +111,7 @@ class FormSprite : public wxFrame
 			wxID_CB_SHADE_C2,
 			wxID_CB_SHADE_C3,
 			wxID_CB_SHADE_C4,
+			wxID_EDIT_MAP_TILE_FLAGS,
 			wxID_CHB_TOOL_CLASS,
 			wxID_CHB_TOOL_OBJ_GROUP,
 			wxID_CB_TOOL_GLYPH,
@@ -180,7 +182,7 @@ class FormSprite : public wxFrame
 		wxCheckBox* cbShadeC3;
 		wxCheckBox* cbShadeC4;
 		wxStaticText* txtFlags;
-		wxTextCtrl* m_textCtrl14;
+		wxTextCtrl* editMapFlags;
 		wxStaticText* m_staticText13;
 		wxChoice* chbToolClass;
 		wxStaticText* m_staticText14;
@@ -207,7 +209,7 @@ class FormObjects : public wxFrame
 	protected:
 		enum
 		{
-			wxID_SB_MAIN = 1000,
+			wxID_SB_MAIN = 5999,
 			wxID_LB_OBJECTS,
 			wxID_BTN_UP,
 			wxID_BTN_DOWN,
@@ -266,7 +268,7 @@ class FormNewObject : public wxDialog
 	protected:
 		enum
 		{
-			wxID_TXT_DESC = 1000,
+			wxID_TXT_DESC = 5999,
 			wxID_BTN_OK,
 		};
 
@@ -293,7 +295,7 @@ class FormTools : public wxFrame
 	protected:
 		enum
 		{
-			wxID_LB_TOOLSET = 1000,
+			wxID_LB_TOOLSET = 5999,
 			wxID_TXT_NEW_TOOLSET,
 			wxID_TXT_TOOLSET_TITLE,
 			wxID_CHB_SCALE,
@@ -366,7 +368,7 @@ class FormPalView : public wxFrame
 	protected:
 		enum
 		{
-			wxID_FRM_PAL_VIEW = 1000,
+			wxID_FRM_PAL_VIEW = 5999,
 			wxID_MM_CLOSE,
 			wxID_CANVAS,
 			wxID_COLOR,
@@ -409,7 +411,7 @@ class FormGResView : public wxFrame
 	protected:
 		enum
 		{
-			wxID_MM_CLOSE = 1000,
+			wxID_MM_CLOSE = 5999,
 			wxID_SB,
 			wxID_LB_FILES,
 			wxID_SPIN_W,
@@ -444,7 +446,7 @@ class FormUnits : public wxFrame
 	protected:
 		enum
 		{
-			wxID_SB = 1000,
+			wxID_SB = 5999,
 			wxID_MM_SAVE_AUX,
 			wxID_MM_EXIT,
 			wxID_MM_COPY_GRP_ORG,
@@ -456,6 +458,8 @@ class FormUnits : public wxFrame
 			wxID_SPIN_ID,
 			wxID_NAME,
 			wxID_SPIN_HEALTH,
+			wxID_UNIT_BEHAVE,
+			wxID_UNIT_TYPE,
 			wxID_PAGE_CTRL,
 			wxID_PAGE_ART,
 			wxID_CANVAS_ART,
@@ -495,6 +499,12 @@ class FormUnits : public wxFrame
 		wxTextCtrl* txtName;
 		wxStaticText* m_staticText40;
 		wxSpinCtrl* spinHealth;
+		wxStaticText* m_staticText75;
+		wxSlider* slideXP;
+		wxStaticText* m_staticText401;
+		wxChoice* chUnitBehave;
+		wxStaticText* m_staticText74;
+		wxChoice* chUnitType;
 		wxStaticLine* m_staticline10;
 		wxNotebook* pages;
 		wxPanel* pageArt;
@@ -534,7 +544,7 @@ class FormUnits : public wxFrame
 
 	public:
 
-		FormUnits( wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = wxT("Units viewer"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 1099,679 ), long style = wxDEFAULT_FRAME_STYLE|wxSTAY_ON_TOP|wxTAB_TRAVERSAL );
+		FormUnits( wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = wxT("Units viewer"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 1099,710 ), long style = wxDEFAULT_FRAME_STYLE|wxSTAY_ON_TOP|wxTAB_TRAVERSAL );
 
 		~FormUnits();
 
@@ -550,7 +560,7 @@ class FormEvent : public wxFrame
 	protected:
 		enum
 		{
-			wxID_MM_OK = 1000,
+			wxID_MM_OK = 5999,
 			wxID_MM_EXIT,
 			wxID_LB_EVENTS,
 			wxID_BTN_ADD_EVENT,
@@ -558,11 +568,12 @@ class FormEvent : public wxFrame
 			wxID_CHB_TYPE,
 			wxID_TXT_OBJ_DESC,
 			wxID_CB_IS_OBJECTIVE,
-			wxID_SPIN_PROB,
 			wxID_SPIN_XPOS,
 			wxID_SPIN_YPOS,
 			wxID_SPIN_TRIG_UNIT,
+			wxID_SPIN_PROB,
 			wxID_TXT_UNITS,
+			wxID_CAN_ANIM,
 			wxID_CHB_MSG_ITEM,
 			wxID_BTN_NEW_MSG,
 			wxID_BNT_DEL_MSG,
@@ -586,18 +597,21 @@ class FormEvent : public wxFrame
 		wxStaticText* m_staticText62;
 		wxTextCtrl* txtObjectiveDesc;
 		wxCheckBox* cbIsObjective;
-		wxStaticText* m_staticText51;
-		wxSpinCtrl* spinProb;
 		wxStaticText* m_staticText52;
 		wxSpinCtrl* spinXpos;
 		wxStaticText* m_staticText54;
 		wxSpinCtrl* spinYpos;
 		wxStaticText* m_staticText59;
 		wxSpinCtrl* spinTrigUnit;
+		wxStaticText* m_staticText51;
+		wxSpinCtrl* spinProb;
 		wxStaticLine* m_staticline20;
 		wxStaticText* strUnits;
 		wxTextCtrl* txtUnits;
 		wxStaticLine* m_staticline22;
+		wxStaticText* m_staticText74;
+		wxChoice* chbCANanim;
+		wxStaticLine* m_staticline221;
 		wxStaticText* m_staticText53;
 		wxChoice* chbMsgItem;
 		wxButton* btnNewMsg;
@@ -615,7 +629,7 @@ class FormEvent : public wxFrame
 
 	public:
 
-		FormEvent( wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = wxT("Event editor"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 858,524 ), long style = wxDEFAULT_FRAME_STYLE|wxFRAME_FLOAT_ON_PARENT|wxTAB_TRAVERSAL );
+		FormEvent( wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = wxT("Event editor"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 915,605 ), long style = wxDEFAULT_FRAME_STYLE|wxFRAME_FLOAT_ON_PARENT|wxTAB_TRAVERSAL );
 
 		~FormEvent();
 
@@ -631,7 +645,7 @@ class FormLoader : public wxDialog
 	protected:
 		enum
 		{
-			wxID_TXT_LIST = 1000,
+			wxID_TXT_LIST = 5999,
 			wxID_TXT_ITEM,
 			wxID_BTN_OK,
 		};
@@ -660,7 +674,7 @@ class FormVideo : public wxFrame
 	protected:
 		enum
 		{
-			wxID_MM_OPEN = 1000,
+			wxID_MM_OPEN = 5999,
 			wxID_MM_SAVE_FRAMES,
 			wxID_MM_EXIT,
 			wxID_CANVAS,
@@ -698,7 +712,7 @@ class FormMIDI : public wxFrame
 	protected:
 		enum
 		{
-			wxID_WIN_MIDI = 1000,
+			wxID_WIN_MIDI = 5999,
 			wxID_MM_CUST_FOLDER,
 			wxID_MM_SAVE_MIDI,
 			wxID_MM_SAVE_ALL,
@@ -738,6 +752,49 @@ class FormMIDI : public wxFrame
 		FormMIDI( wxWindow* parent, wxWindowID id = wxID_WIN_MIDI, const wxString& title = wxT("Spellcross MIDI player"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 800,500 ), long style = wxDEFAULT_FRAME_STYLE|wxTAB_TRAVERSAL );
 
 		~FormMIDI();
+
+};
+
+///////////////////////////////////////////////////////////////////////////////
+/// Class FormMissionParams
+///////////////////////////////////////////////////////////////////////////////
+class FormMissionParams : public wxDialog
+{
+	private:
+
+	protected:
+		enum
+		{
+			wxID_WIN_MISSION_PARAMS = 5999,
+			wxID_CH_TEXT,
+			wxID_CH_START_TEXT,
+			wxID_CH_GOOD_END_TEXT,
+			wxID_CH_BAD_END_TEXT,
+			wxID_CB_NIGHT,
+			wxID_TEXT_PREVIEW,
+			wxID_BTN_OK,
+		};
+
+		wxStaticText* m_staticText75;
+		wxChoice* chText;
+		wxStaticText* m_staticText76;
+		wxChoice* chStartText;
+		wxStaticText* m_staticText77;
+		wxChoice* chGoodEndText;
+		wxStaticText* m_staticText78;
+		wxChoice* chBadEndText;
+		wxCheckBox* cbNight;
+		wxStaticLine* m_staticline28;
+		wxStaticText* txtPrevLbl;
+		wxTextCtrl* txtPreview;
+		wxStaticLine* m_staticline27;
+		wxButton* btnOK;
+
+	public:
+
+		FormMissionParams( wxWindow* parent, wxWindowID id = wxID_WIN_MISSION_PARAMS, const wxString& title = wxT("Mission Parameters"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 593,388 ), long style = wxDEFAULT_DIALOG_STYLE );
+
+		~FormMissionParams();
 
 };
 

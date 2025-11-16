@@ -76,7 +76,7 @@ private:
 protected:
 	enum
 	{
-		wxID_MM_OK = 1000,
+		wxID_MM_OK = 5999,
 		wxID_MM_EXIT,
 		wxID_LB_EVENTS,
 		wxID_BTN_ADD_EVENT,
@@ -84,11 +84,12 @@ protected:
 		wxID_CHB_TYPE,
 		wxID_TXT_OBJ_DESC,
 		wxID_CB_IS_OBJECTIVE,
-		wxID_SPIN_PROB,
 		wxID_SPIN_XPOS,
 		wxID_SPIN_YPOS,
 		wxID_SPIN_TRIG_UNIT,
+		wxID_SPIN_PROB,
 		wxID_TXT_UNITS,
+		wxID_CAN_ANIM,
 		wxID_CHB_MSG_ITEM,
 		wxID_BTN_NEW_MSG,
 		wxID_BNT_DEL_MSG,
@@ -97,7 +98,7 @@ protected:
 		wxID_LB_MSG,
 		wxID_TXT_MSG,
 		wxID_BTN_PLAY_MSG,
-		wxID_BTN_STOP_MSG
+		wxID_BTN_STOP_MSG,
 	};
 
 	wxMenuBar* mMenu;
@@ -112,18 +113,21 @@ protected:
 	wxStaticText* m_staticText62;
 	wxTextCtrl* txtObjectiveDesc;
 	wxCheckBox* cbIsObjective;
-	wxStaticText* m_staticText51;
-	wxSpinCtrl* spinProb;
 	wxStaticText* m_staticText52;
 	wxSpinCtrl* spinXpos;
 	wxStaticText* m_staticText54;
 	wxSpinCtrl* spinYpos;
 	wxStaticText* m_staticText59;
 	wxSpinCtrl* spinTrigUnit;
+	wxStaticText* m_staticText51;
+	wxSpinCtrl* spinProb;
 	wxStaticLine* m_staticline20;
 	wxStaticText* strUnits;
 	wxTextCtrl* txtUnits;
 	wxStaticLine* m_staticline22;
+	wxStaticText* m_staticText74;
+	wxChoice* chbCANanim;
+	wxStaticLine* m_staticline221;
 	wxStaticText* m_staticText53;
 	wxChoice* chbMsgItem;
 	wxButton* btnNewMsg;

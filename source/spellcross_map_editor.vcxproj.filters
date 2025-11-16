@@ -147,6 +147,9 @@
     <ClCompile Include="forms\form_map_units_list.cpp">
       <Filter>Source Files\forms</Filter>
     </ClCompile>
+    <ClCompile Include="forms\form_mission_params.cpp">
+      <Filter>Source Files\forms</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="fs_archive.h">
@@ -327,6 +330,9 @@
       <Filter>Header Files\forms</Filter>
     </ClInclude>
     <ClInclude Include="forms\form_map_units_list.h">
+      <Filter>Header Files\forms</Filter>
+    </ClInclude>
+    <ClInclude Include="forms\form_mission_params.h">
       <Filter>Header Files\forms</Filter>
     </ClInclude>
   </ItemGroup>

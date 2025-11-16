@@ -348,7 +348,7 @@ public:
 	constexpr bool operator!=(MapUnitType type) const { return value != type.value; }
 	void operator=(const char* type) {
 		if(_strcmpi(type,"PatrolUnit") == 0)
-			value = Values::NormalUnit;
+			value = Values::PatrolUnit;
 		else if(_strcmpi(type,"WaitForContact") == 0)
 			value = Values::WaitForContact;
 		else if(_strcmpi(type,"NormalUnit") == 0)

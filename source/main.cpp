@@ -117,6 +117,8 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     // File menu
     wxMenu* menuFile = new wxMenu;
     menuFile->Append(ID_OpenMap, "&Open Map\tCtrl-O", "Open new Spellcross map file.");
+    menuFile->Append(ID_SaveDTA,"&Save DTA map file\tCtrl-S","Save Spellcross map DTA file.");
+    menuFile->Append(ID_SaveDEF,"&Save DEF map file","Save Spellcross map DEF file.");
     menuFile->Append(ID_NewMap,"&Ceate new Map\tCtrl-N","Create new map.");
     menuFile->AppendSeparator();
     menuFile->Append(wxID_EXIT);
@@ -163,6 +165,8 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     menuLayer->FindItem(ID_SelectLay2)->Check(true);
     // edit menu
     wxMenu* menuEdit = new wxMenu;
+    menuEdit->Append(ID_EditMissionParams,"Edit mission parameters","",wxITEM_NORMAL);
+    menuEdit->Append(wxID_ANY,"","",wxITEM_SEPARATOR);
     menuEdit->AppendSubMenu(menuLayer,"Select layer(s)","");
     menuEdit->Append(ID_SelectAll,"Select all tiles\tCtrl+A","",wxITEM_NORMAL);
     menuEdit->Append(ID_DeselectAll,"Deselect all tiles\tCtrl+Shift+A","",wxITEM_NORMAL);
@@ -271,6 +275,8 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     Bind(wxEVT_CLOSE_WINDOW, &MyFrame::OnClose, this);
     
     Bind(wxEVT_MENU,&MyFrame::OnOpenMap, this, ID_OpenMap);
+    Bind(wxEVT_MENU,&MyFrame::OnSaveDTA,this,ID_SaveDTA);
+    Bind(wxEVT_MENU,&MyFrame::OnSaveDEF,this,ID_SaveDEF);
     Bind(wxEVT_MENU,&MyFrame::OnNewMap,this,ID_NewMap);
     Bind(wxEVT_MENU,&MyFrame::OnAbout, this, wxID_ABOUT);
     Bind(wxEVT_MENU,&MyFrame::OnExit, this, wxID_EXIT);
@@ -307,6 +313,7 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     Bind(wxEVT_MENU,&MyFrame::OnUpdateTileContext,this,ID_UpdateSprContext);
     Bind(wxEVT_MENU,&MyFrame::OnUpdateTileContextMaps,this,ID_UpdateSprContextMaps);
     
+    Bind(wxEVT_MENU,&MyFrame::OnEditMissionParams,this,ID_EditMissionParams);
     Bind(wxEVT_MENU,&MyFrame::OnCopyBuf,this,ID_CopyBuf);
     Bind(wxEVT_MENU,&MyFrame::OnPasteBuf,this,ID_PasteBuf);
     Bind(wxEVT_MENU,&MyFrame::OnClearBuf,this,ID_ClearBuf);
@@ -790,6 +797,48 @@ void MyFrame::OnOpenMap(wxCommandEvent& event)
     LoadToolsetRibbon();
 }
 
+// save map DTA file
+void MyFrame::OnSaveDTA(wxCommandEvent& event)
+{
+    if(!spell_map || !spell_map->IsLoaded())
+        return;
+
+    // split path to folder and file    
+    std::filesystem::path last_path = spell_map->map_path;
+    wstring dir = last_path.parent_path(); dir += wstring(L"\\");
+    wstring name = last_path.filename();
+
+    // show open dialog
+    wxFileDialog saveFileDialog(this,_("Save Spellcross Map DTA file"),dir,name,"Map data file (*.dta)|*.dta",
+        wxFD_SAVE|wxFD_OVERWRITE_PROMPT);
+    if(saveFileDialog.ShowModal() == wxID_CANCEL)
+        return;
+    wstring path = wstring(saveFileDialog.GetPath().ToStdWstring());
+
+    spell_map->SaveDTA(path);
+}
+
+// save map DEF file
+void MyFrame::OnSaveDEF(wxCommandEvent& event)
+{
+    if(!spell_map || !spell_map->IsLoaded())
+        return;
+
+    // split path to folder and file    
+    std::filesystem::path last_path = spell_map->def_path;
+    wstring dir = last_path.parent_path(); dir += wstring(L"\\");
+    wstring name = last_path.filename();
+
+    // show open dialog
+    wxFileDialog saveFileDialog(this,_("Save Spellcross Map DEF file"),dir,name,"Map script file (*.def)|*.def",
+        wxFD_SAVE|wxFD_OVERWRITE_PROMPT);
+    if(saveFileDialog.ShowModal() == wxID_CANCEL)
+        return;
+    wstring path = wstring(saveFileDialog.GetPath().ToStdWstring());
+
+    spell_map->SaveDEF(path);
+}
+
 // create new map
 void MyFrame::OnNewMap(wxCommandEvent& event)
 {
@@ -1006,6 +1055,20 @@ void MyFrame::OnViewMiniMap(wxCommandEvent& event)
 }
 
 
+// edit mission parameters
+void MyFrame::OnEditMissionParams(wxCommandEvent& event)
+{
+    if(!spell_data || !spell_map)
+        return;
+    FormMissionParams* form = new FormMissionParams(this,spell_data,spell_map);
+    if(form->ShowModal() == wxID_OK)
+    {
+        // --- confirmed
+    }
+
+    // destroy form
+    delete form;
+}
 
 
 // create new object

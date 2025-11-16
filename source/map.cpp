@@ -515,7 +515,6 @@ void SpellMap::Close()
 	SetUnitRangeViewMode(UNIT_RANGE_NONE);
 
 
-
 	// loose layer data
 	tiles.clear();
 	L3.clear();
@@ -566,6 +565,9 @@ void SpellMap::Close()
 	
 	// reset gamma to make correctio recalculation
 	last_gamma = 0.0;
+
+	// default mission parameters
+	params.Clear();
 
 	SetDefaultRenderFilter(NULL);
 	SetRenderFilter(NULL);
@@ -857,7 +859,7 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 	///// L3 - ANM animation /////
 	//////////////////////////////
 
-	// read count of L3 animations
+	// read count of ANM used
 	int L3_count = *(int32_t*)data; data += 4;
 
 	// load list of used L3 sprites
@@ -1155,7 +1157,7 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 				unit->is_active = 1;
 				
 				// copy unit name
-				unit->name = unit->unit->name;
+				unit->name = "";
 				auto & custom_name = cmd->parameters->at(6);
 				if(custom_name.size() && custom_name.compare("-")!=0)
 					unit->name = custom_name;
@@ -1181,8 +1183,47 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 				// --- Mission objectives: treating them as events too				
 				events->AddMissionObjective(spelldata, def, cmd);
 			}
+			else if(cmd->name.compare("NightMission") == 0)
+			{
+				// --- Night mission flag
+				params.is_night = true;
+			}
 		}
 		delete mission_data;
+
+		// parse mission parameters
+		SpellDefSection* mission_params = def->GetSection("MissionParameters");
+		for(int k = 0; k < mission_params->Size(); k++)
+		{
+			SpellDefCmd* cmd = (*mission_params)[k];
+
+			std::vector<std::string> cmd_list = {"MissionText", "MissionStartText", "MissionEndOKText", "MissionEndBadText"};
+			std::vector<std::string*> cmd_dest = {&params.mission_text, &params.start_text, &params.end_ok_text, &params.end_bad_text};
+			for(int k = 0; k < cmd_list.size(); k++)
+			{
+				if(cmd->name.compare(cmd_list[k]) == 0)
+				{
+					if(cmd->parameters->size() != 1)
+					{
+						delete mission_params;
+						delete def;
+						Close();
+						return(1);
+					}
+					*cmd_dest[k] = cmd->parameters->at(0);
+					if(!spelldata->texts->GetText(*cmd_dest[k]))
+					{
+						// resource not found - ignore because first mission has invalid record...
+						/*delete mission_params;
+						delete def;
+						Close();
+						return(1);*/
+					}
+				}
+			}
+		}
+		delete mission_params;
+
 		delete def;
 		
 	}
@@ -1217,6 +1258,501 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 	return(0);
 }
 
+// save map DTA file
+int SpellMap::SaveDTA(std::wstring path)
+{
+	// try open file
+	ofstream fw(path,ios::out | ios::binary | ios::ate);
+	if(!fw.is_open())
+		return(1);
+
+	// prepare L1 map and list of used sprites
+	std::vector<Sprite*> L1_list;
+	std::vector<uint16_t> L1_map;
+	for(auto tile: tiles)
+	{
+		// check sprite presence in the list, eventually add new
+		auto sid = std::find(L1_list.begin(),L1_list.end(),tile.L1);
+		if(sid == L1_list.end())
+			L1_list.push_back(tile.L1);
+		sid = std::find(L1_list.begin(),L1_list.end(),tile.L1);
+		// make map tile sprite id
+		uint16_t tid = (sid - L1_list.begin());
+		if(tid > 0x0FFF)
+		{
+			// failed - too many sprites in L1!
+			fw.close();
+			return(1);
+		}
+		// add elevation
+		tid += (((uint16_t)tile.elev)<<12);
+		L1_map.push_back(tid);
+	}
+	uint32_t L1_count = L1_list.size();
+
+	// write L1 data offset
+	uint32_t L1_offset = L1_count*8 + 0x1A;
+	ostream_write_u32(fw,L1_offset);
+
+	// write L1 sprites count
+	ostream_write_u32(fw,L1_count);
+
+	// version ID
+	ostream_write_u8(fw,0x12);
+
+	// write map size
+	ostream_write_u16(fw,x_size);
+	ostream_write_u16(fw,y_size);
+
+	// terrain name	
+	char terr_name[13];
+	memset(terr_name,'\0',sizeof(terr_name));
+	strncpy(terr_name,terrain->name.c_str(),sizeof(terr_name));
+	fw.write(terr_name,sizeof(terr_name));
+
+	// write sprites names
+	for(auto spr: L1_list)
+	{
+		// non terminated 8 chars
+		char name[8];
+		memset(name,'\0',sizeof(name));
+		strncpy(name,spr->name.c_str(),sizeof(name));
+		fw.write(name,sizeof(name));
+	}
+
+	// write L1 map
+	fw.write((char*)L1_map.data(),L1_map.size()*sizeof(uint16_t));
+
+	// prepare L2 map and list of used sprites
+	std::vector<Sprite*> L2_list;
+	std::vector<uint16_t> L2_map;
+	for(auto tile: tiles)
+	{
+		// check sprite presence in the list, eventually add new
+		uint16_t tid = 0x0000;
+		if(tile.L2)
+		{
+			auto sid = std::find(L2_list.begin(),L2_list.end(),tile.L2);
+			if(sid == L2_list.end())
+				L2_list.push_back(tile.L2);			
+			sid = std::find(L2_list.begin(),L2_list.end(),tile.L2);
+			// make map tile sprite id
+			tid = (sid - L2_list.begin()) + 1;
+			if(tid > 0xFF)
+			{
+				// failed - too many sprites in L2!
+				fw.close();
+				return(1);
+			}
+		}
+		
+		// add flags
+		tid += (((uint16_t)(tile.flags))<<8);
+		L2_map.push_back(tid);
+	}
+	uint32_t L2_count = L2_list.size();
+
+	// write L2 sprites count
+	ostream_write_u32(fw,L2_count);
+
+	// write L2 sprites names
+	for(auto spr: L2_list)
+	{
+		// non terminated 8 chars
+		char name[8];
+		memset(name,'\0',sizeof(name));
+		strncpy(name,spr->name.c_str(),sizeof(name));
+		fw.write(name,sizeof(name));
+	}
+
+	// write L2 map
+	fw.write((char*)L2_map.data(),L2_map.size()*sizeof(uint16_t));
+
+
+
+	// prepare L3 list of used sprites, write names
+	std::vector<AnimL1*> L3_list;
+	for(auto anm: L3)
+	{
+		// check sprite presence in the list, eventually add new
+		auto sid = std::find(L3_list.begin(),L3_list.end(),anm.anim);
+		if(sid == L3_list.end())
+			L3_list.push_back(anm.anim);
+		if(L3_list.size() > 65535)
+		{
+			// failed - too many anims
+			fw.close();
+			return(1);
+		}		
+	}
+	uint32_t L3_count = L3_list.size();
+
+	// write ANM used animations count
+	ostream_write_u32(fw,L3_count);
+
+	// write ANM names list
+	for(auto anm: L3_list)
+	{
+		// write non terminated 8 char names
+		char name[8];
+		memset(name,'\0',sizeof(name));
+		strncpy(name,anm->name,sizeof(name));
+		fw.write(name,sizeof(name));
+	}
+
+	// write ANM items count in map
+	if(L3_count)
+		ostream_write_u32(fw,L3.size());
+
+	// write ANM items in map
+	for(auto anm: L3)
+	{
+		// check sprite presence in the list, eventually add new
+		auto sid = std::find(L3_list.begin(),L3_list.end(),anm.anim);
+		// make anm id
+		auto aid = (sid - L3_list.begin());
+
+		// randomize first frame offset
+		uint8_t ofs = rand() % anm.anim->frames.size();
+		ostream_write_u8(fw,ofs);
+
+		// write frames limit (or whatever it is)
+		ostream_write_u16(fw,anm.frame_limit);
+
+		// write map position
+		ostream_write_u16(fw,anm.x_pos);
+		ostream_write_u16(fw,anm.y_pos);
+
+		// write ANM id
+		ostream_write_u16(fw,aid);
+	}
+
+
+
+	// prepare L4 list of used sprites, write names
+	std::vector<AnimPNM*> L4_list;
+	for(auto pnm: L4)
+	{		
+		// check sprite presence in the list, eventually add new
+		auto sid = std::find(L4_list.begin(),L4_list.end(),pnm.anim);
+		if(sid == L4_list.end())
+			L4_list.push_back(pnm.anim);
+		if(L4_list.size() > 255)
+		{
+			// failed - too many anims
+			fw.close();
+			return(1);
+		}
+	}
+	uint32_t L4_count = L4_list.size();
+
+	// write PNM used animations count
+	ostream_write_u32(fw,L4_count);
+
+	// write PNM names list
+	for(auto pnm: L4_list)
+	{
+		// write non terminated 8 char names
+		char name[8];
+		memset(name,'\0',sizeof(name));
+		strncpy(name,pnm->name,sizeof(name));
+		fw.write(name,sizeof(name));
+	}
+
+	// write PNM items count in map
+	if(L4_count)
+		ostream_write_u32(fw,L4.size());
+
+	// write PNM items in map
+	for(auto pnm: L4)
+	{
+		// check sprite presence in the list, eventually add new
+		auto sid = std::find(L4_list.begin(),L4_list.end(),pnm.anim);
+		// make pnm id
+		auto aid = (sid - L4_list.begin());
+
+		// randomize first frame offset
+		uint8_t ofs = rand() % pnm.anim->frames.size();
+		ostream_write_u8(fw,ofs);
+
+		// write frames limit (or whatever it is)
+		ostream_write_u16(fw,pnm.frame_limit);
+
+		// write map position
+		ostream_write_u16(fw,pnm.x_pos);
+		ostream_write_u16(fw,pnm.y_pos);
+
+		// write PNM id
+		ostream_write_u16(fw,aid);
+
+		// write PNM origin offset (y,x order for whatever reason)
+		ostream_write_i32(fw,pnm.y_ofs);
+		ostream_write_i32(fw,pnm.x_ofs);
+	}
+
+	
+	// write mystery L5 items
+	ostream_write_u32(fw,0);
+
+	// write mystery L6 items
+	ostream_write_u32(fw,0);
+
+
+	
+
+	// prepare L7 list of used sounds
+	std::vector<SpellSample*> L7_list;
+	for(auto snd: sound_loops->sounds)
+	{		
+		// check sprite presence in the list, eventually add new
+		auto sid = std::find(L7_list.begin(),L7_list.end(),snd.GetSample());
+		if(sid == L7_list.end())
+			L7_list.push_back(snd.GetSample());
+		if(L7_list.size() > 255)
+		{
+			// failed - too many unique sounds
+			fw.close();
+			return(1);
+		}
+	}
+	uint32_t L7_count = L7_list.size();
+
+	// write unique sounds count
+	ostream_write_u32(fw,L7_count);
+
+	// write unique sounds names list
+	for(auto snd: L7_list)
+	{
+		// write zero-terminated names
+		fw.write(snd->name,strlen(snd->name)+1);
+	}
+
+	// write sound items count in map
+	if(L7_count)
+		ostream_write_u32(fw,sound_loops->sounds.size());
+
+	// write sound items in map
+	for(auto snd: sound_loops->sounds)
+	{
+		// check sprite presence in the list, eventually add new
+		auto sid = std::find(L7_list.begin(),L7_list.end(),snd.GetSample());
+		// make pnm id
+		auto sndid = (sid - L7_list.begin());
+
+		// write position (combined xy)
+		auto mxy = snd.GetPosition();
+		ostream_write_u16(fw,ConvXY(mxy));
+
+		// write sound id
+		ostream_write_u8(fw,sndid);
+	}
+
+
+
+	// prepare L8 list of used sounds
+	std::vector<SpellSample*> L8_list;
+	for(auto snd: sounds)
+	{
+		// check sprite presence in the list, eventually add new
+		auto sid = std::find(L8_list.begin(),L8_list.end(),snd.GetSample());
+		if(sid == L8_list.end())
+			L8_list.push_back(snd.GetSample());
+		if(L8_list.size() > 255)
+		{
+			// failed - too many unique sounds
+			fw.close();
+			return(1);
+		}
+	}
+	uint32_t L8_count = L8_list.size();
+
+	// write unique sounds count
+	ostream_write_u32(fw,L8_count);
+
+	// write unique sounds names list
+	for(auto snd: L8_list)
+	{
+		// write zero-terminated names
+		fw.write(snd->name,strlen(snd->name)+1);
+	}
+
+	// write sound items count in map
+	if(L8_count)
+		ostream_write_u32(fw,sounds.size());
+
+	// write sound items in map
+	for(auto snd: sounds)
+	{
+		// check sprite presence in the list, eventually add new
+		auto sid = std::find(L8_list.begin(),L8_list.end(),snd.GetSample());
+		// make pnm id
+		auto sndid = (sid - L8_list.begin());
+
+		// write position (combined xy)
+		auto mxy = snd.GetPosition();
+		ostream_write_u16(fw,ConvXY(mxy));
+
+		// write sound id
+		ostream_write_u8(fw,sndid);
+	}
+
+
+	// write unknown termination (likely some other optional list, but dunno what is it)
+	ostream_write_u32(fw,0);
+
+	
+	// close file
+	fw.close();
+
+	return(0);
+}
+
+// save map DEF file
+int SpellMap::SaveDEF(std::wstring path)
+{
+	// renumber unit IDs to be compatible with spellcross
+	if(SortUnitIDs())
+	{
+		// failed
+		return(1);
+	}
+
+	std::string mission_data = "MissionData {\n";
+	
+	// MissionMap()
+	auto map_name = wstring2string(std::wstring(filesystem::path(map_path).stem()));
+	mission_data += "    MissionMap(" + map_name + ")\n";
+
+	// list of static enemy units
+	for(auto unit: units)
+	{
+		std::string name = unit->name;
+		if(name.empty())
+			name = "-";
+		mission_data += string_format("    AddUnit(%d,%d,%d,%d,%d,%s,%s)\n", unit->id, unit->unit->type_id, ConvXY(unit->coor), unit->experience_init, unit->man, unit->behave.GetString().c_str(), name.c_str());
+	}
+			
+	// place events:
+	std::vector<SpellMapEventRec::EvtTypes> event_types = {
+		SpellMapEventRec::EvtTypes::EVT_MISSION_START,
+		SpellMapEventRec::EvtTypes::EVT_SEE_PLACE,
+		SpellMapEventRec::EvtTypes::EVT_SEE_UNIT,
+		SpellMapEventRec::EvtTypes::EVT_TRANSPORT_UNIT,
+		SpellMapEventRec::EvtTypes::EVT_SAVE_UNIT,
+		SpellMapEventRec::EvtTypes::EVT_DESTROY_UNIT,
+		SpellMapEventRec::EvtTypes::EVT_DESTROY_OBJ,
+		SpellMapEventRec::EvtTypes::EVT_DESTROY_ALL};
+	
+	// repeat for events and objectives separately:
+	std::string event_data = "";
+	int event_id = 1;
+	for(int o = 0; o < 2; o++)
+	{
+		// for each event type:
+		for(auto evt_type: event_types)		
+		{
+			// for each event:
+			for(auto evt: events->GetEvents())
+			{
+				if(evt->evt_type != evt_type || evt->is_objective == o)
+					continue;
+				auto [head_chunk, data_chunk] = evt->FormatDEFrecord(&event_id);
+				mission_data += head_chunk;
+				event_data += data_chunk;
+			}
+		}
+	}
+
+	// place start squares
+	int num = 0;
+	for(auto pos: start)
+	{
+		if(num >= 10)
+		{
+			mission_data += ")\n";
+			num = 0;
+		}
+		if(!num)
+			mission_data += "    AddStartSquare(";
+		else
+			mission_data += ",";
+		mission_data += string_format("%d",ConvXY(pos));
+		num++;
+	}
+	if(!start.empty())
+		mission_data += ")\n";
+
+	// place escape squares
+	num = 0;
+	for(auto pos: escape)
+	{
+		if(num >= 10)
+		{
+			mission_data += ")\n";
+			num = 0;
+		}
+		if(!num)
+			mission_data += "    AddEscapeSquare(";
+		else
+			mission_data += ",";
+		mission_data += string_format("%d",ConvXY(pos));
+		num++;
+	}
+	if(!escape.empty())
+		mission_data += ")\n";
+
+	// place target squares
+	num = 0;
+	for(auto pos: target)
+	{
+		if(num >= 10)
+		{
+			mission_data += ")\n";
+			num = 0;
+		}
+		if(!num)
+			mission_data += "    AddEscapeSquare(";
+		else
+			mission_data += ",";
+		mission_data += string_format("%d",ConvXY(pos));
+		num++;
+	}
+	if(!target.empty())
+		mission_data += ")\n";
+
+	// night mission flag
+	if(params.is_night)
+		mission_data += "    NightMission()\n";
+
+	mission_data += "}\n\n";
+
+	// generate mission parameters
+	std::string mission_params = "MissionParameters {\n";
+	mission_params += "    Time(t)\n";
+	mission_params += string_format("    MissionText(%s)\n",params.mission_text.c_str());
+	mission_params += string_format("    MissionStartText(%s)\n",params.start_text.c_str());
+	mission_params += string_format("    MissionEndOKText(%s)\n",params.end_ok_text.c_str());
+	mission_params += string_format("    MissionEndBadText(%s)\n",params.end_bad_text.c_str());
+	mission_params += "}\n";
+
+	// append event data
+	std::string def_data = mission_data + event_data + mission_params;
+	
+	// try open file
+	ofstream fw(path,ios::out | ios::trunc);
+	if(!fw.is_open())
+		return(1);
+
+	// write DEF
+	fw.write(def_data.c_str(), def_data.size());
+
+	// close file
+	fw.close();
+
+	return(0);
+}
+
+
 // convert x,y to combined tile position
 int SpellMap::ConvXY(int x, int y)
 {
@@ -1234,6 +1770,7 @@ int SpellMap::ConvXY(MapXY &mxy)
 {
 	return(ConvXY(&mxy));
 }
+
 
 
 // check any unit was moved and eventually clear moved flags
@@ -7216,8 +7753,17 @@ int SpellMap::AssignUnitID(MapUnit *unit)
 }
 
 // try reassign unit IDs for all map and event units
-int SpellMap::SortUnitIDs(MapUnit* unit)
+int SpellMap::SortUnitIDs()
 {
+	// move all IDs safely high before reassigning new ones
+	int id = 1000000;
+	for(auto u: units)
+		u->id = id++;
+	for(auto ev: events->GetEvents())
+		for(auto u: ev->units)
+			u.unit->id = id++;
+	
+	// assign new IDs
 	int ret = 0;
 	for(auto u: units)
 		ret += AssignUnitID(u);

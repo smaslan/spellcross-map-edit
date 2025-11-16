@@ -393,6 +393,18 @@ class SpellMap
 		// local palette (after gamma correction)
 		uint8_t pal[256][3];
 
+		class MissionParams
+		{
+		public:
+			bool is_night = false;
+			std::string mission_text = "";
+			std::string start_text = "";
+			std::string end_ok_text = "";
+			std::string end_bad_text = "";
+			void Clear() { is_night = false; mission_text = "";start_text = "";end_ok_text = "";end_bad_text = "";};
+		};
+		MissionParams params;
+
 		// --- unit view/attack range stuff
 		class ViewRange
 		{
@@ -628,7 +640,9 @@ class SpellMap
 		int isGameMode();
 		void Close();
 		int Create(SpellData* spelldata,const char* terr_name,int x,int y);
-		int Load(wstring &path, SpellData* spelldata);		
+		int Load(wstring &path, SpellData* spelldata);
+		int SaveDTA(std::wstring path);
+		int SaveDEF(std::wstring path);
 		int IsLoaded();
 		bool TileIsVisible(int x, int y);
 		tuple<int,int> GetSurfPos(MapXY &pos);
@@ -689,7 +703,7 @@ class SpellMap
 		MapUnit* CreateUnit(MapUnit* parent=NULL,SpellUnitRec* new_type=NULL);
 		int PlaceUnit(MapUnit* unit);
 		int AssignUnitID(MapUnit* unit);
-		int SortUnitIDs(MapUnit* unit);
+		int SortUnitIDs();
 		void SortUnits();
 		MapUnit *GetCursorUnit(TScroll* scroll=NULL);
 		MapUnit* CanSelectUnit(MapXY pos);

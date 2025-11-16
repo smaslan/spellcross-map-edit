@@ -83,6 +83,9 @@ public:
 
     // event invoked text message(s) (there should be just one, but you never know...)
     vector<SpellMapEventMessageRec> texts;
+
+    // video resource name to play
+    std::string video;
     
     int SetType(int type_id);
     int AddUnit(MapUnit *unit);
@@ -92,6 +95,7 @@ public:
     SpellMapEventRec(SpellMap *parent_map);
     SpellMapEventRec(SpellMapEventRec* rec);
     ~SpellMapEventRec();
+    std::tuple<std::string,std::string> FormatDEFrecord(int *initial_id);
 
     int CheckUnitInPos(bool clear=false);
         

@@ -23,7 +23,7 @@ FormEvent::FormEvent(wxWindow* parent,SpellData* spell_data,wxWindowID id,const 
 	
 	// === AUTO GENERATED START ===	
 	
-	this->SetSizeHints(wxDefaultSize,wxDefaultSize);
+	this->SetSizeHints(wxSize(900,600),wxDefaultSize);
 	this->SetBackgroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_MENU));
 
 	mMenu = new wxMenuBar(0);
@@ -95,18 +95,13 @@ FormEvent::FormEvent(wxWindow* parent,SpellData* spell_data,wxWindowID id,const 
 	cbIsObjective = new wxCheckBox(this,wxID_CB_IS_OBJECTIVE,wxT("is MissionObjective?"),wxDefaultPosition,wxDefaultSize,0);
 	bSizer50->Add(cbIsObjective,0,wxALL,5);
 
-	m_staticText51 = new wxStaticText(this,wxID_ANY,wxT("Probability:"),wxDefaultPosition,wxDefaultSize,0);
-	m_staticText51->Wrap(-1);
-	bSizer50->Add(m_staticText51,0,wxTOP|wxRIGHT|wxLEFT,5);
-
-	spinProb = new wxSpinCtrl(this,wxID_SPIN_PROB,wxEmptyString,wxDefaultPosition,wxDefaultSize,wxSP_ARROW_KEYS,1,100,100);
-	bSizer50->Add(spinProb,0,wxEXPAND|wxBOTTOM|wxRIGHT|wxLEFT,5);
-
 	wxBoxSizer* bSizer48;
 	bSizer48 = new wxBoxSizer(wxHORIZONTAL);
 
 	m_staticText52 = new wxStaticText(this,wxID_ANY,wxT("Map x-position:"),wxDefaultPosition,wxDefaultSize,0);
 	m_staticText52->Wrap(-1);
+	m_staticText52->SetMinSize(wxSize(110,-1));
+
 	bSizer48->Add(m_staticText52,0,wxALIGN_CENTER|wxALL,5);
 
 	spinXpos = new wxSpinCtrl(this,wxID_SPIN_XPOS,wxEmptyString,wxDefaultPosition,wxDefaultSize,wxSP_ARROW_KEYS,0,10,0);
@@ -131,6 +126,8 @@ FormEvent::FormEvent(wxWindow* parent,SpellData* spell_data,wxWindowID id,const 
 
 	m_staticText59 = new wxStaticText(this,wxID_ANY,wxT("Trigger unit index:"),wxDefaultPosition,wxDefaultSize,0);
 	m_staticText59->Wrap(-1);
+	m_staticText59->SetMinSize(wxSize(110,-1));
+
 	bSizer56->Add(m_staticText59,0,wxALIGN_CENTER_VERTICAL|wxALL,5);
 
 	spinTrigUnit = new wxSpinCtrl(this,wxID_SPIN_TRIG_UNIT,wxEmptyString,wxDefaultPosition,wxDefaultSize,wxSP_ARROW_KEYS,0,99,0);
@@ -141,13 +138,30 @@ FormEvent::FormEvent(wxWindow* parent,SpellData* spell_data,wxWindowID id,const 
 
 	bSizer50->Add(bSizer56,0,wxEXPAND,5);
 
+	wxBoxSizer* bSizer561;
+	bSizer561 = new wxBoxSizer(wxHORIZONTAL);
+
+	m_staticText51 = new wxStaticText(this,wxID_ANY,wxT("Probability:"),wxDefaultPosition,wxDefaultSize,0);
+	m_staticText51->Wrap(-1);
+	m_staticText51->SetMinSize(wxSize(110,-1));
+
+	bSizer561->Add(m_staticText51,0,wxALIGN_CENTER_VERTICAL|wxALL,5);
+
+	spinProb = new wxSpinCtrl(this,wxID_SPIN_PROB,wxEmptyString,wxDefaultPosition,wxDefaultSize,wxSP_ARROW_KEYS,1,100,100);
+	spinProb->SetMinSize(wxSize(70,-1));
+
+	bSizer561->Add(spinProb,0,wxALL,5);
+
+
+	bSizer50->Add(bSizer561,0,wxEXPAND,5);
+
 	m_staticline20 = new wxStaticLine(this,wxID_ANY,wxDefaultPosition,wxDefaultSize,wxLI_HORIZONTAL);
 	bSizer50->Add(m_staticline20,0,wxEXPAND | wxALL,5);
 
 	wxBoxSizer* bSizer55;
 	bSizer55 = new wxBoxSizer(wxHORIZONTAL);
 
-	strUnits = new wxStaticText(this,wxID_ANY,wxT("Event units count:"),wxDefaultPosition,wxDefaultSize,0);
+	strUnits = new wxStaticText(this,wxID_ANY,wxT("Spawned units count:"),wxDefaultPosition,wxDefaultSize,0);
 	strUnits->Wrap(-1);
 	bSizer55->Add(strUnits,0,wxALIGN_CENTER|wxRIGHT|wxLEFT,5);
 
@@ -160,9 +174,21 @@ FormEvent::FormEvent(wxWindow* parent,SpellData* spell_data,wxWindowID id,const 
 	m_staticline22 = new wxStaticLine(this,wxID_ANY,wxDefaultPosition,wxDefaultSize,wxLI_HORIZONTAL);
 	bSizer50->Add(m_staticline22,0,wxEXPAND | wxALL,5);
 
+	m_staticText74 = new wxStaticText(this,wxID_ANY,wxT("Play CAN animation:"),wxDefaultPosition,wxDefaultSize,0);
+	m_staticText74->Wrap(-1);
+	bSizer50->Add(m_staticText74,0,wxLEFT|wxRIGHT,5);
+
+	wxArrayString chbCANanimChoices;
+	chbCANanim = new wxChoice(this,wxID_CAN_ANIM,wxDefaultPosition,wxDefaultSize,chbCANanimChoices,0);
+	chbCANanim->SetSelection(0);
+	bSizer50->Add(chbCANanim,0,wxBOTTOM|wxEXPAND|wxLEFT|wxRIGHT,5);
+
+	m_staticline221 = new wxStaticLine(this,wxID_ANY,wxDefaultPosition,wxDefaultSize,wxLI_HORIZONTAL);
+	bSizer50->Add(m_staticline221,0,wxEXPAND | wxALL,5);
+
 	m_staticText53 = new wxStaticText(this,wxID_ANY,wxT("Event message(s) list:"),wxDefaultPosition,wxDefaultSize,0);
 	m_staticText53->Wrap(-1);
-	bSizer50->Add(m_staticText53,0,wxTOP|wxRIGHT|wxLEFT,5);
+	bSizer50->Add(m_staticText53,0,wxLEFT|wxRIGHT,5);
 
 	wxArrayString chbMsgItemChoices;
 	chbMsgItem = new wxChoice(this,wxID_CHB_MSG_ITEM,wxDefaultPosition,wxDefaultSize,chbMsgItemChoices,0);
@@ -255,6 +281,16 @@ FormEvent::FormEvent(wxWindow* parent,SpellData* spell_data,wxWindowID id,const 
 	}
 	lbMsg->Thaw();
 
+	
+	// make list of available videos
+	chbCANanim->Freeze();
+	chbCANanim->Clear();
+	auto vid_list = spell_data->videos->GetNames();
+	chbCANanim->Append("<no video>");
+	for(auto &vid: vid_list)
+		chbCANanim->Append(vid);
+	chbCANanim->Select(0);
+	chbCANanim->Thaw();
 
 	// not sound yet
 	spell_sound = NULL;
@@ -525,6 +561,13 @@ void FormEvent::SelectEvent(SpellMapEventRec *evt)
 	// objective label
 	txtObjectiveDesc->SetValue(spell_event->label);
 
+	// video resource
+	auto vid = chbCANanim->FindString(spell_event->video,false);
+	if(vid >= 0)
+		chbCANanim->Select(vid);
+	else
+		chbCANanim->Select(0);
+	
 	// update edits
 	wxCommandEvent ev;
 	OnEditParams(ev);
@@ -693,25 +736,25 @@ void FormEvent::OnEditParams(wxCommandEvent& event)
 	spell_event->is_objective = cbIsObjective->GetValue();
 
 	// update probability	
-	if(spell_event->is_objective)
+	/*if(spell_event->is_objective)
 	{
 		spell_event->probability = 100;
 		spinProb->SetValue(spell_event->probability);
 		spinProb->Enable(false);
 	}
-	else
+	else*/
 	{
 		spell_event->probability = spinProb->GetValue();
 		spinProb->Enable(true);
 	}
 
 	// objective text label
-	if(spell_event->is_objective)
+	/*if(spell_event->is_objective)
 	{
 		spell_event->label = txtObjectiveDesc->GetValue();
 		txtObjectiveDesc->Enable(true);
 	}
-	else
+	else*/
 	{
 		spell_event->label = L"";
 		txtObjectiveDesc->SetValue("");
@@ -727,19 +770,25 @@ void FormEvent::OnEditParams(wxCommandEvent& event)
 	spell_event->trig_unit_id = spinTrigUnit->GetValue();
 	spinTrigUnit->Enable(spell_event->hasTargetUnit());
 
-	if(spell_event->is_objective)
+	/*if(spell_event->is_objective)
 	{
 		// clear event stuff (messages and units)
 		spell_event->ClearUnits();
 		spell_event->ClearTexts();
-	}
-	lbMsg->Enable(!spell_event->is_objective);
+	}*/
+	/*lbMsg->Enable(!spell_event->is_objective);
 	btnDelMsg->Enable(!spell_event->is_objective);
 	btnMsgDown->Enable(!spell_event->is_objective);
 	btnMsgUp->Enable(!spell_event->is_objective);
 	btnNewMsg->Enable(!spell_event->is_objective);
 	chbMsgItem->Enable(!spell_event->is_objective);
-	txtMessage->Enable(!spell_event->is_objective);
+	txtMessage->Enable(!spell_event->is_objective);*/
+
+	// get video resource
+	if(chbCANanim->GetSelection() > 0)
+		spell_event->video = chbCANanim->GetString(chbCANanim->GetSelection());
+	else
+		spell_event->video = "";
 
 	// resort events (note: possibly slow?)
 	spell_map->events->ResetEvents();

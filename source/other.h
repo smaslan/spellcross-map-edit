@@ -11,6 +11,7 @@
 //using namespace std;
 
 std::wstring char2wstring(const char* str);
+std::wstring string2wstring(std::string str);
 std::string wstring2string(const std::wstring& str);
 std::wstring char2wstringCP852(const char* str);
 std::wstring char2wstringCP895(const char* str);
@@ -28,6 +29,8 @@ char num2hex(int num);
 int ostream_write_string(std::ofstream& fw,std::string str);
 int ostream_write_string(std::ofstream& fw,const char* str);
 std::string istream_read_string(std::ifstream& fr);
+int ostream_write_u8(std::ofstream& fw,uint8_t val);
+int ostream_write_u16(std::ofstream& fw,uint16_t val);
 int ostream_write_u32(std::ofstream& fw,uint32_t val);
 int ostream_write_i32(std::ofstream& fw,int32_t val);
 uint32_t istream_read_u32(std::ifstream& fr);

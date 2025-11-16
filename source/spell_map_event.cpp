@@ -1,6 +1,7 @@
 #include "spell_map_event.h"
 #include "spell_units.h"
 #include "map.h"
+#include "other.h"
 #include <stdexcept>
 #include <tuple>
 #include <algorithm>
@@ -476,6 +477,10 @@ int SpellMapEvents::AddSpecialEvent(SpellData *data, SpellDEF* def, SpellDefCmd*
 			{
 				unit->spec_type = MapUnitType::MissionUnit;
 			}
+			else if(evcmd->parameters->at(0).compare("ArmyUnit") == 0)
+			{
+				unit->spec_type = MapUnitType::ArmyUnit;
+			}
 			else if(evcmd->parameters->at(0).compare("SpecUnit1") == 0)
 			{
 				unit->spec_type = MapUnitType::SpecUnit;
@@ -525,7 +530,7 @@ int SpellMapEvents::AddSpecialEvent(SpellData *data, SpellDEF* def, SpellDefCmd*
 			unit->map_event = evt;
 			
 			// copy unit name
-			unit->name = unit->unit->name;
+			unit->name = "-";
 			auto& custom_name = evcmd->parameters->at(5);
 			if(custom_name.size() && custom_name.compare("-")!=0)
 				unit->name = custom_name;
@@ -572,11 +577,137 @@ int SpellMapEvents::AddSpecialEvent(SpellData *data, SpellDEF* def, SpellDefCmd*
 			}
 			evt->texts.emplace_back(text);
 		}
+		else if(evcmd->name.compare("PlayCANAnimation") == 0)
+		{
+			// --- PlayCANAnimation(video_name) ---
+			if(evcmd->parameters->size() < 1)
+			{
+				delete event_data;
+				if(is_new_event)
+				{
+					events.pop_back();
+					delete evt;
+				}
+				return(1);
+			}
+
+			// try to find text in string list
+			auto vid_name = evcmd->parameters->at(0);
+			auto vid_list = data->videos->GetNames(vid_name);
+			if(vid_list.empty())
+			{
+				delete event_data;
+				if(is_new_event)
+				{
+					events.pop_back();
+					delete evt;
+				}
+				return(1);
+			}
+			evt->video = vid_name;
+		}
 	}
 	delete event_data;
 
 	return(0);
 }
+
+// generate event DEF data <header, event_data>
+std::tuple<std::string, std::string> SpellMapEventRec::FormatDEFrecord(int *initial_id)
+{
+	std::string head = "";
+	std::string data = "";
+
+	if(is_objective)
+	{
+		// --- AddMissionObjective():
+
+		switch(evt_type)
+		{
+			case EvtTypes::EVT_TRANSPORT_UNIT:
+				head += string_format("    AddMissionObjective(TransportUnit,%d,%s)\n",trig_unit_id,wstring2stringCP895(label).c_str());
+				break;
+			case EvtTypes::EVT_SAVE_UNIT:
+				head += string_format("    AddMissionObjective(SaveUnit,%d,%s)\n",trig_unit_id,wstring2stringCP895(label).c_str());
+				break;
+			case EvtTypes::EVT_SEE_PLACE:
+				head += string_format("    AddMissionObjective(SeePlace,%d,%s)\n",map->ConvXY(position),wstring2stringCP895(label).c_str());
+				break;
+			case EvtTypes::EVT_DESTROY_OBJ:
+				head += string_format("    AddMissionObjective(DestroyObject,%d,%s)\n",map->ConvXY(position),wstring2stringCP895(label).c_str());
+				break;
+			case EvtTypes::EVT_DESTROY_UNIT:
+				head += string_format("    AddMissionObjective(DestroyUnit,%d,%s)\n",trig_unit_id,wstring2stringCP895(label).c_str());
+				break;
+			case EvtTypes::EVT_DESTROY_ALL:
+				head += string_format("    AddMissionObjective(DestroyAllUnits,%s)\n",wstring2stringCP895(label).c_str());
+				break;
+			default:
+				break;
+		}
+
+	}
+	else
+	{
+		// --- AddSpecialEvent():
+
+		// total data count for event
+		int evt_count = texts.size() + units.size() + !video.empty();
+
+		// duplicate event header for each data (spellcross cannot aggregate more data for one event...)
+		bool used = true;
+		for(int k = *initial_id; k < *initial_id + evt_count; k++)
+		{
+			switch(evt_type)
+			{
+				case EvtTypes::EVT_MISSION_START:
+					head += string_format("    AddSpecialEvent(MissionStart,%02d,%d%%)\n", k, probability);					
+					break;
+				case EvtTypes::EVT_SEE_PLACE:
+					head += string_format("    AddSpecialEvent(SeePlace,%d,%02d,%d%%)\n",k,map->ConvXY(position),probability);
+					break;
+				default:
+					used = false;
+					break;
+			}
+		}
+
+		if(used)
+		{
+			// place text data
+			for(auto text: texts)
+			{
+				data += string_format("EventData(%d) {\n",(*initial_id)++);
+				data += string_format("    EventText(%s)\n}\n\n",text.text->name.c_str());
+			}
+
+			// place video data
+			if(!video.empty())
+			{
+				data += string_format("EventData(%d) {\n",(*initial_id)++);
+				data += string_format("    PlayCANAnimation(%s)\n}\n\n",video.c_str());
+			}
+
+			// place unit data
+			for(auto& unit: units)
+			{
+				std::string name = unit.unit->name;
+				if(name.empty())
+					name = "-";
+				std::string spec_type_str = unit.unit->spec_type.GetString();
+				if(unit.unit->spec_type == MapUnitType::Values::SpecUnit && unit.unit->id == 48)
+					spec_type_str = "SpecUnit1";
+				else if(unit.unit->spec_type == MapUnitType::Values::SpecUnit && unit.unit->id == 49)
+					spec_type_str = "SpecUnit2";
+				data += string_format("EventData(%d) {\n",(*initial_id)++);
+				data += string_format("    AddSpecialUnit(%s,%d,%d,%02d,%d,%s)\n}\n\n",spec_type_str.c_str(),unit.unit->type_id,map->ConvXY(unit.unit->coor),unit.unit->experience_init,unit.unit->man,wstring2stringCP895(string2wstring(name)).c_str());
+			}
+		}
+	}
+	return std::tuple(head,data);
+}
+
+
 
 
 SpellMapEventRec** SpellMapEvents::EventMap(MapXY pos)

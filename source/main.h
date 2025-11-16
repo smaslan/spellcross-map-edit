@@ -23,6 +23,7 @@
 #include "forms/form_midi.h"
 #include "forms/form_minimap.h"
 #include "forms/form_map_units_list.h"
+#include "forms/form_mission_params.h"
 
 #include <wx/ribbon/buttonbar.h>
 #include <wx/ribbon/panel.h>
@@ -58,6 +59,8 @@ public:
 private:
     void OnViewLayer(wxCommandEvent& event);
     void OnOpenMap(wxCommandEvent& event);
+    void OnSaveDTA(wxCommandEvent& event);
+    void OnSaveDEF(wxCommandEvent& event);
     void OnNewMap(wxCommandEvent& event);
     void OnExit(wxCommandEvent& event);
     void OnAbout(wxCommandEvent& event);
@@ -98,6 +101,7 @@ private:
     void OnInvalidateSelection(wxCommandEvent& event);
     void OnCreateNewObject(wxCommandEvent& event);
     void OnAddUnit(wxCommandEvent& event);
+    void OnEditMissionParams(wxCommandEvent& event);
 
     void OnToolBtnClick(wxRibbonButtonBarEvent& event);
     void OnToolPageClick(wxRibbonBarEvent& event);
@@ -236,6 +240,8 @@ private:
 enum
 {
     ID_OpenMap = 100,
+    ID_SaveDTA,
+    ID_SaveDEF,
     ID_NewMap,
     ID_mmGameMode,
     ID_mmResetViewMap,
@@ -259,6 +265,7 @@ enum
     ID_ViewPal,
     ID_ViewGRes,
     ID_UnitViewDbg,
+    ID_EditMissionParams,
     ID_EditUnit,
     ID_EditEvent,
     ID_UpdateSprContext,
