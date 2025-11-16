@@ -323,6 +323,7 @@ FormEvent::FormEvent(wxWindow* parent,SpellData* spell_data,wxWindowID id,const 
 	Bind(wxEVT_COMMAND_SPINCTRL_UPDATED,&FormEvent::OnEditParams,this,wxID_SPIN_XPOS);
 	Bind(wxEVT_COMMAND_SPINCTRL_UPDATED,&FormEvent::OnEditParams,this,wxID_SPIN_YPOS);
 	Bind(wxEVT_COMMAND_SPINCTRL_UPDATED,&FormEvent::OnEditParams,this,wxID_SPIN_TRIG_UNIT);
+	Bind(wxEVT_COMMAND_CHOICE_SELECTED,&FormEvent::OnEditParams,this,wxID_CAN_ANIM);
 
 }
 
@@ -736,25 +737,25 @@ void FormEvent::OnEditParams(wxCommandEvent& event)
 	spell_event->is_objective = cbIsObjective->GetValue();
 
 	// update probability	
-	/*if(spell_event->is_objective)
+	if(!spell_event->isEventType())
 	{
 		spell_event->probability = 100;
 		spinProb->SetValue(spell_event->probability);
 		spinProb->Enable(false);
 	}
-	else*/
+	else
 	{
 		spell_event->probability = spinProb->GetValue();
 		spinProb->Enable(true);
 	}
 
 	// objective text label
-	/*if(spell_event->is_objective)
+	if(spell_event->isObjectiveType())
 	{
 		spell_event->label = txtObjectiveDesc->GetValue();
 		txtObjectiveDesc->Enable(true);
 	}
-	else*/
+	else
 	{
 		spell_event->label = L"";
 		txtObjectiveDesc->SetValue("");
@@ -770,19 +771,22 @@ void FormEvent::OnEditParams(wxCommandEvent& event)
 	spell_event->trig_unit_id = spinTrigUnit->GetValue();
 	spinTrigUnit->Enable(spell_event->hasTargetUnit());
 
-	/*if(spell_event->is_objective)
+	if(!spell_event->isEventType())
 	{
 		// clear event stuff (messages and units)
 		spell_event->ClearUnits();
 		spell_event->ClearTexts();
-	}*/
-	/*lbMsg->Enable(!spell_event->is_objective);
-	btnDelMsg->Enable(!spell_event->is_objective);
-	btnMsgDown->Enable(!spell_event->is_objective);
-	btnMsgUp->Enable(!spell_event->is_objective);
-	btnNewMsg->Enable(!spell_event->is_objective);
-	chbMsgItem->Enable(!spell_event->is_objective);
-	txtMessage->Enable(!spell_event->is_objective);*/
+		chbCANanim->Select(0);
+	}
+	bool can_be_event = spell_event->isEventType();
+	lbMsg->Enable(can_be_event);
+	btnDelMsg->Enable(can_be_event);
+	btnMsgDown->Enable(can_be_event);
+	btnMsgUp->Enable(can_be_event);
+	btnNewMsg->Enable(can_be_event);
+	chbMsgItem->Enable(can_be_event);
+	txtMessage->Enable(can_be_event);
+	chbCANanim->Enable(can_be_event);
 
 	// get video resource
 	if(chbCANanim->GetSelection() > 0)

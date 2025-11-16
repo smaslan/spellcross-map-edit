@@ -119,22 +119,29 @@ SpellDefSection *SpellDEF::GetSection(std::string section)
 	std::string data = std::string(this->data);
 	
 	// get first occurence of key
-	data = data.substr(data.find(section.c_str()));
+	auto sec_pos = data.find(section.c_str());
+	if(sec_pos == std::string::npos)
+	{
+		// not found - return empty
+		delete sec_data;
+		return(NULL);
+	}
+	data = data.substr(sec_pos);
 	
-	if(section.find("(") != string::npos)
+	if(section.find("(") != std::string::npos)
 		section = section.replace(section.find("("), 1, "\\(");
-	if (section.find(")") != string::npos)
+	if (section.find(")") != std::string::npos)
 		section = section.replace(section.find(")"), 1, "\\)");
 	
 	// look for entire section
 	regex secexp(".*" + section + " +\\{([^\\}]+)");
 	smatch match;
 	std::regex_search(data, match, secexp);
-
-	if (match.size() < 2)
+	if(match.size() < 2)
 	{
 		// failed
-		return(sec_data);
+		delete sec_data;
+		return(NULL);
 	}
 
 	// found
@@ -144,8 +151,7 @@ SpellDefSection *SpellDEF::GetSection(std::string section)
 	{
 		std::regex cmdexp("(.*\\r*\\n*) *([a-zA-Z]+)\\(([^\\)]+)\\)\\r*?\\n*?");
 		std::regex_search(sectxt, match, cmdexp);
-
-		if (match.size() != 4)
+		if(match.size() != 4)
 		{
 			return(sec_data);
 		}

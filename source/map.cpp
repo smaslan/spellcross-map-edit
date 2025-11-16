@@ -1119,6 +1119,16 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 			else if (cmd->name.compare("AddUnit") == 0)
 			{
 				// --- AddUnit(unit_order, unit_id, position, experience, man_count, unit_behave, name) ---				
+				if(cmd->parameters->size() != 7)
+				{
+					// failed - not enough parameters
+					delete mission_data;
+					delete def;
+					Close();
+					return(1);
+				}
+
+				// make void unit
 				MapUnit *unit = new MapUnit(this);
 
 				// always os
@@ -1136,6 +1146,8 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 				{
 					delete mission_data;
 					delete unit;
+					delete def;
+					Close();
 					return(1);
 				}
 
@@ -1176,12 +1188,26 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 			else if(cmd->name.compare("AddSpecialEvent") == 0)
 			{
 				// --- Event definitions: AddSpecialEvent(type, position, index, probability) ---
-				events->AddSpecialEvent(spelldata, def, cmd);
+				if(events->AddSpecialEvent(spelldata, def, cmd))
+				{
+					// failed
+					delete mission_data;
+					delete def;
+					Close();
+					return(1);
+				}
 			}
 			else if(cmd->name.compare("AddMissionObjective") == 0)
 			{
 				// --- Mission objectives: treating them as events too				
-				events->AddMissionObjective(spelldata, def, cmd);
+				if(events->AddMissionObjective(spelldata, def, cmd))
+				{
+					// failed
+					delete mission_data;
+					delete def;
+					Close();
+					return(1);
+				}
 			}
 			else if(cmd->name.compare("NightMission") == 0)
 			{
@@ -1193,6 +1219,12 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 
 		// parse mission parameters
 		SpellDefSection* mission_params = def->GetSection("MissionParameters");
+		if(!mission_params)
+		{
+			delete def;
+			Close();
+			return(1);
+		}
 		for(int k = 0; k < mission_params->Size(); k++)
 		{
 			SpellDefCmd* cmd = (*mission_params)[k];
@@ -1728,7 +1760,8 @@ int SpellMap::SaveDEF(std::wstring path)
 
 	// generate mission parameters
 	std::string mission_params = "MissionParameters {\n";
-	mission_params += "    Time(t)\n";
+	mission_params += "    Time(t)\n"; // this is likely constant in all maps?
+	// don't know what happens when empty resource is used (first map has non-existent resources)
 	mission_params += string_format("    MissionText(%s)\n",params.mission_text.c_str());
 	mission_params += string_format("    MissionStartText(%s)\n",params.start_text.c_str());
 	mission_params += string_format("    MissionEndOKText(%s)\n",params.end_ok_text.c_str());

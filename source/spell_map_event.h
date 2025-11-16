@@ -107,6 +107,8 @@ public:
     int isTransportSave();
     int hasTargetUnit();
     int hasPosition();
+    int isObjectiveType();
+    int isEventType();
 
     vector<string> GetEventTypes();
 };

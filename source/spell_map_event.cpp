@@ -124,6 +124,16 @@ int SpellMapEventRec::hasPosition()
 {
 	return(evt_type == EVT_SEE_PLACE || evt_type == EVT_DESTROY_OBJ);
 }
+// can event be MissionObjective()?
+int SpellMapEventRec::isObjectiveType()
+{
+	return(evt_type != EvtTypes::EVT_VOID && evt_type != EvtTypes::EVT_MISSION_START);
+}
+// can event record be AddSpecEvent()?
+int SpellMapEventRec::isEventType()
+{
+	return(evt_type == EvtTypes::EVT_MISSION_START || evt_type == EvtTypes::EVT_SEE_UNIT || evt_type == EvtTypes::EVT_SEE_PLACE);
+}
 
 // return list of text names of event types
 vector<string> SpellMapEventRec::GetEventTypes()
@@ -336,6 +346,12 @@ int SpellMapEvents::AddMissionObjective(SpellData* data,SpellDEF* def,SpellDefCm
 	int unit_index = -1;
 	if(event_type == SpellMapEventRec::EvtTypes::EVT_TRANSPORT_UNIT || event_type == SpellMapEventRec::EvtTypes::EVT_SAVE_UNIT || event_type == SpellMapEventRec::EvtTypes::EVT_DESTROY_UNIT)
 	{
+		if(cmd->parameters->size() != 3)
+		{
+			// failed - not enough parameters
+			return(1);
+		}
+
 		// target unit index
 		unit_index = stoi(cmd->parameters->at(1));
 
@@ -344,11 +360,23 @@ int SpellMapEvents::AddMissionObjective(SpellData* data,SpellDEF* def,SpellDefCm
 	}
 	else if(event_type == SpellMapEventRec::EvtTypes::EVT_DESTROY_ALL)
 	{
+		if(cmd->parameters->size() != 2)
+		{
+			// failed - not enough parameters
+			return(1);
+		}
+
 		// objective label
 		label = char2wstringCP895(cmd->parameters->at(1).c_str());
 	}
 	else if(event_type == SpellMapEventRec::EvtTypes::EVT_DESTROY_OBJ || event_type == SpellMapEventRec::EvtTypes::EVT_SEE_PLACE)
 	{
+		if(cmd->parameters->size() != 3)
+		{
+			// failed - not enough parameters
+			return(1);
+		}
+
 		// event position		
 		target_position = ConvXY(stoi(cmd->parameters->at(1)));
 		
@@ -384,6 +412,11 @@ int SpellMapEvents::AddSpecialEvent(SpellData *data, SpellDEF* def, SpellDefCmd*
 	{
 		// AddSpecialEvent(SeePlace, target_position, event_data_index, event_probability)
 		event_type = SpellMapEventRec::EVT_SEE_PLACE;
+		if(cmd->parameters->size() != 4)
+		{
+			// failed - not enough parameters
+			return(1);
+		}
 
 		// event position		
 		int xy = stoi(cmd->parameters->at(1));
@@ -402,6 +435,11 @@ int SpellMapEvents::AddSpecialEvent(SpellData *data, SpellDEF* def, SpellDefCmd*
 	{
 		// AddSpecialEvent(MissionStart, event_data_index, event_probability)
 		event_type = SpellMapEventRec::EVT_MISSION_START;
+		if(cmd->parameters->size() != 3)
+		{
+			// failed - not enough parameters
+			return(1);
+		}
 
 		// event index
 		event_data_index = stoi(cmd->parameters->at(1));
@@ -416,6 +454,11 @@ int SpellMapEvents::AddSpecialEvent(SpellData *data, SpellDEF* def, SpellDefCmd*
 	{
 		// AddSpecialEvent(SeeUnit, unit_index, event_data_index, event_probability)
 		event_type = SpellMapEventRec::EVT_SEE_UNIT;
+		if(cmd->parameters->size() != 4)
+		{
+			// failed - not enough parameters
+			return(1);
+		}
 
 		// unit to see index
 		unit_index = stoi(cmd->parameters->at(1));
@@ -453,6 +496,18 @@ int SpellMapEvents::AddSpecialEvent(SpellData *data, SpellDEF* def, SpellDefCmd*
 	// try parse event data
 	string event_data_header = "EventData(" + std::to_string(event_data_index) + ")";
 	SpellDefSection* event_data = def->GetSection(event_data_header);
+	if(!event_data || !event_data->Size())
+	{
+		// not found or empty
+		if(event_data)
+			delete event_data;
+		if(is_new_event)
+		{
+			events.pop_back();
+			delete evt;
+		}
+		return(1);
+	}
 
 	// for each item in event data (there can be only one in original Spellcross):
 	for(int evid = 0; evid < event_data->Size(); evid++)
@@ -462,6 +517,19 @@ int SpellMapEvents::AddSpecialEvent(SpellData *data, SpellDEF* def, SpellDefCmd*
 		if(evcmd->name.compare("AddSpecialUnit") == 0)
 		{
 			// --- AddSpecialUnit(unit_order, unit_id, position, experience, man_count, name) ---				
+			if(evcmd->parameters->size() != 6)
+			{
+				// failed - not enough parameters
+				delete event_data;
+				if(is_new_event)
+				{
+					events.pop_back();
+					delete evt;
+				}
+				return(1);
+			}
+			
+			// make unit
 			MapUnit* unit = new MapUnit(map);
 
 			// unit index within map (identifier)
@@ -551,7 +619,7 @@ int SpellMapEvents::AddSpecialEvent(SpellData *data, SpellDEF* def, SpellDefCmd*
 		else if(evcmd->name.compare("EventText") == 0)
 		{
 			// --- EventText(text_fs_name) ---
-			if(evcmd->parameters->size() < 1)
+			if(evcmd->parameters->size() != 1)
 			{
 				delete event_data;
 				if(is_new_event)
@@ -580,7 +648,7 @@ int SpellMapEvents::AddSpecialEvent(SpellData *data, SpellDEF* def, SpellDefCmd*
 		else if(evcmd->name.compare("PlayCANAnimation") == 0)
 		{
 			// --- PlayCANAnimation(video_name) ---
-			if(evcmd->parameters->size() < 1)
+			if(evcmd->parameters->size() != 1)
 			{
 				delete event_data;
 				if(is_new_event)
@@ -661,10 +729,10 @@ std::tuple<std::string, std::string> SpellMapEventRec::FormatDEFrecord(int *init
 			switch(evt_type)
 			{
 				case EvtTypes::EVT_MISSION_START:
-					head += string_format("    AddSpecialEvent(MissionStart,%02d,%d%%)\n", k, probability);					
+					head += string_format("    AddSpecialEvent(MissionStart,%d,%d%%)\n", k, probability);					
 					break;
 				case EvtTypes::EVT_SEE_PLACE:
-					head += string_format("    AddSpecialEvent(SeePlace,%d,%02d,%d%%)\n",k,map->ConvXY(position),probability);
+					head += string_format("    AddSpecialEvent(SeePlace,%d,%d,%d%%)\n",map->ConvXY(position),k,probability);
 					break;
 				default:
 					used = false;
