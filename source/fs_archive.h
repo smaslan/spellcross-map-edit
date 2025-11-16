@@ -24,17 +24,21 @@ class FSarchive
 			static constexpr int DELZ_LZ = 0x01;
 			static constexpr int DELZ_LZ0 = 0x02;
 			static constexpr int DELZ_ALL = DELZ_LZ | DELZ_LZ0;
+			static constexpr int NO_LOAD = 0x04; // do not load files data
 		};
 
 		class FSfile
 		{
 		public:
+			bool is_loaded;
+			std::streampos file_pos;
+			uint32_t file_size;
 			std::string name;
 			std::vector<uint8_t> data;
 		};		
 
-		FSarchive(std::wstring &path, int options=Options::NONE);
-		void Append(std::wstring& path,int options=Options::NONE);
+		FSarchive(std::wstring path, int options=Options::NONE);
+		void Append(std::wstring path,int options=Options::NONE);
 		~FSarchive();		
 		std::vector<FSfile*> &GetFiles();
 		int GetFile(const char* name, uint8_t** data, int* size);
@@ -42,14 +46,22 @@ class FSarchive
 		int GetFile(int id, uint8_t** data, int* size, const char** name=NULL);		
 		inline std::string GetFile(const char* name);
 		std::string GetFile(std::string& name);
+		int FreeFileData(const char* name);
+		int FreeFileData(std::string name);
+		int FreeFileData(int id);
 		int Count();
 		const char *GetFileName(int id);
 		std::string GetFSname(bool with_extension=true);
+		std::vector<std::string> GetFileNames(std::string wild="*");
 
 	private:			
 		
+		int m_options;
+		std::wstring m_file_path;
 		std::string m_fs_name;
 		LZWexpand* m_lzw;
 		std::vector<FSfile*> m_files;
+		int LoadFile(FSfile* fsfile);
+		int FreeFileData(FSfile* fsfile);
 };
 
