@@ -394,8 +394,17 @@ void MyFrame::OnClose(wxCloseEvent& ev)
     }
     else if (ev.GetId() == ID_SPRITES_WIN)
     {
+        // on close sprite editor
+        Terrain *terr = form_sprites->GetSelectedTerrain();
+        Sprite *spr = form_sprites->GetSelectedSprite();        
         form_sprites->Destroy();
         LoadToolsetRibbon();
+
+        if(spell_map && spell_map->IsLoaded() && spell_map->terrain == terr && spr)
+        {
+            // some sprite selected - place to clipboard
+            spell_map->SetBuffer(spr);
+        }
     }
     else if(ev.GetId() == ID_PAL_WIN)
     {
@@ -1564,9 +1573,17 @@ void MyFrame::OnCanvasLMouseDown(wxMouseEvent& event)
     {
         // LEFT DOWN event:
 
-        if(spell_tool.isActive() && xy_list.size() && xy_list[0].IsSelected())
+        if(spell_map->isCopyBufferFull() && xy_list.size() && xy_list[0].IsSelected())
         {
-            // something selected: edit map class        
+            // something in copy buffer
+            spell_map->LockMap();
+            spell_map->PasteBuffer(spell_map->tiles,xy_list);
+            spell_map->ReleaseMap();
+            Refresh();
+        }
+        else if(spell_tool.isActive() && xy_list.size() && xy_list[0].IsSelected())
+        {
+            // some tool selected: edit map class        
             spell_map->EditClass(xy_list, &spell_tool, bind(&MyFrame::StatusStringCallback,this,placeholders::_1));
         }
         else
@@ -1727,7 +1744,13 @@ void MyFrame::OnToolBtnClick(wxRibbonButtonBarEvent& event)
                     // some tool selected: setup tool pointer
                     SpellObject *obj = (SpellObject*)btns->GetItemClientData(btns->GetItemById(btn_id));
                     if(obj)
-                        spell_tool.Set(obj); // tool is object
+                    {
+                        // tool is object
+                        // unset tool (depreceted method)
+                        spell_tool.Set();
+                        // place tool to clipboard (new method)
+                        spell_map->SetBuffer(obj);
+                    }
                     else
                         spell_tool.Set(tid, iid); // tool is class
                 }

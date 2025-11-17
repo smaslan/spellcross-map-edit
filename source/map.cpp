@@ -2403,6 +2403,51 @@ int MapLoopSounds::UpdateVolumes(int xs_ofs,int ys_ofs,int xs_size,int ys_size)
 }
 
 
+
+//-------------------------------------------------------------------------------------------------
+// Copy buffer stuff
+//-------------------------------------------------------------------------------------------------
+
+// set buffer content to object
+int SpellMap::SetBuffer(SpellObject* obj)
+{
+	if(!obj)
+		return(1);
+
+	// try obtain data of object
+	copy_buf.pos.clear();
+	copy_buf.tiles.clear();
+	return(obj->GetObjectData(&copy_buf.pos, &copy_buf.tiles));	
+}
+
+// set buffer content to sprite
+int SpellMap::SetBuffer(Sprite *spr)
+{
+	if(!spr)
+		return(1);
+
+	copy_buf.pos.clear();
+	copy_buf.tiles.clear();
+
+	copy_buf.pos.push_back(MapXY(0,0));
+	MapSprite tile;
+	if(spr->land_type)
+	{
+		// is L1 sprite
+		tile.L1 = spr;		
+	}
+	else
+	{
+		// is L2 sprite
+		tile.L2 = spr;
+	}
+	tile.elev = 0;
+	tile.flags = spr->GetMapFlags();
+	copy_buf.tiles.push_back(tile);
+
+	return(0);
+}
+
 // copy map data for copy&paste actions
 void SpellMap::CopyBuffer(std::vector<MapXY>& posxy,SpellMap::Layers layers)
 {
@@ -2457,12 +2502,14 @@ void SpellMap::CopyBuffer(std::vector<MapXY>& posxy,SpellMap::Layers layers)
 	for(int k = 0; k < copy_buf.pos.size(); k++)
 		copy_buf.pos[k].x -= ref2.x;
 }
+
 // clear copy buffer
 void SpellMap::ClearBuffer()
 {
 	copy_buf.pos.clear();
 	copy_buf.tiles.clear();
 }
+
 // paste from copy buffer
 void SpellMap::PasteBuffer(std::vector<MapSprite>& tiles, std::vector<MapXY> &posxy)
 {
@@ -2515,6 +2562,13 @@ void SpellMap::PasteBuffer(std::vector<MapSprite>& tiles, std::vector<MapXY> &po
 	}
 }
 
+// has copy buffer something in it?
+bool SpellMap::isCopyBufferFull()
+{
+	return(copy_buf.pos.size() && copy_buf.tiles.size());
+}
+
+
 // delete selected objects from map
 void SpellMap::DeleteSelObjects(std::vector<MapXY>& posxy)
 {
@@ -2529,11 +2583,6 @@ void SpellMap::DeleteSelObjects(std::vector<MapXY>& posxy)
 		}
 	}
 }
-
-
-
-
-
 
 // paste random sprites from a list
 int SpellMap::PasteRandSprites(std::vector<MapSprite>& tiles,std::vector<MapXY>& posxy, std::vector<Sprite*> &sprites, bool force_rand=false)

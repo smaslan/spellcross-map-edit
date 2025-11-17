@@ -3129,6 +3129,31 @@ int SpellObject::PlaceMapTiles(std::vector<MapSprite> &tiles, int x_size, int y_
 	return(0);
 }
 
+// copy object data to buffers
+int SpellObject::GetObjectData(std::vector<MapXY>* pos,std::vector<MapSprite>* tiles)
+{
+	if(pos)
+	{
+		// copy sprite relative positions
+		*pos = sprite_pos;
+	}
+	if(tiles)
+	{
+		// copy tiles layer data
+		tiles->clear();
+		for(int k = 0; k < sprite_pos.size(); k++)
+		{
+			MapSprite tile;
+			tile.L1 = L1_sprites[k];
+			tile.L2 = L2_sprites[k];
+			tile.flags = flags[k];
+			tile.elev = 0;
+			tiles->push_back(tile);
+		}
+	}
+	return(0);
+}
+
 // get object description
 std::string SpellObject::GetDescription()
 {

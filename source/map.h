@@ -822,8 +822,11 @@ class SpellMap
 		CopyBuffer copy_buf;
 
 		void ClearBuffer();
+		int SetBuffer(SpellObject* obj);
+		int SetBuffer(Sprite* spr);
 		void CopyBuffer(std::vector<MapXY> &posxy,Layers layers);
 		void PasteBuffer(std::vector<MapSprite> &tiles,std::vector<MapXY> &sel);
+		bool isCopyBufferFull();
 		int PasteRandSprites(std::vector<MapSprite>& tiles,std::vector<MapXY>& posxy,std::vector<Sprite*>& sprites,bool force_rand);
 		void DeleteSelObjects(std::vector<MapXY>& posxy);
 

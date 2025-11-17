@@ -28,14 +28,18 @@ FormSprite::FormSprite( wxWindow* parent,SpellData* spell_data,wxWindowID id, co
 
 	mMenu = new wxMenuBar(0);
 	mnuFile = new wxMenu();
-	wxMenuItem* m_menuItem1;
-	m_menuItem1 = new wxMenuItem(mnuFile,wxID_ANY,wxString(wxT("Save sprite")),wxEmptyString,wxITEM_NORMAL);
-	mnuFile->Append(m_menuItem1);
+	wxMenuItem* btnSave;
+	btnSave = new wxMenuItem(mnuFile,wxID_BTN_SAVE,wxString(wxT("Save sprite")) + wxT('\t') + wxT("Ctrl+S"),wxEmptyString,wxITEM_NORMAL);
+	mnuFile->Append(btnSave);
 
 	mnuFile->AppendSeparator();
 
+	wxMenuItem* btnSelect;
+	btnSelect = new wxMenuItem(mnuFile,wxID_BTN_SELECT,wxString(wxT("Select and Close")) + wxT('\t') + wxT("Enter"),wxEmptyString,wxITEM_NORMAL);
+	mnuFile->Append(btnSelect);
+
 	wxMenuItem* btnClose;
-	btnClose = new wxMenuItem(mnuFile,wxID_BTN_CLOSE,wxString(wxT("Close")),wxEmptyString,wxITEM_NORMAL);
+	btnClose = new wxMenuItem(mnuFile,wxID_BTN_CLOSE,wxString(wxT("Close")) + wxT('\t') + wxT("Esc"),wxEmptyString,wxITEM_NORMAL);
 	mnuFile->Append(btnClose);
 
 	mMenu->Append(mnuFile,wxT("File"));
@@ -467,6 +471,7 @@ FormSprite::FormSprite( wxWindow* parent,SpellData* spell_data,wxWindowID id, co
 	// bind events
 	Bind(wxEVT_CLOSE_WINDOW, &FormSprite::OnClose, this, this->m_windowId);
 	Bind(wxEVT_MENU,&FormSprite::OnCloseClick, this, wxID_BTN_CLOSE);
+	Bind(wxEVT_MENU,&FormSprite::OnSelectClick,this,wxID_BTN_SELECT);
 	Bind(wxEVT_MENU,&FormSprite::OnSelectSpriteBtn,this,wxID_BTN_NEXT);
 	Bind(wxEVT_MENU,&FormSprite::OnSelectSpriteBtn,this,wxID_BTN_PREV);
 	Bind(wxEVT_MENU,&FormSprite::OnAssignKnowns,this,wxID_BTN_SET_KNOWS);
@@ -573,8 +578,40 @@ void FormSprite::OnCloseClick(wxCommandEvent& event)
 	Terrain* terr = FindTerrain();
 	terr->UpdateTileGlyphs();
 
+	// no exit sprite selection
+	m_terrain = NULL;
+	m_sprite = NULL;
+	
 	Close();
 }
+// select + close button
+void FormSprite::OnSelectClick(wxCommandEvent& event)
+{
+	// update list of tile to be used as class type glyphs
+	Terrain* terr = FindTerrain();
+	terr->UpdateTileGlyphs();
+
+	// exit sprite selection
+	m_terrain = terr;
+	if(sprite_id >= 0)
+		m_sprite = terr->GetSprite(sprite_id);
+	else
+		m_sprite = NULL;
+
+	Close();
+}
+
+// result querry
+Terrain* FormSprite::GetSelectedTerrain()
+{
+	return(m_terrain);
+}
+Sprite* FormSprite::GetSelectedSprite()
+{
+	return(m_sprite);
+}
+
+
 
 
 

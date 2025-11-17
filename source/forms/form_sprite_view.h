@@ -45,9 +45,12 @@ class FormSprite : public wxFrame
 		SpellData *spell_data;
 
 		int sprite_id;
+		Terrain *m_terrain;
+		Sprite *m_sprite;
 
 		void OnClose(wxCloseEvent& ev);
 		void OnCloseClick(wxCommandEvent& event);
+		void OnSelectClick(wxCommandEvent& event);
 		void OnTerrainChange(wxCommandEvent& event);
 		void OnSelectSprite(wxCommandEvent& event);
 		void OnSelectSpriteBtn(wxCommandEvent& event);
@@ -112,7 +115,9 @@ class FormSprite : public wxFrame
 	protected:
 		enum
 		{
-			wxID_BTN_CLOSE = 1000,
+			wxID_BTN_SAVE = 5999,
+			wxID_BTN_SELECT,
+			wxID_BTN_CLOSE,
 			wxID_BTN_SEL_Q1,
 			wxID_BTN_SEL_Q2,
 			wxID_BTN_SEL_Q3,
@@ -255,6 +260,9 @@ class FormSprite : public wxFrame
 
 		FormSprite( wxWindow* parent, SpellData *spell_data, wxWindowID id = wxID_ANY, const wxString& title = wxT("Sprite viewer"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 1250,600 ), long style = wxDEFAULT_FRAME_STYLE|wxTAB_TRAVERSAL|wxFRAME_FLOAT_ON_PARENT);
 		~FormSprite();
+
+		Terrain *GetSelectedTerrain();
+		Sprite *GetSelectedSprite();
 
 };
 

@@ -380,6 +380,7 @@ public:
 	std::string GetDescription();
 	void SetDescription(std::string name);
 	int PlaceMapTiles(std::vector<MapSprite>& tiles,int x_size,int y_size,MapXY sel);
+	int GetObjectData(std::vector<MapXY> *pos, std::vector<MapSprite> *tiles);
 
 	void SetToolClass(int id);
 	void SetToolClassGroup(int id);
