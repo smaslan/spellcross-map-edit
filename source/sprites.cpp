@@ -2675,11 +2675,30 @@ Sprite *Terrain::GetTileGlyph(Sprite *sprite, uint32_t flags)
 }
 
 
-
-// render sprite(s) to buffer for sprite preview
-int Terrain::RenderPreview(wxBitmap& bmp, int count, int *tiles, int flags, double gamma)
+// render layer 1 sprite(s) to buffer for sprite preview, up to 5 sprites (center + 4 neighbors)
+//  ###todo: to be replaced by some more sensible interface
+int Terrain::RenderPreview(wxBitmap& bmp,int count,int* tiles,int flags,double gamma)
 {
-	if(count > 5)
+	std::vector<Sprite*> list;
+	for(int k = 0; k < count; k++)
+		if(tiles[k] >= 0 && tiles[k] < sprites.size())
+			list.push_back(sprites[tiles[k]]);
+		else
+			list.push_back(NULL);
+	return(RenderSpritePreview(bmp,list,flags,gamma));
+}
+
+// render single sprite to buffer for sprite preview
+int Terrain::RenderSpritePreview(wxBitmap& bmp,Sprite* tile,int flags,double gamma)
+{
+	std::vector<Sprite*> list = {tile};
+	return(RenderSpritePreview(bmp,list,flags,gamma));
+}
+
+// render sprite(s) to buffer for sprite preview, up to 5 sprites (center + 4 neighbors)
+int Terrain::RenderSpritePreview(wxBitmap& bmp, std::vector<Sprite*> &tiles, int flags, double gamma)
+{
+	if(tiles.size() > 5)
 		return(1);
 
 	// zoom mode
@@ -2698,16 +2717,15 @@ int Terrain::RenderPreview(wxBitmap& bmp, int count, int *tiles, int flags, doub
 	const int org_x[5] = {0,+40,-40,-40,+40};
 	const int org_y[5] = {0,-24,-24,+24,+24};
 
-	if(count >= 1)
+	if(!tiles.empty())
 	{
 		int xs, ys;
 		Sprite* spr_ref = NULL;
-		for(int tid = 0;tid < count;tid++)
+		for(int tid = 0;tid < tiles.size();tid++)
 		{
-			int sid = tiles[tid];
-			if(sid < 0)
+			Sprite *spr = tiles[tid];
+			if(!spr)
 				continue;
-			Sprite *spr = sprites[sid];
 			
 			// center
 			int elev = 0;
@@ -2786,6 +2804,10 @@ int Terrain::RenderPreview(wxBitmap& bmp, int count, int *tiles, int flags, doub
 
 
 // get L1 animation (ANM) pointer by its name
+AnimL1* Terrain::GetANM(std::string name)
+{
+	return(GetANM(name.c_str()));
+}
 AnimL1* Terrain::GetANM(const char* name)
 {
 	for (unsigned k = 0; k < this->anms.size(); k++)

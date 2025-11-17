@@ -43,8 +43,8 @@ private:
 
 public:
 	// sprite data pointer
-	Sprite* L1;
-	Sprite* L2;
+	Sprite* L1 = NULL;
+	Sprite* L2 = NULL;
 	// elevation
 	int elev;
 	// elevation
@@ -85,7 +85,7 @@ class MapLayer3
 		int frame_limit;
 		AnimL1* anim;
 
-		MapLayer3(AnimL1* anm, int x_pos, int y_pos, int frame_ofs, int frame_limit);
+		MapLayer3(AnimL1* anm=NULL, int x_pos=-1, int y_pos=-1, int frame_ofs=0, int frame_limit=0);
 		~MapLayer3();		
 };
 
@@ -248,6 +248,7 @@ class SpellMap
 		vector<MapXY> dbg_ord;
 
 		mutex map_lock;
+		//int map_lock_level = 0;
 		
 		// attack state stuff
 		std::vector<MapSprite*> attack_explosion_list;
@@ -657,6 +658,8 @@ class SpellMap
 		vector<Sprite*> GetL1sprites(vector<MapXY> &selection);
 		vector<Sprite*> GetL2sprites(vector<MapXY>& selection);
 		vector<uint8_t> GetFlags(vector<MapXY>& selection);
+		MapLayer3* CheckANM(MapXY* pos=NULL);
+		int RemoveANM(MapXY* pos=NULL);
 		vector<MapXY> GetPersistSelections();
 		void SelectTiles(vector<MapXY> tiles,int mode);
 		void SelectTiles(int mode);
@@ -811,21 +814,24 @@ class SpellMap
 		public:
 			int lay1;
 			int lay2;
+			int anm;
 		};
 		
 		class CopyBuffer{
 		public:
 			std::vector<MapXY> pos;
 			std::vector<MapSprite> tiles;
-			int is_start_ciel;
+			std::vector<MapLayer3> anms;
+			//int is_start_ciel;
 		};
 		CopyBuffer copy_buf;
 
 		void ClearBuffer();
 		int SetBuffer(SpellObject* obj);
 		int SetBuffer(Sprite* spr);
+		int SetBuffer(AnimL1* anm);
 		void CopyBuffer(std::vector<MapXY> &posxy,Layers layers);
-		void PasteBuffer(std::vector<MapSprite> &tiles,std::vector<MapXY> &sel);
+		void PasteBuffer(std::vector<MapSprite>& tiles,std::vector<MapLayer3>& anms,std::vector<MapXY>& posxy);
 		bool isCopyBufferFull();
 		int PasteRandSprites(std::vector<MapSprite>& tiles,std::vector<MapXY>& posxy,std::vector<Sprite*>& sprites,bool force_rand);
 		void DeleteSelObjects(std::vector<MapXY>& posxy);

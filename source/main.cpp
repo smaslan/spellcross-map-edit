@@ -165,6 +165,8 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     menuLayer->FindItem(ID_SelectLay1)->Check(true);
     menuLayer->Append(ID_SelectLay2,"Layer 2 - Objects\t","",wxITEM_CHECK);
     menuLayer->FindItem(ID_SelectLay2)->Check(true);
+    menuLayer->Append(ID_SelectLayANM,"Layer 3 - ANM animations\t","",wxITEM_CHECK);
+    menuLayer->FindItem(ID_SelectLayANM)->Check(true);
     // edit menu
     wxMenu* menuEdit = new wxMenu;
     menuEdit->Append(ID_EditMissionParams,"Edit mission parameters","",wxITEM_NORMAL);
@@ -192,7 +194,9 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     
     // tools
     wxMenu* menuTools = new wxMenu;
-    menuTools->Append(ID_ViewSprites,"Sprites editor","",wxITEM_NORMAL);
+    menuTools->Append(ID_ViewSprites,"Sprites viewer","",wxITEM_NORMAL);
+    menuTools->Append(ID_ViewAnm,"Animations (ANM) viewer","",wxITEM_NORMAL);
+    menuTools->Append(ID_ViewPnm,"Animations (PNM) viewer","",wxITEM_NORMAL);
     menuTools->Append(ID_ViewObjects,"Objects editor","",wxITEM_NORMAL);
     menuTools->Append(ID_ViewTools, "Tools editor", "", wxITEM_NORMAL);
     menuTools->Append(ID_ViewPal,"Palette viewer","",wxITEM_NORMAL);
@@ -301,6 +305,7 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
 
     Bind(wxEVT_MENU,&MyFrame::OnSetGamma,this,ID_SetGamma);
     Bind(wxEVT_MENU,&MyFrame::OnViewSprites,this,ID_ViewSprites);
+    Bind(wxEVT_MENU,&MyFrame::OnViewAnms,this,ID_ViewAnm);
     Bind(wxEVT_MENU,&MyFrame::OnViewObjects,this,ID_ViewObjects);
     Bind(wxEVT_MENU,&MyFrame::OnViewTools, this, ID_ViewTools);
     Bind(wxEVT_MENU,&MyFrame::OnViewPal,this,ID_ViewPal);
@@ -404,6 +409,19 @@ void MyFrame::OnClose(wxCloseEvent& ev)
         {
             // some sprite selected - place to clipboard
             spell_map->SetBuffer(spr);
+        }
+    }
+    else if(ev.GetId() == ID_ANM_WIN)
+    {
+        // on close ANM viewer
+        Terrain* terr = form_anms->GetSelectedTerrain();
+        AnimL1* anm = form_anms->GetSelectedAnim();
+        form_anms->Destroy();
+
+        if(spell_map && spell_map->IsLoaded() && spell_map->terrain == terr && anm)
+        {
+            // some anim selected - place to clipboard
+            spell_map->SetBuffer(anm);
         }
     }
     else if(ev.GetId() == ID_PAL_WIN)
@@ -916,6 +934,16 @@ void MyFrame::OnViewSprites(wxCommandEvent& event)
     }
 }
 
+// open ANM viewer
+void MyFrame::OnViewAnms(wxCommandEvent& event)
+{
+    if(!FindWindowById(ID_ANM_WIN))
+    {
+        form_anms = new FormANM(this,spell_data,ID_ANM_WIN);
+        form_anms->Show();
+    }
+}
+
 // update tiles context from map selection
 void MyFrame::OnUpdateTileContext(wxCommandEvent& event)
 {
@@ -1241,6 +1269,13 @@ void MyFrame::OnCanvasPopupSelect(wxCommandEvent& event)
         spell_map->SelectUnit(cur_unit);
         OnEditUnit(event);
     }
+    else if(event.GetId() == ID_POP_REM_ANM)
+    {
+        // remove ANM tile
+        spell_map->LockMap();
+        spell_map->RemoveANM();
+        spell_map->ReleaseMap();
+    }
 }
 
 
@@ -1292,6 +1327,11 @@ void MyFrame::OnCanvasRMouse(wxMouseEvent& event)
             {
                 menu.AppendSeparator();
                 menu.Append(ID_POP_EDIT_UNIT,"Edit unit");
+            }            
+            if(spell_map->CheckANM() && GetMenuBar()->FindItem(ID_ViewAnm)->IsChecked())
+            {
+                menu.AppendSeparator();
+                menu.Append(ID_POP_REM_ANM,"Remove ANM tile");
             }
                         
             
@@ -1466,6 +1506,7 @@ void MyFrame::OnCopyBuf(wxCommandEvent& event)
     SpellMap::Layers lay;
     lay.lay1 = GetMenuBar()->FindItem(ID_SelectLay1)->IsChecked();
     lay.lay2 = GetMenuBar()->FindItem(ID_SelectLay2)->IsChecked();
+    lay.anm = GetMenuBar()->FindItem(ID_SelectLayANM)->IsChecked();
     
     // get selected area (preference of persistent selection over cursor)
     std::vector<MapXY> list;
@@ -1500,7 +1541,7 @@ void MyFrame::OnPasteBuf(wxCommandEvent& event)
         return;
 
     spell_map->LockMap();
-    spell_map->PasteBuffer(spell_map->tiles,list);
+    spell_map->PasteBuffer(spell_map->tiles,spell_map->L3,list);
     spell_map->ReleaseMap();
     Refresh();
 }
@@ -1577,7 +1618,7 @@ void MyFrame::OnCanvasLMouseDown(wxMouseEvent& event)
         {
             // something in copy buffer
             spell_map->LockMap();
-            spell_map->PasteBuffer(spell_map->tiles,xy_list);
+            spell_map->PasteBuffer(spell_map->tiles,spell_map->L3,xy_list);
             spell_map->ReleaseMap();
             Refresh();
         }

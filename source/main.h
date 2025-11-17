@@ -10,6 +10,7 @@
 #include "forms/form_objects.h"
 #include "forms/form_tools.h"
 #include "forms/form_sprite_view.h"
+#include "forms/form_anm.h"
 #include "forms/form_pal_view.h"
 #include "forms/form_gr_view.h"
 #include "forms/form_units.h"
@@ -80,6 +81,7 @@ private:
     void OnSetGamma(wxCommandEvent& event);
     void OnViewTools(wxCommandEvent& event);
     void OnViewSprites(wxCommandEvent& event);
+    void OnViewAnms(wxCommandEvent& event);
     void OnViewObjects(wxCommandEvent& event);
     void OnViewPal(wxCommandEvent& event);
     void OnViewGrRes(wxCommandEvent& event);
@@ -142,6 +144,7 @@ private:
     int inUnitOptions() {return(form_unit_opts != NULL || form_message != NULL);};
     int inSubForm() {return(
         form_sprites != NULL ||
+        form_anms != NULL ||
         form_objects != NULL ||
         form_tools != NULL ||
         form_pal != NULL ||
@@ -165,6 +168,7 @@ private:
     //TScroll scroll;
 
     FormSprite* form_sprites = NULL;
+    FormANM* form_anms = NULL;
     FormObjects* form_objects = NULL;
     FormTools* form_tools = NULL;
     FormPalView* form_pal = NULL;
@@ -191,6 +195,7 @@ private:
         ID_MAIN_WIN = 2000,
         ID_OBJECTS_WIN,
         ID_SPRITES_WIN,
+        ID_ANM_WIN,
         ID_TOOLS_WIN,
         ID_PAL_WIN,
         ID_GRES_WIN,
@@ -216,7 +221,8 @@ private:
         ID_POP_ADD_SEEUNIT,
         ID_POP_REM_SEEUNIT,
         ID_POP_EDIT_EVENT,
-        ID_POP_EDIT_UNIT
+        ID_POP_EDIT_UNIT,
+        ID_POP_REM_ANM
     };
 
     // maximum size of minimap panel
@@ -278,6 +284,7 @@ enum
     ID_ViewTools,
     ID_SelectLay1,
     ID_SelectLay2,
+    ID_SelectLayANM,
     ID_SelectAll,
     ID_DeselectAll,
     ID_SelectDeselect,

@@ -478,6 +478,7 @@ public:
 	int GetSpriteID(const char* name);
 	int GetSpriteCount();
 	Sprite* GetSpriteWild(const char* wild,WildMode mode);
+	AnimL1* GetANM(std::string name);
 	AnimL1* GetANM(const char* name);
 	AnimPNM* GetPNM(const char* name);
 		
@@ -494,6 +495,8 @@ public:
 	Sprite *GetTileGlyph(Sprite *sprite,uint32_t flags = 0);
 
 	int RenderPreview(wxBitmap& bmp,int count,int* data,int flags,double gamma);
+	int RenderSpritePreview(wxBitmap& bmp,std::vector<Sprite*>& tiles,int flags,double gamma);
+	int RenderSpritePreview(wxBitmap& bmp,Sprite* tile,int flags,double gamma);
 		
 	int AddObject(std::vector<MapXY> xy,std::vector<Sprite*> L1_list,std::vector<Sprite*> L2_list,std::vector<uint8_t> flag_list,uint8_t* palette,std::string desc);
 	int RemoveObject(int id);
