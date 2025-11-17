@@ -52,7 +52,8 @@ bool MyApp::OnInit()
     // --- load some map
     wstring map_path = char2wstring(ini.GetValue("STATE","last_map",""));
     spell_map = new SpellMap();
-    spell_map->Load(map_path,spell_data);
+    if(spell_map->Load(map_path,spell_data))
+        wxMessageBox(string_format("Loading Spellcross map file failed with error:\n%s",spell_map->GetLastError().c_str()),"Error",wxICON_ERROR);
     spell_map->SetGamma(1.3);
 
     // sound effects/midi volumes
@@ -117,7 +118,8 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     // File menu
     wxMenu* menuFile = new wxMenu;
     menuFile->Append(ID_OpenMap, "&Open Map\tCtrl-O", "Open new Spellcross map file.");
-    menuFile->Append(ID_SaveDTA,"&Save DTA map file\tCtrl-S","Save Spellcross map DTA file.");
+    menuFile->Append(ID_SaveMap,"&Save Map\tCtrl-S","Save Spellcross map file(s).");
+    menuFile->Append(ID_SaveDTA,"&Save DTA map file","Save Spellcross map DTA file.");
     menuFile->Append(ID_SaveDEF,"&Save DEF map file","Save Spellcross map DEF file.");
     menuFile->Append(ID_NewMap,"&Ceate new Map\tCtrl-N","Create new map.");
     menuFile->AppendSeparator();
@@ -274,7 +276,8 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
 
     Bind(wxEVT_CLOSE_WINDOW, &MyFrame::OnClose, this);
     
-    Bind(wxEVT_MENU,&MyFrame::OnOpenMap, this, ID_OpenMap);
+    Bind(wxEVT_MENU,&MyFrame::OnOpenMap,this,ID_OpenMap);
+    Bind(wxEVT_MENU,&MyFrame::OnSaveMap,this,ID_SaveMap);
     Bind(wxEVT_MENU,&MyFrame::OnSaveDTA,this,ID_SaveDTA);
     Bind(wxEVT_MENU,&MyFrame::OnSaveDEF,this,ID_SaveDEF);
     Bind(wxEVT_MENU,&MyFrame::OnNewMap,this,ID_NewMap);
@@ -358,7 +361,12 @@ void MyFrame::OnExit(wxCommandEvent& event)
 // about message
 void MyFrame::OnAbout(wxCommandEvent& event)
 {
-    wxMessageBox("Experimental Spellcross map editor, V1.0\n(c) Stanislav Maslan, s.maslan@seznam.cz","About Spellcross Map Editor",wxOK | wxICON_INFORMATION);
+    auto form = new FormAbout(this);
+    if(form->ShowModal() == wxID_OK)
+    {
+        // --- confirmed
+    }
+    delete form;
 }
 // callback function to write status messages from within the spellcross routines:
 // usage: make and pass callback pointer using: bind(&MyFrame::StatusStringCallback,this,placeholders::_1)
@@ -501,6 +509,9 @@ void MyFrame::OnClose(wxCloseEvent& ev)
 // on switch game mode
 void MyFrame::OnSwitchGameMode(wxCommandEvent& event)
 {
+    if(!spell_map->IsLoaded())
+        return;
+
     auto is_game = GetMenuBar()->FindItem(ID_mmGameMode)->IsChecked();
     spell_map->SetGameMode(is_game);
     canvas->Refresh();
@@ -535,6 +546,9 @@ void MyFrame::OnSwitchGameMode(wxCommandEvent& event)
 // on reset view range in game mode
 void MyFrame::OnResetUnitView(wxCommandEvent& event)
 {
+    if(!spell_map->IsLoaded())
+        return;
+
     spell_map->unit_view->ClearUnitsView(SpellMap::ViewRange::ClearMode::RESET);
     spell_map->InvalidateUnitsView();
     canvas->Refresh();
@@ -543,6 +557,9 @@ void MyFrame::OnResetUnitView(wxCommandEvent& event)
 // cycle unit range view modes
 void MyFrame::OnSelectUnitView(wxCommandEvent& event)
 {
+    if(!spell_map->IsLoaded())
+        return;
+
     if(spell_map->isGameMode())
     {
         // game mode unti range view selection
@@ -557,10 +574,10 @@ void MyFrame::OnSelectUnitView(wxCommandEvent& event)
 // map animation periodic refresh tick
 void MyFrame::OnTimer(wxTimerEvent& event)
 {
+    if(!spell_map->IsLoaded())
+        return;
     if(spell_map->Tick())
-    {
         canvas->Refresh();
-    }
 }
 // on main panel resizing
 void MyFrame::OnResize(wxSizeEvent& event)
@@ -581,10 +598,15 @@ void MyFrame::OnPaintCanvas(wxPaintEvent& event)
     if(!m_buffer.IsOk() || m_buffer.GetSize() != canvas->GetClientSize())
         m_buffer = wxBitmap(canvas->GetClientSize(),24);
     
-    // render map
-    wxPaintDC pdc(canvas);
-    spell_map->Render(m_buffer,NULL,&spell_tool,bind(&MyFrame::CreateHUDbuttons,this));
-    pdc.DrawBitmap(m_buffer,wxPoint(0,0));
+    // render map    
+    if(!spell_map->IsLoaded())
+        canvas->ClearBackground();
+    else
+    {
+        wxPaintDC pdc(canvas);
+        spell_map->Render(m_buffer,NULL,&spell_tool,bind(&MyFrame::CreateHUDbuttons,this));
+        pdc.DrawBitmap(m_buffer,wxPoint(0,0));
+    }
 
     event.Skip();
 }
@@ -767,6 +789,9 @@ void MyFrame::OnViewLayer(wxCommandEvent& event)
 // enable disable unit view debug mode
 void MyFrame::OnUnitViewDebug(wxCommandEvent& event)
 {    
+    if(!spell_map->IsLoaded())
+        return;
+
     spell_map->SetUnitsViewDebugMode(GetMenuBar()->FindItem(ID_UnitViewDbg)->IsChecked());
     auto unit = spell_map->GetSelectedUnit();
     spell_map->unit_view->AddUnitView(unit,
@@ -789,12 +814,25 @@ void MyFrame::OnOpenMap(wxCommandEvent& event)
     wstring path = wstring(openFileDialog.GetPath().ToStdWstring());
 
     // load new one
-    spell_map->Load(path, spell_data);
+    if(spell_map->Load(path, spell_data))
+        wxMessageBox(string_format("Loading Spellcross map file failed with error:\n%s",spell_map->GetLastError().c_str()),"Error",wxICON_ERROR);
     // reset layers visibility
     spell_map->SetGamma(1.30);
     OnViewLayer(event);
     // reload toolset ribbon
     LoadToolsetRibbon();
+    // repaint
+    Refresh();
+}
+
+// save map data files
+void MyFrame::OnSaveMap(wxCommandEvent& event)
+{
+    if(!spell_map || !spell_map->IsLoaded())
+        return;
+
+    OnSaveDTA(event);
+    OnSaveDEF(event);    
 }
 
 // save map DTA file
@@ -815,7 +853,8 @@ void MyFrame::OnSaveDTA(wxCommandEvent& event)
         return;
     wstring path = wstring(saveFileDialog.GetPath().ToStdWstring());
 
-    spell_map->SaveDTA(path);
+    if(spell_map->SaveDTA(path))
+        wxMessageBox(string_format("Saving Spellcross map DTA file failed with error:\n%s",spell_map->GetLastError().c_str()),"Error",wxICON_ERROR);
 }
 
 // save map DEF file
@@ -836,7 +875,8 @@ void MyFrame::OnSaveDEF(wxCommandEvent& event)
         return;
     wstring path = wstring(saveFileDialog.GetPath().ToStdWstring());
 
-    spell_map->SaveDEF(path);
+    if(spell_map->SaveDEF(path))
+        wxMessageBox(string_format("Saving Spellcross map DEF file failed with error:\n%s",spell_map->GetLastError().c_str()),"Error",wxICON_ERROR);
 }
 
 // create new map
@@ -859,7 +899,7 @@ void MyFrame::OnSetGamma(wxCommandEvent& event)
 
 // open sprite viewer
 void MyFrame::OnViewSprites(wxCommandEvent& event)
-{
+{    
     if(!FindWindowById(ID_SPRITES_WIN))
     {
         form_sprites = new FormSprite(this, spell_data, ID_SPRITES_WIN);
@@ -870,6 +910,9 @@ void MyFrame::OnViewSprites(wxCommandEvent& event)
 // update tiles context from map selection
 void MyFrame::OnUpdateTileContext(wxCommandEvent& event)
 {
+    if(!spell_map->IsLoaded())
+        return;
+
     spell_map->BuildSpriteContext();
 }
 
@@ -892,7 +935,7 @@ void MyFrame::OnUpdateTileContextMaps(wxCommandEvent& event)
 // open tools editor
 void MyFrame::OnViewTools(wxCommandEvent& event)
 {
-    if (!FindWindowById(ID_TOOLS_WIN))
+    if(!FindWindowById(ID_TOOLS_WIN))
     {
         form_tools = new FormTools(this, spell_data, ID_TOOLS_WIN);
         //form_tools->Connect(wxID_ANY, wxEVT_DESTROY, (wxObjectEventFunction)&MyFrame::OnViewToolsClose);
@@ -949,6 +992,8 @@ void MyFrame::OnEditUnit(wxCommandEvent& event)
 // open events viewer/editor
 void MyFrame::OnEditEvent(wxCommandEvent& event)
 {
+    if(!spell_map->IsLoaded())
+        return;
     if(!FindWindowById(ID_EVENT_WIN))
     {
         form_events = new FormEvent(this,spell_data,ID_EVENT_WIN);
@@ -988,6 +1033,9 @@ void MyFrame::OnViewMidi(wxCommandEvent& event)
 // export voxel map elevation raster
 void MyFrame::OnViewVoxZ(wxCommandEvent& event)
 {    
+    if(!spell_map->IsLoaded())
+        return;
+
     wxBitmap* bmp = spell_map->unit_view->ExportUnitsViewZmap();
     if(event.GetId() == ID_ViewVoxZ)
     {
@@ -1022,6 +1070,9 @@ void MyFrame::OnViewVoxZ(wxCommandEvent& event)
 // view minimap
 void MyFrame::OnViewMiniMap(wxCommandEvent& event)
 {
+    if(!spell_map->IsLoaded())
+        return;
+    
     // make local scroll object with zero scroll state
     TScroll scrl;
     scrl.Reset();
@@ -1074,6 +1125,9 @@ void MyFrame::OnEditMissionParams(wxCommandEvent& event)
 // create new object
 void MyFrame::OnCreateNewObject(wxCommandEvent& event)
 {
+    if(!spell_map->IsLoaded())
+        return;
+
     FormNewObject* form = new FormNewObject(this,spell_map->terrain);
     if(form->ShowModal() == wxID_OK)
     {
@@ -1102,7 +1156,9 @@ void MyFrame::OnCreateNewObject(wxCommandEvent& event)
 // add new unit
 void MyFrame::OnAddUnit(wxCommandEvent& event)
 {
-    
+    if(!spell_map->IsLoaded())
+        return;
+
     if(!FindWindowById(ID_UNITS_WIN))
     {
         // make new unit        
@@ -1132,6 +1188,9 @@ void MyFrame::OnAddUnit(wxCommandEvent& event)
 // unit popup menu
 void MyFrame::OnCanvasPopupSelect(wxCommandEvent& event)
 {
+    if(!spell_map->IsLoaded())
+        return;
+
     auto menu = (wxMenu*)event.GetEventObject();
     auto cur_unit = (MapUnit*)menu->GetClientData();
     if(event.GetId() == ID_POP_ADD_MISSIONSTART)
@@ -1180,6 +1239,8 @@ void MyFrame::OnCanvasPopupSelect(wxCommandEvent& event)
 // --- scrolling control ---
 void MyFrame::OnCanvasRMouse(wxMouseEvent& event)
 {    
+    if(!spell_map->IsLoaded())
+        return;
     if(inUnitOptions())
         return;
     
@@ -1253,6 +1314,8 @@ void MyFrame::OnCanvasMouseLeave(wxMouseEvent& event)
 {
     SetCursor(*wxSTANDARD_CURSOR);
     
+    if(!spell_map->IsLoaded())
+        return;
     if(inUnitOptions())
         return;
 
@@ -1261,6 +1324,8 @@ void MyFrame::OnCanvasMouseLeave(wxMouseEvent& event)
 }
 void MyFrame::OnCanvasMouseMove(wxMouseEvent& event)
 {
+    if(!spell_map->IsLoaded())
+        return;
     if(inUnitOptions())
         return;
     
@@ -1362,16 +1427,22 @@ void MyFrame::OnCanvasKeyDown(wxKeyEvent& event)
 // select all tiles
 void MyFrame::OnSelectAll(wxCommandEvent& event)
 {
+    if(!spell_map->IsLoaded())
+        return;
     spell_map->SelectTiles(SpellMap::SELECT_ADD);
 }
 // deselect all tiles
 void MyFrame::OnDeselectAll(wxCommandEvent& event)
 {
+    if(!spell_map->IsLoaded())
+        return;
     spell_map->SelectTiles(SpellMap::SELECT_CLEAR);
 }
 // select or deselect tiles
 void MyFrame::OnSelectDeselect(wxCommandEvent& event)
 {
+    if(!spell_map->IsLoaded())
+        return;
     // add/remove selection
     auto list = spell_map->GetSelections();
     spell_map->SelectTiles(list,SpellMap::SELECT_XOR);
@@ -1380,6 +1451,8 @@ void MyFrame::OnSelectDeselect(wxCommandEvent& event)
 // copy map selection to copy buffer
 void MyFrame::OnCopyBuf(wxCommandEvent& event)
 {
+    if(!spell_map->IsLoaded())
+        return;
     // get layers mask
     SpellMap::Layers lay;
     lay.lay1 = GetMenuBar()->FindItem(ID_SelectLay1)->IsChecked();
@@ -1398,6 +1471,8 @@ void MyFrame::OnCopyBuf(wxCommandEvent& event)
 // clear map copy buffer
 void MyFrame::OnClearBuf(wxCommandEvent& event)
 {
+    if(!spell_map->IsLoaded())
+        return;
     // clear copy buffer and also clear tool
     spell_map->LockMap();
     spell_map->ClearBuffer();    
@@ -1409,6 +1484,8 @@ void MyFrame::OnClearBuf(wxCommandEvent& event)
 // try place copy buffer to map
 void MyFrame::OnPasteBuf(wxCommandEvent& event)
 {
+    if(!spell_map->IsLoaded())
+        return;
     auto list = spell_map->GetSelections();
     if(list.empty())
         return;
@@ -1422,6 +1499,8 @@ void MyFrame::OnPasteBuf(wxCommandEvent& event)
 // try place copy buffer to map
 void MyFrame::OnChangeElevation(wxCommandEvent& event)
 {
+    if(!spell_map->IsLoaded())
+        return;
     int step = 0;
     if(event.GetId() == ID_ElevUp)
         step++;
@@ -1439,6 +1518,8 @@ void MyFrame::OnChangeElevation(wxCommandEvent& event)
 // invalidate map region (retexturing)
 void MyFrame::OnInvalidateSelection(wxCommandEvent& event)
 {
+    if(!spell_map->IsLoaded())
+        return;
     // get selected area (preference of persistent selection over cursor)
     std::vector<MapXY> list;    
     list = spell_map->GetPersistSelections();
@@ -1452,6 +1533,8 @@ void MyFrame::OnInvalidateSelection(wxCommandEvent& event)
 // delete object or stuff
 void MyFrame::OnDeleteSel(wxCommandEvent& event)
 {
+    if(!spell_map->IsLoaded())
+        return;
     // get selected area (preference of persistent selection over cursor)
     std::vector<MapXY> list;
     list = spell_map->GetPersistSelections();
@@ -1469,6 +1552,8 @@ void MyFrame::OnDeleteSel(wxCommandEvent& event)
 // canvas left click
 void MyFrame::OnCanvasLMouseDown(wxMouseEvent& event)
 {
+    if(!spell_map->IsLoaded())
+        return;
     if(inUnitOptions())
         return;    
        

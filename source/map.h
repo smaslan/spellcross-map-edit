@@ -207,6 +207,8 @@ typedef struct{
 class SpellMap
 {
 	private:		
+		// last error string
+		std::string last_error;
 		// game mode
 		int game_mode;		
 		// render surface
@@ -341,6 +343,8 @@ class SpellMap
 		static constexpr int SELECT_ADD = 1;
 		static constexpr int SELECT_CLEAR = 2;
 		static constexpr int SELECT_XOR = 3;
+
+		std::string GetLastError() {return last_error;};
 
 		// message box stuff
 		typedef std::function<void(SpellTextRec*,bool,std::function<void(bool)>)> SpellMessageCraeteFunPtr;

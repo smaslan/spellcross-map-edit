@@ -32,7 +32,8 @@
 SpellDefCmd::SpellDefCmd(std::string command, std::string params, std::string comment)
 {
 	name = command;
-	comment = comment;
+	this->comment = comment;
+	this->full_command = command + "(" + params + ")";
 
 	std::regex regexz(",");
 	parameters = new vector<std::string>(std::sregex_token_iterator(params.begin(), params.end(), regexz, -1), std::sregex_token_iterator());

@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="forms\form_about.cpp" />
     <ClCompile Include="forms\form_events.cpp" />
     <ClCompile Include="forms\form_gr_view.cpp" />
     <ClCompile Include="forms\form_loader.cpp" />
@@ -80,6 +81,7 @@
     <ClInclude Include="cxxmidi\player\player_sync.hpp" />
     <ClInclude Include="cxxmidi\sysex.hpp" />
     <ClInclude Include="cxxmidi\track.hpp" />
+    <ClInclude Include="forms\form_about.h" />
     <ClInclude Include="forms\form_events.h" />
     <ClInclude Include="forms\form_gr_view.h" />
     <ClInclude Include="forms\form_loader.h" />

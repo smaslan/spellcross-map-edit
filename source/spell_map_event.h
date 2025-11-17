@@ -119,6 +119,8 @@ class SpellMapEvents
 {
 private:
     
+    std::string last_error;
+
     // back ref to parent map
     SpellMap *map;
     
@@ -140,6 +142,7 @@ public:
 
     SpellMapEvents(SpellMap *parent);
     ~SpellMapEvents();
+    std::string GetLastError();
     int AddSpecialEvent(SpellData* data, SpellDEF* def, SpellDefCmd* cmd);
     int AddMissionObjective(SpellData* data,SpellDEF* def,SpellDefCmd* cmd);
     SpellMapEventRec* AddEvent(SpellMapEventRec *event);

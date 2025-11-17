@@ -32,6 +32,7 @@ class SpellDefCmd
 		std::string name;		
 		vector<std::string> *parameters;
 		std::string comment;
+		std::string full_command;
 
 		SpellDefCmd(std::string command, std::string params, std::string comment);
 		~SpellDefCmd();

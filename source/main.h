@@ -24,6 +24,7 @@
 #include "forms/form_minimap.h"
 #include "forms/form_map_units_list.h"
 #include "forms/form_mission_params.h"
+#include "forms/form_about.h"
 
 #include <wx/ribbon/buttonbar.h>
 #include <wx/ribbon/panel.h>
@@ -59,6 +60,7 @@ public:
 private:
     void OnViewLayer(wxCommandEvent& event);
     void OnOpenMap(wxCommandEvent& event);
+    void OnSaveMap(wxCommandEvent& event);
     void OnSaveDTA(wxCommandEvent& event);
     void OnSaveDEF(wxCommandEvent& event);
     void OnNewMap(wxCommandEvent& event);
@@ -240,6 +242,8 @@ private:
 enum
 {
     ID_OpenMap = 100,
+    ID_SaveMap,
+    ID_SaveMapAs,
     ID_SaveDTA,
     ID_SaveDEF,
     ID_NewMap,

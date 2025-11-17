@@ -640,11 +640,14 @@ int SpellMap::Create(SpellData* spelldata, const char *terr_name, int x, int y)
 // Load MAP from file
 int SpellMap::Load(wstring &path, SpellData *spelldata)
 {		
+	last_error = "";
+
 	// loose old map data
 	Close();
 		
 	// default map file
-	wstring map_path = path;
+	map_path = path;
+	def_path = L"";
 
 	// DEF file
 	SpellDEF *def = NULL;
@@ -654,51 +657,71 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 		// --- this is DEF file: parse it ---
 
 		// load DEF file
-		def = new SpellDEF(path);
-
-		// parse mission data
-		SpellDefSection *mission_data = def->GetSection("MissionData");
-		if (!mission_data->Size())
-		{
-			// likely not a valid DEF file
+		try{
+			def = new SpellDEF(path);
+		}catch(const runtime_error& error) {
+			last_error = string_format("Loading map DEF file '%ls' failed!",path.c_str());
+			Close();
 			return(1);
 		}
 
+		// parse mission data
+		SpellDefSection *mission_data = def->GetSection("MissionData");
+		if (!mission_data || !mission_data->Size())
+		{
+			// likely not a valid DEF file
+			last_error = string_format("MissionData section not found if map DEF file '%ls'!",map_path.c_str());
+			delete def;
+			Close();
+			return(1);
+		}
+
+		std::wstring dta_path = L"";
 		for (int k = 0; k < mission_data->Size(); k++)
 		{
-			if ((*mission_data)[k]->name.compare("MissionMap") == 0)
+			SpellDefCmd* cmd = (*mission_data)[k];
+			if(cmd->name.compare("MissionMap") == 0)
 			{
-				// --- *.MAP file definition ---
-				size_t pos = map_path.rfind(L"\\", 260);
-				if (pos != wstring::npos)
-					map_path.resize(pos);
-				else
-					map_path = L"";
-				string map_name = (*(*mission_data)[k]->parameters)[0];
-				map_path = map_path + L"\\" + wstring(map_name.begin(), map_name.end()) + L".DTA";
+				// --- *.MAP file definition ---				
+				if(cmd->parameters->size() != 1)
+				{
+					last_error = string_format("Wrong parameters count in command '%s'!",cmd->full_command.c_str());
+					delete def;
+					Close();
+					return(1);
+				}
+
+				// make map path				
+				dta_path = (std::filesystem::path(map_path).parent_path() / std::filesystem::path(cmd->parameters->at(0))).wstring() + ".DTA";
 				break;
-			}			
+			}
 		}
 		delete mission_data;
+		if(dta_path.empty())
+		{
+			last_error = string_format("Map name command MissionMap() not found in DEF file '%ls'!",map_path.c_str());
+			delete def;
+			Close();
+			return(1);
+		}
 
-		// store DEF file path
+		// store mew DTA and DEF file paths
 		def_path = path;
+		map_path = dta_path;
 	}
-	else
-	{
-		// only *.map file
-		def_path = L"";		
-	}
-
-	// store map path
-	this->map_path = map_path;
 	
 	
 	// --- Load MAP file to buffer
 	// try open file
 	ifstream fr(map_path, ios::in | ios::binary | ios::ate);
 	if (!fr.is_open())
+	{
+		last_error = string_format("Loading map DTA file '%ls' failed!",map_path.c_str());
+		if(def)
+			delete def;
+		Close();
 		return(1);
+	}
 
 	// read to local buffer and close
 	streampos flen = fr.tellg();
@@ -718,13 +741,22 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 	data += 4;
 	if (L1_count > 4095)
 	{
+		last_error = string_format("More than %d sprites in terrain layer!",L1_count);
+		if(def)
+			delete def;
 		Close();
 		return(1);
 	}
 
 	// version check (actually dunno what is that but it's always the same and looks like version code)
 	if (*data++ != 0x12)
+	{
+		last_error = string_format("Unknown DTA file version 0x%02X!",data[-1]);
+		if(def)
+			delete def;
+		Close();
 		return(1);
+	}
 
 	// get map size
 	this->x_size = *(int16_t*)data;
@@ -741,12 +773,14 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 	this->terrain = spelldata->GetTerrain(this->terrain_name);
 	if (!this->terrain)
 	{
+		last_error = string_format("Map DTA files references unknown terrain '%s'!",this->terrain_name);
+		if(def)
+			delete def;
 		Close();
 		return(1);
 	}
 
-	// store spelldata
-	// ###todo: rework in more sensible way? This should not be there...
+	// back ref to spellcross data
 	this->spelldata = spelldata;
 	
 	// load list of used L1 sprites
@@ -765,6 +799,9 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 		if (!sprite)
 		{
 			// not found!
+			last_error = string_format("Map DTA terrain layer references unknown sprite name '%s'!",name);
+			if(def)
+				delete def;
 			Close();
 			return(1);
 		}
@@ -786,13 +823,17 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 		int elev = code >> 12;
 		
 		// put sprite ref to map array
-		if (sid > L1_count)
+		if (sid >= L1_count)
 		{
 			// out of available range
+			last_error = string_format("Map DTA terrain layer sprite index %d out of range!",sid);
+			if(def)
+				delete def;
 			Close();
 			return(1);
 		}
 		tile.SetL1(sprites[sid],elev);
+		
 	}
 	// get tile flags from context data
 	SyncL1flags();
@@ -829,6 +870,9 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 		if (!sprite)
 		{
 			// not found!
+			last_error = string_format("Map DTA objects layer references unknown sprite name '%s'!",name);
+			if(def)
+				delete def;
 			Close();
 			return(1);
 		}
@@ -846,6 +890,9 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 		if (sid > L2_count)
 		{
 			// out of available range
+			last_error = string_format("Map DTA objects layer sprite index %d out of range!",sid);
+			if(def)
+				delete def;
 			Close();
 			return(1);
 		}
@@ -876,9 +923,12 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 
 			// try to get sprite's data
 			anims[k] = this->terrain->GetANM(name);
-			if (!anims[k])
+			if(!anims[k])
 			{
 				// not found!
+				last_error = string_format("Map DTA ANM layer references unknown sprite name '%s'!",name);
+				if(def)
+					delete def;
 				Close();
 				return(1);
 			}
@@ -904,6 +954,14 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 				int y_pos = *(int16_t*)data; data += 2;
 				// animation ID
 				int aid = *(int16_t*)data; data += 2;
+				if(aid >= L3_count)
+				{
+					last_error = string_format("Map DTA ANM layer animation index %d out of range!",aid);
+					if(def)
+						delete def;
+					Close();
+					return(1);
+				}
 						
 				// put new animation entry to list
 				//MapLayer3* anim = new MapLayer3(anims[aid], x_pos, y_pos, frame_ofs, frame_limit);
@@ -939,6 +997,9 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 		if (!pnims[k])
 		{
 			// not found!
+			last_error = string_format("Map DTA PNM layer references unknown sprite name '%s'!",name);
+			if(def)
+				delete def;
 			Close();
 			return(1);
 		}
@@ -969,6 +1030,14 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 			// ###note: the coordinates seem to be in y,x order for whatever reason
 			int y_ofs = *(int32_t*)data; data += 4;
 			int x_ofs = *(int32_t*)data; data += 4; 
+			if(pid >= L4_count)
+			{
+				last_error = string_format("Map DTA PNM layer animation index %d out of range!",pid);
+				if(def)
+					delete def;
+				Close();
+				return(1);
+			}
 
 			// put new animation entry to list
 			//MapLayer4* pnim = new MapLayer4(pnims[pid], x_pos, y_pos, x_ofs, y_ofs, frame_ofs, frame_limit);
@@ -1009,7 +1078,16 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 			*pstr++ = *data++;
 		data++;
 		*pstr = '\0';
-		auto sound = new SpellSound(spelldata->sounds->channels,spelldata->sounds->GetSample(name));
+		auto snd_ref = spelldata->sounds->GetSample(name);
+		if(!snd_ref)
+		{
+			last_error = string_format("Map DTA sound #1 layer references unknown sound resource name '%s'!",name);
+			if(def)
+				delete def;
+			Close();
+			return(1);
+		}
+		auto sound = new SpellSound(spelldata->sounds->channels,snd_ref);
 		sound_loops->list.push_back(sound);
 	}
 	int L7_count = *(int32_t*)data; data += 4;
@@ -1017,6 +1095,14 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 	{
 		int pxy = *(uint16_t*)data; data += 2;
 		int sid = (int)*data; data++;
+		if(sid >= L7_names_count)
+		{
+			last_error = string_format("Map DTA sound #1 layer sound index %d ouf of range!",sid);
+			if(def)
+				delete def;
+			Close();
+			return(1);
+		}
 		sound_loops->sounds.emplace_back(MapXY(pxy % x_size,pxy / x_size),sound_loops->list[sid]->GetSample());
 	}
 	sound_loops->UpdateMaps();
@@ -1035,13 +1121,30 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 			*pstr++ = *data++;
 		data++;
 		*pstr = '\0';
-		L8_sounds.push_back(spelldata->sounds->GetSample(name));
+		auto snd_ref = spelldata->sounds->GetSample(name);
+		if(!snd_ref)
+		{
+			last_error = string_format("Map DTA sound #2 layer references unknown sound resource name '%s'!",name);
+			if(def)
+				delete def;
+			Close();
+			return(1);
+		}
+		L8_sounds.push_back(snd_ref);
 	}
 	int L8_count = *(int32_t*)data; data += 4;
 	for(int k = 0; k < L8_count; k++)
 	{
 		int pxy = *(uint16_t*)data; data += 2;
 		int sid = (int)*data; data++;		
+		if(sid >= L8_names_count)
+		{
+			last_error = string_format("Map DTA sound #2 layer sound index %d ouf of range!",sid);
+			if(def)
+				delete def;
+			Close();
+			return(1);
+		}
 		sounds.emplace_back(MapXY(pxy% x_size,pxy / x_size), L8_sounds[sid]);
 	}
 
@@ -1089,6 +1192,14 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 					MapXY coor;				
 					coor.y = (xy / x_size);
 					coor.x = xy - coor.y * x_size;
+					if(!coor.IsSelected())
+					{
+						last_error = string_format("Position %d out of valid range in command '%s'!",xy,cmd->full_command.c_str());
+						delete mission_data;
+						delete def;
+						Close();
+						return(1);
+					}
 					start.push_back(coor);
 				}				
 			}
@@ -1101,6 +1212,14 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 					MapXY coor;
 					coor.y = (xy / x_size);
 					coor.x = xy - coor.y * x_size;
+					if(!coor.IsSelected())
+					{
+						last_error = string_format("Position %d out of valid range in command '%s'!",xy,cmd->full_command.c_str());
+						delete mission_data;
+						delete def;
+						Close();
+						return(1);
+					}
 					escape.push_back(coor);
 				}
 			}
@@ -1113,6 +1232,14 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 					MapXY coor;
 					coor.y = (xy / x_size);
 					coor.x = xy - coor.y * x_size;
+					if(!coor.IsSelected())
+					{
+						last_error = string_format("Position %d out of valid range in command '%s'!",xy,cmd->full_command.c_str());
+						delete mission_data;
+						delete def;
+						Close();
+						return(1);
+					}
 					target.push_back(coor);
 				}
 			}
@@ -1122,6 +1249,7 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 				if(cmd->parameters->size() != 7)
 				{
 					// failed - not enough parameters
+					last_error = string_format("Wrong parameter count in command '%s'!",cmd->full_command.c_str());
 					delete mission_data;
 					delete def;
 					Close();
@@ -1144,6 +1272,7 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 				unit->unit = spelldata->units->GetUnit(unit->type_id);
 				if(!unit->unit)
 				{
+					last_error = string_format("Unknown unit type %d parameter in command '%s'!",unit->type_id,cmd->full_command.c_str());
 					delete mission_data;
 					delete unit;
 					delete def;
@@ -1155,6 +1284,14 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 				int xy = stoi(cmd->parameters->at(2));
 				unit->coor.y = (xy / x_size);
 				unit->coor.x = xy - unit->coor.y * x_size;
+				if(!unit->coor.IsSelected())
+				{
+					last_error = string_format("Unit position %d out of valid range in command '%s'!",xy,cmd->full_command.c_str());
+					delete mission_data;
+					delete def;
+					Close();
+					return(1);
+				}
 
 				// experience
 				unit->InitExperience(stoi(cmd->parameters->at(3)));
@@ -1164,6 +1301,14 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 
 				// unit behaviour type
 				unit->behave = cmd->parameters->at(5).c_str();
+				if(unit->behave == MapUnitType::Unknown)
+				{
+					last_error = string_format("Unit behaviour '%s' not recognized in command '%s'!",cmd->parameters->at(5).c_str(),cmd->full_command.c_str());
+					delete mission_data;
+					delete def;
+					Close();
+					return(1);
+				}
 
 				// unit active (to change in game mode)
 				unit->is_active = 1;
@@ -1191,6 +1336,7 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 				if(events->AddSpecialEvent(spelldata, def, cmd))
 				{
 					// failed
+					last_error = events->GetLastError();
 					delete mission_data;
 					delete def;
 					Close();
@@ -1203,6 +1349,7 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 				if(events->AddMissionObjective(spelldata, def, cmd))
 				{
 					// failed
+					last_error = events->GetLastError();
 					delete mission_data;
 					delete def;
 					Close();
@@ -1214,6 +1361,19 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 				// --- Night mission flag
 				params.is_night = true;
 			}
+			else if(cmd->name.compare("MissionMap") == 0)
+			{
+				// placeholder to not generate errors
+			}
+			else
+			{
+				// unknown stuff in MissionData
+				last_error = string_format("Unknown command '%s'!",cmd->full_command.c_str());										
+				delete mission_data;
+				delete def;
+				Close();
+				return(1);				
+			}
 		}
 		delete mission_data;
 
@@ -1221,6 +1381,7 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 		SpellDefSection* mission_params = def->GetSection("MissionParameters");
 		if(!mission_params)
 		{
+			last_error = string_format("MissionParameters section not found in map DEF file!");
 			delete def;
 			Close();
 			return(1);
@@ -1237,6 +1398,7 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 				{
 					if(cmd->parameters->size() != 1)
 					{
+						last_error = string_format("%s command not found in MissionParameters section in map DEF file!",cmd_list[k].c_str());
 						delete mission_params;
 						delete def;
 						Close();
@@ -1293,8 +1455,10 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 // save map DTA file
 int SpellMap::SaveDTA(std::wstring path)
 {
+	last_error = "";
+	
 	// try open file
-	ofstream fw(path,ios::out | ios::binary | ios::ate);
+	ofstream fw(path,ios::out | ios::binary | ios::trunc);
 	if(!fw.is_open())
 		return(1);
 
@@ -1313,6 +1477,7 @@ int SpellMap::SaveDTA(std::wstring path)
 		if(tid > 0x0FFF)
 		{
 			// failed - too many sprites in L1!
+			last_error = string_format("Saving DTA file: too many sprites (>%d) in terrain layer!",tid-1);
 			fw.close();
 			return(1);
 		}
@@ -1373,6 +1538,7 @@ int SpellMap::SaveDTA(std::wstring path)
 			if(tid > 0xFF)
 			{
 				// failed - too many sprites in L2!
+				last_error = string_format("Saving DTA file: too many sprites (>%d) in objects layer!",tid-1);
 				fw.close();
 				return(1);
 			}
@@ -1413,6 +1579,7 @@ int SpellMap::SaveDTA(std::wstring path)
 		if(L3_list.size() > 65535)
 		{
 			// failed - too many anims
+			last_error = string_format("Saving DTA file: too many animations (%d) in ANM layer!",L3_list.size());
 			fw.close();
 			return(1);
 		}		
@@ -1472,6 +1639,7 @@ int SpellMap::SaveDTA(std::wstring path)
 		if(L4_list.size() > 255)
 		{
 			// failed - too many anims
+			last_error = string_format("Saving DTA file: too many animations (%d) in PNM layer!",L4_list.size());
 			fw.close();
 			return(1);
 		}
@@ -1543,6 +1711,7 @@ int SpellMap::SaveDTA(std::wstring path)
 		if(L7_list.size() > 255)
 		{
 			// failed - too many unique sounds
+			last_error = string_format("Saving DTA file: too many used sound (%d) in sounds #1 layer!",L7_list.size());
 			fw.close();
 			return(1);
 		}
@@ -1562,6 +1731,13 @@ int SpellMap::SaveDTA(std::wstring path)
 	// write sound items count in map
 	if(L7_count)
 		ostream_write_u32(fw,sound_loops->sounds.size());
+	if(sound_loops->sounds.size() > 255)
+	{
+		// too many sounds placed
+		last_error = string_format("Saving DTA file: too many placed sound (%d) instances in sounds #1 layer!",sound_loops->sounds.size());
+		fw.close();
+		return(1);
+	}
 
 	// write sound items in map
 	for(auto snd: sound_loops->sounds)
@@ -1592,6 +1768,7 @@ int SpellMap::SaveDTA(std::wstring path)
 		if(L8_list.size() > 255)
 		{
 			// failed - too many unique sounds
+			last_error = string_format("Saving DTA file: too many used sound (%d) in sounds #2 layer!",L8_list.size());
 			fw.close();
 			return(1);
 		}
@@ -1611,6 +1788,13 @@ int SpellMap::SaveDTA(std::wstring path)
 	// write sound items count in map
 	if(L8_count)
 		ostream_write_u32(fw,sounds.size());
+	if(sounds.size() > 255)
+	{
+		// too many sounds placed
+		last_error = string_format("Saving DTA file: too many placed sound (%d) instances in sounds #2 layer!",sounds.size());
+		fw.close();
+		return(1);
+	}
 
 	// write sound items in map
 	for(auto snd: sounds)
@@ -1631,21 +1815,26 @@ int SpellMap::SaveDTA(std::wstring path)
 
 	// write unknown termination (likely some other optional list, but dunno what is it)
 	ostream_write_u32(fw,0);
-
-	
+		
 	// close file
 	fw.close();
 
+	// update map path
+	map_path = path;
+	
 	return(0);
 }
 
 // save map DEF file
 int SpellMap::SaveDEF(std::wstring path)
 {
+	last_error = "";
+
 	// renumber unit IDs to be compatible with spellcross
 	if(SortUnitIDs())
 	{
 		// failed
+		last_error = string_format("Saving map DEF file: assigning units IDs failed! Most likely too many units or more than two SpecUnits.");
 		return(1);
 	}
 
