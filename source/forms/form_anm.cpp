@@ -113,6 +113,7 @@ FormANM::FormANM( wxWindow* parent,SpellData* spell_data,wxWindowID id, const wx
 	// no anim selected
 	m_terrain = NULL;
 	m_anim = NULL;
+	m_anm_was_set = false;
 
 	
 	Bind(wxEVT_CLOSE_WINDOW,&FormANM::OnClose,this,this->m_windowId);
@@ -185,15 +186,37 @@ void FormANM::OnSelectClick(wxCommandEvent& event)
 	Close();
 }
 
-// result querry
+// set viewer to given terrain and animation
+void FormANM::SetANM(Terrain *terr, AnimL1* anm)
+{
+	SetTerrain(terr);
+	if(!anm)
+		return;	
+	auto anm_id = lbList->FindString(anm->name);
+	if(anm_id >= 0)
+		lbList->Select(anm_id);
+	SelectANM();
+	m_anm_was_set = true;
+}
+
+// get selected terrain
 Terrain* FormANM::GetSelectedTerrain()
 {
 	return(m_terrain);
 }
+
+// get selected animation
 AnimL1* FormANM::GetSelectedAnim()
 {
 	return(m_anim);
 }
+
+// was animation set by ::SetANM()?
+bool FormANM::WasAnmSet()
+{
+	return(m_anm_was_set);
+}
+
 
 
 
@@ -203,6 +226,17 @@ void FormANM::OnTerrainChange(wxCommandEvent& event)
 	SelectTerrain();
 	SelectANM();
 	canvas->Refresh();
+}
+
+// set terrain
+void FormANM::SetTerrain(Terrain *terr)
+{
+	m_terrain = terr;
+	if(!terr)
+		return;
+	for(int k = 0; k < m_spell_data->GetTerrainCount(); k++)
+		GetMenuBar()->FindItem(TERR_ID0 + k)->Check(GetMenuBar()->FindItem(TERR_ID0 + k)->GetItemLabel().compare(terr->name) == 0);	
+	SelectTerrain();
 }
 
 // select terrain from menu

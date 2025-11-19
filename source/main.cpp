@@ -139,7 +139,7 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     menuView->FindItem(ID_ViewTer)->Check(true);
     menuView->Append(ID_ViewObj,"Layer 2: Objects\tF2","",wxITEM_CHECK);
     menuView->FindItem(ID_ViewObj)->Check(true);
-    menuView->Append(ID_ViewAnm,"Layer 3: Tile anmiations\tF3","",wxITEM_CHECK);
+    menuView->Append(ID_ViewAnm,"Layer 3: Tile animations\tF3","",wxITEM_CHECK);
     menuView->FindItem(ID_ViewAnm)->Check(true);
     menuView->Append(ID_ViewPnm,"Layer 4: Sprite animations\tF4","",wxITEM_CHECK);
     menuView->FindItem(ID_ViewPnm)->Check(true);
@@ -195,8 +195,9 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     // tools
     wxMenu* menuTools = new wxMenu;
     menuTools->Append(ID_ViewSprites,"Sprites viewer","",wxITEM_NORMAL);
-    menuTools->Append(ID_ViewAnm,"Animations (ANM) viewer","",wxITEM_NORMAL);
-    menuTools->Append(ID_ViewPnm,"Animations (PNM) viewer","",wxITEM_NORMAL);
+    menuTools->Append(ID_ViewAnms,"Animations (ANM) viewer","",wxITEM_NORMAL);
+    menuTools->Append(ID_ViewPnms,"Animations (PNM) viewer","",wxITEM_NORMAL);
+    menuTools->Append(ID_SoundsViewer,"Sounds viewer","",wxITEM_NORMAL);
     menuTools->Append(ID_ViewObjects,"Objects editor","",wxITEM_NORMAL);
     menuTools->Append(ID_ViewTools, "Tools editor", "", wxITEM_NORMAL);
     menuTools->Append(ID_ViewPal,"Palette viewer","",wxITEM_NORMAL);
@@ -305,7 +306,8 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
 
     Bind(wxEVT_MENU,&MyFrame::OnSetGamma,this,ID_SetGamma);
     Bind(wxEVT_MENU,&MyFrame::OnViewSprites,this,ID_ViewSprites);
-    Bind(wxEVT_MENU,&MyFrame::OnViewAnms,this,ID_ViewAnm);
+    Bind(wxEVT_MENU,&MyFrame::OnViewAnms,this,ID_ViewAnms);
+    Bind(wxEVT_MENU,&MyFrame::OnViewSounds,this,ID_SoundsViewer);
     Bind(wxEVT_MENU,&MyFrame::OnViewObjects,this,ID_ViewObjects);
     Bind(wxEVT_MENU,&MyFrame::OnViewTools, this, ID_ViewTools);
     Bind(wxEVT_MENU,&MyFrame::OnViewPal,this,ID_ViewPal);
@@ -416,13 +418,50 @@ void MyFrame::OnClose(wxCloseEvent& ev)
         // on close ANM viewer
         Terrain* terr = form_anms->GetSelectedTerrain();
         AnimL1* anm = form_anms->GetSelectedAnim();
+        bool was_edit = form_anms->WasAnmSet();
         form_anms->Destroy();
 
         if(spell_map && spell_map->IsLoaded() && spell_map->terrain == terr && anm)
         {
-            // some anim selected - place to clipboard
-            spell_map->SetBuffer(anm);
+            if(was_edit)
+            {
+                // edit existing map anim
+                spell_map->PlaceANM(&spell_pos,anm);
+            }
+            else
+            {
+                // some anim selected - place to clipboard
+                spell_map->SetBuffer(anm);
+            }
         }
+    }
+    else if(ev.GetId() == ID_SOUNDS_WIN)
+    {
+        // on close sounds viewer        
+        SpellSample *snd = form_sounds->GetSelectedSound();
+        FormSound::SoundType snd_type = form_sounds->GetMapSoundType();
+        auto was_edit = form_sounds->WasSoundSet();
+        form_sounds->Destroy();
+
+        if(spell_map && spell_map->IsLoaded() && snd)
+        {
+            if(was_edit)
+            {
+                // edit existing map anim
+                spell_map->SoundEdit(snd,&spell_pos);
+            }
+            else
+            {
+                // some anim selected - place to clipboard
+                auto map_sound = spell_map->SoundAdd(snd,&spell_pos);
+                if(map_sound)
+                {
+                    spell_map->SoundSelect(map_sound);
+                    map_sound->in_placement = true;                    
+                }
+            }
+        }
+                
     }
     else if(ev.GetId() == ID_PAL_WIN)
     {
@@ -944,6 +983,16 @@ void MyFrame::OnViewAnms(wxCommandEvent& event)
     }
 }
 
+// open sounds viewer
+void MyFrame::OnViewSounds(wxCommandEvent& event)
+{
+    if(!FindWindowById(ID_SOUNDS_WIN))
+    {
+        form_sounds = new FormSound(this,spell_data,ID_SOUNDS_WIN);
+        form_sounds->Show();
+    }
+}
+
 // update tiles context from map selection
 void MyFrame::OnUpdateTileContext(wxCommandEvent& event)
 {
@@ -1276,6 +1325,35 @@ void MyFrame::OnCanvasPopupSelect(wxCommandEvent& event)
         spell_map->RemoveANM();
         spell_map->ReleaseMap();
     }
+    else if(event.GetId() == ID_POP_EDIT_ANM)
+    {
+        // edit ANM tile
+        if(!FindWindowById(ID_ANM_WIN))
+        {
+            spell_pos = spell_map->GetSelection();
+            form_anms = new FormANM(this,spell_data,ID_ANM_WIN);
+            form_anms->SetANM(spell_map->terrain, spell_map->CheckANM()->anim);
+            form_anms->Show();
+        }
+    }
+    else if(event.GetId() == ID_POP_REM_SOUND)
+    {
+        // remove sound
+        spell_map->SoundRemove();        
+    }
+    else if(event.GetId() == ID_POP_EDIT_SOUND)
+    {
+        // edit sound
+        if(!FindWindowById(ID_SOUNDS_WIN))
+        {            
+            spell_pos = spell_map->GetSelection();
+            form_sounds = new FormSound(this,spell_data,ID_SOUNDS_WIN);
+            auto snd = spell_map->CheckSound();
+            if(snd)
+                form_sounds->SetSound(snd->GetName());
+            form_sounds->Show();
+        }
+    }
 }
 
 
@@ -1325,13 +1403,23 @@ void MyFrame::OnCanvasRMouse(wxMouseEvent& event)
             }
             if(cur_unit)
             {
-                menu.AppendSeparator();
+                if(menu.GetMenuItemCount())
+                    menu.AppendSeparator();
                 menu.Append(ID_POP_EDIT_UNIT,"Edit unit");
             }            
             if(spell_map->CheckANM() && GetMenuBar()->FindItem(ID_ViewAnm)->IsChecked())
             {
-                menu.AppendSeparator();
+                if(menu.GetMenuItemCount())
+                    menu.AppendSeparator();
+                menu.Append(ID_POP_EDIT_ANM,"Edit ANM tile");
                 menu.Append(ID_POP_REM_ANM,"Remove ANM tile");
+            }
+            if(spell_map->CheckSound() && GetMenuBar()->FindItem(ID_ViewSounds)->IsChecked())
+            {
+                if(menu.GetMenuItemCount())
+                    menu.AppendSeparator();
+                menu.Append(ID_POP_EDIT_SOUND,"Edit sound");
+                menu.Append(ID_POP_REM_SOUND,"Remove sound");
             }
                         
             
@@ -1439,7 +1527,13 @@ void MyFrame::OnCanvasMouseMove(wxMouseEvent& event)
 
     auto sel_evt = spell_map->GetSelectEvent();
     auto* unit = spell_map->GetSelectedUnit();
-    if(sel_evt && sel_evt->in_placement && mxy.IsSelected())
+    auto sel_sound = spell_map->SoundSelected();
+    if(sel_sound && sel_sound->in_placement && mxy.IsSelected())
+    {
+        // change sound position
+        spell_map->SoundMove(sel_sound, mxy);
+    }
+    else if(sel_evt && sel_evt->in_placement && mxy.IsSelected())
     {
         // change event position
         sel_evt->position = mxy;
@@ -1629,18 +1723,31 @@ void MyFrame::OnCanvasLMouseDown(wxMouseEvent& event)
         }
         else
         {
-            // try select/move unit:            
+            // try select/move stuff:
 
             select_pos = spell_map->GetSelection(NULL);
             sel_unit = spell_map->GetSelectedUnit();
             cur_unit = spell_map->GetCursorUnit();
             auto sel_evt = spell_map->GetSelectEvent();
             auto cur_evt = spell_map->GetCursorEvent();
+            auto cur_sound = spell_map->CheckSound();
+            auto sel_sound = spell_map->SoundSelected();
             if(!spell_map->isGameMode())
             {
                 int wEvents = GetMenuBar()->FindItem(ID_ViewEvents)->IsChecked(); // ###todo: optimize?
+                int wSounds = GetMenuBar()->FindItem(ID_ViewSounds)->IsChecked(); // ###todo: optimize?
 
-                if(wEvents && sel_evt && cur_unit && event.ControlDown())
+                if(wSounds && cur_sound && cur_sound == sel_sound)
+                {
+                    // move sound
+                    sel_sound->in_placement = !sel_sound->in_placement;
+                }
+                else if(wSounds && cur_sound)
+                {
+                    // select sound
+                    spell_map->SoundSelect(cur_sound);
+                }
+                else if(wEvents && sel_evt && cur_unit && event.ControlDown())
                 {
                     // try add/remove unit to event
                     spell_map->UpdateEventUnit(sel_evt, cur_unit);

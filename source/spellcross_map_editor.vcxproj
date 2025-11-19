@@ -41,6 +41,7 @@
     <ClCompile Include="forms\form_new_object.cpp" />
     <ClCompile Include="forms\form_objects.cpp" />
     <ClCompile Include="forms\form_pal_view.cpp" />
+    <ClCompile Include="forms\form_sound.cpp" />
     <ClCompile Include="forms\form_sprite_view.cpp" />
     <ClCompile Include="forms\form_tools.cpp" />
     <ClCompile Include="forms\form_units.cpp" />
@@ -104,6 +105,7 @@
     <ClInclude Include="forms\form_new_object.h" />
     <ClInclude Include="forms\form_objects.h" />
     <ClInclude Include="forms\form_pal_view.h" />
+    <ClInclude Include="forms\form_sound.h" />
     <ClInclude Include="forms\form_sprite_view.h" />
     <ClInclude Include="forms\form_tools.h" />
     <ClInclude Include="forms\form_units.h" />

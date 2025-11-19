@@ -538,6 +538,9 @@ void SpellMap::Close()
 	select.clear();
 	L1_flags.clear();
 
+	// sounds stuff
+	sound_selection = NULL;
+
 	if(pic)
 		delete[] pic;
 	pic = NULL;
@@ -3023,17 +3026,144 @@ MapLayer3* SpellMap::CheckANM(MapXY* pos)
 // remove ANM sprite at position or current cursor if no explicit position given
 int SpellMap::RemoveANM(MapXY* pos)
 {
+	LockMap();
 	auto posxy = GetSelection();
 	if(pos)
 		posxy = *pos;	
 	for(int k = 0; k < L3.size(); k++)
 		if(L3[k].x_pos == posxy.x && L3[k].y_pos == posxy.y)
 		{			
-			L3.erase(L3.begin() + k);			
+			L3.erase(L3.begin() + k);
+			ReleaseMap();
 			return(0);
-		}	
+		}
+	ReleaseMap();
 	return(1);
 }
+// place or replace ANM at pos or current cursor if no explicit position given
+int SpellMap::PlaceANM(MapXY *pos, AnimL1 *anm)
+{
+	if(!anm)
+		return(1);
+	auto posxy = GetSelection();
+	if(pos)
+		posxy = *pos;
+	if(!pos->IsSelected())
+		return(1);
+
+	// remove eventual old anm
+	RemoveANM(pos);
+
+	// add new ANM
+	LockMap();
+	L3.emplace_back(anm,posxy.x,posxy.y,rand()%anm->frames.size(),anm->frames.size());
+	ReleaseMap();
+
+	return(0);
+}
+
+// check presence of sound at pos or current cursor if no explicit position given
+MapSound* SpellMap::CheckSound(MapXY* pos)
+{
+	auto posxy = GetSelection();
+	if(pos)
+		posxy = *pos;
+	for(auto& snd: sounds)
+		if(snd.GetPosition().x == posxy.x && snd.GetPosition().y == posxy.y)
+			return(&snd);
+	return(NULL);
+}
+// try select sound
+void SpellMap::SoundSelect(MapSound* sound)
+{
+	LockMap();
+	if(!sound && sound_selection)
+		sound_selection->in_placement = false;
+	sound_selection = NULL;
+	for(auto &snd: sounds)
+		if(&snd == sound)
+			sound_selection = sound;
+	ReleaseMap();
+}
+// get selected sound
+MapSound* SpellMap::SoundSelected()
+{
+	LockMap();
+	for(auto& snd: sounds)
+		if(&snd == sound_selection)
+		{
+			ReleaseMap();
+			return(sound_selection);			
+		}
+	sound_selection = NULL;
+	ReleaseMap();
+	return(sound_selection);	
+}
+// move sound to new position
+int SpellMap::SoundMove(MapSound* sound, MapXY &pos)
+{
+	if(!sound)
+		return(1);
+
+	// do not allow ovelap with other sound
+	for(auto &snd: sounds)
+		if(snd.GetPosition() == pos)
+			return(1);
+
+	LockMap();
+	sound->SetPosition(pos);
+	ReleaseMap();
+	return(0);
+}
+// remove map sound
+int SpellMap::SoundRemove(MapXY *pos)
+{
+	LockMap();
+	auto posxy = GetSelection();
+	if(pos)
+		posxy = *pos;
+	for(int k = 0; k < sounds.size(); k++)
+		if(sounds[k].GetPosition() == posxy)
+		{
+			if(&sounds[k] == sound_selection)
+				sound_selection = NULL;
+			sounds.erase(sounds.begin() + k);
+			ReleaseMap();
+			return(0);
+		}
+	ReleaseMap();
+}
+// edit sound at position
+int SpellMap::SoundEdit(SpellSample *new_sound,MapXY* pos)
+{
+	LockMap();
+	auto posxy = GetSelection();
+	if(pos)
+		posxy = *pos;
+	auto snd = CheckSound(&posxy);
+	if(snd)
+		snd->SetSample(new_sound);
+	ReleaseMap();
+	return(0);
+}
+// add new sound at position
+MapSound *SpellMap::SoundAdd(SpellSample* new_sound,MapXY* pos)
+{
+	if(!new_sound)
+		return(NULL);
+	LockMap();
+	auto posxy = GetSelection();
+	if(pos)
+		posxy = *pos;
+	auto snd = CheckSound(&posxy);
+	if(snd)
+		SoundRemove(&posxy);
+	sounds.emplace_back(posxy,new_sound);
+	ReleaseMap();
+	return(&sounds.back());
+}
+
+
 
 // get rect portion of last rendered buffer (indexed map color)
 int SpellMap::GetRender(uint8_t* buf, int x_size, int y_size, int x_pos, int y_pos)
@@ -3591,13 +3721,17 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 				int mxx = n * 80 + (((m & 1) != 0) ? 0 : 40);
 				int myy = m * 24 - sof * 18 + MSYOFS + 50;
 
-				int color = 252;
+				bool blink = (&sound == sound_selection) & sel_blink_state;
+
+				int color = (blink)?214:252;
 				string glyph = "\x1F";
 				if(sid)
 				{
 					glyph += " \x1E";
-					color = 214;//217;
+					color = (!blink)?214:252;//217;
 				}
+				
+
 				terrain->font->Render(pic,pic_end,pic_x_size,mxx,myy + spr->y_ofs - 7,80,spr->y_size,glyph,color,254,SpellFont::SOLID);
 				string hstr = string(sound.GetName());
 				terrain->font->Render(pic,pic_end,pic_x_size,mxx,myy + spr->y_ofs + 7,80,spr->y_size,hstr,color,254,SpellFont::SOLID);

@@ -26,6 +26,7 @@
 #include "forms/form_map_units_list.h"
 #include "forms/form_mission_params.h"
 #include "forms/form_about.h"
+#include "forms/form_sound.h"
 
 #include <wx/ribbon/buttonbar.h>
 #include <wx/ribbon/panel.h>
@@ -82,6 +83,7 @@ private:
     void OnViewTools(wxCommandEvent& event);
     void OnViewSprites(wxCommandEvent& event);
     void OnViewAnms(wxCommandEvent& event);
+    void OnViewSounds(wxCommandEvent& event);
     void OnViewObjects(wxCommandEvent& event);
     void OnViewPal(wxCommandEvent& event);
     void OnViewGrRes(wxCommandEvent& event);
@@ -134,6 +136,7 @@ private:
     
     SpellMap* spell_map;
     SpellData* spell_data;
+    MapXY spell_pos;
 
     SpellTool spell_tool;
 
@@ -145,6 +148,7 @@ private:
     int inSubForm() {return(
         form_sprites != NULL ||
         form_anms != NULL ||
+        form_sounds != NULL ||
         form_objects != NULL ||
         form_tools != NULL ||
         form_pal != NULL ||
@@ -183,6 +187,7 @@ private:
     FormMIDI *form_midi = NULL;
     FormMiniMap *form_minimap = NULL;
     FormMapUnits *form_units_list = NULL;
+    FormSound *form_sounds = NULL;
     
     void OnPaintHUDbutton(wxPaintEvent& event);
     void OnHUDbuttonsMouseEnter(wxMouseEvent& event);
@@ -196,6 +201,7 @@ private:
         ID_OBJECTS_WIN,
         ID_SPRITES_WIN,
         ID_ANM_WIN,
+        ID_SOUNDS_WIN,
         ID_TOOLS_WIN,
         ID_PAL_WIN,
         ID_GRES_WIN,
@@ -222,7 +228,10 @@ private:
         ID_POP_REM_SEEUNIT,
         ID_POP_EDIT_EVENT,
         ID_POP_EDIT_UNIT,
-        ID_POP_REM_ANM
+        ID_POP_EDIT_ANM,
+        ID_POP_REM_ANM,
+        ID_POP_EDIT_SOUND,
+        ID_POP_REM_SOUND
     };
 
     // maximum size of minimap panel
@@ -272,6 +281,9 @@ enum
     ID_ExportVoxZ,
     ID_SetGamma,
     ID_ViewSprites,
+    ID_ViewAnms,
+    ID_ViewPnms,
+    ID_SoundsViewer,
     ID_ViewPal,
     ID_ViewGRes,
     ID_UnitViewDbg,

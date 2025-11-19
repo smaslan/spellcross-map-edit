@@ -44,6 +44,7 @@ class FormANM : public wxFrame
 		SpellData *m_spell_data;
 		Terrain *m_terrain;
 		AnimL1 *m_anim;
+		bool m_anm_was_set;
 
 		wxTimer m_timer;
 
@@ -58,6 +59,7 @@ class FormANM : public wxFrame
 		void OnChangeGamma(wxCommandEvent& event);
 		void OnTimer(wxTimerEvent& event);
 		
+		void SetTerrain(Terrain* terr);
 		Terrain* FindTerrain();
 		void SelectTerrain();
 		void SelectANM();
@@ -94,8 +96,10 @@ class FormANM : public wxFrame
 
 		FormANM( wxWindow* parent,SpellData* spell_data,wxWindowID id = wxID_ANY, const wxString& title = wxT("Terrain layer animations ANM"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 700,500 ), long style = wxDEFAULT_FRAME_STYLE|wxRESIZE_BORDER|wxSTAY_ON_TOP|wxTAB_TRAVERSAL );
 		~FormANM();
+		void SetANM(Terrain* terr,AnimL1* anm);
 		Terrain* GetSelectedTerrain();
 		AnimL1* GetSelectedAnim();
+		bool WasAnmSet();
 
 };
 

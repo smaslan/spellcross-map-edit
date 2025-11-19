@@ -499,6 +499,7 @@ vector<SpellSoundClassFile> SpellSounds::ParseSoundClasses(string text)
     return(lines);
 }
 
+// get sound data by name
 SpellSample *SpellSounds::GetSample(const char *name)
 {
     for(auto & smpl : samples)
@@ -507,8 +508,19 @@ SpellSample *SpellSounds::GetSample(const char *name)
     return(NULL);
 }
 
+// get sound data by id
+SpellSample* SpellSounds::GetSample(int id)
+{
+    if(id < 0 || id >= samples.size())
+        return(NULL);
+    return(&samples[id]);
+}
 
-
+// get sounds data count
+int SpellSounds::GetSamplesCount()
+{
+    return(samples.size());
+}
 
 
 
@@ -988,6 +1000,7 @@ MapSound::MapSound(MapXY pos,SpellSample* sample)
 {
     m_pos = pos;
     m_sample = sample;
+    in_placement = false;
 }
 const char* MapSound::GetName()
 {
@@ -999,7 +1012,16 @@ MapXY MapSound::GetPosition()
 {
     return(m_pos);
 }
+void MapSound::SetPosition(MapXY &pos)
+{
+    m_pos = pos;
+}
 SpellSample *MapSound::GetSample()
 {
     return(m_sample);
+}
+void MapSound::SetSample(SpellSample *sample)
+{
+    if(sample)
+        m_sample = sample;
 }

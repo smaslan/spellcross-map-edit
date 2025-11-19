@@ -124,11 +124,14 @@ private:
 	SpellSample* m_sample;
 	MapXY m_pos;
 public:
+	bool in_placement;
 		
 	MapSound(MapXY pos, SpellSample *sample);
 	const char *GetName();
 	MapXY GetPosition();
+	void SetPosition(MapXY &pos);
 	SpellSample* GetSample();
+	void SetSample(SpellSample* sample);
 };
 
 // map ambient loop sounds
@@ -247,7 +250,8 @@ class SpellMap
 		// temp layers for debug mostly
 		vector<MapXY> dbg_ord;
 
-		mutex map_lock;
+		// map edit lock (recoursive - multiple lock() calls per thread possible)
+		std::recursive_mutex map_lock;
 		//int map_lock_level = 0;
 		
 		// attack state stuff
@@ -261,6 +265,9 @@ class SpellMap
 		int unit_selection_mod;
 		int unit_sel_land_preference;
 
+		// sound selections
+		MapSound *sound_selection;
+		
 		// unit range map
 		//vector<AStarNode> unit_range_nodes_buffer; // this is preinitialized buffer holding the nodes
 		//vector<AStarNode> unit_range_nodes; // this is working buffer
@@ -660,6 +667,14 @@ class SpellMap
 		vector<uint8_t> GetFlags(vector<MapXY>& selection);
 		MapLayer3* CheckANM(MapXY* pos=NULL);
 		int RemoveANM(MapXY* pos=NULL);
+		int PlaceANM(MapXY* pos,AnimL1* anm);
+		MapSound *CheckSound(MapXY* pos=NULL);
+		void SoundSelect(MapSound* sound=NULL);
+		MapSound* SoundSelected();
+		int SoundMove(MapSound* sound,MapXY& pos);
+		int SoundRemove(MapXY* pos=NULL);
+		int SoundEdit(SpellSample* new_sound,MapXY* pos=NULL);
+		MapSound* SoundAdd(SpellSample* new_sound,MapXY* pos=NULL);
 		vector<MapXY> GetPersistSelections();
 		void SelectTiles(vector<MapXY> tiles,int mode);
 		void SelectTiles(int mode);

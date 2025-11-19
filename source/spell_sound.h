@@ -163,7 +163,9 @@ public:
     
     SpellSounds(FSarchive* common_fs,wstring &fs_data_path, int count=16,std::function<void(std::string)> status_list=NULL,std::function<void(std::string)> status_item=NULL);
     ~SpellSounds();
-    SpellSample *GetSample(const char *name);
+    SpellSample* GetSample(const char *name);
+    SpellSample* GetSample(int id);
+    int GetSamplesCount();
 
     SpellSound* GetSound(const char* name);
     SpellSound* GetMoveClass(int index);
