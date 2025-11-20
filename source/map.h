@@ -123,24 +123,38 @@ class MapSound
 private:
 	SpellSample* m_sample;
 	MapXY m_pos;
+	bool m_is_loop;
+
 public:
-	bool in_placement;
-		
-	MapSound(MapXY pos, SpellSample *sample);
+	bool in_placement;	
+
+	enum SoundType {
+		RANDOM = 0,
+		LOOP,
+		BOTH
+	};
+			
+	MapSound(MapXY pos, SpellSample *sample,SoundType type);
+	SoundType GetType() {return(m_is_loop?(MapSound::SoundType::LOOP):(MapSound::SoundType::RANDOM));};
+	bool isLoop() {return(m_is_loop);};
+	bool isRandom() { return(!m_is_loop); };
 	const char *GetName();
 	MapXY GetPosition();
 	void SetPosition(MapXY &pos);
 	SpellSample* GetSample();
 	void SetSample(SpellSample* sample);
+	void SetType(SoundType type);
 };
 
 // map ambient loop sounds
-class MapLoopSounds
+class MapSounds
 {
 private:
 	int x_size;
 	int y_size;
+	SpellData *m_spell_data;
 public:
+	
 	// list unique map sounds
 	vector<SpellSound*> list;
 	// list of map loop sound
@@ -148,8 +162,10 @@ public:
 	// map of volumes per sound [sound_id][MapXY]
 	vector<vector<int8_t>> maps;
 
-	MapLoopSounds(int x_size,int y_size);	
-	~MapLoopSounds();
+	MapSounds(SpellData* spell_data,int x_size,int y_size);
+	~MapSounds();
+	void ClearSounds();
+	int InitSounds();
 	int UpdateMaps();
 	tuple<double,double> GetViewVolume(int index,int x0,int y0,int x_sz,int y_sz);
 	int UpdateVolumes(int xs_ofs,int ys_ofs,int xs_size,int ys_size);
@@ -398,12 +414,14 @@ class SpellMap
 		// map events
 		SpellMapEvents *events;
 		// map sounds
-		vector<MapSound> sounds;
+		//vector<MapSound> sounds;
 		// looping sounds
-		MapLoopSounds *sound_loops;
+		MapSounds *sounds;
 
 		// local palette (after gamma correction)
 		uint8_t pal[256][3];
+
+		
 
 		class MissionParams
 		{
@@ -658,6 +676,8 @@ class SpellMap
 		int IsLoaded();
 		bool TileIsVisible(int x, int y);
 		tuple<int,int> GetSurfPos(MapXY &pos);
+
+		
 		
 		MapXY GetSelection(TScroll* scroll=NULL);
 		vector<MapXY> &GetSelections(TScroll* scroll=NULL);
@@ -668,13 +688,13 @@ class SpellMap
 		MapLayer3* CheckANM(MapXY* pos=NULL);
 		int RemoveANM(MapXY* pos=NULL);
 		int PlaceANM(MapXY* pos,AnimL1* anm);
-		MapSound *CheckSound(MapXY* pos=NULL);
+		MapSound *CheckSound(MapXY* pos=NULL,MapSound::SoundType type=MapSound::SoundType::BOTH);
 		void SoundSelect(MapSound* sound=NULL);
 		MapSound* SoundSelected();
-		int SoundMove(MapSound* sound,MapXY& pos);
+		int SoundMove(MapSound* sound,MapXY pos,bool remap=false);
 		int SoundRemove(MapXY* pos=NULL);
-		int SoundEdit(SpellSample* new_sound,MapXY* pos=NULL);
-		MapSound* SoundAdd(SpellSample* new_sound,MapXY* pos=NULL);
+		int SoundEdit(SpellSample* new_sound,MapSound::SoundType type=MapSound::SoundType::BOTH,MapXY* pos=NULL);
+		MapSound* SoundAdd(SpellSample* new_sound,MapSound::SoundType type,MapXY* pos=NULL);
 		vector<MapXY> GetPersistSelections();
 		void SelectTiles(vector<MapXY> tiles,int mode);
 		void SelectTiles(int mode);

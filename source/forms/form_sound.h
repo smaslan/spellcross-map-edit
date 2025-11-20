@@ -29,6 +29,7 @@
 #include <wx/frame.h>
 
 #include "spellcross.h"
+#include "map.h"
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -83,16 +84,11 @@ class FormSound : public wxFrame
 
 	public:
 
-		enum SoundType{
-			LOOP = 0,
-			RANROM
-		};
-
 		FormSound(wxWindow* parent,SpellData* spell_data,wxWindowID id = wxID_ANY, const wxString& title = wxT("Sound resources preview"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 600,400 ), long style = wxDEFAULT_FRAME_STYLE|wxRESIZE_BORDER|wxSTAY_ON_TOP|wxTAB_TRAVERSAL );
 		~FormSound();
 		SpellSample* GetSelectedSound();
-		SoundType GetMapSoundType();
-		void SetSound(std::string name);
+		MapSound::SoundType GetMapSoundType();
+		void SetSound(std::string name,MapSound::SoundType type);
 		bool WasSoundSet();
 
 };

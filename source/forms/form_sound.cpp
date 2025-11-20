@@ -153,6 +153,7 @@ void FormSound::OnClose(wxCloseEvent& ev)
 void FormSound::OnCloseClick(wxCommandEvent& event)
 {
 	// no exit sound selection	
+	m_sample = NULL;
 	Close();
 }
 
@@ -170,20 +171,23 @@ SpellSample *FormSound::GetSelectedSound()
 }
 
 // get map sound type
-FormSound::SoundType FormSound::GetMapSoundType()
+MapSound::SoundType FormSound::GetMapSoundType()
 {
 	if(chMapSndType->GetSelection() == 1)
-		return(FormSound::SoundType::LOOP);
-	return(FormSound::SoundType::RANROM);
+		return(MapSound::SoundType::LOOP);
+	return(MapSound::SoundType::RANDOM);
 }
 
 // set sound resource on startup
-void FormSound::SetSound(std::string name)
+void FormSound::SetSound(std::string name, MapSound::SoundType type)
 {
 	auto snd_id = lbList->FindString(name);
 	if(snd_id < 0)
 		return;
-	lbList->Select(snd_id);
+	chMapSndType->Select(!!(type == MapSound::SoundType::LOOP));
+	lbList->Select(snd_id);	
+	wxCommandEvent evt;
+	OnSelectSound(evt);
 	m_was_set = true;
 }
 

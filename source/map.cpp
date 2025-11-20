@@ -411,7 +411,8 @@ SpellMap::SpellMap()
 	unit_range_view_mode = UNIT_RANGE_NONE;
 	unit_range_view_mode_lock = false;
 
-	sound_loops = NULL;
+	sounds = NULL;
+	sound_selection = NULL;
 
 	events = NULL;
 
@@ -537,9 +538,7 @@ void SpellMap::Close()
 	// loose selection array
 	select.clear();
 	L1_flags.clear();
-
-	// sounds stuff
-	sound_selection = NULL;
+	
 
 	if(pic)
 		delete[] pic;
@@ -562,10 +561,11 @@ void SpellMap::Close()
 
 	filter.clear();
 
-	if(sound_loops)
-		delete sound_loops;
-	sound_loops = NULL;
-	sounds.clear();
+	// sounds stuff
+	sound_selection = NULL;
+	if(sounds)
+		delete sounds;
+	sounds = NULL;
 
 	if(saves)
 		delete saves;
@@ -1076,7 +1076,8 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 	///// L7 - Sounds #1 /////
 	//////////////////////////
 
-	sound_loops = new MapLoopSounds(x_size,y_size);
+	std::vector<SpellSample*> L7_list;
+	sounds = new MapSounds(spelldata, x_size,y_size);
 	int L7_names_count = *(int32_t*)data; data += 4;
 	for(int k = 0; k < L7_names_count; k++)
 	{
@@ -1095,8 +1096,9 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 			Close();
 			return(1);
 		}
-		auto sound = new SpellSound(spelldata->sounds->channels,snd_ref);
-		sound_loops->list.push_back(sound);
+		L7_list.push_back(snd_ref);
+		/*auto sound = new SpellSound(spelldata->sounds->channels,snd_ref);
+		sounds->list.push_back(sound);*/
 	}
 	int L7_count = *(int32_t*)data; data += 4;
 	for(int k = 0; k < L7_count; k++)
@@ -1111,9 +1113,10 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 			Close();
 			return(1);
 		}
-		sound_loops->sounds.emplace_back(MapXY(pxy % x_size,pxy / x_size),sound_loops->list[sid]->GetSample());
+		sounds->sounds.emplace_back(MapXY(pxy % x_size,pxy / x_size),L7_list[sid], MapSound::SoundType::LOOP);
 	}
-	sound_loops->UpdateMaps();
+	sounds->InitSounds();
+	sounds->UpdateMaps();
 
 	//////////////////////////
 	///// L8 - Sounds #2 /////
@@ -1153,7 +1156,7 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 			Close();
 			return(1);
 		}
-		sounds.emplace_back(MapXY(pxy% x_size,pxy / x_size), L8_sounds[sid]);
+		sounds->sounds.emplace_back(MapXY(pxy% x_size,pxy / x_size), L8_sounds[sid],MapSound::SoundType::RANDOM);
 	}
 
 
@@ -1710,9 +1713,13 @@ int SpellMap::SaveDTA(std::wstring path)
 
 	// prepare L7 list of used sounds
 	std::vector<SpellSample*> L7_list;
-	for(auto snd: sound_loops->sounds)
+	int L7_count = 0;
+	for(auto snd: sounds->sounds)
 	{		
-		// check sprite presence in the list, eventually add new
+		if(snd.GetType() != MapSound::SoundType::LOOP)
+			continue;
+		L7_count++;
+		// check sound presence in the list, eventually add new
 		auto sid = std::find(L7_list.begin(),L7_list.end(),snd.GetSample());
 		if(sid == L7_list.end())
 			L7_list.push_back(snd.GetSample());
@@ -1724,10 +1731,10 @@ int SpellMap::SaveDTA(std::wstring path)
 			return(1);
 		}
 	}
-	uint32_t L7_count = L7_list.size();
+	uint32_t L7_list_size = L7_list.size();
 
 	// write unique sounds count
-	ostream_write_u32(fw,L7_count);
+	ostream_write_u32(fw,L7_list_size);
 
 	// write unique sounds names list
 	for(auto snd: L7_list)
@@ -1737,19 +1744,21 @@ int SpellMap::SaveDTA(std::wstring path)
 	}
 
 	// write sound items count in map
-	if(L7_count)
-		ostream_write_u32(fw,sound_loops->sounds.size());
-	if(sound_loops->sounds.size() > 255)
+	if(L7_list_size)
+		ostream_write_u32(fw,L7_count);
+	if(L7_count > 255)
 	{
 		// too many sounds placed
-		last_error = string_format("Saving DTA file: too many placed sound (%d) instances in sounds #1 layer!",sound_loops->sounds.size());
+		last_error = string_format("Saving DTA file: too many placed sound (%d) instances in sounds #1 layer!",L7_count);
 		fw.close();
 		return(1);
 	}
 
 	// write sound items in map
-	for(auto snd: sound_loops->sounds)
+	for(auto snd: sounds->sounds)
 	{
+		if(snd.GetType() != MapSound::SoundType::LOOP)
+			continue;
 		// check sprite presence in the list, eventually add new
 		auto sid = std::find(L7_list.begin(),L7_list.end(),snd.GetSample());
 		// make pnm id
@@ -1767,8 +1776,12 @@ int SpellMap::SaveDTA(std::wstring path)
 
 	// prepare L8 list of used sounds
 	std::vector<SpellSample*> L8_list;
-	for(auto snd: sounds)
+	int L8_count = 0;
+	for(auto snd: sounds->sounds)
 	{
+		if(snd.GetType() != MapSound::SoundType::RANDOM)
+			continue;
+		L8_count++;
 		// check sprite presence in the list, eventually add new
 		auto sid = std::find(L8_list.begin(),L8_list.end(),snd.GetSample());
 		if(sid == L8_list.end())
@@ -1781,10 +1794,10 @@ int SpellMap::SaveDTA(std::wstring path)
 			return(1);
 		}
 	}
-	uint32_t L8_count = L8_list.size();
+	uint32_t L8_list_size = L8_list.size();
 
 	// write unique sounds count
-	ostream_write_u32(fw,L8_count);
+	ostream_write_u32(fw,L8_list_size);
 
 	// write unique sounds names list
 	for(auto snd: L8_list)
@@ -1794,19 +1807,21 @@ int SpellMap::SaveDTA(std::wstring path)
 	}
 
 	// write sound items count in map
-	if(L8_count)
-		ostream_write_u32(fw,sounds.size());
-	if(sounds.size() > 255)
+	if(L8_list_size)
+		ostream_write_u32(fw,L8_count);
+	if(L8_count > 255)
 	{
 		// too many sounds placed
-		last_error = string_format("Saving DTA file: too many placed sound (%d) instances in sounds #2 layer!",sounds.size());
+		last_error = string_format("Saving DTA file: too many placed sound (%d) instances in sounds #2 layer!",L8_count);
 		fw.close();
 		return(1);
 	}
 
 	// write sound items in map
-	for(auto snd: sounds)
+	for(auto snd: sounds->sounds)
 	{
+		if(snd.GetType() != MapSound::SoundType::RANDOM)
+			continue;
 		// check sprite presence in the list, eventually add new
 		auto sid = std::find(L8_list.begin(),L8_list.end(),snd.GetSample());
 		// make pnm id
@@ -2249,11 +2264,15 @@ vector<MapXY> SpellMap::GetVisibleTiles()
 // get random sound of visible map portion, return left-right volume
 MapSound* SpellMap::GetRandomSound(double *left, double *right)
 {
+	if(!sounds)
+		return(NULL);
 	// make list of candidates
 	vector<MapSound*> list;
-	list.reserve(sounds.size());
-	for(auto & sound : sounds)
+	list.reserve(sounds->sounds.size());
+	for(auto & sound : sounds->sounds)
 	{
+		if(sound.GetType() != MapSound::SoundType::RANDOM)
+			continue;
 		auto pos = sound.GetPosition();
 		if(pos.x >= xs_ofs && pos.x < xs_ofs + xs_size && pos.y >= ys_ofs && pos.y < ys_ofs + ys_size)
 			list.push_back(&sound);
@@ -2287,12 +2306,18 @@ MapSound* SpellMap::GetRandomSound(double *left, double *right)
 }
 
 // make sound loops
-MapLoopSounds::MapLoopSounds(int x_size,int y_size)
+MapSounds::MapSounds(SpellData* spell_data,int x_size,int y_size)
 {
+	m_spell_data = spell_data;
 	this->x_size = x_size;
 	this->y_size = y_size;
 }
-MapLoopSounds::~MapLoopSounds()
+MapSounds::~MapSounds()
+{
+	ClearSounds();
+}
+// clear looping sounds (call whenever modifying lists)
+void MapSounds::ClearSounds()
 {
 	for(auto& snd : list)
 		snd->Stop();
@@ -2304,9 +2329,35 @@ MapLoopSounds::~MapLoopSounds()
 	}
 	list.clear();
 }
+// initialize looping sounds (call after modifying lists)
+//  make one SpellSound per unique looping sample
+int MapSounds::InitSounds()
+{
+	ClearSounds();
+	for(auto &snd: sounds)
+	{
+		// loop sounds only
+		if(!snd.isLoop())
+			continue;
+		// skip if already in the list
+		bool found = false;
+		for(auto &item: list)
+			if(item->GetSample() == snd.GetSample())
+			{
+				found = true;
+				break;
+			}
+		if(found)
+			continue;
+		// make new sound
+		auto sound = new SpellSound(m_spell_data->sounds->channels,snd.GetSample());
+		list.push_back(sound);
+	}
+	return(0);
+}
 
 // makes map of volumes per sound for ech tile of map, call whenever sounds are repositioned
-int MapLoopSounds::UpdateMaps()
+int MapSounds::UpdateMaps()
 {
 	// loose old maps
 	for(auto& snd : maps)
@@ -2344,7 +2395,7 @@ int MapLoopSounds::UpdateMaps()
 }
 
 // calculate volume <left,right> of given loop sound for given position in map
-tuple<double,double> MapLoopSounds::GetViewVolume(int index,int xs_ofs,int ys_ofs,int xs_size,int ys_size)
+tuple<double,double> MapSounds::GetViewVolume(int index,int xs_ofs,int ys_ofs,int xs_size,int ys_size)
 {
 	if(index >= maps.size())
 		return tuple(0.0, 0.0);
@@ -2387,7 +2438,7 @@ tuple<double,double> MapLoopSounds::GetViewVolume(int index,int xs_ofs,int ys_of
 }
 
 // start/stop/update volumes of loop ambient sounds
-int MapLoopSounds::UpdateVolumes(int xs_ofs,int ys_ofs,int xs_size,int ys_size)
+int MapSounds::UpdateVolumes(int xs_ofs,int ys_ofs,int xs_size,int ys_size)
 {
 	for(int k = 0; k < list.size(); k++)
 	{
@@ -2686,6 +2737,7 @@ int SpellMap::PasteRandSprites(std::vector<MapSprite>& tiles,std::vector<MapXY>&
 		else
 			tiles[mpos].L1 = sprite;
 	}
+	return(0);
 }
 
 
@@ -3063,24 +3115,28 @@ int SpellMap::PlaceANM(MapXY *pos, AnimL1 *anm)
 }
 
 // check presence of sound at pos or current cursor if no explicit position given
-MapSound* SpellMap::CheckSound(MapXY* pos)
+MapSound* SpellMap::CheckSound(MapXY* pos,MapSound::SoundType type)
 {
+	if(!sounds)
+		return(NULL);
 	auto posxy = GetSelection();
 	if(pos)
 		posxy = *pos;
-	for(auto& snd: sounds)
-		if(snd.GetPosition().x == posxy.x && snd.GetPosition().y == posxy.y)
+	for(auto& snd: sounds->sounds)
+		if(snd.GetPosition() == posxy && (snd.GetType() == type || type == MapSound::SoundType::BOTH))
 			return(&snd);
 	return(NULL);
 }
 // try select sound
 void SpellMap::SoundSelect(MapSound* sound)
 {
+	if(!sounds)
+		return;
 	LockMap();
 	if(!sound && sound_selection)
 		sound_selection->in_placement = false;
 	sound_selection = NULL;
-	for(auto &snd: sounds)
+	for(auto &snd: sounds->sounds)
 		if(&snd == sound)
 			sound_selection = sound;
 	ReleaseMap();
@@ -3088,8 +3144,10 @@ void SpellMap::SoundSelect(MapSound* sound)
 // get selected sound
 MapSound* SpellMap::SoundSelected()
 {
+	if(!sounds)
+		return(NULL);
 	LockMap();
-	for(auto& snd: sounds)
+	for(auto& snd: sounds->sounds)
 		if(&snd == sound_selection)
 		{
 			ReleaseMap();
@@ -3100,67 +3158,104 @@ MapSound* SpellMap::SoundSelected()
 	return(sound_selection);	
 }
 // move sound to new position
-int SpellMap::SoundMove(MapSound* sound, MapXY &pos)
+int SpellMap::SoundMove(MapSound* sound, MapXY pos,bool remap)
 {
+	if(!sounds)
+		return(1);
 	if(!sound)
 		return(1);
 
-	// do not allow ovelap with other sound
-	for(auto &snd: sounds)
+	// do not allow overlap with other sound
+	for(auto &snd: sounds->sounds)
 		if(snd.GetPosition() == pos)
 			return(1);
 
 	LockMap();
+	if(remap)
+	{
+		//###todo: add sounds lock?
+		sounds->ClearSounds();
+	}
 	sound->SetPosition(pos);
+	if(remap)
+	{
+		sounds->InitSounds();
+		sounds->UpdateMaps();
+	}
 	ReleaseMap();
 	return(0);
 }
 // remove map sound
 int SpellMap::SoundRemove(MapXY *pos)
 {
-	LockMap();
+	if(!sounds)
+		return(1);	
 	auto posxy = GetSelection();
 	if(pos)
 		posxy = *pos;
-	for(int k = 0; k < sounds.size(); k++)
-		if(sounds[k].GetPosition() == posxy)
+	
+	LockMap();
+	//###todo: add sounds lock?
+	sounds->ClearSounds();	
+	for(int k = 0; k < sounds->sounds.size(); k++)
+		if(sounds->sounds[k].GetPosition() == posxy)
 		{
-			if(&sounds[k] == sound_selection)
+			if(&sounds->sounds[k] == sound_selection)
 				sound_selection = NULL;
-			sounds.erase(sounds.begin() + k);
-			ReleaseMap();
-			return(0);
+			sounds->sounds.erase(sounds->sounds.begin() + k);
+			break;
 		}
+	sounds->InitSounds();
+	sounds->UpdateMaps();
 	ReleaseMap();
+	return(0);
 }
 // edit sound at position
-int SpellMap::SoundEdit(SpellSample *new_sound,MapXY* pos)
+int SpellMap::SoundEdit(SpellSample *new_sound,MapSound::SoundType type, MapXY* pos)
 {
+	if(!sounds)
+		return(1);
 	LockMap();
 	auto posxy = GetSelection();
 	if(pos)
 		posxy = *pos;
 	auto snd = CheckSound(&posxy);
 	if(snd)
-		snd->SetSample(new_sound);
+	{
+		//###todo: add sounds lock?
+		sounds->ClearSounds();		
+		if(new_sound)
+			snd->SetSample(new_sound);
+		if(type != MapSound::SoundType::BOTH)
+			snd->SetType(type);
+		sounds->InitSounds();
+		sounds->UpdateMaps();
+	}
 	ReleaseMap();
 	return(0);
 }
 // add new sound at position
-MapSound *SpellMap::SoundAdd(SpellSample* new_sound,MapXY* pos)
+MapSound *SpellMap::SoundAdd(SpellSample* new_sound,MapSound::SoundType type,MapXY* pos)
 {
+	if(!sounds)
+		return(NULL);
 	if(!new_sound)
 		return(NULL);
-	LockMap();
+	
 	auto posxy = GetSelection();
 	if(pos)
 		posxy = *pos;
+	LockMap();
+	//###todo: add sounds lock?
+	sounds->ClearSounds();	
 	auto snd = CheckSound(&posxy);
 	if(snd)
 		SoundRemove(&posxy);
-	sounds.emplace_back(posxy,new_sound);
+	sounds->sounds.emplace_back(posxy,new_sound,type);
+	sounds->InitSounds();
+	sounds->UpdateMaps();
 	ReleaseMap();
-	return(&sounds.back());
+	return(&sounds->sounds.back());
 }
 
 
@@ -3693,51 +3788,44 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 
 
 	// --- Redner Layer 7+8 sound marks ---
-	vector<MapSound> *sound_groups[] = {&sounds, &sound_loops->sounds};
-	bool sound_enabled[] = {wSound, wSoundLoop};
-	for(int sid = 0; sid < 2; sid++)
+	terrain->font->SetFilter(terrain->filter.darker);
+	for(auto& sound: sounds->sounds)
 	{
-		terrain->font->SetFilter(terrain->filter.darker);
+		if(!(sound.GetType() == MapSound::SoundType::LOOP && wSoundLoop || sound.GetType() == MapSound::SoundType::RANDOM && wSound))
+			continue;
+		auto pos = sound.GetPosition();
 
-		if(sound_enabled[sid])
+		// skip if not in visible area
+		if(pos.x < xs_ofs || pos.x >= (xs_ofs + xs_size) || pos.y < ys_ofs * 2 || pos.y >= (ys_ofs * 2 + ys_size))
+			continue;
+		int mxy = ConvXY(pos);
+
+		// get tile
+		Sprite* spr = tiles[mxy].L1;
+		int sof = tiles[mxy].elev;
+
+		// render sprite
+		n = pos.x - xs_ofs;
+		m = pos.y - ys_ofs*2;
+		int mxx = n * 80 + (((m & 1) != 0) ? 0 : 40);
+		int myy = m * 24 - sof * 18 + MSYOFS + 50;
+
+		bool blink = (&sound == sound_selection) & sel_blink_state;
+
+		int color = (blink)?214:252;
+		string glyph = "\x1F";
+		if(sound.GetType() == MapSound::SoundType::LOOP)
 		{
-			auto sound_list = sound_groups[sid];
-			for(auto& sound : *sound_list)
-			{
-				auto pos = sound.GetPosition();
+			glyph += " \x1E";
+			color = (!blink)?214:252;//217;
+		}				
 
-				// skip if not in visible area
-				if(pos.x < xs_ofs || pos.x >= (xs_ofs + xs_size) || pos.y < ys_ofs * 2 || pos.y >= (ys_ofs * 2 + ys_size))
-					continue;
-				int mxy = ConvXY(pos);
-
-				// get tile
-				Sprite* spr = tiles[mxy].L1;
-				int sof = tiles[mxy].elev;
-
-				// render sprite
-				n = pos.x - xs_ofs;
-				m = pos.y - ys_ofs*2;
-				int mxx = n * 80 + (((m & 1) != 0) ? 0 : 40);
-				int myy = m * 24 - sof * 18 + MSYOFS + 50;
-
-				bool blink = (&sound == sound_selection) & sel_blink_state;
-
-				int color = (blink)?214:252;
-				string glyph = "\x1F";
-				if(sid)
-				{
-					glyph += " \x1E";
-					color = (!blink)?214:252;//217;
-				}
-				
-
-				terrain->font->Render(pic,pic_end,pic_x_size,mxx,myy + spr->y_ofs - 7,80,spr->y_size,glyph,color,254,SpellFont::SOLID);
-				string hstr = string(sound.GetName());
-				terrain->font->Render(pic,pic_end,pic_x_size,mxx,myy + spr->y_ofs + 7,80,spr->y_size,hstr,color,254,SpellFont::SOLID);
-			}
-		}
+		terrain->font->Render(pic,pic_end,pic_x_size,mxx,myy + spr->y_ofs - 7,80,spr->y_size,glyph,color,254,SpellFont::SOLID);
+		string hstr = string(sound.GetName());
+		terrain->font->Render(pic,pic_end,pic_x_size,mxx,myy + spr->y_ofs + 7,80,spr->y_size,hstr,color,254,SpellFont::SOLID);
 	}
+		
+	
 	
 
 	// --- Events:
@@ -7010,7 +7098,7 @@ int SpellMap::Tick()
 	auto duration = std::chrono::duration_cast<std::chrono::seconds>(now_time - ref_time).count();
 	if(duration >= rnd_sound_delay)
 	{
-		if(rnd_sound_delay && sounds.size())
+		if(rnd_sound_delay && sounds && sounds->sounds.size())
 		{
 			// play some sound			
 			double left_vol;
@@ -7027,9 +7115,9 @@ int SpellMap::Tick()
 		ref_time = std::chrono::high_resolution_clock::now();
 	}
 
-	if(tick_100ms)
+	if(tick_100ms && sounds)
 	{
-		sound_loops->UpdateVolumes(xs_ofs, ys_ofs, xs_size, ys_size);
+		sounds->UpdateVolumes(xs_ofs, ys_ofs, xs_size, ys_size);
 	}
 
 

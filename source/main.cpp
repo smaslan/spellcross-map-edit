@@ -439,7 +439,7 @@ void MyFrame::OnClose(wxCloseEvent& ev)
     {
         // on close sounds viewer        
         SpellSample *snd = form_sounds->GetSelectedSound();
-        FormSound::SoundType snd_type = form_sounds->GetMapSoundType();
+        auto snd_type = form_sounds->GetMapSoundType();
         auto was_edit = form_sounds->WasSoundSet();
         form_sounds->Destroy();
 
@@ -448,20 +448,19 @@ void MyFrame::OnClose(wxCloseEvent& ev)
             if(was_edit)
             {
                 // edit existing map anim
-                spell_map->SoundEdit(snd,&spell_pos);
+                spell_map->SoundEdit(snd,snd_type,&spell_pos);
             }
             else
             {
-                // some anim selected - place to clipboard
-                auto map_sound = spell_map->SoundAdd(snd,&spell_pos);
+                // add new sound
+                auto map_sound = spell_map->SoundAdd(snd, snd_type, &spell_pos);
                 if(map_sound)
                 {
                     spell_map->SoundSelect(map_sound);
                     map_sound->in_placement = true;                    
                 }
             }
-        }
-                
+        }                
     }
     else if(ev.GetId() == ID_PAL_WIN)
     {
@@ -1350,7 +1349,7 @@ void MyFrame::OnCanvasPopupSelect(wxCommandEvent& event)
             form_sounds = new FormSound(this,spell_data,ID_SOUNDS_WIN);
             auto snd = spell_map->CheckSound();
             if(snd)
-                form_sounds->SetSound(snd->GetName());
+                form_sounds->SetSound(snd->GetName(), snd->GetType());
             form_sounds->Show();
         }
     }
@@ -1531,7 +1530,7 @@ void MyFrame::OnCanvasMouseMove(wxMouseEvent& event)
     if(sel_sound && sel_sound->in_placement && mxy.IsSelected())
     {
         // change sound position
-        spell_map->SoundMove(sel_sound, mxy);
+        spell_map->SoundMove(sel_sound, mxy, false);
     }
     else if(sel_evt && sel_evt->in_placement && mxy.IsSelected())
     {
@@ -1740,6 +1739,12 @@ void MyFrame::OnCanvasLMouseDown(wxMouseEvent& event)
                 if(wSounds && cur_sound && cur_sound == sel_sound)
                 {
                     // move sound
+                    if(sel_sound->in_placement)
+                    {
+                        // remap sound positions when mover released
+                        spell_map->sounds->InitSounds();
+                        spell_map->sounds->UpdateMaps();
+                    }
                     sel_sound->in_placement = !sel_sound->in_placement;
                 }
                 else if(wSounds && cur_sound)

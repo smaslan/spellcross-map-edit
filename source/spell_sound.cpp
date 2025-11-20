@@ -996,10 +996,11 @@ int SpellSound::isDone()
 //-----------------------------------------------------------------------------
 // Map sound object (header in map.h)
 //-----------------------------------------------------------------------------
-MapSound::MapSound(MapXY pos,SpellSample* sample)
+MapSound::MapSound(MapXY pos,SpellSample* sample,MapSound::SoundType type)
 {
     m_pos = pos;
     m_sample = sample;
+    m_is_loop = type != MapSound::SoundType::RANDOM;
     in_placement = false;
 }
 const char* MapSound::GetName()
@@ -1024,4 +1025,9 @@ void MapSound::SetSample(SpellSample *sample)
 {
     if(sample)
         m_sample = sample;
+}
+void MapSound::SetType(MapSound::SoundType type)
+{
+    if(type != MapSound::SoundType::BOTH)
+        m_is_loop = (type == MapSound::SoundType::LOOP);
 }
