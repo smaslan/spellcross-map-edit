@@ -83,6 +83,7 @@ private:
     void OnViewTools(wxCommandEvent& event);
     void OnViewSprites(wxCommandEvent& event);
     void OnViewAnms(wxCommandEvent& event);
+    void OnViewPnms(wxCommandEvent& event);
     void OnViewSounds(wxCommandEvent& event);
     void OnViewObjects(wxCommandEvent& event);
     void OnViewPal(wxCommandEvent& event);
@@ -230,6 +231,8 @@ private:
         ID_POP_EDIT_UNIT,
         ID_POP_EDIT_ANM,
         ID_POP_REM_ANM,
+        ID_POP_EDIT_PNM,
+        ID_POP_REM_PNM,
         ID_POP_EDIT_SOUND,
         ID_POP_REM_SOUND
     };

@@ -100,6 +100,7 @@ public:
 	int frame_ofs;
 	int frame_limit;
 	AnimPNM* anim;
+	bool in_placement;
 
 	MapLayer4() {};
 	MapLayer4(AnimPNM* pnm, int x_pos=0, int y_pos=0, int x_ofs=0, int y_ofs=0, int frame_ofs=0, int frame_limit=-1);
@@ -281,8 +282,11 @@ class SpellMap
 		int unit_selection_mod;
 		int unit_sel_land_preference;
 
-		// sound selections
+		// sound selection
 		MapSound *sound_selection;
+
+		// animation selection
+		MapLayer4 *pnm_selection;
 		
 		// unit range map
 		//vector<AStarNode> unit_range_nodes_buffer; // this is preinitialized buffer holding the nodes
@@ -688,6 +692,12 @@ class SpellMap
 		MapLayer3* CheckANM(MapXY* pos=NULL);
 		int RemoveANM(MapXY* pos=NULL);
 		int PlaceANM(MapXY* pos,AnimL1* anm);
+		MapLayer4* CheckPNM(MapXY* pos=NULL);
+		int RemovePNM(MapXY* pos=NULL);
+		void SelectPNM(MapLayer4* pnm=NULL);
+		MapLayer4* SelectedPNM();
+		int PlacePNM(MapXY* pos,AnimPNM* pnm,int x_ofs,int y_ofs);
+		int MovePNM(MapLayer4* pnm,MapXY pos);
 		MapSound *CheckSound(MapXY* pos=NULL,MapSound::SoundType type=MapSound::SoundType::BOTH);
 		void SoundSelect(MapSound* sound=NULL);
 		MapSound* SoundSelected();

@@ -481,6 +481,7 @@ public:
 	AnimL1* GetANM(std::string name);
 	AnimL1* GetANM(const char* name);
 	AnimPNM* GetPNM(const char* name);
+	AnimPNM* GetPNM(std::string name);
 		
 	int InitSpriteContext(wstring& path);
 	int SaveSpriteContext(wstring& path);	
@@ -497,6 +498,7 @@ public:
 	int RenderPreview(wxBitmap& bmp,int count,int* data,int flags,double gamma);
 	int RenderSpritePreview(wxBitmap& bmp,std::vector<Sprite*>& tiles,int flags,double gamma);
 	int RenderSpritePreview(wxBitmap& bmp,Sprite* tile,int flags,double gamma);
+	int RenderPNMpreview(wxBitmap& bmp,Sprite* spr,int flags,double gamma);
 		
 	int AddObject(std::vector<MapXY> xy,std::vector<Sprite*> L1_list,std::vector<Sprite*> L2_list,std::vector<uint8_t> flag_list,uint8_t* palette,std::string desc);
 	int RemoveObject(int id);

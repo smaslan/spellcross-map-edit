@@ -144,6 +144,13 @@ FormSound::~FormSound()
 // on form close
 void FormSound::OnClose(wxCloseEvent& ev)
 {
+	if(m_sound)
+	{
+		m_sound->Stop(true);
+		delete m_sound;
+		m_sound = NULL;
+	}
+
 	wxPostEvent(GetParent(),ev);
 	ev.Skip();
 	Destroy();

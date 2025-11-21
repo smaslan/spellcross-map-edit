@@ -2730,14 +2730,14 @@ int Terrain::RenderSpritePreview(wxBitmap& bmp, std::vector<Sprite*> &tiles, int
 			// center
 			int elev = 0;
 			if(tid == 0)
-			{
+			{				
 				xs = spr->x_size;
 				ys = spr->y_size + spr->y_ofs;
 				spr_ref = spr;
 			}
 			else if(spr_ref)
 			{
-				// get refence tile edge
+				// get reference tile edge
 				TFxyz vref[2];
 				spr_ref->GetTileEdge(tid-1, vref);
 				
@@ -2753,7 +2753,7 @@ int Terrain::RenderSpritePreview(wxBitmap& bmp, std::vector<Sprite*> &tiles, int
 					elev--;
 				else if(nref[1].z < vref[0].z || nref[0].z < vref[1].z)
 					elev++;
-			}
+			}						
 
 			int ref_x = (surf_x/zoom - xs)/2 + org_x[tid];
 			int ref_y = (surf_y/zoom - ys)/2 + org_y[tid] - elev*18;
@@ -2762,6 +2762,67 @@ int Terrain::RenderSpritePreview(wxBitmap& bmp, std::vector<Sprite*> &tiles, int
 			spr->Render(buf, buf_end, ref_x, ref_y,surf_x);
 		}
 	}
+
+	// apply gamma correction to palette:
+	if(gamma != last_gamma)
+	{
+		// store last gamma to prevent recalculatiom in each frame
+		last_gamma = gamma;
+
+		// male local copy of palette	
+		std::memcpy((void*)gamma_pal,(void*)pal,3 * 256);
+
+		// apply gamma correction (this should be maybe optimized out of here?
+		for(int k = 0; k < 256; k++)
+			for(int c = 0; c < 3; c++)
+				gamma_pal[k][c] = (uint8_t)(pow((double)pal[k][c] / 255.0,1.0 / gamma) * 255.0);
+	}
+
+	// render 24bit RGB data to raw bmp buffer
+	wxNativePixelData data(bmp);
+	wxNativePixelData::Iterator p(data);
+	for(int y = 0; y < surf_y; ++y)
+	{
+		uint8_t* scan = p.m_ptr;
+		uint8_t* src = &buf[y/zoom*surf_x];
+		for(int x = 0; x < surf_x; x++)
+		{
+			*scan++ = gamma_pal[*src][2];
+			*scan++ = gamma_pal[*src][1];
+			*scan++ = gamma_pal[*src][0];
+			src += (zoom == 1)?1:(x&1);
+		}
+		p.OffsetY(data,1);
+	}
+
+	// loose local buffer
+	delete[] buf;
+
+	return(0);
+}
+
+// render PNM sprite to buffer for sprite preview
+int Terrain::RenderPNMpreview(wxBitmap& bmp,Sprite *spr,int flags,double gamma)
+{
+	// zoom mode
+	int zoom = (flags&Terrain::RENDER_ZOOMX2)?2:1;
+
+	// allocate render buffer for indexed image
+	int surf_x = bmp.GetWidth();
+	int surf_y = bmp.GetHeight();
+	uint8_t* buf = new uint8_t[surf_x*surf_y];
+	uint8_t* buf_end = &buf[surf_x*surf_y];
+
+	// clear background
+	std::memset((void*)buf,230,surf_x*surf_y);
+
+	// center
+	int elev = 0;	
+	int ref_x = (surf_x/zoom - 80)/2;
+	int ref_y = (surf_y/zoom - 80)/2 - elev*18;
+
+	// render tile
+	spr->Render(buf,buf_end,ref_x,ref_y,surf_x);
 
 	// apply gamma correction to palette:
 	if(gamma != last_gamma)
@@ -2827,6 +2888,10 @@ AnimPNM* Terrain::GetPNM(const char* name)
 			return(this->pnms[k]);
 	}
 	return(NULL);
+}
+AnimPNM* Terrain::GetPNM(std::string name)
+{
+	return(GetPNM(name.c_str()));
 }
 
 

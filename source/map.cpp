@@ -370,6 +370,7 @@ MapLayer4::MapLayer4(AnimPNM* pnm, int x_pos, int y_pos, int x_ofs, int y_ofs, i
 	this->y_ofs = y_ofs;
 	this->frame_ofs = frame_ofs;
 	this->frame_limit = (frame_limit<0)?(pnm->frames.size()):(frame_limit);
+	this->in_placement = false;
 }
 MapLayer4::~MapLayer4()
 {
@@ -555,6 +556,7 @@ void SpellMap::Close()
 	selected_event = NULL;
 	unit_sel_land_preference = true;
 	w_unit_hud = true;
+	pnm_selection = NULL;
 		
 	
 	msel.clear();
@@ -3114,6 +3116,103 @@ int SpellMap::PlaceANM(MapXY *pos, AnimL1 *anm)
 	return(0);
 }
 
+// get pointer to PNM animation at position or current cursor if no explicit position given
+MapLayer4* SpellMap::CheckPNM(MapXY* pos)
+{
+	auto posxy = GetSelection();
+	if(pos)
+		posxy = *pos;
+	for(auto& pnm: L4)
+		if(pnm.x_pos == posxy.x && pnm.y_pos == posxy.y)
+			return(&pnm);
+	return(NULL);
+}
+// remove PNM animation at position or current cursor if no explicit position given
+int SpellMap::RemovePNM(MapXY* pos)
+{
+	LockMap();
+	auto posxy = GetSelection();
+	if(pos)
+		posxy = *pos;
+	for(int k = 0; k < L4.size(); k++)
+		if(L4[k].x_pos == posxy.x && L4[k].y_pos == posxy.y)
+		{
+			pnm_selection = NULL;
+			L4.erase(L4.begin() + k);
+			ReleaseMap();
+			return(0);
+		}
+	ReleaseMap();
+	return(1);
+}
+// place or replace ANM at pos or current cursor if no explicit position given
+int SpellMap::PlacePNM(MapXY* pos,AnimPNM* pnm,int x_ofs,int y_ofs)
+{
+	if(!pnm)
+		return(1);
+	auto posxy = GetSelection();
+	if(pos)
+		posxy = *pos;
+	if(!pos->IsSelected())
+		return(1);
+
+	// remove eventual old PNM
+	RemovePNM(pos);
+
+	// add new PNM
+	LockMap();
+	L4.emplace_back(pnm,posxy.x,posxy.y,x_ofs,y_ofs,rand()%pnm->frames.size(),pnm->frames.size());
+	ReleaseMap();
+
+	return(0);
+}
+// try select PNM
+void SpellMap::SelectPNM(MapLayer4* pnm)
+{
+	LockMap();
+	if(!pnm && pnm_selection)
+		pnm_selection->in_placement = false;
+	sound_selection = NULL;
+	for(auto& item: L4)
+		if(&item == pnm)
+			pnm_selection = pnm;
+	ReleaseMap();
+}
+// get selected PNM
+MapLayer4* SpellMap::SelectedPNM()
+{
+	LockMap();
+	for(auto& pnm: L4)
+		if(&pnm == pnm_selection)
+		{
+			ReleaseMap();
+			return(pnm_selection);
+		}
+	pnm_selection = NULL;
+	ReleaseMap();
+	return(pnm_selection);
+}
+// move PNM to new position
+int SpellMap::MovePNM(MapLayer4* pnm,MapXY pos)
+{
+	if(!pnm)
+		return(1);
+	if(!pos.IsSelected())
+		return(1);
+
+	// do not allow overlap with other PNM
+	for(auto& item: L4)
+		if(item.x_pos == pos.x && item.y_pos == pos.y)
+			return(1);
+
+	LockMap();
+	pnm->x_pos = pos.x;
+	pnm->y_pos = pos.y;
+	ReleaseMap();
+	return(0);
+}
+
+
 // check presence of sound at pos or current cursor if no explicit position given
 MapSound* SpellMap::CheckSound(MapXY* pos,MapSound::SoundType type)
 {
@@ -3434,7 +3533,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 	}*/
 
 	
-	// --- Redner Layer 3 - ANM animations ---
+	// --- Render Layer 3 - ANM animations ---
 	if (wL3)
 	{
 		for (i = 0; i < L3.size(); i++)
@@ -3471,7 +3570,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 		}
 	}
 
-	// --- Redner special tiles - START/ESCAPE/TARGET---
+	// --- Render special tiles - START/ESCAPE/TARGET---
 	if (wSTCI)
 	{
 		// for each special sprite type
@@ -3585,7 +3684,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 
 	
 	
-	// --- Redner Layer 4 - PNM animations ---
+	// --- Render Layer 4 - PNM animations ---
 	if (wL4)
 	{			
 		for (i = 0; i < L4.size(); i++)
@@ -3603,6 +3702,11 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 				continue;
 			else if(use_view_mask && unit_view->view[mxy] == 1)
 				fil = terrain->filter.darkpal;
+			//else if(!use_view_mask && cursor == MapXY(pnm->x_pos,pnm->y_pos) && sel_blink_state)
+			else if(!use_view_mask && pnm_selection == pnm && sel_blink_state)
+				fil = terrain->filter.goldpal; // highlight animation
+
+			
 
 			// L1 elevation
 			int y_elev = tiles[mxy].elev;

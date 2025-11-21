@@ -27,6 +27,9 @@
 #include <wx/slider.h>
 #include <wx/frame.h>
 #include <wx/timer.h>
+#include <wx/spinctrl.h>
+
+#include <tuple>
 
 #include "spellcross.h"
 
@@ -44,7 +47,9 @@ class FormANM : public wxFrame
 		SpellData *m_spell_data;
 		Terrain *m_terrain;
 		AnimL1 *m_anim;
+		AnimPNM *m_pnm;
 		bool m_anm_was_set;
+		bool m_is_pnm;
 
 		wxTimer m_timer;
 
@@ -69,11 +74,14 @@ class FormANM : public wxFrame
 		{
 			wxID_MM_SELECT = 5999,
 			wxID_MM_CLOSE,
+			wxID_TXT_RESOURCES,
 			wxID_LB_LIST,
 			wxID_TXT_FRAMES,
 			wxID_LB_FRAMES,
 			wxID_CB_ANIM,
 			wxID_CANVAS,
+			wxID_SPIN_XOFS,
+			wxID_SPIN_YOFS,
 			wxID_TXT_GAMMA,
 			wxID_SLIDE_GAMMA,
 			wxID_CB_ZOOM,
@@ -82,23 +90,31 @@ class FormANM : public wxFrame
 		wxMenuBar* m_menubar10;
 		wxMenu* m_menu19;
 		wxMenu* mmTerrain;
-		wxStaticText* m_staticText93;
+		wxStaticText* txtResources;
 		wxListBox* lbList;
 		wxStaticText* txtFrames;
 		wxListBox* lbFrames;
 		wxCheckBox* cbAnimate;
 		wxPanel* canvas;
+		wxStaticText* m_staticText88;
+		wxSpinCtrl* spinXofs;
+		wxStaticText* m_staticText89;
+		wxSpinCtrl* spinYofs;
 		wxStaticText* txtGamma;
 		wxSlider* slideGamma;
 		wxCheckBox* cbZoom;
 
 	public:
 
-		FormANM( wxWindow* parent,SpellData* spell_data,wxWindowID id = wxID_ANY, const wxString& title = wxT("Terrain layer animations ANM"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 700,500 ), long style = wxDEFAULT_FRAME_STYLE|wxRESIZE_BORDER|wxSTAY_ON_TOP|wxTAB_TRAVERSAL );
+		FormANM( wxWindow* parent,SpellData* spell_data,bool is_pnm,wxWindowID id = wxID_ANY, const wxString& title = wxT("Terrain layer animations ANM"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 700,500 ), long style = wxDEFAULT_FRAME_STYLE|wxRESIZE_BORDER|wxSTAY_ON_TOP|wxTAB_TRAVERSAL );
 		~FormANM();
 		void SetANM(Terrain* terr,AnimL1* anm);
+		void SetPNM(Terrain* terr,AnimPNM* pnm,int x_ofs=0,int y_ofs=0);
 		Terrain* GetSelectedTerrain();
 		AnimL1* GetSelectedAnim();
+		AnimPNM* GetSelectedPNM();
+		std::tuple<int,int> GetPNMoffset();
+		bool wasPNM();
 		bool WasAnmSet();
 
 };

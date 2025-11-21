@@ -307,6 +307,7 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     Bind(wxEVT_MENU,&MyFrame::OnSetGamma,this,ID_SetGamma);
     Bind(wxEVT_MENU,&MyFrame::OnViewSprites,this,ID_ViewSprites);
     Bind(wxEVT_MENU,&MyFrame::OnViewAnms,this,ID_ViewAnms);
+    Bind(wxEVT_MENU,&MyFrame::OnViewPnms,this,ID_ViewPnms);
     Bind(wxEVT_MENU,&MyFrame::OnViewSounds,this,ID_SoundsViewer);
     Bind(wxEVT_MENU,&MyFrame::OnViewObjects,this,ID_ViewObjects);
     Bind(wxEVT_MENU,&MyFrame::OnViewTools, this, ID_ViewTools);
@@ -418,21 +419,41 @@ void MyFrame::OnClose(wxCloseEvent& ev)
         // on close ANM viewer
         Terrain* terr = form_anms->GetSelectedTerrain();
         AnimL1* anm = form_anms->GetSelectedAnim();
+        AnimPNM* pnm = form_anms->GetSelectedPNM();
         bool was_edit = form_anms->WasAnmSet();
+        bool was_pnm =  form_anms->wasPNM();
+        auto [x_ofs,y_ofs] = form_anms->GetPNMoffset();
         form_anms->Destroy();
 
-        if(spell_map && spell_map->IsLoaded() && spell_map->terrain == terr && anm)
+        if(spell_map && spell_map->IsLoaded() && spell_map->terrain == terr)
         {
-            if(was_edit)
+            if(anm)
             {
-                // edit existing map anim
-                spell_map->PlaceANM(&spell_pos,anm);
+                if(was_edit)
+                {
+                    // edit existing map anim
+                    spell_map->PlaceANM(&spell_pos,anm);
+                }
+                else
+                {
+                    // some anim selected - place to clipboard
+                    spell_map->SetBuffer(anm);
+                }
             }
-            else
+            if(pnm)
             {
-                // some anim selected - place to clipboard
-                spell_map->SetBuffer(anm);
+                if(was_edit)
+                {
+                    // edit existing map anim
+                    spell_map->PlacePNM(&spell_pos,pnm,x_ofs,y_ofs);
+                }
+                else
+                {
+                    // some anim selected - place to clipboard
+
+                }
             }
+
         }
     }
     else if(ev.GetId() == ID_SOUNDS_WIN)
@@ -977,7 +998,17 @@ void MyFrame::OnViewAnms(wxCommandEvent& event)
 {
     if(!FindWindowById(ID_ANM_WIN))
     {
-        form_anms = new FormANM(this,spell_data,ID_ANM_WIN);
+        form_anms = new FormANM(this,spell_data,false,ID_ANM_WIN);
+        form_anms->Show();
+    }
+}
+
+// open PNM viewer
+void MyFrame::OnViewPnms(wxCommandEvent& event)
+{
+    if(!FindWindowById(ID_ANM_WIN))
+    {
+        form_anms = new FormANM(this,spell_data,true,ID_ANM_WIN);
         form_anms->Show();
     }
 }
@@ -1330,9 +1361,29 @@ void MyFrame::OnCanvasPopupSelect(wxCommandEvent& event)
         if(!FindWindowById(ID_ANM_WIN))
         {
             spell_pos = spell_map->GetSelection();
-            form_anms = new FormANM(this,spell_data,ID_ANM_WIN);
+            form_anms = new FormANM(this,spell_data,false,ID_ANM_WIN);
             form_anms->SetANM(spell_map->terrain, spell_map->CheckANM()->anim);
             form_anms->Show();
+        }
+    }
+    else if(event.GetId() == ID_POP_REM_PNM)
+    {
+        // remove PNM animation
+        spell_map->RemovePNM();
+    }
+    else if(event.GetId() == ID_POP_EDIT_PNM)
+    {
+        // edit PNM animation
+        if(!FindWindowById(ID_ANM_WIN))
+        {
+            spell_pos = spell_map->GetSelection();
+            auto pnm = spell_map->CheckPNM();
+            if(pnm)
+            {
+                form_anms = new FormANM(this,spell_data,true,ID_ANM_WIN);
+                form_anms->SetPNM(spell_map->terrain,pnm->anim,pnm->x_ofs,pnm->y_ofs);
+                form_anms->Show();
+            }
         }
     }
     else if(event.GetId() == ID_POP_REM_SOUND)
@@ -1376,6 +1427,17 @@ void MyFrame::OnCanvasRMouse(wxMouseEvent& event)
             auto cur_unit = spell_map->GetCursorUnit();
             auto cur_evt = spell_map->GetCursorEvent();
 
+            int wSounds = GetMenuBar()->FindItem(ID_ViewSounds)->IsChecked(); // ###todo: optimize?
+            int wSoundLoops = GetMenuBar()->FindItem(ID_ViewSoundLoops)->IsChecked(); // ###todo: optimize?
+            bool wSound = wSounds || wSoundLoops;
+            MapSound::SoundType snd_type = MapSound::SoundType::BOTH;
+            if(wSounds && wSoundLoops)
+                snd_type = MapSound::SoundType::BOTH;
+            else if(wSounds)
+                snd_type = MapSound::SoundType::RANDOM;
+            else if(wSoundLoops)
+                snd_type = MapSound::SoundType::LOOP;
+
             wxMenu menu;
             menu.SetClientData(cur_unit);
 
@@ -1413,7 +1475,14 @@ void MyFrame::OnCanvasRMouse(wxMouseEvent& event)
                 menu.Append(ID_POP_EDIT_ANM,"Edit ANM tile");
                 menu.Append(ID_POP_REM_ANM,"Remove ANM tile");
             }
-            if(spell_map->CheckSound() && GetMenuBar()->FindItem(ID_ViewSounds)->IsChecked())
+            if(spell_map->CheckPNM() && GetMenuBar()->FindItem(ID_ViewPnm)->IsChecked())
+            {
+                if(menu.GetMenuItemCount())
+                    menu.AppendSeparator();
+                menu.Append(ID_POP_EDIT_PNM,"Edit PNM tile");
+                menu.Append(ID_POP_REM_PNM,"Remove PNM tile");
+            }
+            if(spell_map->CheckSound(NULL,snd_type) && wSound)
             {
                 if(menu.GetMenuItemCount())
                     menu.AppendSeparator();
@@ -1527,7 +1596,13 @@ void MyFrame::OnCanvasMouseMove(wxMouseEvent& event)
     auto sel_evt = spell_map->GetSelectEvent();
     auto* unit = spell_map->GetSelectedUnit();
     auto sel_sound = spell_map->SoundSelected();
-    if(sel_sound && sel_sound->in_placement && mxy.IsSelected())
+    auto* sel_pnm = spell_map->SelectedPNM();
+    if(sel_pnm && sel_pnm->in_placement && mxy.IsSelected())
+    {
+        // change PNM position
+        spell_map->MovePNM(sel_pnm, mxy);
+    }
+    else if(sel_sound && sel_sound->in_placement && mxy.IsSelected())
     {
         // change sound position
         spell_map->SoundMove(sel_sound, mxy, false);
@@ -1723,20 +1798,41 @@ void MyFrame::OnCanvasLMouseDown(wxMouseEvent& event)
         else
         {
             // try select/move stuff:
+            int wPnms = GetMenuBar()->FindItem(ID_ViewPnm)->IsChecked(); // ###todo: optimize?
+            int wEvents = GetMenuBar()->FindItem(ID_ViewEvents)->IsChecked(); // ###todo: optimize?
+            int wSounds = GetMenuBar()->FindItem(ID_ViewSounds)->IsChecked(); // ###todo: optimize?
+            int wSoundLoops = GetMenuBar()->FindItem(ID_ViewSoundLoops)->IsChecked(); // ###todo: optimize?
+            bool wSound = wSounds || wSoundLoops;
+            MapSound::SoundType snd_type = MapSound::SoundType::BOTH;
+            if(wSounds && wSoundLoops)
+                snd_type = MapSound::SoundType::BOTH;
+            else if(wSounds)
+                snd_type = MapSound::SoundType::RANDOM;
+            else if(wSoundLoops)
+                snd_type = MapSound::SoundType::LOOP;
 
             select_pos = spell_map->GetSelection(NULL);
             sel_unit = spell_map->GetSelectedUnit();
             cur_unit = spell_map->GetCursorUnit();
             auto sel_evt = spell_map->GetSelectEvent();
             auto cur_evt = spell_map->GetCursorEvent();
-            auto cur_sound = spell_map->CheckSound();
+            auto cur_sound = spell_map->CheckSound(NULL,snd_type);
             auto sel_sound = spell_map->SoundSelected();
+            auto cur_pnm = spell_map->CheckPNM();
+            auto sel_pnm = spell_map->SelectedPNM();
             if(!spell_map->isGameMode())
             {
-                int wEvents = GetMenuBar()->FindItem(ID_ViewEvents)->IsChecked(); // ###todo: optimize?
-                int wSounds = GetMenuBar()->FindItem(ID_ViewSounds)->IsChecked(); // ###todo: optimize?
-
-                if(wSounds && cur_sound && cur_sound == sel_sound)
+                if(wPnms && cur_pnm && cur_pnm == sel_pnm)
+                {
+                    // move PNM
+                    sel_pnm->in_placement = !sel_pnm->in_placement;
+                }
+                else if(wPnms && cur_pnm)
+                {
+                    // select PNM
+                    spell_map->SelectPNM(cur_pnm);
+                }
+                else if(wSound && cur_sound && cur_sound == sel_sound)
                 {
                     // move sound
                     if(sel_sound->in_placement)
@@ -1747,7 +1843,7 @@ void MyFrame::OnCanvasLMouseDown(wxMouseEvent& event)
                     }
                     sel_sound->in_placement = !sel_sound->in_placement;
                 }
-                else if(wSounds && cur_sound)
+                else if(wSound && cur_sound)
                 {
                     // select sound
                     spell_map->SoundSelect(cur_sound);
