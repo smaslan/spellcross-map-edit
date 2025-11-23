@@ -915,9 +915,9 @@ int SpellMapEvents::RelinkUnits(vector<MapUnit*> *map_units)
 			else
 			{
 				SpellMapEventRec* prev = *tile;
-				while(prev)
+				while(prev->next)
 					prev = prev->next;
-				prev = evt;
+				prev->next = evt;
 			}
 		}
 		else if(evt->hasTargetUnit())

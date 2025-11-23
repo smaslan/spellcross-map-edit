@@ -159,6 +159,9 @@
     <ClCompile Include="forms\form_sound.cpp">
       <Filter>Source Files\forms</Filter>
     </ClCompile>
+    <ClCompile Include="forms\form_flags.cpp">
+      <Filter>Source Files\forms</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="fs_archive.h">
@@ -351,6 +354,9 @@
       <Filter>Header Files\forms</Filter>
     </ClInclude>
     <ClInclude Include="forms\form_sound.h">
+      <Filter>Header Files\forms</Filter>
+    </ClInclude>
+    <ClInclude Include="forms\form_flags.h">
       <Filter>Header Files\forms</Filter>
     </ClInclude>
   </ItemGroup>

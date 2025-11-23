@@ -129,7 +129,14 @@ FormAbout::FormAbout( wxWindow* parent, wxWindowID id, const wxString& title, co
 
 	// === AUTO GENERATED END ===
 
+
 	Bind(wxEVT_COMMAND_BUTTON_CLICKED,&FormAbout::OnClose,this,wxID_BTN_OK);
+
+	// assign button shortcuts
+	std::vector<wxAcceleratorEntry> entries;
+	entries.emplace_back(wxACCEL_NORMAL,WXK_RETURN,wxID_BTN_OK);
+	wxAcceleratorTable accel(entries.size(),entries.data());
+	this->SetAcceleratorTable(accel);
 
 	std::chrono::system_clock::time_point now = std::chrono::system_clock::now();
 	std::time_t currentTime = std::chrono::system_clock::to_time_t(now);

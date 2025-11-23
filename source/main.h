@@ -1,3 +1,14 @@
+//=============================================================================
+// Spellcross Map Editor
+// ----------------------------------------------------------------------------
+// Top level functions, wxWidgets GUI.
+// 
+// This code is part of Spellcross Map Editor project.
+// (c) 2021-2025, Stanislav Maslan, s.maslan@seznam.cz
+// url: https://github.com/smaslan/spellcross-map-edit
+// Distributed under MIT license, https://opensource.org/licenses/MIT.
+//=============================================================================
+
 #ifndef MAIN_H
 #define MAIN_H
 
@@ -27,6 +38,7 @@
 #include "forms/form_mission_params.h"
 #include "forms/form_about.h"
 #include "forms/form_sound.h"
+#include "forms/form_flags.h"
 
 #include <wx/ribbon/buttonbar.h>
 #include <wx/ribbon/panel.h>
@@ -35,8 +47,7 @@
 #include <wx/ribbon/art.h>
 #include <wx/ribbon/bar.h>
 
-
-// main
+// app entry point class
 class MyApp : public wxApp
 {
 private:
@@ -50,13 +61,26 @@ public:
 
 
 
-// main form
-class MyFrame : public wxFrame
+// gamma correction form
+class FormGamma : public wxDialog
 {
 public:
-    MyFrame(SpellMap* map,SpellData* spelldata);      
-    void StatusStringCallback(std::string info);
+    FormGamma(wxFrame* parent,SpellMap* map,wxWindowID id);
+private:
+    void OnChangeGamma(wxCommandEvent& event);
+    void OnClose(wxCloseEvent& ev);
+    void OnExit(wxKeyEvent& event);
+    SpellMap* spell_map;
+    wxSlider* slider;
+};
 
+
+// Main application frame
+class MainFrame : public wxFrame
+{
+public:
+    MainFrame(SpellMap* map,SpellData* spelldata);      
+    void StatusStringCallback(std::string info);
     void CreateHUDbuttons();
 
 private:
@@ -92,6 +116,7 @@ private:
     void OnEditEvent(wxCommandEvent& event);
     void OnViewVideo(wxCommandEvent& event);
     void OnViewMidi(wxCommandEvent& event);
+    void OnTileFlags(wxCommandEvent& event);
     void OnViewVoxZ(wxCommandEvent& event);
     void OnViewMiniMap(wxCommandEvent& event);
     void OnUnitViewDebug(wxCommandEvent& event);
@@ -127,18 +152,22 @@ private:
     void OnCanvasLMouseDown(wxMouseEvent& event);
     void OnCanvasPopupSelect(wxCommandEvent& event);
     void OnUnitClick_cb(int action);
+    
+    // map render buffer
     wxBitmap m_buffer;
     
     wxPanel* canvas;
-    wxMenu* menuView;
-    
+    wxMenu* menuView;    
     wxBoxSizer* sizer;
     wxRibbonBar* ribbonBar = NULL;
     
-    SpellMap* spell_map;
+    // spellcross data object
     SpellData* spell_data;
+    // spellcross map object
+    SpellMap* spell_map;
+    // last selected tile pos
     MapXY spell_pos;
-
+    // selected edit tool
     SpellTool spell_tool;
 
     // last target selection
@@ -147,6 +176,7 @@ private:
     MapUnit* sel_unit;
     int inUnitOptions() {return(form_unit_opts != NULL || form_message != NULL);};
     int inSubForm() {return(
+        form_gamma != NULL ||
         form_sprites != NULL ||
         form_anms != NULL ||
         form_sounds != NULL ||
@@ -168,10 +198,11 @@ private:
     void ShowMessage(SpellTextRec *message, bool is_yesno, std::function<void(bool)> exit_cb=NULL);
     bool CheckMessageState();
 
-    
+    // tick timer
     wxTimer m_timer;
-    //TScroll scroll;
 
+    // sub-forms
+    FormGamma* form_gamma = NULL;
     FormSprite* form_sprites = NULL;
     FormANM* form_anms = NULL;
     FormObjects* form_objects = NULL;
@@ -190,15 +221,18 @@ private:
     FormMapUnits *form_units_list = NULL;
     FormSound *form_sounds = NULL;
     
+    // spellcross HUD interface stuff
     void OnPaintHUDbutton(wxPaintEvent& event);
     void OnHUDbuttonsMouseEnter(wxMouseEvent& event);
     void OnHUDbuttonsLeave(wxMouseEvent& event);
     void OnHUDbuttonsClick(wxMouseEvent& event);
     vector<wxPanel*> hud_buttons;    
 
+    // sub-forms IDs
     enum
     {
         ID_MAIN_WIN = 2000,
+        ID_GAMMA_WIN,
         ID_OBJECTS_WIN,
         ID_SPRITES_WIN,
         ID_ANM_WIN,
@@ -221,6 +255,7 @@ private:
     static constexpr int ID_TOOL_BASE = 10000;
     static constexpr int ID_TOOL_CLASS_STEP = 100;
 
+    // map edit popup menu items
     enum
     {
         ID_POP_ADD_MISSIONSTART = 2100,
@@ -229,6 +264,8 @@ private:
         ID_POP_REM_SEEUNIT,
         ID_POP_EDIT_EVENT,
         ID_POP_EDIT_UNIT,
+        ID_POP_EDIT_OBJ,
+        ID_POP_REM_OBJ,
         ID_POP_EDIT_ANM,
         ID_POP_REM_ANM,
         ID_POP_EDIT_PNM,
@@ -241,18 +278,6 @@ private:
     static constexpr int MAX_MINIMAP_X = 1000;
     static constexpr int MAX_MINIMAP_Y = 400;
 
-};
-
-
-// gamma form
-class FormGamma : public wxDialog
-{
-public:
-    FormGamma(wxFrame* parent,SpellMap* map);    
-private:    
-    void OnChangeGamma(wxCommandEvent& event);
-    SpellMap* spell_map;
-    wxSlider* slider;
 };
 
 
@@ -279,6 +304,7 @@ enum
     ID_ViewSounds,
     ID_ViewSoundLoops,
     ID_ViewEvents,
+    ID_HighlighObj,
     ID_ViewVoxZ,
     ID_ViewMiniMap,
     ID_ExportVoxZ,
@@ -308,6 +334,7 @@ enum
     ID_ElevUp,
     ID_ElevDown,
     ID_CopyBuf,
+    ID_CutBuf,
     ID_PasteBuf,
     ID_ClearBuf,
     ID_PlaceStart,
@@ -316,7 +343,8 @@ enum
     ID_AddUnit,
     ID_UpdateSprContextMaps,
     ID_ViewVideo,
-    ID_ViewMIDI
+    ID_ViewMIDI,
+    ID_EditTileFlags
 };
 
 

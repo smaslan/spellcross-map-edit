@@ -1,4 +1,14 @@
-// wxWidgets "Hello World" Program
+//=============================================================================
+// Spellcross Map Editor
+// ----------------------------------------------------------------------------
+// Top level functions, wxWidgets GUI.
+// 
+// This code is part of Spellcross Map Editor project.
+// (c) 2021-2025, Stanislav Maslan, s.maslan@seznam.cz
+// url: https://github.com/smaslan/spellcross-map-edit
+// Distributed under MIT license, https://opensource.org/licenses/MIT.
+//=============================================================================
+// 
 // For compilers that support precompilation, includes "wx/wx.h".
 #include <wx/wxprec.h>
 #ifndef WX_PRECOMP
@@ -63,10 +73,26 @@ bool MyApp::OnInit()
     // play default MIDI
     string midi_name = ini.GetValue("STATE","default_midi","");
     spell_data->midi->Play(midi_name);
+
+    // default window size
+    int win_x_size = ini.GetLongValue("STATE","win_x_size",1600);
+    int win_y_size = ini.GetLongValue("STATE","win_y_size",1000);
+    bool win_maximize = ini.GetBoolValue("STATE","win_maximize",false);
+
+    // limit to screen size
+    int disp_x_size;
+    int disp_y_size;
+    wxDisplaySize(&disp_x_size,&disp_y_size);
+    win_x_size = min(win_x_size,disp_x_size);
+    win_y_size = min(win_y_size,disp_y_size);
                 
     // --- run main form    
     // main window frame
-    MyFrame* frame = new MyFrame(spell_map, spell_data);
+    MainFrame* frame = new MainFrame(spell_map, spell_data);
+    frame->SetSize(win_x_size,win_y_size);
+    if(win_maximize)
+        frame->Maximize();
+    frame->Center();
     // show main frame
     frame->Show(true);
     return(true);
@@ -92,8 +118,8 @@ int MyApp::OnExit()
     return(0);
 }
 
-
-MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "Spellcross Map Editor", wxDefaultPosition, wxSize(1600,1000))
+// Main panel init
+MainFrame::MainFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "Spellcross Map Editor", wxDefaultPosition, wxSize(1600,1000))
 {
     // store local reference to initial map and data
     spell_map = map;
@@ -152,7 +178,9 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     menuView->Append(ID_ViewSounds,"Layer 8: Sounds\tF8","",wxITEM_CHECK);
     menuView->FindItem(ID_ViewSounds)->Check(false);
     menuView->Append(ID_ViewEvents,"Show events\tF9","",wxITEM_CHECK);
-    menuView->FindItem(ID_ViewEvents)->Check(false);
+    menuView->FindItem(ID_ViewEvents)->Check(false);    
+    menuView->Append(ID_HighlighObj,"Highlight objects\tF10","",wxITEM_CHECK);
+    menuView->FindItem(ID_HighlighObj)->Check(false);
     menuView->Append(ID_ViewHUD,"Show mission HUD panel\tCtrl+H","",wxITEM_CHECK);
     menuView->FindItem(ID_ViewHUD)->Check(spell_map->GetHUDstate());
     menuView->Append(ID_UnitViewDbg,"Enable unit view debug mode\tCtrl+D","",wxITEM_CHECK);    
@@ -177,6 +205,7 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     menuEdit->Append(ID_SelectDeselect,"Select/deselect tiles\tCtrl+Insert","",wxITEM_NORMAL);
     menuEdit->Append(wxID_ANY,"","",wxITEM_SEPARATOR);
     menuEdit->Append(ID_CopyBuf,"Copy selection to buffer\tCtrl+C","",wxITEM_NORMAL);
+    menuEdit->Append(ID_CutBuf,"Cut selection to buffer\tCtrl+X","",wxITEM_NORMAL);
     menuEdit->Append(ID_PasteBuf,"Paste from buffer\tCtrl+V","",wxITEM_NORMAL);
     menuEdit->Append(ID_ClearBuf,"Clear buffer\tESC","",wxITEM_NORMAL);
     menuEdit->Append(wxID_ANY,"","",wxITEM_SEPARATOR);
@@ -206,6 +235,7 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     menuTools->Append(ID_EditEvent,"Event viewer/editor\tCtrl+E","",wxITEM_NORMAL);
     menuTools->Append(ID_ViewVideo,"Video viewer","",wxITEM_NORMAL);
     menuTools->Append(ID_ViewMIDI,"MIDI player","",wxITEM_NORMAL);
+    menuTools->Append(ID_EditTileFlags,"Edit tile flags\tCtrl+F","",wxITEM_NORMAL);
     menuTools->Append(wxID_ANY,"","",wxITEM_SEPARATOR);
     menuTools->Append(ID_ViewMiniMap,"View mini-map","",wxITEM_NORMAL);
     menuTools->Append(ID_ViewVoxZ,"View Z-map","",wxITEM_NORMAL);
@@ -234,11 +264,10 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     SetStatusWidths(8,ss_w);
     SetStatusText("");
       
-
+    // tick timer
     m_timer.SetOwner(this);
-    this->Connect(wxEVT_TIMER,wxTimerEventHandler(MyFrame::OnTimer),NULL,this);
+    this->Connect(wxEVT_TIMER,wxTimerEventHandler(MainFrame::OnTimer),NULL,this);
     m_timer.Start(10);
-
 
     // main sizer 
     sizer = new wxBoxSizer(wxVERTICAL); 
@@ -252,8 +281,8 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     //sizer->Add(ribbonBar,0,wxALL|wxEXPAND,2);
     
 
-    Bind(wxEVT_RIBBONBUTTONBAR_CLICKED,&MyFrame::OnToolBtnClick,this);
-    Bind(wxEVT_RIBBONBAR_PAGE_CHANGED,&MyFrame::OnToolPageClick,this);
+    Bind(wxEVT_RIBBONBUTTONBAR_CLICKED,&MainFrame::OnToolBtnClick,this);
+    Bind(wxEVT_RIBBONBAR_PAGE_CHANGED,&MainFrame::OnToolPageClick,this);
 
     // make and attach render canvas
     canvas = new wxPanel(this,ID_Canvas,wxDefaultPosition,wxDefaultSize,wxTAB_TRAVERSAL);
@@ -262,86 +291,87 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     canvas->SetDoubleBuffered(true);
     
 
-    canvas->Bind(wxEVT_CLOSE_WINDOW,&MyFrame::OnClose,this);
-    canvas->Bind(wxEVT_PAINT,&MyFrame::OnPaintCanvas,this);
-    canvas->Bind(wxEVT_RIGHT_DOWN,&MyFrame::OnCanvasRMouse,this);
-    canvas->Bind(wxEVT_RIGHT_UP,&MyFrame::OnCanvasRMouse,this);
-    canvas->Bind(wxEVT_MOTION,&MyFrame::OnCanvasMouseMove,this);
-    canvas->Bind(wxEVT_LEAVE_WINDOW,&MyFrame::OnCanvasMouseLeave,this);
-    canvas->Bind(wxEVT_ENTER_WINDOW,&MyFrame::OnCanvasMouseEnter,this);
-    canvas->Bind(wxEVT_MOUSEWHEEL,&MyFrame::OnCanvasMouseWheel,this);
-    canvas->Bind(wxEVT_KEY_DOWN,&MyFrame::OnCanvasKeyDown,this);
-    canvas->Bind(wxEVT_LEFT_DOWN,&MyFrame::OnCanvasLMouseDown,this);
-    canvas->Bind(wxEVT_THREAD,&MyFrame::OnThreadCanvas,this);
+    canvas->Bind(wxEVT_CLOSE_WINDOW,&MainFrame::OnClose,this);
+    canvas->Bind(wxEVT_PAINT,&MainFrame::OnPaintCanvas,this);
+    canvas->Bind(wxEVT_RIGHT_DOWN,&MainFrame::OnCanvasRMouse,this);
+    canvas->Bind(wxEVT_RIGHT_UP,&MainFrame::OnCanvasRMouse,this);
+    canvas->Bind(wxEVT_MOTION,&MainFrame::OnCanvasMouseMove,this);
+    canvas->Bind(wxEVT_LEAVE_WINDOW,&MainFrame::OnCanvasMouseLeave,this);
+    canvas->Bind(wxEVT_ENTER_WINDOW,&MainFrame::OnCanvasMouseEnter,this);
+    canvas->Bind(wxEVT_MOUSEWHEEL,&MainFrame::OnCanvasMouseWheel,this);
+    canvas->Bind(wxEVT_KEY_DOWN,&MainFrame::OnCanvasKeyDown,this);
+    canvas->Bind(wxEVT_LEFT_DOWN,&MainFrame::OnCanvasLMouseDown,this);
+    canvas->Bind(wxEVT_THREAD,&MainFrame::OnThreadCanvas,this);
     
 
     this->SetSizer(sizer);    
     this->SetAutoLayout(true);
     this->Layout();
 
-    Bind(wxEVT_CLOSE_WINDOW, &MyFrame::OnClose, this);
+    Bind(wxEVT_CLOSE_WINDOW, &MainFrame::OnClose, this);
     
-    Bind(wxEVT_MENU,&MyFrame::OnOpenMap,this,ID_OpenMap);
-    Bind(wxEVT_MENU,&MyFrame::OnSaveMap,this,ID_SaveMap);
-    Bind(wxEVT_MENU,&MyFrame::OnSaveDTA,this,ID_SaveDTA);
-    Bind(wxEVT_MENU,&MyFrame::OnSaveDEF,this,ID_SaveDEF);
-    Bind(wxEVT_MENU,&MyFrame::OnNewMap,this,ID_NewMap);
-    Bind(wxEVT_MENU,&MyFrame::OnAbout, this, wxID_ABOUT);
-    Bind(wxEVT_MENU,&MyFrame::OnExit, this, wxID_EXIT);
+    Bind(wxEVT_MENU,&MainFrame::OnOpenMap,this,ID_OpenMap);
+    Bind(wxEVT_MENU,&MainFrame::OnSaveMap,this,ID_SaveMap);
+    Bind(wxEVT_MENU,&MainFrame::OnSaveDTA,this,ID_SaveDTA);
+    Bind(wxEVT_MENU,&MainFrame::OnSaveDEF,this,ID_SaveDEF);
+    Bind(wxEVT_MENU,&MainFrame::OnNewMap,this,ID_NewMap);
+    Bind(wxEVT_MENU,&MainFrame::OnAbout, this, wxID_ABOUT);
+    Bind(wxEVT_MENU,&MainFrame::OnExit, this, wxID_EXIT);
 
-    Bind(wxEVT_MENU,&MyFrame::OnSwitchGameMode,this,ID_mmGameMode);
-    Bind(wxEVT_MENU,&MyFrame::OnResetUnitView,this,ID_mmResetViewMap);
-    Bind(wxEVT_MENU,&MyFrame::OnSelectUnitView,this,ID_mmUnitViewMode);
+    Bind(wxEVT_MENU,&MainFrame::OnSwitchGameMode,this,ID_mmGameMode);
+    Bind(wxEVT_MENU,&MainFrame::OnResetUnitView,this,ID_mmResetViewMap);
+    Bind(wxEVT_MENU,&MainFrame::OnSelectUnitView,this,ID_mmUnitViewMode);
 
-    Bind(wxEVT_MENU,&MyFrame::OnViewLayer,this,ID_ViewTer);
-    Bind(wxEVT_MENU,&MyFrame::OnViewLayer,this,ID_ViewObj);
-    Bind(wxEVT_MENU,&MyFrame::OnViewLayer,this,ID_ViewAnm);
-    Bind(wxEVT_MENU,&MyFrame::OnViewLayer,this,ID_ViewPnm);
-    Bind(wxEVT_MENU,&MyFrame::OnViewLayer,this,ID_ViewUnt);
-    Bind(wxEVT_MENU,&MyFrame::OnViewLayer,this,ID_ViewStTa);
-    Bind(wxEVT_MENU,&MyFrame::OnViewLayer,this,ID_ViewHUD);
-    Bind(wxEVT_MENU,&MyFrame::OnViewLayer,this,ID_ViewSounds);
-    Bind(wxEVT_MENU,&MyFrame::OnViewLayer,this,ID_ViewSoundLoops);
-    Bind(wxEVT_MENU,&MyFrame::OnViewLayer,this,ID_ViewEvents);
+    Bind(wxEVT_MENU,&MainFrame::OnViewLayer,this,ID_ViewTer);
+    Bind(wxEVT_MENU,&MainFrame::OnViewLayer,this,ID_ViewObj);
+    Bind(wxEVT_MENU,&MainFrame::OnViewLayer,this,ID_ViewAnm);
+    Bind(wxEVT_MENU,&MainFrame::OnViewLayer,this,ID_ViewPnm);
+    Bind(wxEVT_MENU,&MainFrame::OnViewLayer,this,ID_ViewUnt);
+    Bind(wxEVT_MENU,&MainFrame::OnViewLayer,this,ID_ViewStTa);
+    Bind(wxEVT_MENU,&MainFrame::OnViewLayer,this,ID_ViewHUD);
+    Bind(wxEVT_MENU,&MainFrame::OnViewLayer,this,ID_ViewSounds);
+    Bind(wxEVT_MENU,&MainFrame::OnViewLayer,this,ID_ViewSoundLoops);
+    Bind(wxEVT_MENU,&MainFrame::OnViewLayer,this,ID_ViewEvents);
+    Bind(wxEVT_MENU,&MainFrame::OnViewLayer,this,ID_HighlighObj);
 
-    Bind(wxEVT_MENU,&MyFrame::OnSetGamma,this,ID_SetGamma);
-    Bind(wxEVT_MENU,&MyFrame::OnViewSprites,this,ID_ViewSprites);
-    Bind(wxEVT_MENU,&MyFrame::OnViewAnms,this,ID_ViewAnms);
-    Bind(wxEVT_MENU,&MyFrame::OnViewPnms,this,ID_ViewPnms);
-    Bind(wxEVT_MENU,&MyFrame::OnViewSounds,this,ID_SoundsViewer);
-    Bind(wxEVT_MENU,&MyFrame::OnViewObjects,this,ID_ViewObjects);
-    Bind(wxEVT_MENU,&MyFrame::OnViewTools, this, ID_ViewTools);
-    Bind(wxEVT_MENU,&MyFrame::OnViewPal,this,ID_ViewPal);
-    Bind(wxEVT_MENU,&MyFrame::OnViewGrRes,this,ID_ViewGRes);
-    Bind(wxEVT_MENU,&MyFrame::OnEditUnit,this,ID_EditUnit);
-    Bind(wxEVT_MENU,&MyFrame::OnEditEvent,this,ID_EditEvent);
-    Bind(wxEVT_MENU,&MyFrame::OnViewVideo,this,ID_ViewVideo);
-    Bind(wxEVT_MENU,&MyFrame::OnViewMidi,this,ID_ViewMIDI);
-    Bind(wxEVT_MENU,&MyFrame::OnViewVoxZ,this,ID_ViewVoxZ);
-    Bind(wxEVT_MENU,&MyFrame::OnViewVoxZ,this,ID_ExportVoxZ);
-    Bind(wxEVT_MENU,&MyFrame::OnViewMiniMap,this,ID_ViewMiniMap);
-    Bind(wxEVT_MENU,&MyFrame::OnUnitViewDebug,this,ID_UnitViewDbg);
-    Bind(wxEVT_MENU,&MyFrame::OnUpdateTileContext,this,ID_UpdateSprContext);
-    Bind(wxEVT_MENU,&MyFrame::OnUpdateTileContextMaps,this,ID_UpdateSprContextMaps);
+    Bind(wxEVT_MENU,&MainFrame::OnSetGamma,this,ID_SetGamma);
+    Bind(wxEVT_MENU,&MainFrame::OnViewSprites,this,ID_ViewSprites);
+    Bind(wxEVT_MENU,&MainFrame::OnViewAnms,this,ID_ViewAnms);
+    Bind(wxEVT_MENU,&MainFrame::OnViewPnms,this,ID_ViewPnms);
+    Bind(wxEVT_MENU,&MainFrame::OnViewSounds,this,ID_SoundsViewer);
+    Bind(wxEVT_MENU,&MainFrame::OnViewObjects,this,ID_ViewObjects);
+    Bind(wxEVT_MENU,&MainFrame::OnViewTools, this, ID_ViewTools);
+    Bind(wxEVT_MENU,&MainFrame::OnViewPal,this,ID_ViewPal);
+    Bind(wxEVT_MENU,&MainFrame::OnViewGrRes,this,ID_ViewGRes);
+    Bind(wxEVT_MENU,&MainFrame::OnEditUnit,this,ID_EditUnit);
+    Bind(wxEVT_MENU,&MainFrame::OnEditEvent,this,ID_EditEvent);
+    Bind(wxEVT_MENU,&MainFrame::OnViewVideo,this,ID_ViewVideo);
+    Bind(wxEVT_MENU,&MainFrame::OnViewMidi,this,ID_ViewMIDI);
+    Bind(wxEVT_MENU,&MainFrame::OnTileFlags,this,ID_EditTileFlags);
+    Bind(wxEVT_MENU,&MainFrame::OnViewVoxZ,this,ID_ViewVoxZ);
+    Bind(wxEVT_MENU,&MainFrame::OnViewVoxZ,this,ID_ExportVoxZ);
+    Bind(wxEVT_MENU,&MainFrame::OnViewMiniMap,this,ID_ViewMiniMap);
+    Bind(wxEVT_MENU,&MainFrame::OnUnitViewDebug,this,ID_UnitViewDbg);
+    Bind(wxEVT_MENU,&MainFrame::OnUpdateTileContext,this,ID_UpdateSprContext);
+    Bind(wxEVT_MENU,&MainFrame::OnUpdateTileContextMaps,this,ID_UpdateSprContextMaps);
     
-    Bind(wxEVT_MENU,&MyFrame::OnEditMissionParams,this,ID_EditMissionParams);
-    Bind(wxEVT_MENU,&MyFrame::OnCopyBuf,this,ID_CopyBuf);
-    Bind(wxEVT_MENU,&MyFrame::OnPasteBuf,this,ID_PasteBuf);
-    Bind(wxEVT_MENU,&MyFrame::OnClearBuf,this,ID_ClearBuf);
-    Bind(wxEVT_MENU,&MyFrame::OnChangeElevation,this,ID_ElevUp);
-    Bind(wxEVT_MENU,&MyFrame::OnChangeElevation,this,ID_ElevDown);
-    Bind(wxEVT_MENU,&MyFrame::OnSelectAll,this,ID_SelectAll);
-    Bind(wxEVT_MENU,&MyFrame::OnDeselectAll,this,ID_DeselectAll);
-    Bind(wxEVT_MENU,&MyFrame::OnSelectDeselect,this,ID_SelectDeselect);
-    Bind(wxEVT_MENU,&MyFrame::OnInvalidateSelection,this,ID_InvalidateSel);
-    Bind(wxEVT_MENU,&MyFrame::OnDeleteSel,this,ID_DeleteSel);
-    Bind(wxEVT_MENU,&MyFrame::OnCreateNewObject,this,ID_CreateNewObject);
-    Bind(wxEVT_MENU,&MyFrame::OnAddUnit,this,ID_AddUnit);
+    Bind(wxEVT_MENU,&MainFrame::OnEditMissionParams,this,ID_EditMissionParams);
+    Bind(wxEVT_MENU,&MainFrame::OnCopyBuf,this,ID_CopyBuf);
+    Bind(wxEVT_MENU,&MainFrame::OnCopyBuf,this,ID_CutBuf);
+    Bind(wxEVT_MENU,&MainFrame::OnPasteBuf,this,ID_PasteBuf);
+    Bind(wxEVT_MENU,&MainFrame::OnClearBuf,this,ID_ClearBuf);
+    Bind(wxEVT_MENU,&MainFrame::OnChangeElevation,this,ID_ElevUp);
+    Bind(wxEVT_MENU,&MainFrame::OnChangeElevation,this,ID_ElevDown);
+    Bind(wxEVT_MENU,&MainFrame::OnSelectAll,this,ID_SelectAll);
+    Bind(wxEVT_MENU,&MainFrame::OnDeselectAll,this,ID_DeselectAll);
+    Bind(wxEVT_MENU,&MainFrame::OnSelectDeselect,this,ID_SelectDeselect);
+    Bind(wxEVT_MENU,&MainFrame::OnInvalidateSelection,this,ID_InvalidateSel);
+    Bind(wxEVT_MENU,&MainFrame::OnDeleteSel,this,ID_DeleteSel);
+    Bind(wxEVT_MENU,&MainFrame::OnCreateNewObject,this,ID_CreateNewObject);
+    Bind(wxEVT_MENU,&MainFrame::OnAddUnit,this,ID_AddUnit);
 
-
-
-    spell_map->SetMessageInterface(bind(&MyFrame::ShowMessage,this,placeholders::_1,placeholders::_2,placeholders::_3), bind(&MyFrame::CheckMessageState,this));
-
+    spell_map->SetMessageInterface(bind(&MainFrame::ShowMessage,this,placeholders::_1,placeholders::_2,placeholders::_3), bind(&MainFrame::CheckMessageState,this));    
+    
     // main sizer 
     /*auto sizer2 = new wxBoxSizer(wxVERTICAL);
 
@@ -361,13 +391,13 @@ MyFrame::MyFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "S
     
 }
 // on form close
-void MyFrame::OnExit(wxCommandEvent& event)
+void MainFrame::OnExit(wxCommandEvent& event)
 {
     spell_map->Close();
     Close(true);
 }
 // about message
-void MyFrame::OnAbout(wxCommandEvent& event)
+void MainFrame::OnAbout(wxCommandEvent& event)
 {
     auto form = new FormAbout(this);
     if(form->ShowModal() == wxID_OK)
@@ -377,20 +407,24 @@ void MyFrame::OnAbout(wxCommandEvent& event)
     delete form;
 }
 // callback function to write status messages from within the spellcross routines:
-// usage: make and pass callback pointer using: bind(&MyFrame::StatusStringCallback,this,placeholders::_1)
+// usage: make and pass callback pointer using: bind(&MainFrame::StatusStringCallback,this,placeholders::_1)
 // spellcross function example:
 // void whatever_function(std::function<void(std::string)> status_cb)
 // {
 //   status_cb("Some message");
 // }
-void MyFrame::StatusStringCallback(std::string info)
+void MainFrame::StatusStringCallback(std::string info)
 {
     SetStatusText(info,7);
 }
 
-void MyFrame::OnClose(wxCloseEvent& ev)
+void MainFrame::OnClose(wxCloseEvent& ev)
 {
-    if (ev.GetId() == ID_TOOLS_WIN)
+    if(ev.GetId() == ID_GAMMA_WIN)
+    {
+        form_gamma->Destroy();
+    }
+    else if (ev.GetId() == ID_TOOLS_WIN)
     {
         form_tools->Destroy();
         LoadToolsetRibbon();
@@ -593,7 +627,7 @@ void MyFrame::OnClose(wxCloseEvent& ev)
 
 
 // on switch game mode
-void MyFrame::OnSwitchGameMode(wxCommandEvent& event)
+void MainFrame::OnSwitchGameMode(wxCommandEvent& event)
 {
     if(!spell_map->IsLoaded())
         return;
@@ -630,7 +664,7 @@ void MyFrame::OnSwitchGameMode(wxCommandEvent& event)
 }
 
 // on reset view range in game mode
-void MyFrame::OnResetUnitView(wxCommandEvent& event)
+void MainFrame::OnResetUnitView(wxCommandEvent& event)
 {
     if(!spell_map->IsLoaded())
         return;
@@ -641,7 +675,7 @@ void MyFrame::OnResetUnitView(wxCommandEvent& event)
 }
 
 // cycle unit range view modes
-void MyFrame::OnSelectUnitView(wxCommandEvent& event)
+void MainFrame::OnSelectUnitView(wxCommandEvent& event)
 {
     if(!spell_map->IsLoaded())
         return;
@@ -658,7 +692,7 @@ void MyFrame::OnSelectUnitView(wxCommandEvent& event)
 
 
 // map animation periodic refresh tick
-void MyFrame::OnTimer(wxTimerEvent& event)
+void MainFrame::OnTimer(wxTimerEvent& event)
 {
     if(!spell_map->IsLoaded())
         return;
@@ -666,7 +700,7 @@ void MyFrame::OnTimer(wxTimerEvent& event)
         canvas->Refresh();
 }
 // on main panel resizing
-void MyFrame::OnResize(wxSizeEvent& event)
+void MainFrame::OnResize(wxSizeEvent& event)
 {
     if(spell_map)
         spell_map->scroller.SetSurface(canvas->GetClientSize().GetWidth(),canvas->GetClientSize().GetHeight());
@@ -674,11 +708,11 @@ void MyFrame::OnResize(wxSizeEvent& event)
 }
 
 // render canvas repaint event
-void MyFrame::OnThreadCanvas(wxThreadEvent& event)
+void MainFrame::OnThreadCanvas(wxThreadEvent& event)
 {
     canvas->Refresh();
 }
-void MyFrame::OnPaintCanvas(wxPaintEvent& event)
+void MainFrame::OnPaintCanvas(wxPaintEvent& event)
 {       
     // make buffer
     if(!m_buffer.IsOk() || m_buffer.GetSize() != canvas->GetClientSize())
@@ -690,7 +724,7 @@ void MyFrame::OnPaintCanvas(wxPaintEvent& event)
     else
     {
         wxPaintDC pdc(canvas);
-        spell_map->Render(m_buffer,NULL,&spell_tool,bind(&MyFrame::CreateHUDbuttons,this));
+        spell_map->Render(m_buffer,NULL,&spell_tool,bind(&MainFrame::CreateHUDbuttons,this));
         pdc.DrawBitmap(m_buffer,wxPoint(0,0));
     }
 
@@ -698,7 +732,7 @@ void MyFrame::OnPaintCanvas(wxPaintEvent& event)
 }
 
 
-void MyFrame::CreateHUDbuttons()
+void MainFrame::CreateHUDbuttons()
 {
     // mark all buttons as unused
     for(auto & pan : hud_buttons)
@@ -736,11 +770,11 @@ void MyFrame::CreateHUDbuttons()
         wx_btn->SetWindowStyle(wxTRANSPARENT_WINDOW);       
         wx_btn->SetBackgroundStyle(wxBG_STYLE_PAINT);
         wx_btn->SetDoubleBuffered(true);        
-        wx_btn->Bind(wxEVT_PAINT,&MyFrame::OnPaintHUDbutton,this);
-        wx_btn->Bind(wxEVT_LEAVE_WINDOW,&MyFrame::OnHUDbuttonsLeave,this);
-        wx_btn->Bind(wxEVT_ENTER_WINDOW,&MyFrame::OnHUDbuttonsMouseEnter,this);
-        wx_btn->Bind(wxEVT_LEFT_DOWN,&MyFrame::OnHUDbuttonsClick,this);
-        wx_btn->Bind(wxEVT_LEFT_UP,&MyFrame::OnHUDbuttonsClick,this);
+        wx_btn->Bind(wxEVT_PAINT,&MainFrame::OnPaintHUDbutton,this);
+        wx_btn->Bind(wxEVT_LEAVE_WINDOW,&MainFrame::OnHUDbuttonsLeave,this);
+        wx_btn->Bind(wxEVT_ENTER_WINDOW,&MainFrame::OnHUDbuttonsMouseEnter,this);
+        wx_btn->Bind(wxEVT_LEFT_DOWN,&MainFrame::OnHUDbuttonsClick,this);
+        wx_btn->Bind(wxEVT_LEFT_UP,&MainFrame::OnHUDbuttonsClick,this);
         hud_buttons.push_back(wx_btn);
     }
 
@@ -754,7 +788,7 @@ void MyFrame::CreateHUDbuttons()
         }
     }
 }
-void MyFrame::OnPaintHUDbutton(wxPaintEvent& event)
+void MainFrame::OnPaintHUDbutton(wxPaintEvent& event)
 {
     wxPanel* pan = (wxPanel*)event.GetEventObject();
     auto* btn = spell_map->GetHUDbutton(pan->GetId());
@@ -770,7 +804,7 @@ void MyFrame::OnPaintHUDbutton(wxPaintEvent& event)
     }
     event.Skip();
 }
-void MyFrame::OnHUDbuttonsMouseEnter(wxMouseEvent& event)
+void MainFrame::OnHUDbuttonsMouseEnter(wxMouseEvent& event)
 {
     wxPanel* pan = (wxPanel*)event.GetEventObject();
     auto* btn = spell_map->GetHUDbutton(pan->GetId());
@@ -804,7 +838,7 @@ void MyFrame::OnHUDbuttonsMouseEnter(wxMouseEvent& event)
     // default game cursor
     SetCursor(*spell_data->gres.cur_pointer);
 }
-void MyFrame::OnHUDbuttonsLeave(wxMouseEvent& event)
+void MainFrame::OnHUDbuttonsLeave(wxMouseEvent& event)
 {
     wxPanel* pan = (wxPanel*)event.GetEventObject();
     auto* btn = spell_map->GetHUDbutton(pan->GetId());
@@ -814,7 +848,7 @@ void MyFrame::OnHUDbuttonsLeave(wxMouseEvent& event)
         pan->Refresh();
     }
 }
-void MyFrame::OnHUDbuttonsClick(wxMouseEvent& event)
+void MainFrame::OnHUDbuttonsClick(wxMouseEvent& event)
 {
     wxPanel* pan = (wxPanel*)event.GetEventObject();
     auto* btn = spell_map->GetHUDbutton(pan->GetId());
@@ -855,7 +889,7 @@ void MyFrame::OnHUDbuttonsClick(wxMouseEvent& event)
 
 
 // on change of map layer view
-void MyFrame::OnViewLayer(wxCommandEvent& event)
+void MainFrame::OnViewLayer(wxCommandEvent& event)
 {
     bool wL1 = GetMenuBar()->FindItem(ID_ViewTer)->IsChecked();
     bool wL2 = GetMenuBar()->FindItem(ID_ViewObj)->IsChecked();
@@ -866,14 +900,15 @@ void MyFrame::OnViewLayer(wxCommandEvent& event)
     bool wSound = GetMenuBar()->FindItem(ID_ViewSounds)->IsChecked();
     bool wSoundLoop = GetMenuBar()->FindItem(ID_ViewSoundLoops)->IsChecked();
     bool wEvents = GetMenuBar()->FindItem(ID_ViewEvents)->IsChecked();
-    spell_map->SetRender(wL1,wL2,wL3,wL4,wSS,wL5,wSound,wSoundLoop,wEvents);
+    bool wHobj = GetMenuBar()->FindItem(ID_HighlighObj)->IsChecked();
+    spell_map->SetRender(wL1,wL2,wL3,wL4,wSS,wL5,wSound,wSoundLoop,wEvents,wHobj);
     bool hud = GetMenuBar()->FindItem(ID_ViewHUD)->IsChecked();
     spell_map->SetHUDstate(hud);
     Refresh();
 }
 
 // enable disable unit view debug mode
-void MyFrame::OnUnitViewDebug(wxCommandEvent& event)
+void MainFrame::OnUnitViewDebug(wxCommandEvent& event)
 {    
     if(!spell_map->IsLoaded())
         return;
@@ -885,7 +920,7 @@ void MyFrame::OnUnitViewDebug(wxCommandEvent& event)
 }
 
 // open new map
-void MyFrame::OnOpenMap(wxCommandEvent& event)
+void MainFrame::OnOpenMap(wxCommandEvent& event)
 {
     // split path to folder and file
     std::filesystem::path last_path = spell_map->GetTopPath();
@@ -912,7 +947,7 @@ void MyFrame::OnOpenMap(wxCommandEvent& event)
 }
 
 // save map data files
-void MyFrame::OnSaveMap(wxCommandEvent& event)
+void MainFrame::OnSaveMap(wxCommandEvent& event)
 {
     if(!spell_map || !spell_map->IsLoaded())
         return;
@@ -922,7 +957,7 @@ void MyFrame::OnSaveMap(wxCommandEvent& event)
 }
 
 // save map DTA file
-void MyFrame::OnSaveDTA(wxCommandEvent& event)
+void MainFrame::OnSaveDTA(wxCommandEvent& event)
 {
     if(!spell_map || !spell_map->IsLoaded())
         return;
@@ -944,7 +979,7 @@ void MyFrame::OnSaveDTA(wxCommandEvent& event)
 }
 
 // save map DEF file
-void MyFrame::OnSaveDEF(wxCommandEvent& event)
+void MainFrame::OnSaveDEF(wxCommandEvent& event)
 {
     if(!spell_map || !spell_map->IsLoaded())
         return;
@@ -966,7 +1001,7 @@ void MyFrame::OnSaveDEF(wxCommandEvent& event)
 }
 
 // create new map
-void MyFrame::OnNewMap(wxCommandEvent& event)
+void MainFrame::OnNewMap(wxCommandEvent& event)
 {
     // create some map (###todo: set parameters by some menu)
     spell_map->Create(spell_data, "T11", 20,50);
@@ -976,15 +1011,17 @@ void MyFrame::OnNewMap(wxCommandEvent& event)
 }
 
 // set gamma correction
-void MyFrame::OnSetGamma(wxCommandEvent& event)
+void MainFrame::OnSetGamma(wxCommandEvent& event)
 {
-    //form_map_options = new FormMapOptions(canvas,ID_MAP_OPT_WIN,spell_map);
-    FormGamma *gamma_form = new FormGamma(this, spell_map);
-    gamma_form->Show(true);
+    if(!FindWindowById(ID_GAMMA_WIN))
+    {
+        form_gamma = new FormGamma(this,spell_map,ID_GAMMA_WIN);
+        form_gamma->Show();
+    } 
 }
 
 // open sprite viewer
-void MyFrame::OnViewSprites(wxCommandEvent& event)
+void MainFrame::OnViewSprites(wxCommandEvent& event)
 {    
     if(!FindWindowById(ID_SPRITES_WIN))
     {
@@ -994,7 +1031,7 @@ void MyFrame::OnViewSprites(wxCommandEvent& event)
 }
 
 // open ANM viewer
-void MyFrame::OnViewAnms(wxCommandEvent& event)
+void MainFrame::OnViewAnms(wxCommandEvent& event)
 {
     if(!FindWindowById(ID_ANM_WIN))
     {
@@ -1004,7 +1041,7 @@ void MyFrame::OnViewAnms(wxCommandEvent& event)
 }
 
 // open PNM viewer
-void MyFrame::OnViewPnms(wxCommandEvent& event)
+void MainFrame::OnViewPnms(wxCommandEvent& event)
 {
     if(!FindWindowById(ID_ANM_WIN))
     {
@@ -1014,7 +1051,7 @@ void MyFrame::OnViewPnms(wxCommandEvent& event)
 }
 
 // open sounds viewer
-void MyFrame::OnViewSounds(wxCommandEvent& event)
+void MainFrame::OnViewSounds(wxCommandEvent& event)
 {
     if(!FindWindowById(ID_SOUNDS_WIN))
     {
@@ -1024,7 +1061,7 @@ void MyFrame::OnViewSounds(wxCommandEvent& event)
 }
 
 // update tiles context from map selection
-void MyFrame::OnUpdateTileContext(wxCommandEvent& event)
+void MainFrame::OnUpdateTileContext(wxCommandEvent& event)
 {
     if(!spell_map->IsLoaded())
         return;
@@ -1033,7 +1070,7 @@ void MyFrame::OnUpdateTileContext(wxCommandEvent& event)
 }
 
 // update tiles context from all maps
-void MyFrame::OnUpdateTileContextMaps(wxCommandEvent& event)
+void MainFrame::OnUpdateTileContextMaps(wxCommandEvent& event)
 {   
     // split path to folder and file
     wstring dir = spell_data->spell_data_root + L"\\DATA\\COMMON\\";
@@ -1045,35 +1082,35 @@ void MyFrame::OnUpdateTileContextMaps(wxCommandEvent& event)
     wstring path = wstring(fd.GetPath().ToStdWstring());
     
     // load map context (###todo: add terrain type selector?)
-    spell_data->BuildSpriteContextOfMaps(path, "T11", bind(&MyFrame::StatusStringCallback,this,placeholders::_1));
+    spell_data->BuildSpriteContextOfMaps(path, "T11", bind(&MainFrame::StatusStringCallback,this,placeholders::_1));
 }
 
 // open tools editor
-void MyFrame::OnViewTools(wxCommandEvent& event)
+void MainFrame::OnViewTools(wxCommandEvent& event)
 {
     if(!FindWindowById(ID_TOOLS_WIN))
     {
         form_tools = new FormTools(this, spell_data, ID_TOOLS_WIN);
-        //form_tools->Connect(wxID_ANY, wxEVT_DESTROY, (wxObjectEventFunction)&MyFrame::OnViewToolsClose);
+        //form_tools->Connect(wxID_ANY, wxEVT_DESTROY, (wxObjectEventFunction)&MainFrame::OnViewToolsClose);
         form_tools->SetMap(spell_map);
         form_tools->Show();
     }
 }
 
 // open objects viewer
-void MyFrame::OnViewObjects(wxCommandEvent& event)
+void MainFrame::OnViewObjects(wxCommandEvent& event)
 {
     if(!FindWindowById(ID_OBJECTS_WIN))
     {
         form_objects = new FormObjects(this,spell_data,ID_OBJECTS_WIN);
-        //form_objects->Connect(wxID_ANY,wxEVT_DESTROY,(wxObjectEventFunction)&MyFrame::OnViewObjectsClose);
+        //form_objects->Connect(wxID_ANY,wxEVT_DESTROY,(wxObjectEventFunction)&MainFrame::OnViewObjectsClose);
         form_objects->SetMap(spell_map);
         form_objects->Show();
     }
 }
 
 // open palette viewer
-void MyFrame::OnViewPal(wxCommandEvent& event)
+void MainFrame::OnViewPal(wxCommandEvent& event)
 {
     if(!FindWindowById(ID_PAL_WIN))
     {
@@ -1084,7 +1121,7 @@ void MyFrame::OnViewPal(wxCommandEvent& event)
 }
 
 // open graphics viewer
-void MyFrame::OnViewGrRes(wxCommandEvent& event)
+void MainFrame::OnViewGrRes(wxCommandEvent& event)
 {
     if(!FindWindowById(ID_GRES_WIN))
     {
@@ -1094,7 +1131,7 @@ void MyFrame::OnViewGrRes(wxCommandEvent& event)
 }
 
 // open units viewer/editor
-void MyFrame::OnEditUnit(wxCommandEvent& event)
+void MainFrame::OnEditUnit(wxCommandEvent& event)
 {
     if(!FindWindowById(ID_UNITS_WIN))
     {
@@ -1106,7 +1143,7 @@ void MyFrame::OnEditUnit(wxCommandEvent& event)
 }
 
 // open events viewer/editor
-void MyFrame::OnEditEvent(wxCommandEvent& event)
+void MainFrame::OnEditEvent(wxCommandEvent& event)
 {
     if(!spell_map->IsLoaded())
         return;
@@ -1119,7 +1156,7 @@ void MyFrame::OnEditEvent(wxCommandEvent& event)
 }
 
 // open video viewer
-void MyFrame::OnViewVideo(wxCommandEvent& event)
+void MainFrame::OnViewVideo(wxCommandEvent& event)
 {
     /*if(!FindWindowById(ID_VIDEO_BOX_WIN))
     {
@@ -1133,7 +1170,7 @@ void MyFrame::OnViewVideo(wxCommandEvent& event)
 }
 
 // open MIDI player
-void MyFrame::OnViewMidi(wxCommandEvent& event)
+void MainFrame::OnViewMidi(wxCommandEvent& event)
 {
     if(!FindWindowById(ID_MIDI_WIN))
     {
@@ -1142,12 +1179,31 @@ void MyFrame::OnViewMidi(wxCommandEvent& event)
     }
 }
 
+// tile flags editor
+void MainFrame::OnTileFlags(wxCommandEvent& event)
+{
+    if(!spell_map || !spell_map->IsLoaded())
+        return;
+    auto flags = spell_map->GetFlags(spell_map->GetSelection());
+    auto form = new FormFlags(this,spell_map->terrain,flags);
+    if(form->ShowModal() == wxID_OK)
+    {
+        // --- confirmed
+        flags = form->GetSelectedFlags();
+        
+        // set to all selected tiles
+        auto posz = spell_map->GetSelections();
+        spell_map->SetFlags(posz, flags);
+    }
+    delete form;
+}
+
 
 
 
 
 // export voxel map elevation raster
-void MyFrame::OnViewVoxZ(wxCommandEvent& event)
+void MainFrame::OnViewVoxZ(wxCommandEvent& event)
 {    
     if(!spell_map->IsLoaded())
         return;
@@ -1184,7 +1240,7 @@ void MyFrame::OnViewVoxZ(wxCommandEvent& event)
     
 }
 // view minimap
-void MyFrame::OnViewMiniMap(wxCommandEvent& event)
+void MainFrame::OnViewMiniMap(wxCommandEvent& event)
 {
     if(!spell_map->IsLoaded())
         return;
@@ -1223,7 +1279,7 @@ void MyFrame::OnViewMiniMap(wxCommandEvent& event)
 
 
 // edit mission parameters
-void MyFrame::OnEditMissionParams(wxCommandEvent& event)
+void MainFrame::OnEditMissionParams(wxCommandEvent& event)
 {
     if(!spell_data || !spell_map)
         return;
@@ -1239,7 +1295,7 @@ void MyFrame::OnEditMissionParams(wxCommandEvent& event)
 
 
 // create new object
-void MyFrame::OnCreateNewObject(wxCommandEvent& event)
+void MainFrame::OnCreateNewObject(wxCommandEvent& event)
 {
     if(!spell_map->IsLoaded())
         return;
@@ -1270,7 +1326,7 @@ void MyFrame::OnCreateNewObject(wxCommandEvent& event)
 }
 
 // add new unit
-void MyFrame::OnAddUnit(wxCommandEvent& event)
+void MainFrame::OnAddUnit(wxCommandEvent& event)
 {
     if(!spell_map->IsLoaded())
         return;
@@ -1302,7 +1358,7 @@ void MyFrame::OnAddUnit(wxCommandEvent& event)
 
 
 // unit popup menu
-void MyFrame::OnCanvasPopupSelect(wxCommandEvent& event)
+void MainFrame::OnCanvasPopupSelect(wxCommandEvent& event)
 {
     if(!spell_map->IsLoaded())
         return;
@@ -1347,6 +1403,21 @@ void MyFrame::OnCanvasPopupSelect(wxCommandEvent& event)
         // edit unit
         spell_map->SelectUnit(cur_unit);
         OnEditUnit(event);
+    }
+    else if(event.GetId() == ID_POP_REM_OBJ)
+    {
+        // remove object tile        
+        spell_map->RemoveObj();
+        Refresh();
+    }
+    else if(event.GetId() == ID_POP_EDIT_OBJ)
+    {
+        // edit obj tile
+        if(!FindWindowById(ID_SPRITES_WIN))
+        {
+            form_sprites = new FormSprite(this,spell_data,ID_SPRITES_WIN);
+            form_sprites->Show();
+        }
     }
     else if(event.GetId() == ID_POP_REM_ANM)
     {
@@ -1409,7 +1480,7 @@ void MyFrame::OnCanvasPopupSelect(wxCommandEvent& event)
 
 
 // --- scrolling control ---
-void MyFrame::OnCanvasRMouse(wxMouseEvent& event)
+void MainFrame::OnCanvasRMouse(wxMouseEvent& event)
 {    
     if(!spell_map->IsLoaded())
         return;
@@ -1468,6 +1539,13 @@ void MyFrame::OnCanvasRMouse(wxMouseEvent& event)
                     menu.AppendSeparator();
                 menu.Append(ID_POP_EDIT_UNIT,"Edit unit");
             }            
+            if(spell_map->CheckObj() && GetMenuBar()->FindItem(ID_ViewObj)->IsChecked())
+            {
+                if(menu.GetMenuItemCount())
+                    menu.AppendSeparator();
+                menu.Append(ID_POP_EDIT_OBJ,"Edit object");
+                menu.Append(ID_POP_REM_OBJ,"Remove object");
+            }
             if(spell_map->CheckANM() && GetMenuBar()->FindItem(ID_ViewAnm)->IsChecked())
             {
                 if(menu.GetMenuItemCount())
@@ -1493,7 +1571,7 @@ void MyFrame::OnCanvasRMouse(wxMouseEvent& event)
             
             if(menu.GetMenuItemCount())
             {
-                menu.Connect(wxEVT_COMMAND_MENU_SELECTED,wxCommandEventHandler(MyFrame::OnCanvasPopupSelect),NULL,this);
+                menu.Connect(wxEVT_COMMAND_MENU_SELECTED,wxCommandEventHandler(MainFrame::OnCanvasPopupSelect),NULL,this);
                 PopupMenu(&menu);
             }
         }
@@ -1508,14 +1586,14 @@ void MyFrame::OnCanvasRMouse(wxMouseEvent& event)
     canvas->Refresh();
 
 }
-void MyFrame::OnCanvasMouseEnter(wxMouseEvent& event)
+void MainFrame::OnCanvasMouseEnter(wxMouseEvent& event)
 {
     if(inSubForm())
         return;
 
     canvas->SetFocus();
 }
-void MyFrame::OnCanvasMouseLeave(wxMouseEvent& event)
+void MainFrame::OnCanvasMouseLeave(wxMouseEvent& event)
 {
     SetCursor(*wxSTANDARD_CURSOR);
     
@@ -1527,7 +1605,7 @@ void MyFrame::OnCanvasMouseLeave(wxMouseEvent& event)
     spell_map->SetUnitRangeViewMode(SpellMap::UNIT_RANGE_NONE);
     spell_map->scroller.Idle();
 }
-void MyFrame::OnCanvasMouseMove(wxMouseEvent& event)
+void MainFrame::OnCanvasMouseMove(wxMouseEvent& event)
 {
     if(!spell_map->IsLoaded())
         return;
@@ -1597,7 +1675,13 @@ void MyFrame::OnCanvasMouseMove(wxMouseEvent& event)
     auto* unit = spell_map->GetSelectedUnit();
     auto sel_sound = spell_map->SoundSelected();
     auto* sel_pnm = spell_map->SelectedPNM();
-    if(sel_pnm && sel_pnm->in_placement && mxy.IsSelected())
+    auto* sel_anm = spell_map->SelectedANM();
+    if(sel_anm && sel_anm->in_placement && mxy.IsSelected())
+    {
+        // change ANM position
+        spell_map->MoveANM(sel_anm,mxy);
+    }
+    else if(sel_pnm && sel_pnm->in_placement && mxy.IsSelected())
     {
         // change PNM position
         spell_map->MovePNM(sel_pnm, mxy);
@@ -1628,12 +1712,12 @@ void MyFrame::OnCanvasMouseMove(wxMouseEvent& event)
     canvas->Refresh();
     //event.Skip();
 }
-void MyFrame::OnCanvasMouseWheel(wxMouseEvent& event)
+void MainFrame::OnCanvasMouseWheel(wxMouseEvent& event)
 {
     spell_map->scroller.ResizeSelection(event.GetWheelRotation()/event.GetWheelDelta());
     canvas->Refresh();
 }
-void MyFrame::OnCanvasKeyDown(wxKeyEvent& event)
+void MainFrame::OnCanvasKeyDown(wxKeyEvent& event)
 {
     int key = event.GetKeyCode();
     if(event.ControlDown())
@@ -1642,21 +1726,21 @@ void MyFrame::OnCanvasKeyDown(wxKeyEvent& event)
 }
 
 // select all tiles
-void MyFrame::OnSelectAll(wxCommandEvent& event)
+void MainFrame::OnSelectAll(wxCommandEvent& event)
 {
     if(!spell_map->IsLoaded())
         return;
     spell_map->SelectTiles(SpellMap::SELECT_ADD);
 }
 // deselect all tiles
-void MyFrame::OnDeselectAll(wxCommandEvent& event)
+void MainFrame::OnDeselectAll(wxCommandEvent& event)
 {
     if(!spell_map->IsLoaded())
         return;
     spell_map->SelectTiles(SpellMap::SELECT_CLEAR);
 }
 // select or deselect tiles
-void MyFrame::OnSelectDeselect(wxCommandEvent& event)
+void MainFrame::OnSelectDeselect(wxCommandEvent& event)
 {
     if(!spell_map->IsLoaded())
         return;
@@ -1666,7 +1750,7 @@ void MyFrame::OnSelectDeselect(wxCommandEvent& event)
 }
 
 // copy map selection to copy buffer
-void MyFrame::OnCopyBuf(wxCommandEvent& event)
+void MainFrame::OnCopyBuf(wxCommandEvent& event)
 {
     if(!spell_map->IsLoaded())
         return;
@@ -1683,11 +1767,16 @@ void MyFrame::OnCopyBuf(wxCommandEvent& event)
         list = spell_map->GetSelections();
 
     spell_map->LockMap();
-    spell_map->CopyBuffer(list, lay);
+    spell_map->HaltUnitRanging();
+    if(event.GetId() == ID_CutBuf)
+        spell_map->CutBuffer(list,lay);
+    else
+        spell_map->CopyBuffer(list, lay);
+    spell_map->ResumeUnitRanging();
     spell_map->ReleaseMap();
 }
 // clear map copy buffer
-void MyFrame::OnClearBuf(wxCommandEvent& event)
+void MainFrame::OnClearBuf(wxCommandEvent& event)
 {
     if(!spell_map->IsLoaded())
         return;
@@ -1700,7 +1789,7 @@ void MyFrame::OnClearBuf(wxCommandEvent& event)
     Refresh();
 }
 // try place copy buffer to map
-void MyFrame::OnPasteBuf(wxCommandEvent& event)
+void MainFrame::OnPasteBuf(wxCommandEvent& event)
 {
     if(!spell_map->IsLoaded())
         return;
@@ -1715,7 +1804,7 @@ void MyFrame::OnPasteBuf(wxCommandEvent& event)
 }
 
 // try place copy buffer to map
-void MyFrame::OnChangeElevation(wxCommandEvent& event)
+void MainFrame::OnChangeElevation(wxCommandEvent& event)
 {
     if(!spell_map->IsLoaded())
         return;
@@ -1734,7 +1823,7 @@ void MyFrame::OnChangeElevation(wxCommandEvent& event)
 }
 
 // invalidate map region (retexturing)
-void MyFrame::OnInvalidateSelection(wxCommandEvent& event)
+void MainFrame::OnInvalidateSelection(wxCommandEvent& event)
 {
     if(!spell_map->IsLoaded())
         return;
@@ -1745,11 +1834,11 @@ void MyFrame::OnInvalidateSelection(wxCommandEvent& event)
         list = spell_map->GetSelections();
 
     // invalidate region    
-    spell_map->IvalidateTiles(list, bind(&MyFrame::StatusStringCallback,this,placeholders::_1));
+    spell_map->IvalidateTiles(list, bind(&MainFrame::StatusStringCallback,this,placeholders::_1));
 }
 
 // delete object or stuff
-void MyFrame::OnDeleteSel(wxCommandEvent& event)
+void MainFrame::OnDeleteSel(wxCommandEvent& event)
 {
     if(!spell_map->IsLoaded())
         return;
@@ -1759,8 +1848,12 @@ void MyFrame::OnDeleteSel(wxCommandEvent& event)
     if(list.empty())
         list = spell_map->GetSelections();
 
+    SpellMap::Layers layers;
+    layers.lay1 = false;
+    layers.lay2 = GetMenuBar()->FindItem(ID_ViewObj)->IsChecked();
+    layers.anm = GetMenuBar()->FindItem(ID_ViewAnm)->IsChecked();
     spell_map->LockMap();
-    spell_map->DeleteSelObjects(list);
+    spell_map->DeleteSelObjects(list,layers);
     spell_map->ReleaseMap();
     Refresh();
 }
@@ -1768,7 +1861,7 @@ void MyFrame::OnDeleteSel(wxCommandEvent& event)
 
 
 // canvas left click
-void MyFrame::OnCanvasLMouseDown(wxMouseEvent& event)
+void MainFrame::OnCanvasLMouseDown(wxMouseEvent& event)
 {
     if(!spell_map->IsLoaded())
         return;
@@ -1793,12 +1886,13 @@ void MyFrame::OnCanvasLMouseDown(wxMouseEvent& event)
         else if(spell_tool.isActive() && xy_list.size() && xy_list[0].IsSelected())
         {
             // some tool selected: edit map class        
-            spell_map->EditClass(xy_list, &spell_tool, bind(&MyFrame::StatusStringCallback,this,placeholders::_1));
+            spell_map->EditClass(xy_list, &spell_tool, bind(&MainFrame::StatusStringCallback,this,placeholders::_1));
         }
         else
         {
             // try select/move stuff:
             int wPnms = GetMenuBar()->FindItem(ID_ViewPnm)->IsChecked(); // ###todo: optimize?
+            int wAnms = GetMenuBar()->FindItem(ID_ViewAnm)->IsChecked(); // ###todo: optimize?
             int wEvents = GetMenuBar()->FindItem(ID_ViewEvents)->IsChecked(); // ###todo: optimize?
             int wSounds = GetMenuBar()->FindItem(ID_ViewSounds)->IsChecked(); // ###todo: optimize?
             int wSoundLoops = GetMenuBar()->FindItem(ID_ViewSoundLoops)->IsChecked(); // ###todo: optimize?
@@ -1820,9 +1914,21 @@ void MyFrame::OnCanvasLMouseDown(wxMouseEvent& event)
             auto sel_sound = spell_map->SoundSelected();
             auto cur_pnm = spell_map->CheckPNM();
             auto sel_pnm = spell_map->SelectedPNM();
+            auto cur_anm = spell_map->CheckANM();
+            auto sel_anm = spell_map->SelectedANM();
             if(!spell_map->isGameMode())
             {
-                if(wPnms && cur_pnm && cur_pnm == sel_pnm)
+                if(wAnms && cur_anm && cur_anm == sel_anm)
+                {
+                    // move ANM
+                    sel_anm->in_placement = !sel_anm->in_placement;
+                }
+                else if(wAnms && cur_anm)
+                {
+                    // select ANM
+                    spell_map->SelectANM(cur_anm);
+                }
+                else if(wPnms && cur_pnm && cur_pnm == sel_pnm)
                 {
                     // move PNM
                     sel_pnm->in_placement = !sel_pnm->in_placement;
@@ -1898,7 +2004,7 @@ void MyFrame::OnCanvasLMouseDown(wxMouseEvent& event)
                     wxPoint pos = event.GetPosition();
                     pos.x -= 15;
                     pos.y -= 15;
-                    form_unit_opts = new FormUnitOpts(canvas,ID_UNIT_MODE_WIN,pos,spell_data,options,bind(&MyFrame::OnUnitClick_cb,this,placeholders::_1));
+                    form_unit_opts = new FormUnitOpts(canvas,ID_UNIT_MODE_WIN,pos,spell_data,options,bind(&MainFrame::OnUnitClick_cb,this,placeholders::_1));
                 }
             }
         }
@@ -1906,7 +2012,7 @@ void MyFrame::OnCanvasLMouseDown(wxMouseEvent& event)
 
     canvas->Refresh();
 }
-void MyFrame::OnUnitClick_cb(int option)
+void MainFrame::OnUnitClick_cb(int option)
 {
     if(option & SpellMap::UNIT_OPT_SELECT)
     {
@@ -1932,13 +2038,13 @@ void MyFrame::OnUnitClick_cb(int option)
 // Message display stuff
 //--------------------------------------------------------------------------------------------------------------------
 // show message function wrapper
-void MyFrame::ShowMessage(SpellTextRec *message,bool is_yesno,std::function<void(bool)> exit_cb)
+void MainFrame::ShowMessage(SpellTextRec *message,bool is_yesno,std::function<void(bool)> exit_cb)
 {
     //auto text = spell_data->texts->GetText("u0101_07");
     form_message = new FormMsgBox(canvas, ID_MSG_WIN, spell_data, spell_map, message, (is_yesno)?(FormMsgBox::SpellMsgOptions::YESNO):(FormMsgBox::SpellMsgOptions::NONE), exit_cb);
 }
 // return true if some message still exist
-bool MyFrame::CheckMessageState()
+bool MainFrame::CheckMessageState()
 {
     return(form_message != NULL);    
 }
@@ -1948,7 +2054,7 @@ bool MyFrame::CheckMessageState()
 // Tool bar stuff
 //--------------------------------------------------------------------------------------------------------------------
 // tool selected
-void MyFrame::OnToolBtnClick(wxRibbonButtonBarEvent& event)
+void MainFrame::OnToolBtnClick(wxRibbonButtonBarEvent& event)
 {
     // get button id
     int id = event.GetId();
@@ -2008,7 +2114,7 @@ void MyFrame::OnToolBtnClick(wxRibbonButtonBarEvent& event)
     }
 }
 // tool page selected
-void MyFrame::OnToolPageClick(wxRibbonBarEvent& event)
+void MainFrame::OnToolPageClick(wxRibbonBarEvent& event)
 {
     // no tool selection
     spell_tool.Set();
@@ -2037,7 +2143,7 @@ void MyFrame::OnToolPageClick(wxRibbonBarEvent& event)
     }
 }
 // fill toolset ribbon
-void MyFrame::LoadToolsetRibbon(Terrain *terr)
+void MainFrame::LoadToolsetRibbon(Terrain *terr)
 {    
     // clear old ribbon
     if (ribbonBar)
@@ -2145,7 +2251,7 @@ void MyFrame::LoadToolsetRibbon(Terrain *terr)
 //--------------------------------------------------------------------------------------------------------------------
 // Set Gamma Dialog
 //--------------------------------------------------------------------------------------------------------------------
-FormGamma::FormGamma(wxFrame* parent,SpellMap* map) :wxDialog(parent,wxID_ANY,"Gamma correction",wxDefaultPosition,wxSize(400,50),wxDEFAULT_FRAME_STYLE|wxSTAY_ON_TOP)
+FormGamma::FormGamma(wxFrame* parent,SpellMap* map,wxWindowID id) :wxDialog(parent,wxID_ANY,"Gamma correction",wxDefaultPosition,wxSize(400,80),wxDEFAULT_FRAME_STYLE|wxSTAY_ON_TOP)
 {
     // store local reference to initial map and data
     spell_map = map;
@@ -2156,12 +2262,29 @@ FormGamma::FormGamma(wxFrame* parent,SpellMap* map) :wxDialog(parent,wxID_ANY,"G
     sizer->Add(slider,1,wxEXPAND|wxALL);
     this->SetSizer(sizer);
     this->SetAutoLayout(true); 
+    this->Center();
+    this->Bind(wxEVT_CHAR_HOOK,&FormGamma::OnExit,this);
     
     Bind(wxEVT_COMMAND_SLIDER_UPDATED,&FormGamma::OnChangeGamma, this);
+    Bind(wxEVT_CLOSE_WINDOW,&FormGamma::OnClose,this,id);
+
 }
 void FormGamma::OnChangeGamma(wxCommandEvent& event)
 {
     double gamma = 0.001*(double)slider->GetValue();
     SetTitle(wxString::Format(wxT("Gamma correction = %#0.2f"),gamma));
     spell_map->SetGamma(gamma);
+}
+void FormGamma::OnClose(wxCloseEvent& ev)
+{
+    wxPostEvent(GetParent(),ev);
+    ev.Skip();
+    Destroy();
+}
+void FormGamma::OnExit(wxKeyEvent& event)
+{
+    if(event.GetKeyCode()==WXK_ESCAPE)
+        this->Close();
+    else
+        event.Skip();
 }

@@ -30,6 +30,7 @@
     <ClCompile Include="forms\form_about.cpp" />
     <ClCompile Include="forms\form_anm.cpp" />
     <ClCompile Include="forms\form_events.cpp" />
+    <ClCompile Include="forms\form_flags.cpp" />
     <ClCompile Include="forms\form_gr_view.cpp" />
     <ClCompile Include="forms\form_loader.cpp" />
     <ClCompile Include="forms\form_map_options.cpp" />
@@ -94,6 +95,7 @@
     <ClInclude Include="forms\form_about.h" />
     <ClInclude Include="forms\form_anm.h" />
     <ClInclude Include="forms\form_events.h" />
+    <ClInclude Include="forms\form_flags.h" />
     <ClInclude Include="forms\form_gr_view.h" />
     <ClInclude Include="forms\form_loader.h" />
     <ClInclude Include="forms\form_map_options.h" />

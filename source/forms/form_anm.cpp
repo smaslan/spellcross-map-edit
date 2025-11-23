@@ -344,7 +344,10 @@ void FormANM::SelectTerrain()
 		return;
 
 	// update window title
-	SetTitle(wxString::Format("Terrain layer animations viewer (%s)",terr->name));
+	if(m_is_pnm)
+		SetTitle(wxString::Format("Objects layer animations viewer (%s)",terr->name));
+	else
+		SetTitle(wxString::Format("Terrain layer animations viewer (%s)",terr->name));
 
 	// make list of animations
 	lbList->Freeze();

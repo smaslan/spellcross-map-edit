@@ -1,15 +1,15 @@
 //=============================================================================
-// Spellcross MAP related routines: Loading, rendering.
+// Spellcross MAP related routines: Loading, saving, rendering, editting.
 // 
 // This code is part of Spellcross Map Editor project.
-// (c) 2021, Stanislav Maslan, s.maslan@seznam.cz
+// (c) 2021-2025, Stanislav Maslan, s.maslan@seznam.cz
+// url: https://github.com/smaslan/spellcross-map-edit
 // Distributed under MIT license, https://opensource.org/licenses/MIT.
 //=============================================================================
 //#pragma once
 #ifndef _MAP_H_
 #define _MAP_H_
 
-//#include "windows.h"
 #include "cstdint"
 #include <vector>
 #include <queue>
@@ -74,7 +74,7 @@ public:
 	int PlayDestruct();
 };
 
-
+// map tile animation ANM
 class MapLayer3
 {
 	public:
@@ -84,11 +84,14 @@ class MapLayer3
 		int frame_ofs;
 		int frame_limit;
 		AnimL1* anim;
+		bool in_placement;
 
 		MapLayer3(AnimL1* anm=NULL, int x_pos=-1, int y_pos=-1, int frame_ofs=0, int frame_limit=0);
-		~MapLayer3();		
+		~MapLayer3();
+		bool Compare(MapLayer3 *anm);
 };
 
+// map sprite animation PNM
 class MapLayer4
 {
 public:
@@ -105,6 +108,7 @@ public:
 	MapLayer4() {};
 	MapLayer4(AnimPNM* pnm, int x_pos=0, int y_pos=0, int x_ofs=0, int y_ofs=0, int frame_ofs=0, int frame_limit=-1);
 	~MapLayer4();
+	bool Compare(MapLayer4* pnm);
 };
 
 
@@ -118,7 +122,7 @@ public:
 };*/
 
 
-// map sounds
+// map sound item
 class MapSound
 {	
 private:
@@ -147,7 +151,7 @@ public:
 	void SetType(SoundType type);
 };
 
-// map ambient loop sounds
+// map ambient sounds
 class MapSounds
 {
 private:
@@ -174,7 +178,7 @@ public:
 
 
 
-// Scroller
+// map scroller
 class TScroll
 {
 private:
@@ -224,6 +228,7 @@ typedef struct{
 }TTileElevMod;
 
 
+// main spellcross map class
 class SpellMap
 {
 	private:		
@@ -284,27 +289,16 @@ class SpellMap
 
 		// sound selection
 		MapSound *sound_selection;
-
 		// animation selection
+		MapLayer3* anm_selection;
 		MapLayer4 *pnm_selection;
 		
-		// unit range map
-		//vector<AStarNode> unit_range_nodes_buffer; // this is preinitialized buffer holding the nodes
-		//vector<AStarNode> unit_range_nodes; // this is working buffer
-		//vector<int> unit_ap_left;
-		//vector<int> unit_fire_left;
-		//thread *unit_range_th;
-		//int unit_range_th_control;
-		//MapUnit *unit_range_th_unit;
-		//mutex unit_range_th_lock;
+		// unit range map		
 		int unit_range_view_mode;
 		int unit_range_view_mode_lock;
 		uint8_t *GetUnitRangeFilter(int x,int y);
 		uint8_t *default_filter;
 		uint8_t *render_filter;
-		//int FindUnitRangeLock(bool state);
-		//int FindUnitRange_th();
-		//int InitUnitRangeStuff();		
 		int viewingUnitMoveRange() {return(unit_range_view_mode == UNIT_RANGE_MOVE);};
 		int viewingUnitAttackRange() { return(unit_range_view_mode == UNIT_RANGE_ATTACK);};
 		static constexpr int UNIT_RANGE_TH_IDLE = 0x00;
@@ -312,7 +306,6 @@ class SpellMap
 		static constexpr int UNIT_RANGE_TH_STOP = 0x02;
 		static constexpr int UNIT_RANGE_TH_EXIT = 0x03;		
 		// units moved flag (can be set to force view tiles recalc)
-		//int units_moved;		
 		int UnitsMoved(int clear=false);		
 		// unit types
 		static constexpr int UNIT_TYPE_ALIANCE = 0x01;
@@ -326,6 +319,7 @@ class SpellMap
 		// layer visibility flags
 		bool wL1, wL2, wL3, wL4, wSTCI, wUnits;
 		bool wSound, wSoundLoop, wEvents;
+		bool wHighlight_obj;
 		int w_unit_hud;
 
 		// last gamma
@@ -689,9 +683,17 @@ class SpellMap
 		vector<Sprite*> GetL1sprites(vector<MapXY> &selection);
 		vector<Sprite*> GetL2sprites(vector<MapXY>& selection);
 		vector<uint8_t> GetFlags(vector<MapXY>& selection);
+		int GetFlags(MapXY selection);
+		void SetFlags(MapXY selection,int flags);
+		void SetFlags(std::vector<MapXY> selections,int flags);
+		MapSprite* CheckObj(MapXY* pos=NULL);
+		int RemoveObj(MapXY* pos=NULL);
 		MapLayer3* CheckANM(MapXY* pos=NULL);
 		int RemoveANM(MapXY* pos=NULL);
 		int PlaceANM(MapXY* pos,AnimL1* anm);
+		void SelectANM(MapLayer3* anm=NULL);
+		MapLayer3* SelectedANM();
+		int MoveANM(MapLayer3* anm,MapXY pos);
 		MapLayer4* CheckPNM(MapXY* pos=NULL);
 		int RemovePNM(MapXY* pos=NULL);
 		void SelectPNM(MapLayer4* pnm=NULL);
@@ -815,7 +817,7 @@ class SpellMap
 		
 		
 
-		void SetRender(bool wL1, bool wL2, bool wL3, bool wL4, bool wSECI, bool wUnits, bool wSound, bool wSoundLoop, bool wEvents);
+		void SetRender(bool wL1, bool wL2, bool wL3, bool wL4, bool wSECI, bool wUnits, bool wSound, bool wSoundLoop, bool wEvents,bool highlight_obj);
 		void SetGamma(double gamma);
 		double GetGamma();
 		int Tick();
@@ -875,11 +877,12 @@ class SpellMap
 		int SetBuffer(SpellObject* obj);
 		int SetBuffer(Sprite* spr);
 		int SetBuffer(AnimL1* anm);
+		void CutBuffer(std::vector<MapXY>& posxy,Layers layers);
 		void CopyBuffer(std::vector<MapXY> &posxy,Layers layers);
 		void PasteBuffer(std::vector<MapSprite>& tiles,std::vector<MapLayer3>& anms,std::vector<MapXY>& posxy);
 		bool isCopyBufferFull();
 		int PasteRandSprites(std::vector<MapSprite>& tiles,std::vector<MapXY>& posxy,std::vector<Sprite*>& sprites,bool force_rand);
-		void DeleteSelObjects(std::vector<MapXY>& posxy);
+		void DeleteSelObjects(std::vector<MapXY>& posxy,SpellMap::Layers layers);
 
 		enum{
 			SPEC_TILE_START = 0,

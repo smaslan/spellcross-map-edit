@@ -1,8 +1,9 @@
 //=============================================================================
-// Spellcross MAP related routines: Loading, rendering.
+// Spellcross MAP related routines: Loading, saving, rendering, editting.
 // 
 // This code is part of Spellcross Map Editor project.
-// (c) 2021-2022, Stanislav Maslan, s.maslan@seznam.cz
+// (c) 2021-2025, Stanislav Maslan, s.maslan@seznam.cz
+// url: https://github.com/smaslan/spellcross-map-edit
 // Distributed under MIT license, https://opensource.org/licenses/MIT.
 //=============================================================================
 
@@ -347,6 +348,7 @@ MapLayer3::MapLayer3(AnimL1* anm, int x_pos, int y_pos, int frame_ofs, int frame
 	this->y_pos = y_pos;
 	this->frame_ofs = 0;
 	this->frame_limit = 0;
+	this->in_placement = false;
 	if(anm)
 	{
 		this->frame_ofs = min(frame_ofs,(int)anm->frames.size()-1);
@@ -356,6 +358,13 @@ MapLayer3::MapLayer3(AnimL1* anm, int x_pos, int y_pos, int frame_ofs, int frame
 MapLayer3::~MapLayer3()
 {
 	anim = NULL;
+}
+// compare two records
+bool MapLayer3::Compare(MapLayer3* anm)
+{
+	if(!anm)
+		return(false);
+	return(anm->x_pos == x_pos && anm->y_pos == y_pos && anm->anim == anim);
 }
 
 //=============================================================================
@@ -368,15 +377,26 @@ MapLayer4::MapLayer4(AnimPNM* pnm, int x_pos, int y_pos, int x_ofs, int y_ofs, i
 	this->y_pos = y_pos;
 	this->x_ofs = x_ofs;
 	this->y_ofs = y_ofs;
-	this->frame_ofs = frame_ofs;
-	this->frame_limit = (frame_limit<0)?(pnm->frames.size()):(frame_limit);
 	this->in_placement = false;
+	this->frame_ofs = 0;
+	this->frame_limit = 0;
+	if(pnm)
+	{
+		this->frame_ofs = frame_ofs;
+		this->frame_limit = (frame_limit<0)?(pnm->frames.size()):(frame_limit);
+	}	
 }
 MapLayer4::~MapLayer4()
 {
 	anim = NULL;
 }
-
+// compare two records
+bool MapLayer4::Compare(MapLayer4* pnm)
+{
+	if(!pnm)
+		return(false);
+	return(pnm->x_pos == x_pos && pnm->y_pos == y_pos && pnm->x_ofs == x_ofs && pnm->y_ofs == y_ofs && pnm->anim == anim);
+}
 
 
 
@@ -557,8 +577,8 @@ void SpellMap::Close()
 	unit_sel_land_preference = true;
 	w_unit_hud = true;
 	pnm_selection = NULL;
-		
-	
+	anm_selection = NULL;
+			
 	msel.clear();
 
 	filter.clear();
@@ -2003,15 +2023,13 @@ int SpellMap::SaveDEF(std::wstring path)
 // convert x,y to combined tile position
 int SpellMap::ConvXY(int x, int y)
 {
-	if(x >= 0 && y >= 0)
+	if(x >= 0 && y >= 0 && x < x_size && y < y_size)
 		return(x + y * x_size);
 	return(-1);
 }
 int SpellMap::ConvXY(MapXY *mxy)
 {
-	if(mxy->IsSelected())
-		return(mxy->x + mxy->y * x_size);
-	return(-1);
+	return(ConvXY(mxy->x,mxy->y));
 }
 int SpellMap::ConvXY(MapXY &mxy)
 {
@@ -2582,10 +2600,11 @@ void SpellMap::CopyBuffer(std::vector<MapXY>& posxy,SpellMap::Layers layers)
 			// no objects layer
 			sprite.L2 = NULL;
 		}
-		if(sprite.L1 || sprite.L2)
-			copy_buf.tiles.push_back(sprite);
+		if(!sprite.L1 && !sprite.L2)
+			sprite.flags = 0x00;
+		copy_buf.tiles.push_back(sprite);
 
-		MapLayer3 tile_anm;
+		MapLayer3 tile_anm = MapLayer3(NULL,pos.x,pos.y);
 		if(layers.anm)
 		{
 			for(auto &anm: L3)
@@ -2607,6 +2626,16 @@ void SpellMap::CopyBuffer(std::vector<MapXY>& posxy,SpellMap::Layers layers)
 		copy_buf.pos[k].x -= ref2.x;
 		copy_buf.anms[k].x_pos -= ref2.x;
 	}
+}
+
+// cut map objects layer map data for copy&paste actions
+void SpellMap::CutBuffer(std::vector<MapXY>& posxy,SpellMap::Layers layers)
+{
+	layers.anm = false;
+	layers.lay1 = false;
+	CopyBuffer(posxy,layers);
+	if(layers.lay2)
+		DeleteSelObjects(posxy,layers);
 }
 
 // clear copy buffer
@@ -2671,7 +2700,7 @@ void SpellMap::PasteBuffer(std::vector<MapSprite>& tiles, std::vector<MapLayer3>
 					new_anm.x_pos = x;
 					new_anm.y_pos = y;
 					// remove existing tile
-					for(int m = 0; m < L3.size(); m++)
+					for(int m = 0; m < anms.size(); m++)
 						if(anms[m].x_pos == x && anms[m].y_pos == y)
 						{
 							anms.erase(anms.begin() + m);
@@ -2694,18 +2723,19 @@ bool SpellMap::isCopyBufferFull()
 
 
 // delete selected objects from map
-void SpellMap::DeleteSelObjects(std::vector<MapXY>& posxy)
+void SpellMap::DeleteSelObjects(std::vector<MapXY>& posxy,SpellMap::Layers layers)
 {
 	for(int k = 0; k < posxy.size(); k++)
 	{
 		auto &pos = posxy[k];
 		auto &tile = tiles[ConvXY(pos)];
-		if(tile.L2)
+		if(tile.L2 && layers.lay2)
 		{
 			tile.L2 = 0;
 			tile.flags = 0x00;
 		}
-		RemoveANM(&pos);
+		if(layers.anm)
+			RemoveANM(&pos);
 	}
 }
 
@@ -3066,6 +3096,58 @@ vector<uint8_t> SpellMap::GetFlags(vector<MapXY>& selection)
 	}
 	return(list);
 }
+// return tile flags of the given selection
+int SpellMap::GetFlags(MapXY selection)
+{
+	if(!selection.IsSelected() || selection.x >= x_size || selection.y >= y_size)
+		return(0x00);	
+	return(tiles[ConvXY(selection)].flags);
+}
+// set tile flags
+void SpellMap::SetFlags(MapXY selection,int flags)
+{
+	if(!selection.IsSelected() || selection.x >= x_size || selection.y >= y_size)
+		return;
+	tiles[ConvXY(selection)].flags = flags;
+}
+// set tile flags to multiple tiles
+void SpellMap::SetFlags(std::vector<MapXY> selections,int flags)
+{
+	for(auto &pos: selections)
+		SetFlags(pos,flags);
+}
+
+
+// check presence of object at position or current cursor if no explicit position given
+MapSprite* SpellMap::CheckObj(MapXY* pos)
+{
+	auto posxy = GetSelection();
+	if(pos)
+		posxy = *pos;
+	auto mxy = ConvXY(posxy);
+	if(mxy < 0)
+		return(NULL);
+	if(tiles[mxy].L2)
+		return(&tiles[mxy]);
+	return(NULL);
+}
+// remove object sprite at position or current cursor if no explicit position given
+int SpellMap::RemoveObj(MapXY* pos)
+{	
+	auto posxy = GetSelection();
+	if(pos)
+		posxy = *pos;
+	auto mxy = ConvXY(posxy);
+	if(mxy < 0)
+		return(1);
+	LockMap();
+	if(tiles[mxy].L2)
+		tiles[mxy].flags = 0x00;
+	tiles[mxy].L2 = NULL;
+	ReleaseMap();
+	return(0);
+}
+
 // get pointer to ANM sprite at position or current cursor if no explicit position given
 MapLayer3* SpellMap::CheckANM(MapXY* pos)
 {
@@ -3115,6 +3197,52 @@ int SpellMap::PlaceANM(MapXY *pos, AnimL1 *anm)
 
 	return(0);
 }
+// try select ANM
+void SpellMap::SelectANM(MapLayer3* anm)
+{
+	LockMap();
+	if(!anm && anm_selection)
+		anm_selection->in_placement = false;
+	anm_selection = NULL;
+	for(auto& item: L3)
+		if(&item == anm)
+			anm_selection = anm;
+	ReleaseMap();
+}
+// get selected ANM
+MapLayer3* SpellMap::SelectedANM()
+{
+	LockMap();
+	for(auto& anm: L3)
+		if(&anm == anm_selection)
+		{
+			ReleaseMap();
+			return(anm_selection);
+		}
+	anm_selection = NULL;
+	ReleaseMap();
+	return(anm_selection);
+}
+// move ANM to new position
+int SpellMap::MoveANM(MapLayer3* anm,MapXY pos)
+{
+	if(!anm)
+		return(1);
+	if(!pos.IsSelected())
+		return(1);
+
+	// do not allow overlap with other PNM
+	for(auto& item: L3)
+		if(item.x_pos == pos.x && item.y_pos == pos.y)
+			return(1);
+
+	LockMap();
+	anm->x_pos = pos.x;
+	anm->y_pos = pos.y;
+	ReleaseMap();
+	return(0);
+}
+
 
 // get pointer to PNM animation at position or current cursor if no explicit position given
 MapLayer4* SpellMap::CheckPNM(MapXY* pos)
@@ -3145,7 +3273,7 @@ int SpellMap::RemovePNM(MapXY* pos)
 	ReleaseMap();
 	return(1);
 }
-// place or replace ANM at pos or current cursor if no explicit position given
+// place or replace PNM at pos or current cursor if no explicit position given
 int SpellMap::PlacePNM(MapXY* pos,AnimPNM* pnm,int x_ofs,int y_ofs)
 {
 	if(!pnm)
@@ -3172,7 +3300,7 @@ void SpellMap::SelectPNM(MapLayer4* pnm)
 	LockMap();
 	if(!pnm && pnm_selection)
 		pnm_selection->in_placement = false;
-	sound_selection = NULL;
+	pnm_selection = NULL;
 	for(auto& item: L4)
 		if(&item == pnm)
 			pnm_selection = pnm;
@@ -3543,20 +3671,20 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 			// skip if not in visible area
 			if (anm->x_pos < xs_ofs || anm->x_pos >= (xs_ofs + xs_size) || anm->y_pos < ys_ofs * 2 || anm->y_pos >= (ys_ofs * 2 + ys_size))
 				continue;
-			int mxy = ConvXY(anm->x_pos, anm->y_pos);
-
+			MapXY pos = MapXY(anm->x_pos,anm->y_pos);
+			int mxy = ConvXY(pos);
 			
-			
-
 			// game mode view range
 			uint8_t* fil = GetUnitRangeFilter(anm->x_pos,anm->y_pos);
 			if(use_view_mask && unit_view->view[mxy] == 0)
 				continue;
 			else if(use_view_mask && unit_view->view[mxy] == 1)
 				fil = terrain->filter.darkpal;
-			else if(!use_view_mask && cursor == MapXY(anm->x_pos,anm->y_pos) && sel_blink_state)
+			else if(!use_view_mask && !anm->Compare(anm_selection) && cursor == pos && wHighlight_obj)
 				fil = terrain->filter.goldpal; // highlight animation
-
+			else if(!use_view_mask && anm->Compare(anm_selection) && sel_blink_state)
+				fil = terrain->filter.goldpal; // highlight animation
+			
 			// L1 elevation
 			int sof = tiles[mxy].elev;
 
@@ -3694,7 +3822,8 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 			// skip if not in visible area
 			if (pnm->x_pos < xs_ofs || pnm->x_pos >= (xs_ofs + xs_size) || pnm->y_pos < ys_ofs * 2 || pnm->y_pos >= (ys_ofs * 2 + ys_size))
 				continue;
-			int mxy = ConvXY(pnm->x_pos, pnm->y_pos);
+			MapXY pos = MapXY(pnm->x_pos,pnm->y_pos);
+			int mxy = ConvXY(pos);
 
 			// game mode view range
 			uint8_t* fil = GetUnitRangeFilter(pnm->x_pos,pnm->y_pos);
@@ -3702,10 +3831,11 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 				continue;
 			else if(use_view_mask && unit_view->view[mxy] == 1)
 				fil = terrain->filter.darkpal;
-			//else if(!use_view_mask && cursor == MapXY(pnm->x_pos,pnm->y_pos) && sel_blink_state)
-			else if(!use_view_mask && pnm_selection == pnm && sel_blink_state)
+			else if(!use_view_mask && pos == cursor && wHighlight_obj)
 				fil = terrain->filter.goldpal; // highlight animation
-
+			else if(!use_view_mask && pnm_selection == pnm && sel_blink_state)
+				fil = terrain->filter.goldpal; // highlight selected animation
+			
 			
 
 			// L1 elevation
@@ -3737,7 +3867,8 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 		{
 			if (n + xs_ofs >= x_size)
 				break;
-			int mxy = ConvXY(n + xs_ofs, m + ys_ofs * 2);
+			MapXY pos = MapXY(n + xs_ofs,m + ys_ofs * 2);
+			int mxy = ConvXY(pos);
 
 			// select view area
 			uint8_t* filter = GetUnitRangeFilter(n + xs_ofs,m + ys_ofs * 2);
@@ -3761,7 +3892,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 				continue;
 			else if(hide_units)
 				filter = terrain->filter.darkpal;
-
+			
 			// render origin
 			int mxx = n * 80 + (((m & 1) != 0) ? 0 : 40);
 			int myy = m * 24 - sof * 18 + MSYOFS + 50/* + sid->y_ofs*/;
@@ -3830,7 +3961,12 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 					
 				// object render:
 				if (wL2 && pass == 1 && sid2)
-					sid2->Render(pic, pic_end, mxx, myy + sid->y_ofs, pic_x_size, filter);
+				{
+					auto filt = filter;
+					if(!use_view_mask && cursor == pos && wHighlight_obj)
+						filt = terrain->filter.goldpal;					
+					sid2->Render(pic, pic_end, mxx, myy + sid->y_ofs, pic_x_size, filt);
+				}
 
 				// render tile/object hit PNM animation
 				if(wL2 && pass == 2 && tile->hit_pnm)
@@ -5218,7 +5354,7 @@ int SpellMap::RenderHUD(uint8_t *buf,uint8_t* buf_end,int buf_x_size,MapXY *curs
 		int ix_ref = 0;
 		if(pid == 0 && unit_selection)
 			unit = unit_selection;
-		else if(pid == 1 && cursor_unit)
+		else if(pid == 1 && cursor_unit && !destructible)
 		{
 			unit = cursor_unit;
 			px_ref = x_rpan;
@@ -7094,7 +7230,7 @@ bool SpellMap::TileIsVisible(int x,int y)
 }
 
 // configure map elements visibility
-void SpellMap::SetRender(bool wL1, bool wL2, bool wL3, bool wL4, bool wSTCI, bool wUnits,bool wSound,bool wSoundLoop,bool wEvents)
+void SpellMap::SetRender(bool wL1, bool wL2, bool wL3, bool wL4, bool wSTCI, bool wUnits,bool wSound,bool wSoundLoop,bool wEvents,bool highlight_obj)
 {
 	this->wL1 = wL1;
 	this->wL2 = wL2;
@@ -7105,6 +7241,7 @@ void SpellMap::SetRender(bool wL1, bool wL2, bool wL3, bool wL4, bool wSTCI, boo
 	this->wSound = wSound;
 	this->wSoundLoop = wSoundLoop;
 	this->wEvents = wEvents;
+	this->wHighlight_obj = highlight_obj;
 }
 
 // set gamma correction for rendering
