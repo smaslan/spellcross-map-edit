@@ -13,6 +13,7 @@ class SpellMapEventUnitRec
 public:
     MapUnit *unit;
     int is_placed;
+    bool was_listed;
     SpellMapEventUnitRec(MapUnit *unit) {this->unit = unit; is_placed = false;};
 };
 class SpellMapEventMessageRec
@@ -58,7 +59,10 @@ public:
         "SaveUnit"
     };       
 
-    int in_placement;
+    // event is being placed in edit mode?
+    bool in_placement;    
+    // temp flag used for event listing eg. during rendering in edit mode
+    bool was_listed;
 
     // event trigger parameters
     int evt_type;
@@ -78,7 +82,7 @@ public:
     // next event at the same position (used for chaining in events map)
     SpellMapEventRec *next;
 
-    // event new units list
+    // event spawn units list
     vector<SpellMapEventUnitRec> units;
 
     // event invoked text message(s) (there should be just one, but you never know...)
@@ -96,6 +100,7 @@ public:
     SpellMapEventRec(SpellMapEventRec* rec);
     ~SpellMapEventRec();
     std::tuple<std::string,std::string> FormatDEFrecord(int *initial_id);
+    MapXY GetPosition();
 
     int CheckUnitInPos(bool clear=false);
         
@@ -109,6 +114,7 @@ public:
     int hasPosition();
     int isObjectiveType();
     int isEventType();
+
 
     vector<string> GetEventTypes();
 };
@@ -130,7 +136,7 @@ private:
     vector<SpellMapEventRec*> events;
     // events map
     vector<SpellMapEventRec*> events_map;
-
+    
     MapXY ConvXY(int mxy);
     int ConvXY(MapXY pos);
     int GetNextID();
@@ -152,7 +158,9 @@ public:
     int RelinkUnits(vector<MapUnit*>* map_units=NULL);
     void ResetEvents();
     SpellMapEventRec* GetEvent(int index);
-    SpellMapEventRec* GetEvent(MapXY pos);    
+    SpellMapEventRec* GetEvent(MapXY pos); 
+    SpellMapEventRec* GetAnotherEvent(SpellMapEventRec* evt);
+    int GetEventsCount(MapXY pos);
     int CheckEvent(MapXY pos);
     int CheckEvent(int pos);
     SpellMapEventsList GetEvents(MapXY pos,bool clear=false);
@@ -164,4 +172,8 @@ public:
     SpellMapEventRec* AddSeeUnitEvent(MapUnit* unit,int probab=100);
     int ObjectivesDone();
     int GetEventID(SpellMapEventRec * target);
+
+    void ListerClear();
+    SpellMapEventsList ListerGet();
+    std::vector<SpellMapEventUnitRec*> ListerGetMissionStart(MapXY pos={-1,-1});
 };

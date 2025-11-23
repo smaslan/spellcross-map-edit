@@ -311,19 +311,29 @@ int SpellFont::RenderSymbol(uint8_t* buffer,uint8_t* buf_end,int buf_x_size,int 
 	return(sym_w);
 }
 
-// render centered text
-int SpellFont::Render(uint8_t* buffer,uint8_t* buf_end,int buf_x_size,int x_pos,int y_pos,int x_limit,int y_limit,vector<std::string> text,int color,int bg_color,FontShadow shadow)
+// render centered text (multiline, multicolor)
+int SpellFont::Render(uint8_t* buffer,uint8_t* buf_end,int buf_x_size,int x_pos,int y_pos,int x_limit,int y_limit,vector<std::string> text,vector<int> color,int bg_color,FontShadow shadow)
 {
 	int tot_y = text.size()*m_max_y;
 	y_pos = y_pos + y_limit/2 - tot_y/2 - 0*m_max_y/2;
 	int x_end = 0;
-	for(auto & txt : text)
+	for(int k = 0; k < text.size(); k++)
 	{
-		x_end = max(x_end, Render(buffer,buf_end,buf_x_size,x_pos,y_pos,x_limit,m_max_y,txt,color,bg_color,shadow));
+		auto& txt = text[k];
+		int clr = color[min(k,(int)color.size()-1)];
+		x_end = max(x_end, Render(buffer,buf_end,buf_x_size,x_pos,y_pos,x_limit,m_max_y,txt,clr,bg_color,shadow));
 		y_pos += m_max_y;
 	}
+	next_y = y_pos;
 	return(x_end);
 }
+// render centered text (multiline)
+int SpellFont::Render(uint8_t* buffer,uint8_t* buf_end,int buf_x_size,int x_pos,int y_pos,int x_limit,int y_limit,vector<std::string> text,int color,int bg_color,FontShadow shadow)
+{
+	std::vector<int> colors = {color};
+	return(Render(buffer,buf_end,buf_x_size,x_pos,y_pos,x_limit,y_limit,text,colors,bg_color,shadow));
+}
+// render centered text (single line)
 int SpellFont::Render(uint8_t* buffer,uint8_t* buf_end,int buf_x_size,int x_pos,int y_pos,int x_limit, int y_limit, std::string text,int color,int bg_color,FontShadow shadow)
 {
 	// get text size

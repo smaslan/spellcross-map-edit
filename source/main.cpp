@@ -1398,6 +1398,12 @@ void MainFrame::OnCanvasPopupSelect(wxCommandEvent& event)
         spell_map->SelectEvent(cur_evt);
         OnEditEvent(event);
     }
+    else if(event.GetId() == ID_POP_ANOTHER_EVENT)
+    {
+        // switch to another event at position
+        auto cur_evt = spell_map->GetSelectEvent();
+        spell_map->SelectEvent(spell_map->events->GetAnotherEvent(cur_evt));        
+    }
     else if(event.GetId() == ID_POP_EDIT_UNIT)
     {
         // edit unit
@@ -1497,6 +1503,7 @@ void MainFrame::OnCanvasRMouse(wxMouseEvent& event)
             // --- editor mode popup menu stuff:
             auto cur_unit = spell_map->GetCursorUnit();
             auto cur_evt = spell_map->GetCursorEvent();
+            auto cur_pos = spell_map->GetSelection();
 
             int wSounds = GetMenuBar()->FindItem(ID_ViewSounds)->IsChecked(); // ###todo: optimize?
             int wSoundLoops = GetMenuBar()->FindItem(ID_ViewSoundLoops)->IsChecked(); // ###todo: optimize?
@@ -1512,6 +1519,10 @@ void MainFrame::OnCanvasRMouse(wxMouseEvent& event)
             wxMenu menu;
             menu.SetClientData(cur_unit);
 
+            if(spell_map->events->GetEventsCount(cur_pos) > 1 && spell_map->GetSelectEvent())
+            {
+                menu.Append(ID_POP_ANOTHER_EVENT,"Switch to other event");
+            }
             if(cur_unit && cur_unit->map_event && cur_unit->map_event->isMissionStart())
             {
                 menu.Append(ID_POP_REM_MISSIONSTART,"Remove from MissionStart() event");
@@ -1528,8 +1539,7 @@ void MainFrame::OnCanvasRMouse(wxMouseEvent& event)
             {
                 menu.Append(ID_POP_REM_SEEUNIT,"Remove SeeUnit() event");
             }
-            if((cur_unit && cur_unit->map_event && cur_unit->map_event->isMissionStart())
-                || cur_evt)
+            if((cur_unit && cur_unit->map_event && cur_unit->map_event->isMissionStart()) || cur_evt)
             {
                 menu.Append(ID_POP_EDIT_EVENT,"Edit event");
             }
@@ -1870,7 +1880,7 @@ void MainFrame::OnCanvasLMouseDown(wxMouseEvent& event)
        
     // get selection
     auto xy_list = spell_map->GetSelections();
-
+    
     if(event.LeftDown())
     {
         // LEFT DOWN event:
@@ -1908,8 +1918,8 @@ void MainFrame::OnCanvasLMouseDown(wxMouseEvent& event)
             select_pos = spell_map->GetSelection(NULL);
             sel_unit = spell_map->GetSelectedUnit();
             cur_unit = spell_map->GetCursorUnit();
-            auto sel_evt = spell_map->GetSelectEvent();
             auto cur_evt = spell_map->GetCursorEvent();
+            auto sel_evt = spell_map->GetSelectEvent();            
             auto cur_sound = spell_map->CheckSound(NULL,snd_type);
             auto sel_sound = spell_map->SoundSelected();
             auto cur_pnm = spell_map->CheckPNM();
@@ -1966,7 +1976,7 @@ void MainFrame::OnCanvasLMouseDown(wxMouseEvent& event)
                         sel_unit->in_placement = false;
                     cur_evt->in_placement = !cur_evt->in_placement;                    
                 }
-                else if(wEvents && cur_evt)
+                else if(wEvents && cur_evt && !cur_evt->isMissionStart())
                 {
                     // select event
                     spell_map->SelectEvent(cur_evt);

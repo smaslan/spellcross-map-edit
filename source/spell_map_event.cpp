@@ -21,6 +21,7 @@ SpellMapEventRec::SpellMapEventRec(SpellMap* parent_map)
 	next = NULL;
 	hide = false;
 	in_placement = false;
+	was_listed = false;
 }
 SpellMapEventRec::SpellMapEventRec(SpellMapEventRec* rec)
 {
@@ -176,7 +177,15 @@ int SpellMapEventRec::CheckUnitInPos(bool clear)
 		is_done = false;
 	return(false);
 }
-
+// get position of event either from its position or trigger unit position or return noselection
+MapXY SpellMapEventRec::GetPosition()
+{
+	if(hasPosition())
+		return(position);
+	if(hasTargetUnit() && trig_unit)
+		return(trig_unit->coor);
+	return(MapXY());
+}
 
 
 
@@ -853,6 +862,8 @@ std::tuple<std::string, std::string> SpellMapEventRec::FormatDEFrecord(int *init
 
 
 
+
+
 SpellMapEventRec** SpellMapEvents::EventMap(MapXY pos)
 {
 	return(&events_map[pos.x + pos.y*map->x_size]);
@@ -904,16 +915,20 @@ int SpellMapEvents::RelinkUnits(vector<MapUnit*> *map_units)
 	events_map.assign(map->x_size*map->y_size,NULL);
 	for(auto& evt : events)
 	{
+		evt->next = NULL;
+		evt->trig_unit = NULL;
 		if(evt->hasPosition())
 		{
 			// place event to map (or at the end of chain of events for the position)
 			auto tile = EventMap(evt->position);
 			if(!*tile)
 			{
+				// first event at this position
 				*tile = evt;
 			}
 			else
 			{
+				// next event(s) at the position - link it to previous event
 				SpellMapEventRec* prev = *tile;
 				while(prev->next)
 					prev = prev->next;
@@ -941,8 +956,47 @@ int SpellMapEvents::RelinkUnits(vector<MapUnit*> *map_units)
 // get first event for given position
 SpellMapEventRec* SpellMapEvents::GetEvent(MapXY pos)
 {
-	return(*EventMap(pos));
+	for(auto &evt: events)
+		if(evt->GetPosition() == pos)
+			return(evt);
+	return(NULL);
+	
+	//return(*EventMap(pos));
 }
+// get events count for given position
+int SpellMapEvents::GetEventsCount(MapXY pos)
+{
+	int count = 0;
+	for(auto& evt: events)
+		if(evt->GetPosition() == pos)
+			count++;
+	return(count);
+}
+// get another event at the position (cycle through)
+SpellMapEventRec* SpellMapEvents::GetAnotherEvent(SpellMapEventRec *evt)
+{
+	if(!evt)
+		return(NULL);
+
+	// try find this event in the list
+	auto pevt = std::find(events.begin(),events.end(),evt);	
+	if(pevt == events.end())
+		return(GetEvent(evt->GetPosition()));
+	int ev_id = pevt - events.begin();
+
+	// look for next event at position
+	for(int k = ev_id+1; k < events.size(); k++)
+		if(events[k]->GetPosition() == evt->GetPosition())
+			return(events[k]);
+
+	// not found, look from start again
+	for(int k = 0; k <= ev_id; k++)
+		if(events[k]->GetPosition() == evt->GetPosition())
+			return(events[k]);
+	
+	return(NULL);
+}
+
 
 // get event by list order index
 SpellMapEventRec* SpellMapEvents::GetEvent(int index)
@@ -1100,4 +1154,100 @@ int SpellMapEvents::GetEventID(SpellMapEventRec* target)
 		if(events[k] == target)
 			return(k);
 	return(-1);
+}
+
+
+
+
+// --- Events listing stuff:
+
+// clear event listed flags to restart listing process
+void SpellMapEvents::ListerClear()
+{
+	for(auto &evt: events)
+	{
+		evt->was_listed = false;
+		for(auto &unit: evt->units)
+			unit.was_listed = false;
+	}
+}
+
+// call repeatedly to get event(s) list at the same position, returns empty list of all events were listed
+SpellMapEventsList SpellMapEvents::ListerGet()
+{
+	SpellMapEventsList list;	
+	MapXY pos;
+	for(auto& evt: events)
+	{
+		// skip already listed events
+		if(evt->was_listed || evt->isMissionStart())
+			continue;
+
+		// get its position		
+		MapXY pos2 = evt->GetPosition();
+		if(!pos2.IsSelected())
+			continue;
+		if(pos.IsSelected() && pos != pos2)
+			continue;
+		pos = pos2;
+		
+		// place to list
+		evt->was_listed = true;
+		list.push_back(evt);
+	}
+	if(list.empty())
+		pos.Clear();
+
+	// append mission start events?
+	/*if(with_mission_start)
+	{
+		for(auto& evt: events)
+		{
+			// skip already listed events
+			if(evt->was_listed || !evt->isMissionStart())
+				continue;
+			// mission start event found (should be only one)
+
+			// for each spawned unit
+			for(auto &unit: evt->units)
+			{
+				if(unit.was_listed)
+					continue;
+				if(pos.IsSelected() && unit.unit->coor != pos)
+					continue;
+				pos = unit.unit->coor;
+				unit.was_listed = true;
+				list.push_back(evt);
+			}
+			break;						
+		}
+	}*/
+	return(list);
+}
+
+// call repeatedly to get list of units with mission start event, optional pos filters units to certain spot, returns empty when no more units (reset by ListerClear())
+std::vector<SpellMapEventUnitRec*> SpellMapEvents::ListerGetMissionStart(MapXY pos)
+{	
+	std::vector<SpellMapEventUnitRec*> list;
+	bool filter_pos = pos.IsSelected();
+	for(auto& evt: events)
+	{
+		// skip already listed events
+		if(evt->was_listed || !evt->isMissionStart())
+			continue;
+		// mission start event found (should be only one)
+
+		// for each spawned unit
+		for(auto& unit: evt->units)
+		{
+			if(unit.was_listed)
+				continue;
+			if(filter_pos && unit.unit->coor != pos)
+				continue;
+			unit.was_listed = true;
+			list.push_back(&unit);
+		}
+		break;
+	}
+	return(list);
 }

@@ -4112,7 +4112,102 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 		auto start_evts = events->GetMissionStartEvent();
 
 		// render event marks:
-		for(m = 0; m < ys_size; m++)
+
+		events->ListerClear();
+		while(true)
+		{
+			// get some events at the same position
+			auto list = events->ListerGet();
+			if(list.empty())
+				break;
+						
+			// skip if not in visible area
+			MapXY pos = list[0]->GetPosition();
+			int mxy = ConvXY(pos);
+			if(pos.x < xs_ofs || pos.x >= (xs_ofs + xs_size) || pos.y < ys_ofs * 2 || pos.y >= (ys_ofs * 2 + ys_size))
+				continue;
+			
+			// get tile
+			Sprite* spr = tiles[mxy].L1;
+			int sof = tiles[mxy].elev;
+			n = pos.x - xs_ofs;
+			m = pos.y - ys_ofs*2;
+			int mxx = n * 80 + (((m & 1) != 0) ? 0 : 40);
+			int myy = m * 24 - sof * 18 + MSYOFS + 50 + spr->y_ofs;
+
+			std::vector<string> labels;
+			std::vector<int> colors;
+			//int is_selected = false;
+			for(auto& evt: list)
+			{
+				labels.push_back("\x1C" + evt->type_name);
+				if(evt->probability != 100)
+					labels.back() += string_format("(%d%%)",evt->probability);
+				if(!evt->units.empty())
+					labels.back() += "\x1A";
+				if(!evt->texts.empty())
+					labels.back() += "\x1B";
+				bool is_selected = (GetSelectEvent() == evt && !evt->in_placement);
+				int color = (is_selected && sel_blink_state)?214:252;
+				colors.push_back(color);
+			}
+						
+			terrain->font->Render(pic,pic_end,pic_x_size,mxx,myy,80,spr->y_size,labels,colors,254,SpellFont::SOLID);
+			int myy2 = myy;
+			if(labels.size())
+				myy2 = terrain->font->GetNextY();
+			
+			// append MissionStarts
+			auto ms_list = events->ListerGetMissionStart(pos);
+			for(auto &unit: ms_list)
+			{
+				// make label on top of unit
+				auto evt = unit->unit->map_event;
+				if(!evt)
+					continue;
+				string label = "?" + evt->type_name;
+				if(evt->probability != 100)
+					label += string_format("(%d%%)",evt->probability);
+				int y_ofs = (unit->unit->unit->isAir())?(myy-SpellUnitRec::AIR_UNIT_FLY_HEIGHT):myy2;
+				terrain->font7->Render(pic,pic_end,pic_x_size,mxx,y_ofs,80,10,label,252,254,SpellFont::SOLID);
+			}
+			
+		}
+
+		// render rest of MissionStarts
+		auto ms_list = events->ListerGetMissionStart();
+		for(auto& unit: ms_list)
+		{
+			// make label on top of unit
+			auto evt = unit->unit->map_event;
+			if(!evt)
+				continue;
+
+			// skip if not in visible area
+			MapXY pos = unit->unit->coor;
+			int mxy = ConvXY(pos);
+			if(pos.x < xs_ofs || pos.x >= (xs_ofs + xs_size) || pos.y < ys_ofs * 2 || pos.y >= (ys_ofs * 2 + ys_size))
+				continue;
+
+			// get tile
+			Sprite* spr = tiles[mxy].L1;
+			int sof = tiles[mxy].elev;
+			n = pos.x - xs_ofs;
+			m = pos.y - ys_ofs*2;
+			int mxx = n * 80 + (((m & 1) != 0) ? 0 : 40);
+			int myy = m * 24 - sof * 18 + MSYOFS + 50 + spr->y_ofs;
+
+			string label = "?" + evt->type_name;
+			if(evt->probability != 100)
+				label += string_format("(%d%%)",evt->probability);
+			int y_ofs = (unit->unit->unit->isAir())?(-SpellUnitRec::AIR_UNIT_FLY_HEIGHT):0;
+			terrain->font7->Render(pic,pic_end,pic_x_size,mxx,myy+y_ofs,80,spr->y_size,label,252,254,SpellFont::SOLID);
+		}
+
+
+
+
+		/*for(m = 0; m < ys_size; m++)
 		{
 			if(m + ys_ofs * 2 >= y_size)
 				break;
@@ -4202,7 +4297,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 
 				
 			}
-		}
+		}*/
 	}
 	
 		
@@ -5235,22 +5330,26 @@ MapUnit *SpellMap::GetCursorUnit(TScroll* scroll)
 		return(NULL);
 	auto & pos = msel[0];
 
-	for(auto * unit : units)
+	MapUnit *cur_unit = NULL;
+	for(auto *unit : units)
 	{
-		if(unit->coor == pos)
-			return(unit); // found match
+		if(unit->coor != pos)
+			continue;					
+		if(!cur_unit || !unit->unit->isAir() == unit_sel_land_preference)
+			cur_unit = unit;		
 	}
 	if(!isGameMode())
 	{
 		for(auto & evt : events->GetEvents())
 			for(auto & unit : evt->units)
 			{
-				if(unit.unit->coor == pos)
-					return(unit.unit); // found match
+				if(unit.unit->coor != pos)
+					continue;
+				if(!cur_unit || !unit.unit->unit->isAir() == unit_sel_land_preference)
+					cur_unit = unit.unit;
 			}
 	}
-
-	return(NULL);
+	return(cur_unit);
 }
 
 // get currently selected unit
@@ -8796,12 +8895,11 @@ SpellMapEventRec* SpellMap::GetCursorEvent(TScroll* scroll)
 		scroll = &scroller;
 
 	// find selection tiles
-	auto msel = GetSelections(scroll);
+	auto pos = GetSelection(scroll);
 
 	// no selection?
-	if(!msel.size() || !msel[0].IsSelected())
+	if(!pos.IsSelected())
 		return(NULL);
-	auto& pos = msel[0];
 
 	// try to get event
 	auto evt = events->GetEvent(pos);
