@@ -862,6 +862,7 @@ class SpellMap
 			int lay1;
 			int lay2;
 			int anm;
+			int pnm;
 		};
 		
 		class CopyBuffer{
@@ -869,7 +870,7 @@ class SpellMap
 			std::vector<MapXY> pos;
 			std::vector<MapSprite> tiles;
 			std::vector<MapLayer3> anms;
-			//int is_start_ciel;
+			std::vector<MapLayer4> pnms;
 		};
 		CopyBuffer copy_buf;
 
@@ -877,9 +878,10 @@ class SpellMap
 		int SetBuffer(SpellObject* obj);
 		int SetBuffer(Sprite* spr);
 		int SetBuffer(AnimL1* anm);
+		int SetBuffer(AnimPNM* pnm,int x_ofs=0,int y_ofs=0);
 		void CutBuffer(std::vector<MapXY>& posxy,Layers layers);
 		void CopyBuffer(std::vector<MapXY> &posxy,Layers layers);
-		void PasteBuffer(std::vector<MapSprite>& tiles,std::vector<MapLayer3>& anms,std::vector<MapXY>& posxy);
+		void PasteBuffer(std::vector<MapSprite>& tiles,std::vector<MapLayer3>& anms,std::vector<MapLayer4>& pnms,std::vector<MapXY>& posxy);
 		bool isCopyBufferFull();
 		int PasteRandSprites(std::vector<MapSprite>& tiles,std::vector<MapXY>& posxy,std::vector<Sprite*>& sprites,bool force_rand);
 		void DeleteSelObjects(std::vector<MapXY>& posxy,SpellMap::Layers layers);

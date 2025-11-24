@@ -108,7 +108,7 @@ class FormUnits : public wxFrame
 	protected:
 		enum
 		{
-			wxID_SB = 1000,
+			wxID_SB = 5999,
 			wxID_MM_SAVE_AUX,
 			wxID_MM_EXIT,
 			wxID_MM_COPY_GRP_ORG,
@@ -202,7 +202,6 @@ class FormUnits : public wxFrame
 		wxCheckBox* cbGrpFireOrg;
 		wxCheckBox* cbGrpFireMean;
 		wxCheckBox* cbGrpFireCenter;
-		wxListBox* m_listBox11;
 
 	public:
 

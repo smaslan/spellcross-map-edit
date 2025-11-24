@@ -189,12 +189,14 @@ MainFrame::MainFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY
 
     // Layer selection submenu for copy/paste editor
     wxMenu* menuLayer = new wxMenu;
-    menuLayer->Append(ID_SelectLay1,"Layer 1 - Terrain\t","",wxITEM_CHECK);
+    menuLayer->Append(ID_SelectLay1,"Layer 1 - Terrain\tCtrl+F1","",wxITEM_CHECK);
     menuLayer->FindItem(ID_SelectLay1)->Check(true);
-    menuLayer->Append(ID_SelectLay2,"Layer 2 - Objects\t","",wxITEM_CHECK);
+    menuLayer->Append(ID_SelectLay2,"Layer 2 - Objects\tCtrl+F2","",wxITEM_CHECK);
     menuLayer->FindItem(ID_SelectLay2)->Check(true);
-    menuLayer->Append(ID_SelectLayANM,"Layer 3 - ANM animations\t","",wxITEM_CHECK);
+    menuLayer->Append(ID_SelectLayANM,"Layer 3 - ANM animations\tCtrl+F3","",wxITEM_CHECK);
     menuLayer->FindItem(ID_SelectLayANM)->Check(true);
+    menuLayer->Append(ID_SelectLayPNM,"Layer 4 - PNM animations\tCtrl+F4","",wxITEM_CHECK);
+    menuLayer->FindItem(ID_SelectLayPNM)->Check(true);
     // edit menu
     wxMenu* menuEdit = new wxMenu;
     menuEdit->Append(ID_EditMissionParams,"Edit mission parameters","",wxITEM_NORMAL);
@@ -295,12 +297,16 @@ MainFrame::MainFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY
     canvas->Bind(wxEVT_PAINT,&MainFrame::OnPaintCanvas,this);
     canvas->Bind(wxEVT_RIGHT_DOWN,&MainFrame::OnCanvasRMouse,this);
     canvas->Bind(wxEVT_RIGHT_UP,&MainFrame::OnCanvasRMouse,this);
+    
+    
+
     canvas->Bind(wxEVT_MOTION,&MainFrame::OnCanvasMouseMove,this);
     canvas->Bind(wxEVT_LEAVE_WINDOW,&MainFrame::OnCanvasMouseLeave,this);
     canvas->Bind(wxEVT_ENTER_WINDOW,&MainFrame::OnCanvasMouseEnter,this);
     canvas->Bind(wxEVT_MOUSEWHEEL,&MainFrame::OnCanvasMouseWheel,this);
     canvas->Bind(wxEVT_KEY_DOWN,&MainFrame::OnCanvasKeyDown,this);
     canvas->Bind(wxEVT_LEFT_DOWN,&MainFrame::OnCanvasLMouseDown,this);
+    //canvas->Bind(wxEVT_LEFT_DCLICK,&MainFrame::OnCanvasLMouseDown,this);
     canvas->Bind(wxEVT_THREAD,&MainFrame::OnThreadCanvas,this);
     
 
@@ -484,7 +490,7 @@ void MainFrame::OnClose(wxCloseEvent& ev)
                 else
                 {
                     // some anim selected - place to clipboard
-
+                    spell_map->SetBuffer(pnm,x_ofs,y_ofs);
                 }
             }
 
@@ -1394,8 +1400,8 @@ void MainFrame::OnCanvasPopupSelect(wxCommandEvent& event)
     else if(event.GetId() == ID_POP_EDIT_EVENT)
     {
         // edit event        
-        auto cur_evt = spell_map->GetCursorEvent();
-        spell_map->SelectEvent(cur_evt);
+        auto cur_evt = spell_map->GetSelectEvent();
+        //spell_map->SelectEvent(cur_evt);
         OnEditEvent(event);
     }
     else if(event.GetId() == ID_POP_ANOTHER_EVENT)
@@ -1503,6 +1509,7 @@ void MainFrame::OnCanvasRMouse(wxMouseEvent& event)
             // --- editor mode popup menu stuff:
             auto cur_unit = spell_map->GetCursorUnit();
             auto cur_evt = spell_map->GetCursorEvent();
+            auto sel_evt = spell_map->GetSelectEvent();
             auto cur_pos = spell_map->GetSelection();
 
             int wSounds = GetMenuBar()->FindItem(ID_ViewSounds)->IsChecked(); // ###todo: optimize?
@@ -1519,7 +1526,7 @@ void MainFrame::OnCanvasRMouse(wxMouseEvent& event)
             wxMenu menu;
             menu.SetClientData(cur_unit);
 
-            if(spell_map->events->GetEventsCount(cur_pos) > 1 && spell_map->GetSelectEvent())
+            if(sel_evt && sel_evt->GetPosition() == cur_pos && spell_map->events->GetEventsCount(cur_pos) > 1)
             {
                 menu.Append(ID_POP_ANOTHER_EVENT,"Switch to other event");
             }
@@ -1808,7 +1815,7 @@ void MainFrame::OnPasteBuf(wxCommandEvent& event)
         return;
 
     spell_map->LockMap();
-    spell_map->PasteBuffer(spell_map->tiles,spell_map->L3,list);
+    spell_map->PasteBuffer(spell_map->tiles,spell_map->L3,spell_map->L4,list);
     spell_map->ReleaseMap();
     Refresh();
 }
@@ -1889,7 +1896,7 @@ void MainFrame::OnCanvasLMouseDown(wxMouseEvent& event)
         {
             // something in copy buffer
             spell_map->LockMap();
-            spell_map->PasteBuffer(spell_map->tiles,spell_map->L3,xy_list);
+            spell_map->PasteBuffer(spell_map->tiles,spell_map->L3,spell_map->L4,xy_list);
             spell_map->ReleaseMap();
             Refresh();
         }

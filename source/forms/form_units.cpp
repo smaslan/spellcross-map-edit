@@ -347,9 +347,6 @@ FormUnits::FormUnits( wxWindow* parent, wxWindowID id, const wxString& title, co
 
 	szMain->Add(szArt,1,wxEXPAND,5);
 
-	m_listBox11 = new wxListBox(this,wxID_ANY,wxDefaultPosition,wxDefaultSize,0,NULL,wxLB_ALWAYS_SB);
-	m_listBox11->SetMinSize(wxSize(200,-1));
-
 
 	this->SetSizer(szMain);
 	this->Layout();

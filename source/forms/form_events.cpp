@@ -336,10 +336,10 @@ FormEvent::~FormEvent()
 // reset event changes to initial state
 void FormEvent::ResetChanges()
 {
-	auto unit = spell_map->GetSelectedUnit();
+	auto old_unit = spell_map->GetSelectedUnit();
 	int unit_id = -1;
-	if(unit)
-		unit_id = unit->id;
+	if(old_unit)
+		unit_id = old_unit->id;
 	spell_map->SelectUnit(NULL);
 		
 	// restore events
@@ -356,7 +356,16 @@ void FormEvent::ResetChanges()
 					spell_map->SelectUnit(unit.unit);
 			}
 		}
+	}	
+	for(auto& unit: spell_map->units)
+	{
+		if(unit->id == unit_id)
+			spell_map->SelectUnit(unit);
 	}
+
+	if(spell_orig_event_id >= 0)
+		spell_map->SelectEvent(spell_map->events->GetEvent(spell_orig_event_id));
+
 
 	spell_new_event = NULL;
 	spell_event = NULL;
@@ -409,13 +418,21 @@ void FormEvent::OnCloseClick(wxCommandEvent& event)
 // set current map poitner
 void FormEvent::SetMap(SpellMap* map)
 {
+	spell_orig_event_id = -1;
 	spell_map = map;
 	if(!map)
 		return;
 	
 	// make backup of events so it can be restored eventually
-	for(auto & evt : spell_map->events->GetEvents())
-		spell_orig_events.push_back(new SpellMapEventRec(evt));
+	auto evt_list = spell_map->events->GetEvents();
+	for(int k = 0; k < evt_list.size(); k++)
+	{		
+		spell_orig_events.push_back(new SpellMapEventRec(evt_list[k]));
+		if(evt_list[k] == spell_map->GetSelectEvent())
+			spell_orig_event_id = k;
+	}
+
+	
 
 	//chbType->Clear();
 	chbMsgItem->Clear();

@@ -50,6 +50,7 @@ private:
 	SpellMapEventRec* spell_event;
 	SpellMapEventRec* spell_new_event;
 	SpellMapEventsList spell_orig_events;
+	int spell_orig_event_id;
 
 	void OnClose(wxCloseEvent& ev);
 	void OnCloseClick(wxCommandEvent& event);

@@ -2497,6 +2497,7 @@ int SpellMap::SetBuffer(SpellObject* obj)
 	copy_buf.pos.clear();
 	copy_buf.tiles.clear();
 	copy_buf.anms.clear();
+	copy_buf.pnms.clear();
 	return(obj->GetObjectData(&copy_buf.pos, &copy_buf.tiles));	
 }
 
@@ -2509,6 +2510,7 @@ int SpellMap::SetBuffer(Sprite *spr)
 	copy_buf.pos.clear();
 	copy_buf.tiles.clear();
 	copy_buf.anms.clear();
+	copy_buf.pnms.clear();
 
 	copy_buf.pos.push_back(MapXY(0,0));
 	MapSprite tile;
@@ -2538,6 +2540,7 @@ int SpellMap::SetBuffer(AnimL1* anm)
 	copy_buf.pos.clear();
 	copy_buf.tiles.clear();
 	copy_buf.anms.clear();
+	copy_buf.pnms.clear();
 
 	copy_buf.pos.push_back(MapXY(0,0));
 	MapSprite tile;	
@@ -2551,12 +2554,38 @@ int SpellMap::SetBuffer(AnimL1* anm)
 	return(0);
 }
 
+// set buffer content to PNM
+int SpellMap::SetBuffer(AnimPNM* pnm,int x_ofs,int y_ofs)
+{
+	if(!pnm)
+		return(1);
+
+	copy_buf.pos.clear();
+	copy_buf.tiles.clear();
+	copy_buf.anms.clear();
+	copy_buf.pnms.clear();
+
+	copy_buf.pos.push_back(MapXY(0,0));
+	MapSprite tile;
+	copy_buf.tiles.push_back(tile);
+	MapLayer4 new_pnm;
+	new_pnm.anim = pnm;
+	new_pnm.x_ofs = x_ofs;
+	new_pnm.y_ofs = y_ofs;
+	new_pnm.frame_limit = pnm->frames.size();
+	new_pnm.frame_ofs = rand() % new_pnm.frame_limit;
+	copy_buf.pnms.push_back(new_pnm);
+
+	return(0);
+}
+
 // copy map data for copy&paste actions
 void SpellMap::CopyBuffer(std::vector<MapXY>& posxy,SpellMap::Layers layers)
 {
 	copy_buf.pos.clear();
 	copy_buf.tiles.clear();
 	copy_buf.anms.clear();
+	copy_buf.pnms.clear();
 	
 	// find reference tile (bottom right)
 	int elev = 1<<30;
@@ -2618,6 +2647,22 @@ void SpellMap::CopyBuffer(std::vector<MapXY>& posxy,SpellMap::Layers layers)
 			}
 		}
 		copy_buf.anms.push_back(tile_anm);
+
+		MapLayer4 tile_pnm = MapLayer4(NULL,pos.x,pos.y);
+		if(layers.pnm)
+		{
+			for(auto& pnm: L4)
+			{
+				if(pnm.x_pos == posxy[k].x && pnm.y_pos == posxy[k].y)
+				{
+					// some ANM found at target pos
+					tile_pnm = pnm;
+					break;
+				}
+			}
+		}
+		copy_buf.pnms.push_back(tile_pnm);
+
 		
 	}
 	// align from 0,0 (lazy solution)
@@ -2625,6 +2670,7 @@ void SpellMap::CopyBuffer(std::vector<MapXY>& posxy,SpellMap::Layers layers)
 	{
 		copy_buf.pos[k].x -= ref2.x;
 		copy_buf.anms[k].x_pos -= ref2.x;
+		copy_buf.pnms[k].x_pos -= ref2.x;
 	}
 }
 
@@ -2632,6 +2678,7 @@ void SpellMap::CopyBuffer(std::vector<MapXY>& posxy,SpellMap::Layers layers)
 void SpellMap::CutBuffer(std::vector<MapXY>& posxy,SpellMap::Layers layers)
 {
 	layers.anm = false;
+	layers.pnm = false;
 	layers.lay1 = false;
 	CopyBuffer(posxy,layers);
 	if(layers.lay2)
@@ -2644,10 +2691,11 @@ void SpellMap::ClearBuffer()
 	copy_buf.pos.clear();
 	copy_buf.tiles.clear();
 	copy_buf.anms.clear();
+	copy_buf.pnms.clear();
 }
 
 // paste from copy buffer
-void SpellMap::PasteBuffer(std::vector<MapSprite>& tiles, std::vector<MapLayer3>& anms, std::vector<MapXY> &posxy)
+void SpellMap::PasteBuffer(std::vector<MapSprite>& tiles, std::vector<MapLayer3>& anms, std::vector<MapLayer4>& pnms, std::vector<MapXY> &posxy)
 {
 	if(copy_buf.pos.empty() || posxy.empty())
 		return;
@@ -2697,6 +2745,8 @@ void SpellMap::PasteBuffer(std::vector<MapSprite>& tiles, std::vector<MapLayer3>
 				{
 					// ANM layer
 					auto new_anm = copy_buf.anms[k];
+					if(new_anm.frame_limit)
+						new_anm.frame_ofs = std::rand() % new_anm.frame_limit;
 					new_anm.x_pos = x;
 					new_anm.y_pos = y;
 					// remove existing tile
@@ -2709,6 +2759,25 @@ void SpellMap::PasteBuffer(std::vector<MapSprite>& tiles, std::vector<MapLayer3>
 					// place new one
 					if(new_anm.anim)
 						anms.push_back(new_anm);
+				}
+				if(k < copy_buf.pnms.size())
+				{
+					// PNM layer
+					auto new_pnm = copy_buf.pnms[k];
+					if(new_pnm.frame_limit)
+						new_pnm.frame_ofs = std::rand() % new_pnm.frame_limit;
+					new_pnm.x_pos = x;
+					new_pnm.y_pos = y;
+					// remove existing tile
+					for(int m = 0; m < pnms.size(); m++)
+						if(pnms[m].x_pos == x && pnms[m].y_pos == y)
+						{
+							pnms.erase(pnms.begin() + m);
+							break;
+						}
+					// place new one
+					if(new_pnm.anim)
+						pnms.push_back(new_pnm);
 				}
 			}
 		}
@@ -2736,6 +2805,8 @@ void SpellMap::DeleteSelObjects(std::vector<MapXY>& posxy,SpellMap::Layers layer
 		}
 		if(layers.anm)
 			RemoveANM(&pos);
+		if(layers.pnm)
+			RemovePNM(&pos);
 	}
 }
 
@@ -3564,6 +3635,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 	// make local copies of layers so tools and clipboard can override'em
 	std::vector<MapSprite> tiles = this->tiles;
 	std::vector<MapLayer3> L3 = this->L3;
+	std::vector<MapLayer4> L4 = this->L4;
 	
 
 	// edit tool pre-processing:
@@ -3586,7 +3658,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 	if(msel.size())
 	{
 		// override layers by clipboard buffer
-		PasteBuffer(tiles,L3,msel);
+		PasteBuffer(tiles,L3,L4,msel);
 	}
 
 	int use_view_mask = game_mode || units_view_debug_mode;
@@ -7467,7 +7539,7 @@ int SpellMap::Tick()
 	// get ref. unit
 	auto* unit = GetSelectedUnit();
 	if(!unit)
-		return(0);
+		return(update);
 
 	
 	LockMap();

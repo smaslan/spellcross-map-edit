@@ -327,6 +327,7 @@ enum
     ID_SelectLay1,
     ID_SelectLay2,
     ID_SelectLayANM,
+    ID_SelectLayPNM,
     ID_SelectAll,
     ID_DeselectAll,
     ID_SelectDeselect,
