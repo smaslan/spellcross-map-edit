@@ -445,13 +445,22 @@ void MainFrame::OnClose(wxCloseEvent& ev)
         // on close sprite editor
         Terrain *terr = form_sprites->GetSelectedTerrain();
         Sprite *spr = form_sprites->GetSelectedSprite();        
+        bool was_edit = form_sprites->wasSet();
         form_sprites->Destroy();
         LoadToolsetRibbon();
 
         if(spell_map && spell_map->IsLoaded() && spell_map->terrain == terr && spr)
         {
-            // some sprite selected - place to clipboard
-            spell_map->SetBuffer(spr);
+            if(was_edit)
+            {
+                // edit existing sprite
+                spell_map->EditTileSprite(spr,&spell_pos);
+            }
+            else
+            {
+                // some sprite selected - place to clipboard
+                spell_map->SetBuffer(spr);
+            }
         }
     }
     else if(ev.GetId() == ID_ANM_WIN)
@@ -1422,12 +1431,30 @@ void MainFrame::OnCanvasPopupSelect(wxCommandEvent& event)
         spell_map->RemoveObj();
         Refresh();
     }
+    else if(event.GetId() == ID_POP_EDIT_TERR)
+    {
+        // edit terrain tile
+        if(!FindWindowById(ID_SPRITES_WIN))
+        {
+            spell_pos = spell_map->GetSelection();
+            auto tile = spell_map->GetTile();
+            if(tile)
+            {
+                form_sprites = new FormSprite(this,spell_data,ID_SPRITES_WIN);
+                form_sprites->SetSprite(spell_map->terrain,tile->L1);
+                form_sprites->Show();
+            }
+        }
+    }
     else if(event.GetId() == ID_POP_EDIT_OBJ)
     {
         // edit obj tile
         if(!FindWindowById(ID_SPRITES_WIN))
         {
+            spell_pos = spell_map->GetSelection();
             form_sprites = new FormSprite(this,spell_data,ID_SPRITES_WIN);
+            auto spr = spell_map->CheckObj();
+            form_sprites->SetSprite(spell_map->terrain,spr->L2);
             form_sprites->Show();
         }
     }
@@ -1530,32 +1557,38 @@ void MainFrame::OnCanvasRMouse(wxMouseEvent& event)
             {
                 menu.Append(ID_POP_ANOTHER_EVENT,"Switch to other event");
             }
-            if(cur_unit && cur_unit->map_event && cur_unit->map_event->isMissionStart())
-            {
-                menu.Append(ID_POP_REM_MISSIONSTART,"Remove from MissionStart() event");
-            }
-            if(cur_unit && (!cur_unit->map_event || !cur_unit->map_event->isMissionStart()))
-            {
-                menu.Append(ID_POP_ADD_MISSIONSTART,"Add to MissionStart() event");
-            }
-            if(cur_unit && !cur_unit->trig_event)
-            {
-                menu.Append(ID_POP_ADD_SEEUNIT,"Set as SeeUnit() event trigger unit");
-            }
-            if(cur_unit && cur_unit->trig_event && cur_unit->trig_event->isSeeUnit())
-            {
-                menu.Append(ID_POP_REM_SEEUNIT,"Remove SeeUnit() event");
-            }
             if((cur_unit && cur_unit->map_event && cur_unit->map_event->isMissionStart()) || cur_evt)
             {
                 menu.Append(ID_POP_EDIT_EVENT,"Edit event");
             }
+            if(cur_unit && cur_unit->map_event && cur_unit->map_event->isMissionStart())
+            {
+                menu.Append(ID_POP_REM_MISSIONSTART,"Remove from MissionStart event");
+            }
+            if(cur_unit && (!cur_unit->map_event || !cur_unit->map_event->isMissionStart()))
+            {
+                menu.Append(ID_POP_ADD_MISSIONSTART,"Add to MissionStart event");
+            }
+            if(cur_unit && !cur_unit->trig_event)
+            {
+                menu.Append(ID_POP_ADD_SEEUNIT,"Create SeeUnit event");
+            }
+            if(cur_unit && cur_unit->trig_event && cur_unit->trig_event->isSeeUnit())
+            {
+                menu.Append(ID_POP_REM_SEEUNIT,"Remove SeeUnit event");
+            }            
             if(cur_unit)
             {
                 if(menu.GetMenuItemCount())
                     menu.AppendSeparator();
                 menu.Append(ID_POP_EDIT_UNIT,"Edit unit");
             }            
+            if(GetMenuBar()->FindItem(ID_ViewTer)->IsChecked())
+            {
+                if(menu.GetMenuItemCount())
+                    menu.AppendSeparator();
+                menu.Append(ID_POP_EDIT_TERR,"Edit terrain sprite");
+            }
             if(spell_map->CheckObj() && GetMenuBar()->FindItem(ID_ViewObj)->IsChecked())
             {
                 if(menu.GetMenuItemCount())
@@ -1603,144 +1636,7 @@ void MainFrame::OnCanvasRMouse(wxMouseEvent& event)
     canvas->Refresh();
 
 }
-void MainFrame::OnCanvasMouseEnter(wxMouseEvent& event)
-{
-    if(inSubForm())
-        return;
 
-    canvas->SetFocus();
-}
-void MainFrame::OnCanvasMouseLeave(wxMouseEvent& event)
-{
-    SetCursor(*wxSTANDARD_CURSOR);
-    
-    if(!spell_map->IsLoaded())
-        return;
-    if(inUnitOptions())
-        return;
-
-    spell_map->SetUnitRangeViewMode(SpellMap::UNIT_RANGE_NONE);
-    spell_map->scroller.Idle();
-}
-void MainFrame::OnCanvasMouseMove(wxMouseEvent& event)
-{
-    if(!spell_map->IsLoaded())
-        return;
-    if(inUnitOptions())
-        return;
-    
-    static int last_in_hud = false;
-
-    int hud_top = spell_map->GetHUDtop(event.GetX());
-    if(event.GetY() >= hud_top)
-    {
-        // mouse in HUD area - kill scroll
-        spell_map->SetUnitRangeViewMode(SpellMap::UNIT_RANGE_NONE);
-        if(!last_in_hud)
-            spell_map->InvalidateHUDbuttons();
-        spell_map->scroller.Idle();
-        last_in_hud = true;
-
-        // invalidate cursor
-        spell_map->ClearSelections();
-
-        // default game cursor
-        SetCursor(*spell_data->gres.cur_pointer);
-    }
-    else  
-    {
-        spell_map->scroller.Move(event.GetX(), event.GetY());
-        last_in_hud = false;
-
-        // resolve cursor
-        auto options = spell_map->GetUnitOptions();
-        wxCursor *cur = spell_data->gres.cur_pointer;
-        if(!spell_map->isGameMode())
-            cur = spell_data->gres.cur_pointer;
-        else if(!options)
-            cur = spell_data->gres.cur_pointer;
-        else if(options == SpellMap::UNIT_OPT_MOVE)
-            cur = spell_data->gres.cur_move;
-        else if(options == SpellMap::UNIT_OPT_SELECT)
-            cur = spell_data->gres.cur_select;
-        else if(options == SpellMap::UNIT_OPT_LOWER)
-            cur = spell_data->gres.cur_attack_down;
-        else if(options == SpellMap::UNIT_OPT_UPPER)
-            cur = spell_data->gres.cur_attack_up;
-        else if(options == (SpellMap::UNIT_OPT_UPPER | SpellMap::UNIT_OPT_LOWER))
-            cur = spell_data->gres.cur_attack_up_down;
-        else
-            cur = spell_data->gres.cur_question;
-        SetCursor(*cur);
-    }
-    
-    
-    // update map selection
-    MapXY mxy = spell_map->GetSelection();
-    int elev = spell_map->GetElevation();
-    SetStatusText(wxString::Format(wxT("x=%d"),mxy.x),0);
-    SetStatusText(wxString::Format(wxT("y=%d"),mxy.y),1);    
-    SetStatusText(wxString::Format(wxT("z=%d"),elev),2);
-    SetStatusText(wxString::Format(wxT("xy=%d"),spell_map->ConvXY(mxy)),3);
-    SetStatusText(wxString::Format(wxT("L1: %s"),spell_map->GetL1tileName()),4);
-    SetStatusText(wxString::Format(wxT("L2: %s"),spell_map->GetL2tileName()),5);
-    //int height, flags, code;
-    auto [flags,height,code] = spell_map->GetTileFlags();
-    SetStatusText(wxString::Format(wxT("(0x%02X)"),code),6);
-
-    auto sel_evt = spell_map->GetSelectEvent();
-    auto* unit = spell_map->GetSelectedUnit();
-    auto sel_sound = spell_map->SoundSelected();
-    auto* sel_pnm = spell_map->SelectedPNM();
-    auto* sel_anm = spell_map->SelectedANM();
-    if(sel_anm && sel_anm->in_placement && mxy.IsSelected())
-    {
-        // change ANM position
-        spell_map->MoveANM(sel_anm,mxy);
-    }
-    else if(sel_pnm && sel_pnm->in_placement && mxy.IsSelected())
-    {
-        // change PNM position
-        spell_map->MovePNM(sel_pnm, mxy);
-    }
-    else if(sel_sound && sel_sound->in_placement && mxy.IsSelected())
-    {
-        // change sound position
-        spell_map->SoundMove(sel_sound, mxy, false);
-    }
-    else if(sel_evt && sel_evt->in_placement && mxy.IsSelected())
-    {
-        // change event position
-        sel_evt->position = mxy;
-        spell_map->events->ResetEvents();
-    }
-    else if(unit && unit->in_placement && mxy.IsSelected())
-    {
-        // change unit position
-        if(unit->coor != mxy)
-            unit->was_moved = true;
-        unit->coor = mxy;
-        
-        if(unit->was_moved)
-            spell_map->unit_view->AddUnitView(unit,
-                spell_map->isUnitsViewDebugMode()?(SpellMap::ViewRange::ClearMode::HIDE):(SpellMap::ViewRange::ClearMode::NONE));
-    }
-    
-    canvas->Refresh();
-    //event.Skip();
-}
-void MainFrame::OnCanvasMouseWheel(wxMouseEvent& event)
-{
-    spell_map->scroller.ResizeSelection(event.GetWheelRotation()/event.GetWheelDelta());
-    canvas->Refresh();
-}
-void MainFrame::OnCanvasKeyDown(wxKeyEvent& event)
-{
-    int key = event.GetKeyCode();
-    if(event.ControlDown())
-    {        
-    }               
-}
 
 // select all tiles
 void MainFrame::OnSelectAll(wxCommandEvent& event)
@@ -1976,12 +1872,12 @@ void MainFrame::OnCanvasLMouseDown(wxMouseEvent& event)
                     // try add/remove unit to event
                     spell_map->UpdateEventUnit(sel_evt, cur_unit);
                 }
-                else if(wEvents && cur_evt && cur_evt == sel_evt)
+                else if(wEvents && sel_evt && sel_evt->position == select_pos)
                 {
                     // move/place event
                     if(sel_unit)
                         sel_unit->in_placement = false;
-                    cur_evt->in_placement = !cur_evt->in_placement;                    
+                    sel_evt->in_placement = !sel_evt->in_placement;
                 }
                 else if(wEvents && cur_evt && !cur_evt->isMissionStart())
                 {
@@ -2029,6 +1925,152 @@ void MainFrame::OnCanvasLMouseDown(wxMouseEvent& event)
 
     canvas->Refresh();
 }
+
+// on canvas mouse enter
+void MainFrame::OnCanvasMouseEnter(wxMouseEvent& event)
+{
+    if(inSubForm())
+        return;
+
+    canvas->SetFocus();
+}
+// on canvas mouse leave
+void MainFrame::OnCanvasMouseLeave(wxMouseEvent& event)
+{
+    SetCursor(*wxSTANDARD_CURSOR);
+
+    if(!spell_map->IsLoaded())
+        return;
+    if(inUnitOptions())
+        return;
+
+    spell_map->SetUnitRangeViewMode(SpellMap::UNIT_RANGE_NONE);
+    spell_map->scroller.Idle();
+}
+// on canvas mouse move
+void MainFrame::OnCanvasMouseMove(wxMouseEvent& event)
+{
+    if(!spell_map->IsLoaded())
+        return;
+    if(inUnitOptions())
+        return;
+
+    static int last_in_hud = false;
+
+    int hud_top = spell_map->GetHUDtop(event.GetX());
+    if(event.GetY() >= hud_top)
+    {
+        // mouse in HUD area - kill scroll
+        spell_map->SetUnitRangeViewMode(SpellMap::UNIT_RANGE_NONE);
+        if(!last_in_hud)
+            spell_map->InvalidateHUDbuttons();
+        spell_map->scroller.Idle();
+        last_in_hud = true;
+
+        // invalidate cursor
+        spell_map->ClearSelections();
+
+        // default game cursor
+        SetCursor(*spell_data->gres.cur_pointer);
+    }
+    else
+    {
+        spell_map->scroller.Move(event.GetX(),event.GetY());
+        last_in_hud = false;
+
+        // resolve cursor
+        auto options = spell_map->GetUnitOptions();
+        wxCursor* cur = spell_data->gres.cur_pointer;
+        if(!spell_map->isGameMode())
+            cur = spell_data->gres.cur_pointer;
+        else if(!options)
+            cur = spell_data->gres.cur_pointer;
+        else if(options == SpellMap::UNIT_OPT_MOVE)
+            cur = spell_data->gres.cur_move;
+        else if(options == SpellMap::UNIT_OPT_SELECT)
+            cur = spell_data->gres.cur_select;
+        else if(options == SpellMap::UNIT_OPT_LOWER)
+            cur = spell_data->gres.cur_attack_down;
+        else if(options == SpellMap::UNIT_OPT_UPPER)
+            cur = spell_data->gres.cur_attack_up;
+        else if(options == (SpellMap::UNIT_OPT_UPPER | SpellMap::UNIT_OPT_LOWER))
+            cur = spell_data->gres.cur_attack_up_down;
+        else
+            cur = spell_data->gres.cur_question;
+        SetCursor(*cur);
+    }
+
+
+    // update map selection
+    MapXY mxy = spell_map->GetSelection();
+    int elev = spell_map->GetElevation();
+    SetStatusText(wxString::Format(wxT("x=%d"),mxy.x),0);
+    SetStatusText(wxString::Format(wxT("y=%d"),mxy.y),1);
+    SetStatusText(wxString::Format(wxT("z=%d"),elev),2);
+    SetStatusText(wxString::Format(wxT("xy=%d"),spell_map->ConvXY(mxy)),3);
+    SetStatusText(wxString::Format(wxT("L1: %s"),spell_map->GetL1tileName()),4);
+    SetStatusText(wxString::Format(wxT("L2: %s"),spell_map->GetL2tileName()),5);
+    //int height, flags, code;
+    auto [flags,height,code] = spell_map->GetTileFlags();
+    SetStatusText(wxString::Format(wxT("(0x%02X)"),code),6);
+
+    auto sel_evt = spell_map->GetSelectEvent();
+    auto* unit = spell_map->GetSelectedUnit();
+    auto sel_sound = spell_map->SoundSelected();
+    auto* sel_pnm = spell_map->SelectedPNM();
+    auto* sel_anm = spell_map->SelectedANM();
+    if(sel_anm && sel_anm->in_placement && mxy.IsSelected())
+    {
+        // change ANM position
+        spell_map->MoveANM(sel_anm,mxy);
+    }
+    else if(sel_pnm && sel_pnm->in_placement && mxy.IsSelected())
+    {
+        // change PNM position
+        spell_map->MovePNM(sel_pnm,mxy);
+    }
+    else if(sel_sound && sel_sound->in_placement && mxy.IsSelected())
+    {
+        // change sound position
+        spell_map->SoundMove(sel_sound,mxy,false);
+    }
+    else if(sel_evt && sel_evt->in_placement && mxy.IsSelected())
+    {
+        // change event position
+        sel_evt->position = mxy;
+        spell_map->events->ResetEvents();
+    }
+    else if(unit && unit->in_placement && mxy.IsSelected())
+    {
+        // change unit position
+        if(unit->coor != mxy)
+            unit->was_moved = true;
+        unit->coor = mxy;
+
+        if(unit->was_moved)
+            spell_map->unit_view->AddUnitView(unit,
+                spell_map->isUnitsViewDebugMode()?(SpellMap::ViewRange::ClearMode::HIDE):(SpellMap::ViewRange::ClearMode::NONE));
+    }
+
+    canvas->Refresh();
+    //event.Skip();
+}
+// on canvas wheel
+void MainFrame::OnCanvasMouseWheel(wxMouseEvent& event)
+{
+    spell_map->scroller.ResizeSelection(event.GetWheelRotation()/event.GetWheelDelta());
+    canvas->Refresh();
+}
+// on canvas key down
+void MainFrame::OnCanvasKeyDown(wxKeyEvent& event)
+{
+    int key = event.GetKeyCode();
+    if(event.ControlDown())
+    {
+    }
+}
+
+
 void MainFrame::OnUnitClick_cb(int option)
 {
     if(option & SpellMap::UNIT_OPT_SELECT)

@@ -686,6 +686,8 @@ class SpellMap
 		int GetFlags(MapXY selection);
 		void SetFlags(MapXY selection,int flags);
 		void SetFlags(std::vector<MapXY> selections,int flags);
+		int EditTileSprite(Sprite* spr,MapXY* pos=NULL);
+		MapSprite* GetTile(MapXY* pos=NULL);
 		MapSprite* CheckObj(MapXY* pos=NULL);
 		int RemoveObj(MapXY* pos=NULL);
 		MapLayer3* CheckANM(MapXY* pos=NULL);

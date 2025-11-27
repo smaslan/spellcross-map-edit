@@ -437,13 +437,14 @@ FormSprite::FormSprite( wxWindow* parent,SpellData* spell_data,wxWindowID id, co
 	// === AUTO GENERATED STUFF ENDS HERE ===
 
 	// no sprite selected yet
+	m_was_set = false;
 	sprite_id = -1;
 
 	// generate terrain menu content
 	for(int k = 0;k<spell_data->GetTerrainCount();k++)
 	{
 		Terrain* terr = spell_data->GetTerrain(k);
-		mnuTerr->Append(TERR_ID0 + k,terr->name,wxEmptyString,wxITEM_RADIO);
+		auto titem = mnuTerr->Append(TERR_ID0 + k,terr->name,wxEmptyString,wxITEM_RADIO);
 		Bind(wxEVT_MENU,&FormSprite::OnTerrainChange,this,TERR_ID0 + k);
 	}
 	
@@ -548,6 +549,10 @@ FormSprite::FormSprite( wxWindow* parent,SpellData* spell_data,wxWindowID id, co
 	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormSprite::OnFlagsChange,this,wxID_CB_TOOL_GLYPH);
 	
 
+	statBar->SetFieldsCount(2);
+	statBar->SetAutoLayout(true);
+
+
 	// default 2x zoom
 	cbZoom->SetValue(true);
 	// default gamma 1.50
@@ -565,6 +570,37 @@ FormSprite::FormSprite( wxWindow* parent,SpellData* spell_data,wxWindowID id, co
 FormSprite::~FormSprite()
 {
 }
+
+// set initial sprite
+void FormSprite::SetSprite(Terrain *terr, Sprite *spr)
+{
+	// select terrain
+	for(int k = 0;k<spell_data->GetTerrainCount();k++)
+	{
+		if(spell_data->GetTerrain(k) == terr)
+		{
+			// found selection
+			GetMenuBar()->FindItem(TERR_ID0 + k)->Check(true);			
+			break;
+		}
+	}
+	SelectTerrain();
+
+	if(!spr)
+		return;
+
+	// select sprite in list
+	auto spr_id = lboxSprites->FindString(spr->name);
+	if(spr_id >= 0)
+		lboxSprites->Select(spr_id);	
+	wxCommandEvent evt;
+	OnSelectSprite(evt);
+	
+	// sprite was set externally
+	m_was_set = true;
+}
+
+// on close form
 void FormSprite::OnClose(wxCloseEvent& ev)
 {
 	wxPostEvent(GetParent(), ev);
@@ -609,6 +645,10 @@ Terrain* FormSprite::GetSelectedTerrain()
 Sprite* FormSprite::GetSelectedSprite()
 {
 	return(m_sprite);
+}
+bool FormSprite::wasSet()
+{
+	return(m_was_set);
 }
 
 
@@ -726,6 +766,7 @@ void FormSprite::OnAssignKnowns(wxCommandEvent& event)
 	Terrain* terr = FindTerrain();
 	// init map tile flags
 	terr->InitSpriteMapTileFlags();
+	terr->FixSpriteLandTypes();
 	Refresh();
 }
 // clear tiles context
@@ -1037,6 +1078,15 @@ void FormSprite::SetFlags()
 		// special map layer 2 flags (extracted from maps)
 		auto map_flags = sprite->GetMapFlags();
 		editMapFlags->SetValue(string_format("0x%02X",map_flags));
+
+		// status bar
+		statBar->SetStatusText(sprite->name,0);
+		std::string typestr;
+		if(sprite->land_type)
+			typestr = string_format("Land Type: %c (%d)",sprite->land_type + 'A' - 1,sprite->land_type);
+		else
+			typestr = "Land Type: Object";
+		statBar->SetStatusText(typestr,1);
 	}
 
 

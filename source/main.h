@@ -265,6 +265,7 @@ private:
         ID_POP_EDIT_EVENT,
         ID_POP_ANOTHER_EVENT,
         ID_POP_EDIT_UNIT,
+        ID_POP_EDIT_TERR,
         ID_POP_EDIT_OBJ,
         ID_POP_REM_OBJ,
         ID_POP_EDIT_ANM,

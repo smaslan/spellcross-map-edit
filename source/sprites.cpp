@@ -2,7 +2,8 @@
 // Spellcross sprite data handling routines.
 // 
 // This code is part of Spellcross Map Editor project.
-// (c) 2021, Stanislav Maslan, s.maslan@seznam.cz
+// (c) 2021-2025, Stanislav Maslan, s.maslan@seznam.cz
+// url: https://github.com/smaslan/spellcross-map-edit
 // Distributed under MIT license, https://opensource.org/licenses/MIT.
 //=============================================================================
 #undef _HAS_STD_BYTE
@@ -1787,6 +1788,9 @@ int Terrain::Load(FSarchive *terrain_fs, uint8_t map_pal[][3],SpellGraphics* gre
 		}
 	}
 
+	// fix sprite land types (marks objects as 0-type)
+	FixSpriteLandTypes();
+
 	return(0);	
 }
 
@@ -2551,6 +2555,26 @@ int Terrain::InitSpriteContextShading()
 	}
 	return(0);
 }
+
+
+// fixes land shape type flags for objects layer
+int Terrain::FixSpriteLandTypes()
+{
+	for(auto spr: sprites)
+	{
+		if(wildcmp("STA_????",spr->name.c_str()) 
+			|| wildcmp("SPA_????",spr->name.c_str())
+			|| wildcmp("POA?_???",spr->name.c_str())
+			|| wildcmp("SOA?_???",spr->name.c_str())
+			|| wildcmp("MRA??_??",spr->name.c_str()))
+		{
+			// object layer sprites
+			spr->land_type = 0;
+		}
+	}
+	return(0);
+}
+
 
 // initialize sprite map tile layer 2 flags for known sprite names
 int Terrain::InitSpriteMapTileFlags()

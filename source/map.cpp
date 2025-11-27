@@ -3189,6 +3189,51 @@ void SpellMap::SetFlags(std::vector<MapXY> selections,int flags)
 }
 
 
+// edit map tile sprite (either terrain layer or objects layer) and try update tile flags
+int SpellMap::EditTileSprite(Sprite *spr,MapXY *pos)
+{
+	if(!spr)
+		return(1);
+
+	// default position?
+	auto posxy = GetSelection();
+	if(pos)
+		posxy = *pos;
+	auto mxy = ConvXY(posxy);
+	if(!posxy.IsSelected())
+		return(1);
+
+	LockMap();
+	auto &tile = tiles[mxy];
+	if(spr->land_type)
+	{
+		// terrain layer
+		tile.L1 = spr;
+		if(!tile.L2)
+			tile.flags = spr->GetMapFlags();
+	}
+	else
+	{
+		// objects layer
+		tile.L2 = spr;
+		tile.flags = spr->GetMapFlags();
+	}
+	ReleaseMap();
+
+	return(0);
+}
+
+// get map tile at position or current cursor if no explicit position given
+MapSprite* SpellMap::GetTile(MapXY* pos)
+{
+	auto posxy = GetSelection();
+	if(pos)
+		posxy = *pos;
+	auto mxy = ConvXY(posxy);
+	if(mxy < 0)
+		return(NULL);	
+	return(&tiles[mxy]);
+}
 // check presence of object at position or current cursor if no explicit position given
 MapSprite* SpellMap::CheckObj(MapXY* pos)
 {
@@ -4209,16 +4254,21 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 
 			std::vector<string> labels;
 			std::vector<int> colors;
-			//int is_selected = false;
 			for(auto& evt: list)
-			{
-				labels.push_back("\x1C" + evt->type_name);
+			{				
+				std::string label = "\x1C";
+				if(evt->is_objective)
+					label += "\x17";
+				label += evt->type_name;
 				if(evt->probability != 100)
-					labels.back() += string_format("(%d%%)",evt->probability);
+					label += string_format("(%d%%)",evt->probability);
 				if(!evt->units.empty())
-					labels.back() += "\x1A";
+					label += "\x1A";
 				if(!evt->texts.empty())
-					labels.back() += "\x1B";
+					label += "\x1B";
+				if(!evt->video.empty())
+					label += "\x16";
+				labels.push_back(label);
 				bool is_selected = (GetSelectEvent() == evt && !evt->in_placement);
 				int color = (is_selected && sel_blink_state)?214:252;
 				colors.push_back(color);
