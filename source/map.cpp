@@ -2792,22 +2792,26 @@ bool SpellMap::isCopyBufferFull()
 
 
 // delete selected objects from map
-void SpellMap::DeleteSelObjects(std::vector<MapXY>& posxy,SpellMap::Layers layers)
+int SpellMap::DeleteSelObjects(std::vector<MapXY>& posxy,SpellMap::Layers layers)
 {
-	for(int k = 0; k < posxy.size(); k++)
+	int removed = 0;
+	for(auto &pos: posxy)
 	{
-		auto &pos = posxy[k];
+		if(!pos.IsSelected())
+			continue;
 		auto &tile = tiles[ConvXY(pos)];
 		if(tile.L2 && layers.lay2)
 		{
 			tile.L2 = 0;
 			tile.flags = 0x00;
+			removed++;
 		}
 		if(layers.anm)
-			RemoveANM(&pos);
+			removed += !RemoveANM(&pos);
 		if(layers.pnm)
-			RemovePNM(&pos);
+			removed += !RemovePNM(&pos);
 	}
+	return(removed);
 }
 
 // paste random sprites from a list
@@ -4284,7 +4288,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 			for(auto &unit: ms_list)
 			{
 				// make label on top of unit
-				auto evt = unit->unit->map_event;
+				auto evt = unit->unit->creator_event;
 				if(!evt)
 					continue;
 				string label = "?" + evt->type_name;
@@ -4301,7 +4305,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 		for(auto& unit: ms_list)
 		{
 			// make label on top of unit
-			auto evt = unit->unit->map_event;
+			auto evt = unit->unit->creator_event;
 			if(!evt)
 				continue;
 
@@ -7078,9 +7082,12 @@ void SpellMap::ViewRange::Worker()
 										if(detect_events)
 											new_contact = true;
 									}
-									// check linked SeeUnit() event?
-									if(detect_events && unit->trig_event && unit->trig_event->isSeeUnit())
-										events_list.push_back(unit->trig_event);
+									// check linked events?
+									if(detect_events)
+									{
+										for(auto &trig_event: unit->trig_events)
+											events_list.push_back(trig_event);
+									}									
 									// set unit seen flag
 									unit->is_visible = 2;
 									unit->was_seen = true;
@@ -7160,8 +7167,11 @@ void SpellMap::ViewRange::Worker()
 										new_contact = true;
 								}
 								// check linked SeeUnit() event?
-								if(detect_events && unit->trig_event && unit->trig_event->isSeeUnit())
-									events_list.push_back(unit->trig_event);
+								if(detect_events)
+								{
+									for(auto& trig_event: unit->trig_events)
+										events_list.push_back(trig_event);
+								}
 								// mark unit as seen
 								unit->is_visible = 2;
 								unit->was_seen = true;
@@ -7693,8 +7703,9 @@ int SpellMap::Tick()
 					event_list.insert(event_list.end(), events.begin(), events.end());
 					
 					// check and append TransportUnit/SaveUnit events
-					if(unit->trig_event && unit->trig_event->CheckUnitInPos(true))
-						event_list.push_back(unit->trig_event);
+					for(auto& trig_event: unit->trig_events)
+						if(trig_event->CheckUnitInPos(true))
+							event_list.push_back(trig_event);
 
 					// done					
 					unit->in_animation = NULL;
@@ -7785,8 +7796,9 @@ int SpellMap::Tick()
 				event_list.insert(event_list.end(),events.begin(),events.end());
 
 				// check and append TransportUnit/SaveUnit events
-				if(unit->trig_event && unit->trig_event->CheckUnitInPos(true))
-					event_list.push_back(unit->trig_event);
+				for(auto& trig_event: unit->trig_events)
+					if(trig_event->CheckUnitInPos(true))
+						event_list.push_back(trig_event);
 
 			
 				if(unit->in_animation)
@@ -8491,8 +8503,9 @@ int SpellMap::Tick()
 			event_list.insert(event_list.end(),events.begin(),events.end());
 			
 			// check and append TransportUnit/SaveUnit events
-			if(unit->trig_event && unit->trig_event->CheckUnitInPos(true))
-				event_list.push_back(unit->trig_event);
+			for(auto& trig_event: unit->trig_events)
+				if(trig_event->CheckUnitInPos(true))
+					event_list.push_back(trig_event);
 
 			InvalidateHUDbuttons();
 		}		
@@ -8559,23 +8572,47 @@ int SpellMap::RemoveAllUnits()
 	return(0);
 }
 
-// removes unit from map list (used e.g. for kamikaze attacks)
-int SpellMap::RemoveUnit(MapUnit* unit)
+// removes unit from map list and optionally from events 
+int SpellMap::RemoveUnit(MapUnit* unit,bool from_events)
 {
-	HaltUnitRanging(true);
+	if(!unit)
+		return(1);
 
 	// try find unit in the list
 	auto uid = find(units.begin(),units.end(),unit);
-	if(uid == units.end())
-	{
-		ResumeUnitRanging(false);
+	if(uid == units.end() && !from_events)
 		return(1); // not found
+	
+	HaltUnitRanging(true);
+	LockMap();
+	if(uid != units.end())
+	{
+		// delete unit
+		if(GetSelectedUnit() == unit)
+			SelectUnit(NULL);
+		delete unit;
+		units.erase(uid);
+	}
+	else if(from_events)
+	{
+		// look for event spawned units
+		for(auto &evt: events->GetEvents())
+		{
+			auto evt_unit = evt->ExtractUnit(unit);			
+			if(evt_unit)
+			{
+				if(GetSelectedUnit() == unit)
+					SelectUnit(NULL);
+				delete unit;
+				break;
+			}
+		}
 	}
 
-	// delete unit
-	delete unit;
-	units.erase(uid);
+	// cleanup events in case trigger unit was removed
+	events->CleanupEvents();
 
+	ReleaseMap();
 	ResumeUnitRanging(false);
 
 	// resort units
@@ -8797,12 +8834,12 @@ int SpellMap::AssignUnitID(MapUnit *unit)
 	unit->id = id;
 
 	// fix eventual SeeUnit event ID
-	if(unit->trig_event)
-		unit->trig_event->trig_unit_id = id;
+	for(auto &trig_event: unit->trig_events)
+		trig_event->trig_unit_id = id;
 	
 	// fix eventual map event ID
-	if(unit->map_event)
-		unit->map_event->trig_unit_id = id;
+	if(unit->creator_event)
+		unit->creator_event->trig_unit_id = id;
 
 	return(ret);
 }
@@ -9031,10 +9068,10 @@ SpellMapEventRec* SpellMap::GetCursorEvent(TScroll* scroll)
 		auto unit = Lunit[ConvXY(pos)];
 		while(unit)
 		{
-			if(unit->map_event && unit->map_event->isMissionStart())
+			if(unit->creator_event && unit->creator_event->isMissionStart())
 			{
 				// found some
-				evt = unit->map_event;
+				evt = unit->creator_event;
 				break;
 			}
 			unit = unit->next;
@@ -9323,8 +9360,8 @@ int SpellMap::Saves::Save(SpellMap::SavedState *slot)
 			copy->child = save->GetUnit(orig->child->id);
 		
 		// relink events links to new events list
-		if(orig->map_event)
-			copy->map_event = save->events->GetEvent(map->events->GetEventID(orig->map_event));
+		if(orig->creator_event)
+			copy->creator_event = save->events->GetEvent(map->events->GetEventID(orig->creator_event));
 	}
 
 	// save units view
@@ -9396,8 +9433,8 @@ int SpellMap::Saves::Load(SpellMap::SavedState* save)
 			copy->child = map->GetUnit(orig->child->id);
 
 		// relink events links to new events list
-		if(orig->map_event)
-			copy->map_event = map->events->GetEvent(save->events->GetEventID(orig->map_event));
+		if(orig->creator_event)
+			copy->creator_event = map->events->GetEvent(save->events->GetEventID(orig->creator_event));
 	}
 
 	// deselect event

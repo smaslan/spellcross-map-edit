@@ -751,10 +751,10 @@ class SpellMap
 		void OnHUDcreateUnit();
 		
 
-		MapUnit* GetUnit(int id);
-		int RemoveUnit(MapUnit* unit);
-		int RemoveAllUnits();
-		MapUnit *ExtractUnit(MapUnit* unit);
+		MapUnit* GetUnit(int id);		
+		int RemoveUnit(MapUnit* unit,bool from_events=false);		
+		MapUnit* ExtractUnit(MapUnit* unit);
+		int RemoveAllUnits();		
 		int AddUnit(MapUnit* unit);		
 		MapUnit* CreateUnit(MapUnit* parent=NULL,SpellUnitRec* new_type=NULL);
 		int PlaceUnit(MapUnit* unit);
@@ -886,7 +886,7 @@ class SpellMap
 		void PasteBuffer(std::vector<MapSprite>& tiles,std::vector<MapLayer3>& anms,std::vector<MapLayer4>& pnms,std::vector<MapXY>& posxy);
 		bool isCopyBufferFull();
 		int PasteRandSprites(std::vector<MapSprite>& tiles,std::vector<MapXY>& posxy,std::vector<Sprite*>& sprites,bool force_rand);
-		void DeleteSelObjects(std::vector<MapXY>& posxy,SpellMap::Layers layers);
+		int DeleteSelObjects(std::vector<MapXY>& posxy,SpellMap::Layers layers);
 
 		enum{
 			SPEC_TILE_START = 0,

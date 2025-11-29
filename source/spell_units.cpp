@@ -12,6 +12,7 @@
 
 #include "spell_units.h"
 #include "spellcross.h"
+#include "spell_map_event.h"
 #include "map.h"
 #include <sstream>
 #include <vector>
@@ -1012,9 +1013,9 @@ MapUnit::MapUnit(SpellMap *map)
 	child = NULL;
 
 	// link to event that creates the unit (if exists)
-	map_event = NULL;
+	creator_event = NULL;
 	// link to event to be triggered (SeeUnit)
-	trig_event = NULL;
+	trig_events.clear();
 
 	// sound refs
 	sound_move = NULL;
@@ -1046,17 +1047,18 @@ MapUnit::MapUnit(MapUnit& obj,bool relink_event_trigger)
 
 	parent = NULL;
 	child = NULL;
-	map_event = NULL;
+	creator_event = NULL;
 
 	if(relink_event_trigger)
 	{
 		// disconnect event trigger from source unit, move it to new unit
-		obj.trig_event = NULL;
-		if(trig_event)
-			trig_event->trig_unit = this;
+		obj.trig_events.clear();
+		for(auto &trig_event: trig_events)
+			if(trig_event)
+				trig_event->trig_unit = this;
 	}
 	else
-		trig_event = NULL;
+		trig_events.clear();
 
 	action_state = ACTION_STATE::IDLE;
 	move_state = MOVE_STATE::IDLE;
@@ -1087,11 +1089,11 @@ MapUnit::~MapUnit()
 		parent->child = NULL;
 		parent = NULL;
 	}
-	if(trig_event)
+	for(auto &trig_event: trig_events)	
 	{
 		// unlink SeeUnit() event link
 		trig_event->trig_unit = NULL;
-		trig_event = NULL;
+		//trig_event = NULL;
 	}
 }
 
@@ -1937,7 +1939,7 @@ int MapUnit::isDead()
 SpellMapEventRec *MapUnit::Kill()
 {
 	SpellMapEventRec *evt = NULL;
-	if(trig_event)
+	for(auto &trig_event: trig_events)
 	{		
 		// unlink from event
 		evt = trig_event;
@@ -1953,4 +1955,35 @@ SpellMapEventRec *MapUnit::Kill()
 
 	// eventually return triggered event
 	return(evt);
+}
+
+// try remove trigger event from list
+int MapUnit::RemoveTrigEvent(SpellMapEventRec* event)
+{
+	auto evt_id = std::find(trig_events.begin(),trig_events.end(),event);
+	if(evt_id == trig_events.end())
+		return(1);
+	trig_events.erase(evt_id);
+	return(0);
+}
+
+// try get trigger event of given type
+SpellMapEventRec* MapUnit::GetTrigEvent(int type)
+{
+	for(auto &evt: trig_events)
+		if(evt->evt_type == type)
+			return(evt);
+	return(NULL);
+}
+
+// try get trigger event of given types list
+SpellMapEventRec* MapUnit::GetTrigEvent(std::vector<int> types)
+{
+	for(auto& evt: trig_events)
+	{
+		auto type_id = std::find(types.begin(), types.end(), evt->evt_type);
+		if(type_id != types.end())
+			return(evt);
+	}
+	return(NULL);
 }

@@ -110,6 +110,7 @@ public:
     int isDone();
     int isDestroyObject();
     int isTransportSave();
+    int isTransportSaveDestroy();
     int hasTargetUnit();
     int hasPosition();
     int isObjectiveType();
@@ -154,7 +155,9 @@ public:
     SpellMapEventRec* AddEvent(SpellMapEventRec *event);
     SpellMapEventRec* ExtractEvent(SpellMapEventRec* event);
     int EraseEvent(SpellMapEventRec* event);
+
     void ClearEvents();
+    void CleanupEvents();
     int RelinkUnits(vector<MapUnit*>* map_units=NULL);
     void ResetEvents();
     SpellMapEventRec* GetEvent(int index);
@@ -170,8 +173,10 @@ public:
     SpellMapEventsList GetMissionStartEvent(bool clear=false);
     int AddMissionStartUnit(MapUnit *unit, int probab=100);
     SpellMapEventRec* AddSeeUnitEvent(MapUnit* unit,int probab=100);
+    SpellMapEventRec* AddUnitObjective(MapUnit* unit,SpellMapEventRec::EvtTypes type);
     int ObjectivesDone();
     int GetEventID(SpellMapEventRec * target);
+    //SpellMapEventRec::EvtTypes Check
 
     void ListerClear();
     SpellMapEventsList ListerGet();

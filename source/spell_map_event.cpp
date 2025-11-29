@@ -31,7 +31,7 @@ SpellMapEventRec::SpellMapEventRec(SpellMapEventRec* rec)
 	for(auto& unit : units)
 	{
 		unit.unit = new MapUnit(*unit.unit);
-		unit.unit->map_event = this;
+		unit.unit->creator_event = this;
 	}
 	// unlink triggering unit
 	trig_unit = NULL;
@@ -42,10 +42,10 @@ SpellMapEventRec::~SpellMapEventRec()
 		delete unit.unit;
 	units.clear();
 	
-	// unlink SeeUnit() event link to unit
+	// unlink event links to unit
 	if(trig_unit)
 	{
-		trig_unit->trig_event = NULL;
+		trig_unit->RemoveTrigEvent(this);		
 		trig_unit = NULL;
 	}
 }
@@ -53,10 +53,11 @@ int SpellMapEventRec::AddUnit(MapUnit* unit)
 {	
 	units.push_back(unit);
 	// make unit link to this event
-	unit->map_event = this;
+	unit->creator_event = this;
 	unit->is_event = true;
 	return(0);
 }
+// try extract unit from the spawned units list
 MapUnit *SpellMapEventRec::ExtractUnit(MapUnit* unit)
 {	
 	for(auto it = begin(units); it != end(units); it++)
@@ -65,7 +66,7 @@ MapUnit *SpellMapEventRec::ExtractUnit(MapUnit* unit)
 			// remove from list, but not delete
 			units.erase(it);
 			// unlink from this event
-			unit->map_event = NULL;
+			unit->creator_event = NULL;
 			unit->is_event = false;
 			// return unit
 			return(unit);
@@ -98,6 +99,10 @@ int SpellMapEventRec::isSeeUnit()
 int SpellMapEventRec::isTransportSave()
 {
 	return(evt_type == EVT_TRANSPORT_UNIT || evt_type == EVT_SAVE_UNIT);
+}
+int SpellMapEventRec::isTransportSaveDestroy()
+{
+	return(evt_type == EVT_TRANSPORT_UNIT || evt_type == EVT_SAVE_UNIT || evt_type == EVT_DESTROY_UNIT);
 }
 int SpellMapEventRec::isDone()
 {
@@ -264,12 +269,20 @@ SpellMapEventRec* SpellMapEvents::AddEvent(SpellMapEventRec* event)
 // remove event (returns original object, user deletes it!)
 SpellMapEventRec* SpellMapEvents::ExtractEvent(SpellMapEventRec* event)
 {	
+	if(!event)
+		return(NULL);
 	auto id = find(events.begin(), events.end(), event);
 	if(id == events.end())
 		return(NULL);
 
 	// remove from list, but not delete object (user must do it)
+	map->HaltUnitRanging(true);
+	map->LockMap();
+	if(map->GetSelectEvent() == event)
+		map->SelectEvent(NULL);
 	events.erase(id);
+	map->ReleaseMap();
+	map->ResumeUnitRanging();
 	return(event);
 }
 // erase event (deletes it, places linked units directly to map units)
@@ -279,6 +292,9 @@ int SpellMapEvents::EraseEvent(SpellMapEventRec* event)
 	auto evt = ExtractEvent(event);
 	if(!evt)
 		return(1);
+
+	map->HaltUnitRanging(true);
+	map->LockMap();
 
 	// place all linked units to the map
 	for(auto & rec : evt->units)
@@ -292,13 +308,36 @@ int SpellMapEvents::EraseEvent(SpellMapEventRec* event)
 		}
 		else
 		{
-			// alinace can be only MissionStart()
+			// alinace units can be only MissionStart()
 			AddMissionStartUnit(unit);
 		}		
 	}
 
+	map->SortUnits();
+	map->ReleaseMap();
+	map->ResumeUnitRanging();
+
 	delete evt;
 	return(0);
+}
+
+// cleanup invalid events (e.g. unit triggered events after unit removal)
+void SpellMapEvents::CleanupEvents()
+{
+	// make list to remove
+	std::vector<SpellMapEventRec*> list;
+	for(auto &evt: events)
+	{
+		if(evt->hasTargetUnit() && !evt->trig_unit)
+			list.push_back(evt);
+		else if(evt->evt_type == SpellMapEventRec::EvtTypes::EVT_VOID)
+			list.push_back(evt);
+		else if(evt->isMissionStart() && evt->units.empty() && evt->texts.empty() && evt->video.empty())
+			list.push_back(evt);
+	}
+	// remove'em	
+	for(auto &evt: list)
+		EraseEvent(evt);
 }
 
 // clear all events
@@ -675,7 +714,7 @@ int SpellMapEvents::AddSpecialEvent(SpellData *data, SpellDEF* def, SpellDefCmd*
 			unit->is_active = 0;
 
 			// store back link to event to the unit
-			unit->map_event = evt;
+			unit->creator_event = evt;
 			
 			// copy unit name
 			unit->name = "";
@@ -872,6 +911,9 @@ SpellMapEventRec** SpellMapEvents::EventMap(MapXY pos)
 // reset event triggers and build events map for fast search (call at least once at mission start)
 void SpellMapEvents::ResetEvents()
 {
+	map->LockMap();
+	map->HaltUnitRanging(true);
+
 	// reset all events
 	for(auto & evt : events)
 	{
@@ -887,18 +929,24 @@ void SpellMapEvents::ResetEvents()
 		}
 		if(evt->isSeeUnit() && evt->trig_unit)
 		{
-			evt->trig_unit->trig_event = NULL;
+			evt->trig_unit->RemoveTrigEvent(evt);
 			evt->trig_unit = NULL;
 		}
 	}
 
 	// make link to trigger units
 	RelinkUnits();
+
+	map->ResumeUnitRanging();
+	map->ReleaseMap();
 }
 
 // build links to particular units
 int SpellMapEvents::RelinkUnits(vector<MapUnit*> *map_units)
 {
+	map->LockMap();
+	map->HaltUnitRanging(true);
+		
 	// take map units either from parent map (default) or from explicit list
 	vector<MapUnit*> units_list;
 	if(map_units)
@@ -910,6 +958,13 @@ int SpellMapEvents::RelinkUnits(vector<MapUnit*> *map_units)
 	for(auto& evt : events)
 		for(auto& unit : evt->units)
 			units_list.push_back(unit.unit);
+
+	// unlink all events from all units
+	for(auto &unit: units_list)
+	{
+		unit->trig_events.clear();
+		//unit->creator_event = NULL;
+	}
 
 	// make map of events
 	events_map.assign(map->x_size*map->y_size,NULL);
@@ -942,11 +997,14 @@ int SpellMapEvents::RelinkUnits(vector<MapUnit*> *map_units)
 				if(unit->id == evt->trig_unit_id)
 				{
 					// target unit found
-					unit->trig_event = evt;
 					evt->trig_unit = unit;
+					unit->trig_events.push_back(evt);					
 				}
 		}
 	}
+
+	map->ResumeUnitRanging();
+	map->ReleaseMap();
 	
 	return(0);
 }
@@ -1074,40 +1132,40 @@ vector<SpellMapEventRec*>& SpellMapEvents::GetEvents()
 
 // returns list of events associated with mission start, eventually clears them, is skips executed ones or below probability ones
 SpellMapEventsList SpellMapEvents::GetMissionStartEvent(bool clear)
-{
+{	
 	vector<SpellMapEventRec*> list;
 	for(auto & evt : events)
 	{
 		if(!evt->isMissionStart())
 			continue;
-		if(evt->is_done)
+		if(evt->is_done && map->isGameMode())
 			continue;
 		if(clear)
 			evt->is_done = true;
-		if(evt->hide)
+		if(evt->hide && map->isGameMode())
 			continue;
 		list.push_back(evt);
 	}
 	return(list);
 }
 
-// insert unit to first possible MissionStart() event or create new MissionStart() event
+// insert unit to first possible MissionStart() event matching the probability or a one
 int SpellMapEvents::AddMissionStartUnit(MapUnit* unit,int probab)
 {
-	if(unit->map_event && unit->map_event->isMissionStart())
+	if(unit->creator_event && unit->creator_event->isMissionStart())
 		return(1);
 
 	// remove unit from other event eventually
-	if(unit->map_event)
+	if(unit->creator_event)
 	{
-		unit->map_event->ExtractUnit(unit);
-		unit->map_event = NULL;
+		unit->creator_event->ExtractUnit(unit);
+		unit->creator_event = NULL;
 	}
 
 	// try to find some suitable MissionStart() event
 	SpellMapEventRec *target_evt = NULL;
 	for(auto & evt : events)
-		if(evt->isMissionStart() && evt->probability == 100)
+		if(evt->isMissionStart() && evt->probability == probab)
 			target_evt = evt;
 	if(!target_evt)
 	{
@@ -1135,6 +1193,27 @@ SpellMapEventRec* SpellMapEvents::AddSeeUnitEvent(MapUnit* unit,int probab)
 	evt->probability = probab;
 	AddEvent(evt);
 	ResetEvents();
+	return(evt);
+}
+
+// try add unit-related objective (Save, Transport, Destroy) if not exist yet
+SpellMapEventRec* SpellMapEvents::AddUnitObjective(MapUnit* unit,SpellMapEventRec::EvtTypes type)
+{
+	if(!unit)
+		return(NULL);
+
+	// do not allow conflicting events/objectives
+	if(unit->GetTrigEvent({SpellMapEventRec::EvtTypes::EVT_SAVE_UNIT,SpellMapEventRec::EvtTypes::EVT_TRANSPORT_UNIT,SpellMapEventRec::EvtTypes::EVT_DESTROY_UNIT}))
+		return(NULL);
+
+	auto evt = new SpellMapEventRec(map);
+	evt->SetType(type);
+	evt->trig_unit_id = unit->id;
+	evt->probability = 100;
+	evt->is_objective = true;
+	AddEvent(evt);
+	ResetEvents();
+
 	return(evt);
 }
 
@@ -1235,7 +1314,7 @@ std::vector<SpellMapEventUnitRec*> SpellMapEvents::ListerGetMissionStart(MapXY p
 		// skip already listed events
 		if(evt->was_listed || !evt->isMissionStart())
 			continue;
-		// mission start event found (should be only one)
+		// mission start event found
 
 		// for each spawned unit
 		for(auto& unit: evt->units)
@@ -1247,7 +1326,7 @@ std::vector<SpellMapEventUnitRec*> SpellMapEvents::ListerGetMissionStart(MapXY p
 			unit.was_listed = true;
 			list.push_back(&unit);
 		}
-		break;
+		//break;
 	}
 	return(list);
 }

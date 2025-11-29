@@ -1378,60 +1378,86 @@ void MainFrame::OnCanvasPopupSelect(wxCommandEvent& event)
     if(!spell_map->IsLoaded())
         return;
 
+    auto menu_id = event.GetId();
     auto menu = (wxMenu*)event.GetEventObject();
     auto cur_unit = (MapUnit*)menu->GetClientData();
-    if(event.GetId() == ID_POP_ADD_MISSIONSTART)
+    if(menu_id >= ID_POP_ADD_MISSIONSTART && menu_id <= ID_POP_ADD_MISSIONSTART_MAX)
     {
         // try add unit to MissionStart() event
+        int probab = menu_id - ID_POP_ADD_MISSIONSTART;
         spell_map->ExtractUnit(cur_unit);
-        spell_map->events->AddMissionStartUnit(cur_unit);
+        spell_map->events->AddMissionStartUnit(cur_unit,probab);
         spell_map->SortUnits();
     }
-    else if(event.GetId() == ID_POP_REM_MISSIONSTART)
+    else if(menu_id == ID_POP_REM_MISSIONSTART)
     {
         // try remove the unit from MissionStart() event
-        cur_unit->map_event->ExtractUnit(cur_unit);
+        cur_unit->creator_event->ExtractUnit(cur_unit);
         spell_map->AddUnit(cur_unit);
         spell_map->SortUnits();
     }
-    else if(event.GetId() == ID_POP_ADD_SEEUNIT)
+    else if(menu_id == ID_POP_ADD_SEEUNIT)
     {
-        // try ass SeeUnit() event
+        // try add SeeUnit() event
         spell_map->events->AddSeeUnitEvent(cur_unit);
         spell_map->SortUnits();
     }
-    else if(event.GetId() == ID_POP_REM_SEEUNIT)
+    else if(menu_id == ID_POP_ADD_DESTROY_UNIT)
     {
-        // try remove SeeUnit() event
-        spell_map->SelectEvent(NULL);
-        spell_map->events->EraseEvent(cur_unit->trig_event);
+        // try add DestroyUnit() objective
+        spell_map->events->AddUnitObjective(cur_unit,SpellMapEventRec::EvtTypes::EVT_DESTROY_UNIT);
+        spell_map->SortUnits();
     }
-    else if(event.GetId() == ID_POP_EDIT_EVENT)
+    else if(menu_id == ID_POP_ADD_SAVE_UNIT)
+    {
+        // try add SaveUnit() objective
+        spell_map->events->AddUnitObjective(cur_unit,SpellMapEventRec::EvtTypes::EVT_SAVE_UNIT);
+        spell_map->SortUnits();
+    }
+    else if(menu_id == ID_POP_ADD_TRANSPORT_UNIT)
+    {
+        // try add TransportUnit() objective
+        spell_map->events->AddUnitObjective(cur_unit,SpellMapEventRec::EvtTypes::EVT_TRANSPORT_UNIT);
+        spell_map->SortUnits();
+    }
+    else if(menu_id == ID_POP_REM_SEEUNIT || menu_id == ID_POP_REM_DESTROY_UNIT || menu_id == ID_POP_REM_SAVE_UNIT || menu_id == ID_POP_REM_TRANSPORT_UNIT)
+    {
+        // try remove xxxUnit() events
+        spell_map->SelectEvent(NULL);
+        auto evt = cur_unit->GetTrigEvent({SpellMapEventRec::EvtTypes::EVT_SEE_UNIT,SpellMapEventRec::EvtTypes::EVT_DESTROY_UNIT,SpellMapEventRec::EvtTypes::EVT_SAVE_UNIT,SpellMapEventRec::EvtTypes::EVT_TRANSPORT_UNIT});
+        spell_map->events->EraseEvent(evt);
+    }    
+    else if(menu_id == ID_POP_EDIT_EVENT)
     {
         // edit event        
         auto cur_evt = spell_map->GetSelectEvent();
         //spell_map->SelectEvent(cur_evt);
         OnEditEvent(event);
     }
-    else if(event.GetId() == ID_POP_ANOTHER_EVENT)
+    else if(menu_id == ID_POP_ANOTHER_EVENT)
     {
         // switch to another event at position
         auto cur_evt = spell_map->GetSelectEvent();
         spell_map->SelectEvent(spell_map->events->GetAnotherEvent(cur_evt));        
     }
-    else if(event.GetId() == ID_POP_EDIT_UNIT)
+    else if(menu_id == ID_POP_EDIT_UNIT)
     {
         // edit unit
         spell_map->SelectUnit(cur_unit);
         OnEditUnit(event);
     }
-    else if(event.GetId() == ID_POP_REM_OBJ)
+    else if(menu_id == ID_POP_REM_UNIT)
+    {
+        // remove unit
+        spell_map->RemoveUnit(cur_unit,true);
+    }
+    else if(menu_id == ID_POP_REM_OBJ)
     {
         // remove object tile        
         spell_map->RemoveObj();
         Refresh();
     }
-    else if(event.GetId() == ID_POP_EDIT_TERR)
+    else if(menu_id == ID_POP_EDIT_TERR)
     {
         // edit terrain tile
         if(!FindWindowById(ID_SPRITES_WIN))
@@ -1446,7 +1472,7 @@ void MainFrame::OnCanvasPopupSelect(wxCommandEvent& event)
             }
         }
     }
-    else if(event.GetId() == ID_POP_EDIT_OBJ)
+    else if(menu_id == ID_POP_EDIT_OBJ)
     {
         // edit obj tile
         if(!FindWindowById(ID_SPRITES_WIN))
@@ -1458,14 +1484,14 @@ void MainFrame::OnCanvasPopupSelect(wxCommandEvent& event)
             form_sprites->Show();
         }
     }
-    else if(event.GetId() == ID_POP_REM_ANM)
+    else if(menu_id == ID_POP_REM_ANM)
     {
         // remove ANM tile
         spell_map->LockMap();
         spell_map->RemoveANM();
         spell_map->ReleaseMap();
     }
-    else if(event.GetId() == ID_POP_EDIT_ANM)
+    else if(menu_id == ID_POP_EDIT_ANM)
     {
         // edit ANM tile
         if(!FindWindowById(ID_ANM_WIN))
@@ -1476,12 +1502,12 @@ void MainFrame::OnCanvasPopupSelect(wxCommandEvent& event)
             form_anms->Show();
         }
     }
-    else if(event.GetId() == ID_POP_REM_PNM)
+    else if(menu_id == ID_POP_REM_PNM)
     {
         // remove PNM animation
         spell_map->RemovePNM();
     }
-    else if(event.GetId() == ID_POP_EDIT_PNM)
+    else if(menu_id == ID_POP_EDIT_PNM)
     {
         // edit PNM animation
         if(!FindWindowById(ID_ANM_WIN))
@@ -1496,12 +1522,12 @@ void MainFrame::OnCanvasPopupSelect(wxCommandEvent& event)
             }
         }
     }
-    else if(event.GetId() == ID_POP_REM_SOUND)
+    else if(menu_id == ID_POP_REM_SOUND)
     {
         // remove sound
         spell_map->SoundRemove();        
     }
-    else if(event.GetId() == ID_POP_EDIT_SOUND)
+    else if(menu_id == ID_POP_EDIT_SOUND)
     {
         // edit sound
         if(!FindWindowById(ID_SOUNDS_WIN))
@@ -1557,23 +1583,53 @@ void MainFrame::OnCanvasRMouse(wxMouseEvent& event)
             {
                 menu.Append(ID_POP_ANOTHER_EVENT,"Switch to other event");
             }
-            if((cur_unit && cur_unit->map_event && cur_unit->map_event->isMissionStart()) || cur_evt)
+            if((cur_unit && cur_unit->creator_event && cur_unit->creator_event->isMissionStart()) || cur_evt)
             {
                 menu.Append(ID_POP_EDIT_EVENT,"Edit event");
             }
-            if(cur_unit && cur_unit->map_event && cur_unit->map_event->isMissionStart())
-            {
-                menu.Append(ID_POP_REM_MISSIONSTART,"Remove from MissionStart event");
+            if(cur_unit && cur_unit->creator_event && cur_unit->creator_event->isMissionStart())
+            {                
+                menu.Append(ID_POP_REM_MISSIONSTART,"Remove unit from MissionStart event");
             }
-            if(cur_unit && (!cur_unit->map_event || !cur_unit->map_event->isMissionStart()))
+            if(cur_unit && (!cur_unit->creator_event || !cur_unit->creator_event->isMissionStart()))
             {
-                menu.Append(ID_POP_ADD_MISSIONSTART,"Add to MissionStart event");
+                auto list = spell_map->events->GetMissionStartEvent();
+                if(list.size() > 1)
+                {
+                    wxMenu *sub_menu = new wxMenu();
+                    sub_menu->SetClientData(cur_unit);
+                    for(auto &evt: list)
+                        sub_menu->Append(ID_POP_ADD_MISSIONSTART + evt->probability,string_format("MissionStart (p=%d%%)",evt->probability));
+                    menu.AppendSubMenu(sub_menu,"Add unit to MissionStart event");
+                }
+                else
+                {
+                    menu.Append(ID_POP_ADD_MISSIONSTART+100,"Add unit to MissionStart event");
+                }
             }
-            if(cur_unit && !cur_unit->trig_event)
+            if(cur_unit && !cur_unit->GetTrigEvent({SpellMapEventRec::EvtTypes::EVT_SAVE_UNIT,SpellMapEventRec::EvtTypes::EVT_TRANSPORT_UNIT,SpellMapEventRec::EvtTypes::EVT_DESTROY_UNIT}))
+            {
+                menu.Append(ID_POP_ADD_SAVE_UNIT,"Create SaveUnit objective");
+                menu.Append(ID_POP_ADD_TRANSPORT_UNIT,"Create TransportUnit objective");
+                menu.Append(ID_POP_ADD_DESTROY_UNIT,"Create DestroyUnit objective");
+            }
+            if(cur_unit && cur_unit->GetTrigEvent(SpellMapEventRec::EvtTypes::EVT_SAVE_UNIT))
+            {
+                menu.Append(ID_POP_REM_SAVE_UNIT,"Remove SaveUnit objective");
+            }
+            if(cur_unit && cur_unit->GetTrigEvent(SpellMapEventRec::EvtTypes::EVT_TRANSPORT_UNIT))
+            {
+                menu.Append(ID_POP_REM_TRANSPORT_UNIT,"Remove TransportUnit objective");
+            }
+            if(cur_unit && cur_unit->GetTrigEvent(SpellMapEventRec::EvtTypes::EVT_DESTROY_UNIT))
+            {
+                menu.Append(ID_POP_REM_DESTROY_UNIT,"Remove DestroyUnit objective");
+            }
+            if(cur_unit && !cur_unit->GetTrigEvent(SpellMapEventRec::EvtTypes::EVT_SEE_UNIT))
             {
                 menu.Append(ID_POP_ADD_SEEUNIT,"Create SeeUnit event");
             }
-            if(cur_unit && cur_unit->trig_event && cur_unit->trig_event->isSeeUnit())
+            if(cur_unit && cur_unit->GetTrigEvent(SpellMapEventRec::EvtTypes::EVT_SEE_UNIT))
             {
                 menu.Append(ID_POP_REM_SEEUNIT,"Remove SeeUnit event");
             }            
@@ -1582,6 +1638,7 @@ void MainFrame::OnCanvasRMouse(wxMouseEvent& event)
                 if(menu.GetMenuItemCount())
                     menu.AppendSeparator();
                 menu.Append(ID_POP_EDIT_UNIT,"Edit unit");
+                menu.Append(ID_POP_REM_UNIT,"Remove unit");
             }            
             if(GetMenuBar()->FindItem(ID_ViewTer)->IsChecked())
             {
@@ -1765,8 +1822,14 @@ void MainFrame::OnDeleteSel(wxCommandEvent& event)
     layers.lay1 = false;
     layers.lay2 = GetMenuBar()->FindItem(ID_ViewObj)->IsChecked();
     layers.anm = GetMenuBar()->FindItem(ID_ViewAnm)->IsChecked();
+    layers.pnm = GetMenuBar()->FindItem(ID_ViewPnm)->IsChecked();
     spell_map->LockMap();
-    spell_map->DeleteSelObjects(list,layers);
+    int rem_count = spell_map->DeleteSelObjects(list,layers);
+    if(!rem_count)
+    {
+        // nothing removed, maybe remove unit?        
+        spell_map->RemoveUnit(spell_map->GetCursorUnit(),true);
+    }
     spell_map->ReleaseMap();
     Refresh();
 }
@@ -1884,10 +1947,10 @@ void MainFrame::OnCanvasLMouseDown(wxMouseEvent& event)
                     // select event
                     spell_map->SelectEvent(cur_evt);
                 }
-                else if(wEvents && cur_unit && cur_unit->trig_event)
+                else if(wEvents && cur_unit && cur_unit->GetTrigEvent(SpellMapEventRec::EvtTypes::EVT_SEE_UNIT))
                 {
                     // select SeeUnit() event
-                    spell_map->SelectEvent(cur_unit->trig_event);
+                    spell_map->SelectEvent(cur_unit->GetTrigEvent(SpellMapEventRec::EvtTypes::EVT_SEE_UNIT));
                 }
                 else if(cur_unit && cur_unit == sel_unit)
                 {

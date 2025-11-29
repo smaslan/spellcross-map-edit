@@ -258,13 +258,21 @@ private:
     // map edit popup menu items
     enum
     {
-        ID_POP_ADD_MISSIONSTART = 2100,
+        ID_POP_ADD_MISSIONSTART = 2100, /* 100 MissionStart items matching event probability 0-100 */
+        ID_POP_ADD_MISSIONSTART_MAX = 2200,
         ID_POP_REM_MISSIONSTART,
         ID_POP_ADD_SEEUNIT,
         ID_POP_REM_SEEUNIT,
+        ID_POP_ADD_SAVE_UNIT,
+        ID_POP_ADD_TRANSPORT_UNIT,
+        ID_POP_ADD_DESTROY_UNIT,
+        ID_POP_REM_SAVE_UNIT,
+        ID_POP_REM_TRANSPORT_UNIT,
+        ID_POP_REM_DESTROY_UNIT,
         ID_POP_EDIT_EVENT,
         ID_POP_ANOTHER_EVENT,
         ID_POP_EDIT_UNIT,
+        ID_POP_REM_UNIT,
         ID_POP_EDIT_TERR,
         ID_POP_EDIT_OBJ,
         ID_POP_REM_OBJ,

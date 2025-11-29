@@ -29,14 +29,14 @@ FormEvent::FormEvent(wxWindow* parent,SpellData* spell_data,wxWindowID id,const 
 	mMenu = new wxMenuBar(0);
 	mmFile = new wxMenu();
 	wxMenuItem* mmOk;
-	mmOk = new wxMenuItem(mmFile,wxID_MM_OK,wxString(wxT("Place/Update")) + wxT('\t') + wxT("Ctrl+Enter"),wxEmptyString,wxITEM_NORMAL);
+	mmOk = new wxMenuItem(mmFile,wxID_MM_OK,wxString(wxT("Place/Update")) + wxT('\t') + wxT("Enter"),wxEmptyString,wxITEM_NORMAL);
 	mmFile->Append(mmOk);
 
 	wxMenuItem* mmExit;
 	mmExit = new wxMenuItem(mmFile,wxID_MM_EXIT,wxString(wxT("Exit")) + wxT('\t') + wxT("ESC"),wxEmptyString,wxITEM_NORMAL);
 	mmFile->Append(mmExit);
 
-	mMenu->Append(mmFile,wxT("File"));
+	mMenu->Append(mmFile,wxT("Events"));
 
 	this->SetMenuBar(mMenu);
 
@@ -65,6 +65,9 @@ FormEvent::FormEvent(wxWindow* parent,SpellData* spell_data,wxWindowID id,const 
 
 
 	bSizer531->Add(bSizer54,0,wxEXPAND,5);
+
+	btnCleanup = new wxButton(this,wxID_BTN_CLEANUP,wxT("Cleanup Events"),wxDefaultPosition,wxDefaultSize,0);
+	bSizer531->Add(btnCleanup,0,wxBOTTOM|wxEXPAND|wxLEFT|wxRIGHT,5);
 
 
 	bSizer47->Add(bSizer531,0,wxEXPAND,5);
@@ -309,6 +312,7 @@ FormEvent::FormEvent(wxWindow* parent,SpellData* spell_data,wxWindowID id,const 
 
 	Bind(wxEVT_COMMAND_BUTTON_CLICKED,&FormEvent::OnNewEventClick,this,wxID_BTN_ADD_EVENT);
 	Bind(wxEVT_COMMAND_BUTTON_CLICKED,&FormEvent::OnRemoveEventClick,this,wxID_BTN_REM_EVENT);
+	Bind(wxEVT_COMMAND_BUTTON_CLICKED,&FormEvent::OnCleanupEventsClick,this,wxID_BTN_CLEANUP);
 
 	Bind(wxEVT_COMMAND_BUTTON_CLICKED,&FormEvent::OnNewMsgClick,this,wxID_BTN_NEW_MSG);
 	Bind(wxEVT_COMMAND_BUTTON_CLICKED,&FormEvent::OnRemoveMsgClick,this,wxID_BNT_DEL_MSG);
@@ -336,6 +340,10 @@ FormEvent::~FormEvent()
 // reset event changes to initial state
 void FormEvent::ResetChanges()
 {
+	
+	spell_map->HaltUnitRanging(true);
+	spell_map->LockMap();
+	
 	auto old_unit = spell_map->GetSelectedUnit();
 	int unit_id = -1;
 	if(old_unit)
@@ -366,6 +374,9 @@ void FormEvent::ResetChanges()
 	if(spell_orig_event_id >= 0)
 		spell_map->SelectEvent(spell_map->events->GetEvent(spell_orig_event_id));
 
+	spell_map->SortUnits();
+	spell_map->ReleaseMap();
+	spell_map->ResumeUnitRanging();
 
 	spell_new_event = NULL;
 	spell_event = NULL;
@@ -512,9 +523,7 @@ void FormEvent::OnRemoveEventClick(wxCommandEvent& event)
 	
 	// try remove event from map events list
 	auto evt = (SpellMapEventRec*)lbEvents->GetClientData(sel_id);
-	auto rem_evt = spell_map->events->ExtractEvent(evt);
-	if(rem_evt)
-		delete rem_evt;
+	spell_map->events->EraseEvent(evt);
 
 	spell_new_event = NULL;
 
@@ -527,6 +536,13 @@ void FormEvent::OnRemoveEventClick(wxCommandEvent& event)
 		evt = (SpellMapEventRec*)lbEvents->GetClientData(lbEvents->GetCount() - 1);
 	SelectEvent(evt);
 
+}
+
+// on cleanup invalid events
+void FormEvent::OnCleanupEventsClick(wxCommandEvent& event)
+{
+	spell_map->events->CleanupEvents();
+	FillEventsList();
 }
 
 // on select event

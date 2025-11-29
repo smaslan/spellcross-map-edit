@@ -13,6 +13,7 @@
 #include "sprites.h"
 #include "spell_graphics.h"
 #include "spell_sound.h"
+//#include "spell_map_event.h"
 #include <vector>
 #include <string>
 #include <tuple>
@@ -521,11 +522,15 @@ public:
 	MapUnit* parent;
 	MapUnit* child;
 
-	// linked event (creator)
-	SpellMapEventRec *map_event;
+	// link to creating event (MissionStart, SeePlace or whatever event)
+	SpellMapEventRec *creator_event;
 
-	// linked event (SeeUnit)
-	SpellMapEventRec *trig_event;
+	// linked events to be triggered (SeeUnit, TransportUnit, SaveUnit, DestroyUnit)
+	std::vector<SpellMapEventRec*> trig_events;
+	int RemoveTrigEvent(SpellMapEventRec* event);
+	SpellMapEventRec* GetTrigEvent(int type);
+	SpellMapEventRec* GetTrigEvent(std::vector<int> types);
+	
 
 	// unit rendering state
 	vector<AStarNode> move_nodes;

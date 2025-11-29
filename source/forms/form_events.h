@@ -56,6 +56,7 @@ private:
 	void OnCloseClick(wxCommandEvent& event);
 	void OnNewEventClick(wxCommandEvent& event);
 	void OnRemoveEventClick(wxCommandEvent& event);
+	void OnCleanupEventsClick(wxCommandEvent& event);
 	void OnNewMsgClick(wxCommandEvent& event);
 	void OnRemoveMsgClick(wxCommandEvent& event);
 	void OnSelectEvent(wxCommandEvent& event);
@@ -82,6 +83,7 @@ protected:
 		wxID_LB_EVENTS,
 		wxID_BTN_ADD_EVENT,
 		wxID_BTN_REM_EVENT,
+		wxID_BTN_CLEANUP,
 		wxID_CHB_TYPE,
 		wxID_TXT_OBJ_DESC,
 		wxID_CB_IS_OBJECTIVE,
@@ -108,6 +110,7 @@ protected:
 	wxListBox* lbEvents;
 	wxButton* btnAddEvent;
 	wxButton* btnRemoveEvent;
+	wxButton* btnCleanup;
 	wxStaticLine* m_staticline21;
 	wxStaticText* m_staticText50;
 	wxChoice* chbType;
