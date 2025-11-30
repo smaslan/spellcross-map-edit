@@ -138,11 +138,11 @@ FormAbout::FormAbout( wxWindow* parent, wxWindowID id, const wxString& title, co
 	wxAcceleratorTable accel(entries.size(),entries.data());
 	this->SetAcceleratorTable(accel);
 
-	std::chrono::system_clock::time_point now = std::chrono::system_clock::now();
+	/*std::chrono::system_clock::time_point now = std::chrono::system_clock::now();
 	std::time_t currentTime = std::chrono::system_clock::to_time_t(now);
 	std::stringstream ver;
-	ver << std::put_time(std::localtime(&currentTime),"%Y-%m-%d %H:%M:%S");	
-	txtVersion->SetValue("V0.90, build " + ver.str());
+	ver << std::put_time(std::localtime(&currentTime),"%Y-%m-%d %H:%M:%S");	*/	
+	txtVersion->SetValue("V0.90, build: " __DATE__);
 
 	auto desc = "Very experimental editor for Spellcross map files and collection of Spellcross data loaders and viewers.\nNote current version is in progress, unfinished and very buggy.";
 	txtDesc->SetValue(desc);

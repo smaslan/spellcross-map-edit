@@ -11,9 +11,11 @@
 // 
 // For compilers that support precompilation, includes "wx/wx.h".
 #include <wx/wxprec.h>
+//#include <wx/msw/wx.rc>
 #ifndef WX_PRECOMP
 #include <wx/wx.h>
 #endif
+
 
 #include <wx/dcgraph.h>
 #include <wx/dcbuffer.h>
@@ -30,6 +32,7 @@
 #include <chrono>
 #include <future>
 
+#include "resource.h"
 #include "main.h"
 #include "other.h"
 #include "simpleini.h"
@@ -92,6 +95,13 @@ bool MyApp::OnInit()
     frame->SetSize(win_x_size,win_y_size);
     if(win_maximize)
         frame->Maximize();
+
+    // set icon
+    wxIcon appIcon;
+    appIcon.LoadFile("IDI_ICON2",wxBITMAP_TYPE_ICO_RESOURCE);
+    if(appIcon.IsOk())
+        frame->SetIcon(appIcon);
+
     frame->Center();
     // show main frame
     frame->Show(true);
@@ -1423,10 +1433,21 @@ void MainFrame::OnCanvasPopupSelect(wxCommandEvent& event)
     else if(menu_id == ID_POP_REM_SEEUNIT || menu_id == ID_POP_REM_DESTROY_UNIT || menu_id == ID_POP_REM_SAVE_UNIT || menu_id == ID_POP_REM_TRANSPORT_UNIT)
     {
         // try remove xxxUnit() events
-        spell_map->SelectEvent(NULL);
-        auto evt = cur_unit->GetTrigEvent({SpellMapEventRec::EvtTypes::EVT_SEE_UNIT,SpellMapEventRec::EvtTypes::EVT_DESTROY_UNIT,SpellMapEventRec::EvtTypes::EVT_SAVE_UNIT,SpellMapEventRec::EvtTypes::EVT_TRANSPORT_UNIT});
+        std::map<int,SpellMapEventRec::EvtTypes> types = {{ID_POP_REM_SEEUNIT,SpellMapEventRec::EvtTypes::EVT_SEE_UNIT},{ID_POP_REM_DESTROY_UNIT,SpellMapEventRec::EvtTypes::EVT_DESTROY_UNIT},{ID_POP_REM_SAVE_UNIT,SpellMapEventRec::EvtTypes::EVT_SAVE_UNIT},{ID_POP_REM_TRANSPORT_UNIT,SpellMapEventRec::EvtTypes::EVT_TRANSPORT_UNIT}};
+        auto evt = cur_unit->GetTrigEvent(types.at(menu_id));
         spell_map->events->EraseEvent(evt);
-    }    
+    }
+    else if(menu_id == ID_POP_ADD_SEE_PLACE)
+    {
+        // try create SeePlace event        
+        spell_map->events->AddSeePlaceEvent(spell_pos);
+    }
+    else if(menu_id == ID_POP_REM_SEE_PLACE)
+    {
+        // try remove SeePlace event        
+        auto evt = spell_map->events->CheckEvent(SpellMapEventRec::EvtTypes::EVT_SEE_PLACE,&spell_pos);
+        spell_map->events->EraseEvent(evt);
+    }
     else if(menu_id == ID_POP_EDIT_EVENT)
     {
         // edit event        
@@ -1487,9 +1508,7 @@ void MainFrame::OnCanvasPopupSelect(wxCommandEvent& event)
     else if(menu_id == ID_POP_REM_ANM)
     {
         // remove ANM tile
-        spell_map->LockMap();
         spell_map->RemoveANM();
-        spell_map->ReleaseMap();
     }
     else if(menu_id == ID_POP_EDIT_ANM)
     {
@@ -1564,6 +1583,7 @@ void MainFrame::OnCanvasRMouse(wxMouseEvent& event)
             auto cur_evt = spell_map->GetCursorEvent();
             auto sel_evt = spell_map->GetSelectEvent();
             auto cur_pos = spell_map->GetSelection();
+            spell_pos = cur_pos;
 
             int wSounds = GetMenuBar()->FindItem(ID_ViewSounds)->IsChecked(); // ###todo: optimize?
             int wSoundLoops = GetMenuBar()->FindItem(ID_ViewSoundLoops)->IsChecked(); // ###todo: optimize?
@@ -1632,7 +1652,15 @@ void MainFrame::OnCanvasRMouse(wxMouseEvent& event)
             if(cur_unit && cur_unit->GetTrigEvent(SpellMapEventRec::EvtTypes::EVT_SEE_UNIT))
             {
                 menu.Append(ID_POP_REM_SEEUNIT,"Remove SeeUnit event");
-            }            
+            }
+            if(!spell_map->events->CheckEvent(SpellMapEventRec::EvtTypes::EVT_SEE_PLACE,&cur_pos))
+            {
+                menu.Append(ID_POP_ADD_SEE_PLACE,"Create SeePlace event");
+            }
+            if(spell_map->events->CheckEvent(SpellMapEventRec::EvtTypes::EVT_SEE_PLACE,&cur_pos))
+            {
+                menu.Append(ID_POP_REM_SEE_PLACE,"Remove SeePlace event");
+            }
             if(cur_unit)
             {
                 if(menu.GetMenuItemCount())

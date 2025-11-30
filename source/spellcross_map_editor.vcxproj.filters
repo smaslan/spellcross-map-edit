@@ -359,5 +359,18 @@
     <ClInclude Include="forms\form_flags.h">
       <Filter>Header Files\forms</Filter>
     </ClInclude>
+    <ClInclude Include="resource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="resources.rc">
+      <Filter>Resource Files</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="ico\map.ICO">
+      <Filter>Resource Files</Filter>
+    </Image>
   </ItemGroup>
 </Project>

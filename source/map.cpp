@@ -1330,7 +1330,8 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 				unit->InitExperience(stoi(cmd->parameters->at(3)));
 
 				// man count
-				unit->man = stoi(cmd->parameters->at(4));
+				unit->man = min(stoi(cmd->parameters->at(4)),unit->unit->cnt);
+				
 
 				// unit behaviour type
 				unit->behave = cmd->parameters->at(5).c_str();
@@ -2079,7 +2080,7 @@ void SpellMap::InvalidateUnitsView()
 	}
 }
 
-// this sorts units list for proper render order, call after load or units changes, optional thread safe lock
+// this sorts units list for proper render order, call after load or units changes
 void SpellMap::SortUnits()
 {	
 	HaltUnitRanging();
@@ -4121,7 +4122,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 
 	
 	// show debug order lines
-	for(int k = 0; k < (int)dbg_ord.size()-1; k++)
+	/*for(int k = 0; k < (int)dbg_ord.size()-1; k++)
 	{
 		MapXY mxy = dbg_ord[k];
 		MapXY nxy = dbg_ord[k+1];
@@ -4145,7 +4146,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 		int nyy = (nxy.y - ys_ofs * 2) * 24 - n_y_elev*18 + MSYOFS + 50 + nspr->y_ofs + nspr->y_size/2;
 
 		plot_line(pic, pic_end, 0, 0, pic_x_size, 252, mxx,myy, nxx,nyy);
-	}
+	}*/
 
 
 	// --- Redner Layer 7+8 sound marks ---
@@ -4198,14 +4199,10 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 		// render event-unit connection lines:
 		for(auto & evt : events->GetEvents())
 		{
-			MapXY ev_pos;
-			if(evt->isSeePlace())
-				ev_pos = evt->position;
-			else if(evt->isSeeUnit() && evt->trig_unit)
-				ev_pos = evt->trig_unit->coor;
-			else 
+			if(!evt->hasPosition())
 				continue;
-
+			auto ev_pos = evt->GetPosition();
+			
 			// event position in surface
 			Sprite* spr = tiles[ConvXY(ev_pos)].L1;
 			auto [mxx,myy] = GetSurfPos(ev_pos);
@@ -4233,7 +4230,6 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 		auto start_evts = events->GetMissionStartEvent();
 
 		// render event marks:
-
 		events->ListerClear();
 		while(true)
 		{
@@ -7094,7 +7090,7 @@ void SpellMap::ViewRange::Worker()
 									unit = unit->next;
 								}
 							}
-							if(!is_fire && detect_events && map->events->CheckEvent(next_mxy))
+							if(!is_fire && detect_events && map->events->CheckEventMap(next_mxy))
 							{
 								// possibly some event here: get all undone events							
 								auto list = map->events->GetEvents(next_mxy,true);
@@ -7178,7 +7174,7 @@ void SpellMap::ViewRange::Worker()
 								unit = unit->next;
 							}
 						}
-						if(detect_events && map->events->CheckEvent(next_mxy))
+						if(detect_events && map->events->CheckEventMap(next_mxy))
 						{
 							// possibly some event here: get all undone events
 							auto list = map->events->GetEvents(next_mxy,true);

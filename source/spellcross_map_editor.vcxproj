@@ -116,6 +116,7 @@
     <ClInclude Include="forms\form_video_box.h" />
     <ClInclude Include="fsu_archive.h" />
     <ClInclude Include="fs_archive.h" />
+    <ClInclude Include="resource.h" />
     <ClInclude Include="riff_loader.h" />
     <ClInclude Include="spell_midi.h" />
     <ClInclude Include="spell_video.h" />
@@ -136,6 +137,12 @@
     <ClInclude Include="spell_sound.h" />
     <ClInclude Include="spell_units.h" />
     <ClInclude Include="sprites.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="resources.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="ico\map.ICO" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
@@ -222,16 +229,19 @@
     <LinkIncremental>true</LinkIncremental>
     <OutDir>$(SolutionDir)..\builds\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)..\builds\$(Platform)\$(Configuration)\</IntDir>
+    <IncludePath>$(wxwin)include;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
     <OutDir>$(SolutionDir)..\builds\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)..\builds\$(Platform)\$(Configuration)\</IntDir>
+    <IncludePath>$(wxwin)include;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release static|x64'">
     <LinkIncremental>false</LinkIncremental>
     <OutDir>$(SolutionDir)..\builds\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)..\builds\$(Platform)\$(Configuration)\</IntDir>
+    <IncludePath>$(wxwin)include;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>

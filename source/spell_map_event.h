@@ -164,8 +164,9 @@ public:
     SpellMapEventRec* GetEvent(MapXY pos); 
     SpellMapEventRec* GetAnotherEvent(SpellMapEventRec* evt);
     int GetEventsCount(MapXY pos);
-    int CheckEvent(MapXY pos);
-    int CheckEvent(int pos);
+    SpellMapEventRec* CheckEvent(SpellMapEventRec::EvtTypes type,MapXY* pos=NULL);
+    int CheckEventMap(MapXY pos);
+    int CheckEventMap(int pos);
     SpellMapEventsList GetEvents(MapXY pos,bool clear=false);
     SpellMapEventsList GetEvents(int pos,bool clear=false);
     SpellMapEventsList GetDestroyObjectEvents(MapXY pos,bool clear=false);
@@ -174,6 +175,7 @@ public:
     int AddMissionStartUnit(MapUnit *unit, int probab=100);
     SpellMapEventRec* AddSeeUnitEvent(MapUnit* unit,int probab=100);
     SpellMapEventRec* AddUnitObjective(MapUnit* unit,SpellMapEventRec::EvtTypes type);
+    SpellMapEventRec* AddSeePlaceEvent(MapXY pos,int probab=100);
     int ObjectivesDone();
     int GetEventID(SpellMapEventRec * target);
     //SpellMapEventRec::EvtTypes Check

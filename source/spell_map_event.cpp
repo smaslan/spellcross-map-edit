@@ -49,12 +49,20 @@ SpellMapEventRec::~SpellMapEventRec()
 		trig_unit = NULL;
 	}
 }
+// add unit to event spawned units list
 int SpellMapEventRec::AddUnit(MapUnit* unit)
 {	
+	map->LockMap();
+	map->HaltUnitRanging(true);
+	
 	units.push_back(unit);
 	// make unit link to this event
 	unit->creator_event = this;
 	unit->is_event = true;
+
+	map->events->RelinkUnits();
+	map->ResumeUnitRanging();
+	map->ReleaseMap();
 	return(0);
 }
 // try extract unit from the spawned units list
@@ -64,21 +72,30 @@ MapUnit *SpellMapEventRec::ExtractUnit(MapUnit* unit)
 		if(it->unit == unit)
 		{
 			// remove from list, but not delete
+			map->LockMap();
+			map->HaltUnitRanging(true);
 			units.erase(it);
 			// unlink from this event
 			unit->creator_event = NULL;
 			unit->is_event = false;
+			map->ResumeUnitRanging();
+			map->ReleaseMap();
 			// return unit
 			return(unit);
 		}
 	// not found
 	return(NULL);
 }
+// remove all spawned unit from event's list
 void SpellMapEventRec::ClearUnits()
 {
+	map->LockMap();
+	map->HaltUnitRanging(true);
 	for(auto& unit : units)
 		delete unit.unit;
-	units.clear();	
+	units.clear();
+	map->ResumeUnitRanging();
+	map->ReleaseMap();
 }
 void SpellMapEventRec::ClearTexts()
 {
@@ -238,10 +255,8 @@ int SpellMapEvents::GetNextID()
 SpellMapEventRec* SpellMapEvents::FindEvent(int type,int probab,int trig_unit)
 {
 	for(auto& evt : events)
-	{
 		if(type == SpellMapEventRec::EVT_SEE_UNIT && type == evt->evt_type && probab && probab == evt->probability && trig_unit == evt->trig_unit_id)
 			return(evt);
-	}
 	return(NULL);
 }
 SpellMapEventRec* SpellMapEvents::FindEvent(int type,int probab,MapXY pos)
@@ -259,9 +274,13 @@ SpellMapEventRec* SpellMapEvents::FindEvent(int type,int probab,MapXY pos)
 // inset new event to list
 SpellMapEventRec* SpellMapEvents::AddEvent(SpellMapEventRec* event)
 {
+	map->LockMap();
+	map->HaltUnitRanging(true);
 	events.push_back(event);	
+	map->ResumeUnitRanging();
+	map->ReleaseMap();
 
-	//###todo: check duplcites?
+	//###todo: check duplicates?
 
 	return(event);
 }
@@ -329,11 +348,13 @@ void SpellMapEvents::CleanupEvents()
 	for(auto &evt: events)
 	{
 		if(evt->hasTargetUnit() && !evt->trig_unit)
-			list.push_back(evt);
+			list.push_back(evt); // trigger unit no longer exist?
 		else if(evt->evt_type == SpellMapEventRec::EvtTypes::EVT_VOID)
-			list.push_back(evt);
+			list.push_back(evt); // void event type
 		else if(evt->isMissionStart() && evt->units.empty() && evt->texts.empty() && evt->video.empty())
-			list.push_back(evt);
+			list.push_back(evt); // mission start with nothing attached
+		else if(evt->isDestroyObject() && evt->position.IsSelected() && !map->CheckObj(&evt->position))
+			list.push_back(evt); // target object not exist on coordinates
 	}
 	// remove'em	
 	for(auto &evt: list)
@@ -343,10 +364,14 @@ void SpellMapEvents::CleanupEvents()
 // clear all events
 void SpellMapEvents::ClearEvents()
 {
+	map->HaltUnitRanging(true);
+	map->LockMap();
 	events_map.assign(map->x_size*map->y_size,NULL);
 	for(auto& evt : events)
 		delete evt;
 	events.clear();
+	map->ReleaseMap();
+	map->ResumeUnitRanging();	
 }
 
 
@@ -708,7 +733,7 @@ int SpellMapEvents::AddSpecialEvent(SpellData *data, SpellDEF* def, SpellDefCmd*
 			unit->InitExperience(stoi(evcmd->parameters->at(3)));
 
 			// man count (health)
-			unit->man = stoi(evcmd->parameters->at(4));
+			unit->man = min(stoi(evcmd->parameters->at(4)),unit->unit->cnt);
 
 			// unit active (to change in game mode)
 			unit->is_active = 0;
@@ -857,6 +882,9 @@ std::tuple<std::string, std::string> SpellMapEventRec::FormatDEFrecord(int *init
 				case EvtTypes::EVT_SEE_PLACE:
 					head += string_format("    AddSpecialEvent(SeePlace,%d,%d,%d%%)\n",map->ConvXY(position),k,probability);
 					break;
+				case EvtTypes::EVT_SEE_UNIT:
+					head += string_format("    AddSpecialEvent(SeeUnit,%d,%d,%d%%)\n",trig_unit_id,k,probability);
+					break;
 				default:
 					used = false;
 					break;
@@ -927,7 +955,7 @@ void SpellMapEvents::ResetEvents()
 			unit.is_placed = false;
 			unit.unit->was_seen = false;
 		}
-		if(evt->isSeeUnit() && evt->trig_unit)
+		if(evt->trig_unit)
 		{
 			evt->trig_unit->RemoveTrigEvent(evt);
 			evt->trig_unit = NULL;
@@ -1018,8 +1046,6 @@ SpellMapEventRec* SpellMapEvents::GetEvent(MapXY pos)
 		if(evt->GetPosition() == pos)
 			return(evt);
 	return(NULL);
-	
-	//return(*EventMap(pos));
 }
 // get events count for given position
 int SpellMapEvents::GetEventsCount(MapXY pos)
@@ -1064,12 +1090,28 @@ SpellMapEventRec* SpellMapEvents::GetEvent(int index)
 	return(events[index]);
 }
 
-// fast check if there is some undone event at the position
-int SpellMapEvents::CheckEvent(MapXY pos)
+// check/return event of given type at position or at map cursor
+SpellMapEventRec* SpellMapEvents::CheckEvent(SpellMapEventRec::EvtTypes type, MapXY *pos)
 {
-	return(CheckEvent(ConvXY(pos)));
+	MapXY posxy = map->GetSelection();
+	if(pos)
+		posxy = *pos;
+	if(!posxy.IsSelected())
+		return(NULL);
+
+	for(auto &evt: events)
+		if(evt->evt_type == type && evt->hasPosition() && evt->position == posxy)
+			return(evt);
+	return(NULL);
 }
-int SpellMapEvents::CheckEvent(int pos)
+
+
+// fast check if there is some undone event at the position (using event map)
+int SpellMapEvents::CheckEventMap(MapXY pos)
+{
+	return(CheckEventMap(ConvXY(pos)));
+}
+int SpellMapEvents::CheckEventMap(int pos)
 {
 	auto evt = events_map[pos];
 	if(!evt)
@@ -1173,7 +1215,7 @@ int SpellMapEvents::AddMissionStartUnit(MapUnit* unit,int probab)
 		target_evt = new SpellMapEventRec(map);
 		target_evt->SetType(SpellMapEventRec::EvtTypes::EVT_MISSION_START);
 		target_evt->probability = probab;
-		events.push_back(target_evt);
+		AddEvent(target_evt);
 		// resort events
 		ResetEvents();
 	}
@@ -1193,6 +1235,22 @@ SpellMapEventRec* SpellMapEvents::AddSeeUnitEvent(MapUnit* unit,int probab)
 	evt->probability = probab;
 	AddEvent(evt);
 	ResetEvents();
+	return(evt);
+}
+
+// add new SeePlace event at position if not there yet, otherwise return existing
+SpellMapEventRec* SpellMapEvents::AddSeePlaceEvent(MapXY pos,int probab)
+{
+	auto evt = CheckEvent(SpellMapEventRec::EvtTypes::EVT_SEE_PLACE,&pos);
+	if(!evt)
+	{
+		evt = new SpellMapEventRec(map);
+		evt->SetType(SpellMapEventRec::EvtTypes::EVT_SEE_PLACE);
+		evt->probability = probab;
+		evt->position = pos;
+		AddEvent(evt);
+		ResetEvents();
+	}	
 	return(evt);
 }
 
