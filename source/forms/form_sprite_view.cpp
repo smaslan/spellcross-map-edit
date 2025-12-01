@@ -436,6 +436,13 @@ FormSprite::FormSprite( wxWindow* parent,SpellData* spell_data,wxWindowID id, co
 
 	// === AUTO GENERATED STUFF ENDS HERE ===
 
+	// set icon
+	wxIcon appIcon;
+	appIcon.LoadFile("IDI_ICON_SPR",wxBITMAP_TYPE_ICO_RESOURCE);
+	if(appIcon.IsOk())
+		SetIcon(appIcon);
+
+
 	// no sprite selected yet
 	m_was_set = false;
 	sprite_id = -1;

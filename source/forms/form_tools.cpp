@@ -203,6 +203,12 @@ FormTools::FormTools( wxWindow* parent, SpellData* spelldata, wxWindowID id, con
 
 	// ==== END AUTO GENERATED ====
 
+	// set icon
+	wxIcon appIcon;
+	appIcon.LoadFile("IDI_ICON2",wxBITMAP_TYPE_ICO_RESOURCE);
+	if(appIcon.IsOk())
+		SetIcon(appIcon);
+
 	// fill terrain selector
 	for (int k = 0; k < spell_data->GetTerrainCount(); k++)
 	{

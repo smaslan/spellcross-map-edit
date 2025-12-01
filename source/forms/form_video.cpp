@@ -86,6 +86,12 @@ FormVideo::FormVideo(wxWindow* parent,SpellData* spell_data,wxWindowID id,const 
 	this->Centre(wxBOTH);
 
 	// === AUTO GENERATED END ===
+
+	// set icon
+	wxIcon appIcon;
+	appIcon.LoadFile("IDI_ICON2",wxBITMAP_TYPE_ICO_RESOURCE);
+	if(appIcon.IsOk())
+		SetIcon(appIcon);
 	
 	// close
 	Bind(wxEVT_CLOSE_WINDOW,&FormVideo::OnClose,this,this->m_windowId);

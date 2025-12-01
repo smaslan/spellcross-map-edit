@@ -104,6 +104,12 @@ FormSound::FormSound( wxWindow* parent,SpellData* spell_data,wxWindowID id, cons
 
 	// === AUTO GENERATED STUFF STARTS HERE ===
 
+	// set icon
+	wxIcon appIcon;
+	appIcon.LoadFile("IDI_ICON2",wxBITMAP_TYPE_ICO_RESOURCE);
+	if(appIcon.IsOk())
+		SetIcon(appIcon);
+
 	// back ref to spellcross data
 	m_spell_data = spell_data;
 	m_sound = NULL;

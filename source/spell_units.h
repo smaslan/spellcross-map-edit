@@ -341,6 +341,7 @@ public:
 		MissionUnit,
 		ArmyUnit,
 		EnemyUnit,
+		VoluntUnit,
 	};
 	MapUnitType() = default;
 	constexpr MapUnitType(Values type) : value(type) { }
@@ -368,6 +369,8 @@ public:
 			value = Values::SpecUnit;
 		else if(_strcmpi(type,"EnemyUnit") == 0)
 			value = Values::EnemyUnit;
+		else if(_strcmpi(type,"VoluntUnit") == 0)
+			value = Values::VoluntUnit;
 		else
 			value = Values::Unknown;
 	};
@@ -389,6 +392,8 @@ public:
 			return("SpecUnit");
 		else if(value == Values::ArmyUnit)
 			return("ArmyUnit");
+		else if(value == Values::VoluntUnit)
+			return("VoluntUnit");
 		else 
 			return("Unknown");		
 	}

@@ -40,6 +40,12 @@ FormNewObject::FormNewObject(wxWindow* parent,Terrain* terrain,wxWindowID id,con
 
 	// === END OF AUTO GENERATED STUFF ===
 
+	// set icon
+	wxIcon appIcon;
+	appIcon.LoadFile("IDI_ICON2",wxBITMAP_TYPE_ICO_RESOURCE);
+	if(appIcon.IsOk())
+		SetIcon(appIcon);
+
 	// default object name
 	txtDescription->SetValue("New object");
 

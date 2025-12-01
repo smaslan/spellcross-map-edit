@@ -167,6 +167,11 @@ FormObjects::FormObjects( wxWindow* parent,SpellData* spell_data,wxWindowID id, 
 	// === AUTO GENERATED END ===
 	
 	//slideGamma->SetTickFreq(100);
+	// set icon
+	wxIcon appIcon;
+	appIcon.LoadFile("IDI_ICON2",wxBITMAP_TYPE_ICO_RESOURCE);
+	if(appIcon.IsOk())
+		SetIcon(appIcon);
 
 
 	// generate terrain menu content

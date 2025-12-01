@@ -355,6 +355,12 @@ FormUnits::FormUnits( wxWindow* parent, wxWindowID id, const wxString& title, co
 
 	// === AUTO GENERATED END ===
 
+	// set icon
+	wxIcon appIcon;
+	appIcon.LoadFile("IDI_ICON2",wxBITMAP_TYPE_ICO_RESOURCE);
+	if(appIcon.IsOk())
+		SetIcon(appIcon);
+
 	// unit ID is read only
 	spinID->Enable(false);
 
@@ -598,7 +604,7 @@ void FormUnits::SelectUnit(MapUnit *unit)
 			chUnitBehave->Enable(false);
 
 			// unit spec type list
-			std::vector<MapUnitType::Values> spec_list ={MapUnitType::Values::EnemyUnit, MapUnitType::Values::ArmyUnit, MapUnitType::Values::MissionUnit, MapUnitType::Values::SpecUnit};
+			std::vector<MapUnitType::Values> spec_list ={MapUnitType::Values::EnemyUnit, MapUnitType::Values::ArmyUnit, MapUnitType::Values::MissionUnit, MapUnitType::Values::SpecUnit, MapUnitType::Values::VoluntUnit};
 			chUnitType->Clear();
 			if(m_new_unit)
 				chUnitType->Append("Non-event EnemyUnit");
@@ -762,7 +768,7 @@ void FormUnits::EditUnit()
 			m_unit->is_enemy = true;
 			m_unit->is_event = false;
 		}
-		if(m_unit->spec_type == MapUnitType::Values::SpecUnit || m_unit->spec_type == MapUnitType::Values::MissionUnit || m_unit->spec_type == MapUnitType::Values::ArmyUnit)
+		if(m_unit->spec_type == MapUnitType::Values::SpecUnit || m_unit->spec_type == MapUnitType::Values::MissionUnit || m_unit->spec_type == MapUnitType::Values::ArmyUnit || m_unit->spec_type == MapUnitType::Values::VoluntUnit)
 		{
 			m_unit->is_enemy = false;
 			m_unit->is_event = true;

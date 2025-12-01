@@ -117,6 +117,11 @@ FormPalView::FormPalView(wxWindow* parent,SpellData* spell_data,wxWindowID id,co
 
 	// === AUTO GENERATED END ===
 	
+	// set icon
+	wxIcon appIcon;
+	appIcon.LoadFile("IDI_ICON_PAL",wxBITMAP_TYPE_ICO_RESOURCE);
+	if(appIcon.IsOk())
+		SetIcon(appIcon);
 
 	// generate terrain menu content
 	for(int k = 0;k<spell_data->GetTerrainCount();k++)

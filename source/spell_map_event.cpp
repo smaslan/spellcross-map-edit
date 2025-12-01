@@ -677,6 +677,10 @@ int SpellMapEvents::AddSpecialEvent(SpellData *data, SpellDEF* def, SpellDefCmd*
 				unit->spec_type = MapUnitType::SpecUnit;
 				unit->id = 49; // this idiocy is original Spellcross hard defined designation for SpecUnit2
 			}
+			else if(evcmd->parameters->at(0).compare("VoluntUnit") == 0)
+			{
+				unit->spec_type = MapUnitType::VoluntUnit;
+			}
 			else
 			{
 				// unknown unit type				

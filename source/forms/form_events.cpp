@@ -263,6 +263,11 @@ FormEvent::FormEvent(wxWindow* parent,SpellData* spell_data,wxWindowID id,const 
 
 	// === AUTO GENERATED END ===
 
+	// set icon
+	wxIcon appIcon;
+	appIcon.LoadFile("IDI_ICON2",wxBITMAP_TYPE_ICO_RESOURCE);
+	if(appIcon.IsOk())
+		SetIcon(appIcon);
 
 	// fill event types list
 	SpellMapEventRec map_ev((SpellMap*)NULL);

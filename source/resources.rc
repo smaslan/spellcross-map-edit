@@ -59,6 +59,9 @@ IDI_ICON1 ICON "ico/map.ico"
 // this tha same icon that for some reason can be loaded to exIcon??? 
 IDI_ICON2 ICON "ico/map.ico"
 
+IDI_ICON_SPR ICON "ico/sprite.ico"
+IDI_ICON_PAL ICON "ico/pal.ico"
+
 
 
 #endif    // Èeština (Èeská republika) resources

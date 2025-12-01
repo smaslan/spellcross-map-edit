@@ -127,6 +127,11 @@ FormANM::FormANM(wxWindow* parent,SpellData* spell_data,bool is_pnm,wxWindowID i
 
 	// === AUTO GENERATED STUFF STARTS HERE ===
 
+	// set icon
+	wxIcon appIcon;
+	appIcon.LoadFile("IDI_ICON_SPR",wxBITMAP_TYPE_ICO_RESOURCE);
+	if(appIcon.IsOk())
+		SetIcon(appIcon);
 
 	// back ref to spellcross data
 	m_spell_data = spell_data;
