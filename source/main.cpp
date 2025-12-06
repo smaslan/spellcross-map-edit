@@ -136,20 +136,24 @@ MainFrame::MainFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY
     spell_data = spelldata;
 
     // subforms
-    form_objects = NULL;
+    form_gamma = NULL;
     form_sprites = NULL;
+    form_anms = NULL;
+    form_objects = NULL;
+    form_tools = NULL;
+    form_pal = NULL;
     form_gres = NULL;
     form_units = NULL;
-    form_pal = NULL;
-    form_tools = NULL;
+    form_events = NULL;
+    form_videos = NULL;
     form_unit_opts = NULL;
     form_message = NULL;
-    form_map_options = NULL;
-    form_videos = NULL;
     form_video_box = NULL;
+    form_map_options = NULL;
     form_midi = NULL;
     form_minimap = NULL;
     form_units_list = NULL;
+    form_sounds = NULL;
         
     // File menu
     wxMenu* menuFile = new wxMenu;
@@ -561,7 +565,6 @@ void MainFrame::OnClose(wxCloseEvent& ev)
         if(new_unit)
         {
             // add new unit to map
-            spell_map->HaltUnitRanging(true);            
             new_unit->in_placement = true;
             new_unit->is_active = true;
             new_unit->ResetAP();
@@ -581,7 +584,6 @@ void MainFrame::OnClose(wxCloseEvent& ev)
                 spell_map->AddUnit(new_unit);
             }
             spell_map->SelectUnit(new_unit);
-            spell_map->ResumeUnitRanging(false);
         }
         if(form_units->DoUpdateUnit())
         {
@@ -749,9 +751,16 @@ void MainFrame::OnPaintCanvas(wxPaintEvent& event)
     else
     {
         wxPaintDC pdc(canvas);
-        spell_map->Render(m_buffer,NULL,&spell_tool,bind(&MainFrame::CreateHUDbuttons,this));
+        /*int frames = 100;
+        std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();        
+        for(int k = 0; k < frames; k++)*/
+            spell_map->Render(m_buffer,NULL,&spell_tool,bind(&MainFrame::CreateHUDbuttons,this));
+        /*std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+        float time = 1e-6*std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count();
+        SetStatusText(wxString::Format(wxT("%.0f fps"),frames/time),7);*/
         pdc.DrawBitmap(m_buffer,wxPoint(0,0));
     }
+       
 
     event.Skip();
 }
@@ -1763,15 +1772,12 @@ void MainFrame::OnCopyBuf(wxCommandEvent& event)
     list = spell_map->GetPersistSelections();
     if(list.empty())
         list = spell_map->GetSelections();
-
-    spell_map->LockMap();
-    spell_map->HaltUnitRanging();
+    
     if(event.GetId() == ID_CutBuf)
         spell_map->CutBuffer(list,lay);
     else
         spell_map->CopyBuffer(list, lay);
-    spell_map->ResumeUnitRanging();
-    spell_map->ReleaseMap();
+    
 }
 // clear map copy buffer
 void MainFrame::OnClearBuf(wxCommandEvent& event)
@@ -1779,11 +1785,9 @@ void MainFrame::OnClearBuf(wxCommandEvent& event)
     if(!spell_map->IsLoaded())
         return;
     // clear copy buffer and also clear tool
-    spell_map->LockMap();
     spell_map->ClearBuffer();    
     wxRibbonBarEvent rev;
     OnToolPageClick(rev);        
-    spell_map->ReleaseMap();
     Refresh();
 }
 // try place copy buffer to map
@@ -1795,9 +1799,7 @@ void MainFrame::OnPasteBuf(wxCommandEvent& event)
     if(list.empty())
         return;
 
-    spell_map->LockMap();
     spell_map->PasteBuffer(spell_map->tiles,spell_map->L3,spell_map->L4,list);
-    spell_map->ReleaseMap();
     Refresh();
 }
 
@@ -1882,9 +1884,7 @@ void MainFrame::OnCanvasLMouseDown(wxMouseEvent& event)
         if(spell_map->isCopyBufferFull() && xy_list.size() && xy_list[0].IsSelected())
         {
             // something in copy buffer
-            spell_map->LockMap();
             spell_map->PasteBuffer(spell_map->tiles,spell_map->L3,spell_map->L4,xy_list);
-            spell_map->ReleaseMap();
             Refresh();
         }
         else if(spell_tool.isActive() && xy_list.size() && xy_list[0].IsSelected())

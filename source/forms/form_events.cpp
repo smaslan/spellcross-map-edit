@@ -381,7 +381,7 @@ void FormEvent::ResetChanges()
 
 	spell_map->SortUnits();
 	spell_map->ReleaseMap();
-	spell_map->ResumeUnitRanging();
+	spell_map->ResumeUnitRanging(false);
 
 	spell_new_event = NULL;
 	spell_event = NULL;

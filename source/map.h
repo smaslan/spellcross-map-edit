@@ -232,6 +232,8 @@ typedef struct{
 class SpellMap
 {
 	private:		
+		// map state
+		bool is_valid;
 		// last error string
 		std::string last_error;
 		// game mode
@@ -274,8 +276,7 @@ class SpellMap
 
 		// map edit lock (recoursive - multiple lock() calls per thread possible)
 		std::recursive_mutex map_lock;
-		//int map_lock_level = 0;
-		
+				
 		// attack state stuff
 		std::vector<MapSprite*> attack_explosion_list;
 

@@ -187,7 +187,6 @@ int TScroll::ResizeSelection(int delta)
 MapSprite::~MapSprite()
 {
 }
-
 MapSprite::MapSprite()
 {
 	L1 = NULL;
@@ -406,6 +405,8 @@ bool MapLayer4::Compare(MapLayer4* pnm)
 
 SpellMap::SpellMap()
 {
+	is_valid = false;
+
 	game_mode = false;
 	
 	pic = NULL;
@@ -462,25 +463,6 @@ int SpellMap::ReleaseMap()
 	return(0);
 }
 
-// lock/unlock unit move, view, attack range async calculator (call whenever modifying units list or events)
-/*void SpellMap::LockUnitRanging(bool lock)
-{
-	if(lock)
-	{
-		if(unit_view)
-			unit_view->Lock();
-		if(unit_range)
-			unit_range->Lock();
-	}
-	else
-	{
-		if(unit_view)
-			unit_view->Unlock();
-		if(unit_view)
-			unit_range->Unlock();
-	}
-}*/
-
 // halt unit move, view, attack range async calculator (call whenever changing map arrays or e.g. changing unit parameters)
 //  optional clear_tasks=true will remove any pending tasks
 void SpellMap::HaltUnitRanging(bool clear_tasks)
@@ -490,6 +472,7 @@ void SpellMap::HaltUnitRanging(bool clear_tasks)
 	if(unit_range)
 		unit_range->Halt(clear_tasks);
 }
+
 // resume halted ranging, optional resume=false will restore previous state before HaltUnitRanging()
 void SpellMap::ResumeUnitRanging(bool resume)
 {
@@ -498,7 +481,6 @@ void SpellMap::ResumeUnitRanging(bool resume)
 	if(unit_range)
 		unit_range->Resume(resume);
 }
-
 
 // switch game mode
 int SpellMap::SetGameMode(int new_mode)
@@ -512,6 +494,7 @@ int SpellMap::SetGameMode(int new_mode)
 
 	return(old_state);
 }
+
 // game mode
 int SpellMap::isGameMode()
 {
@@ -526,10 +509,19 @@ wstring SpellMap::GetTopPath()
 	return(def_path);
 }
 
+// is some valid map data loaded?
+int SpellMap::IsLoaded()
+{
+	return(is_valid);
+}
+
 // cleanup MAP data
 void SpellMap::Close()
 {
-	int k;	
+	// lock map before doing anything
+	LockMap();
+	HaltUnitRanging(true);
+	is_valid = false;
 
 	// these must go before touching anything else as they are async!
 	if(unit_view)
@@ -541,7 +533,6 @@ void SpellMap::Close()
 	unit_range = NULL;
 	SetUnitRangeViewMode(UNIT_RANGE_NONE);
 
-
 	// loose layer data
 	tiles.clear();
 	L3.clear();
@@ -552,7 +543,7 @@ void SpellMap::Close()
 	// loose units layer
 	Lunit.clear();
 	// loose units list
-	for(k = 0; k < units.size(); k++)
+	for(int k = 0; k < units.size(); k++)
 		delete units[k];
 	units.clear();
 	unit_selection = NULL;
@@ -603,6 +594,10 @@ void SpellMap::Close()
 	SetRenderFilter(NULL);
 
 	units_view_debug_mode = false;
+
+	// unlock map
+	ResumeUnitRanging(true);
+	ReleaseMap();
 }
 
 
@@ -611,6 +606,10 @@ int SpellMap::Create(SpellData* spelldata, const char *terr_name, int x, int y)
 {
 	// loose old map data
 	Close();
+
+	// lock map before doing anything
+	LockMap();
+	HaltUnitRanging(true);
 
 	// set terrain
 	terrain = spelldata->GetTerrain(terr_name);
@@ -629,18 +628,8 @@ int SpellMap::Create(SpellData* spelldata, const char *terr_name, int x, int y)
 	L1_flags.resize(x_size*y_size);
 	
 	// filter mask
-	filter.resize(x_size*y_size);
-
-	// create events
-	events = new SpellMapEvents(this);
-
-	// make save slots
-	saves = new Saves(this);
-	
-	// initialize view range calculator
-	unit_view = new ViewRange(this);
-	unit_range = new MoveRange(this);
-
+	filter.assign(x_size*y_size,NULL);
+		
 	// generate plain map
 	for(int k = 0; k < (x_size * y_size); k++)
 	{		
@@ -650,7 +639,7 @@ int SpellMap::Create(SpellData* spelldata, const char *terr_name, int x, int y)
 	
 	// get tile flags from context data
 	SyncL1flags();
-	
+		
 	// create selections maps
 	select.assign(x_size*y_size,0x00);
 
@@ -662,7 +651,28 @@ int SpellMap::Create(SpellData* spelldata, const char *terr_name, int x, int y)
 	// reset scroller
 	scroller.Reset();
 
+	// create events
+	events = new SpellMapEvents(this);
+	events->ResetEvents();
+
+	// create sounds layer
+	sounds = new MapSounds(spelldata,x_size,y_size);
+
+	// make save slots
+	saves = new Saves(this);
+
+	// initialize view range calculator
+	unit_view = new ViewRange(this);
+	unit_range = new MoveRange(this);
+	unit_view->PrepareUnitsViewMask();
+	unit_view->ClearUnitsView(ViewRange::ClearMode::RESET);
+
+	SortUnits();
 	
+	// unlock map
+	is_valid = true;
+	ResumeUnitRanging(true);
+	ReleaseMap();
 
 	return(0);
 }
@@ -1481,6 +1491,9 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 	start_sprite = terrain->GetSprite("START");
 	escape_sprite = terrain->GetSprite("CIEL");
 	target_sprite = terrain->GetSprite("TARGET");
+
+	// map should be valid from this point
+	is_valid = true;
 		
 	// done
 	return(0);
@@ -2043,8 +2056,9 @@ int SpellMap::ConvXY(MapXY &mxy)
 int SpellMap::UnitsMoved(int clear)
 {
 	// scan units for placement changes and clear the move flags
+	LockMap();
 	int moved = false;
-	for(auto& unit : units)
+	for(auto& unit: units)
 	{
 		if(unit->was_moved)
 			moved = true;
@@ -2053,7 +2067,7 @@ int SpellMap::UnitsMoved(int clear)
 	}
 	if(!isGameMode())
 	{
-		for(auto & evt : events->GetEvents())
+		for(auto & evt: events->GetEvents())
 		{			
 			for(auto& unit : evt->units)
 			{
@@ -2064,12 +2078,14 @@ int SpellMap::UnitsMoved(int clear)
 			}
 		}
 	}	
+	ReleaseMap();
 	return(moved);
 }
 
 // invalidate current units view map to force recalculation (actual calculation is done while rendering for now)
 void SpellMap::InvalidateUnitsView()
 {
+	LockMap();
 	for(auto& unit : units)
 		unit->was_moved = true;
 	if(!isGameMode())
@@ -2078,6 +2094,7 @@ void SpellMap::InvalidateUnitsView()
 			for(auto& unit : evt->units)
 				unit.unit->was_moved = true;
 	}
+	ReleaseMap();
 }
 
 // this sorts units list for proper render order, call after load or units changes
@@ -2151,18 +2168,7 @@ void SpellMap::SortUnits()
 	ResumeUnitRanging(false);
 }
 
-// is some valid map data loaded?
-int SpellMap::IsLoaded()
-{
-	if (tiles.empty())
-		return(0);
 
-	if (!x_size || !y_size)
-		return(0);
-
-	// ###todo: should be checked more rigorously...
-	return(1);
-}
 
 
 
@@ -2495,11 +2501,11 @@ int SpellMap::SetBuffer(SpellObject* obj)
 		return(1);
 
 	// try obtain data of object
-	copy_buf.pos.clear();
-	copy_buf.tiles.clear();
-	copy_buf.anms.clear();
-	copy_buf.pnms.clear();
-	return(obj->GetObjectData(&copy_buf.pos, &copy_buf.tiles));	
+	ClearBuffer();
+	LockMap();
+	int res = obj->GetObjectData(&copy_buf.pos,&copy_buf.tiles);
+	ReleaseMap();
+	return(res);
 }
 
 // set buffer content to sprite
@@ -2508,11 +2514,8 @@ int SpellMap::SetBuffer(Sprite *spr)
 	if(!spr)
 		return(1);
 
-	copy_buf.pos.clear();
-	copy_buf.tiles.clear();
-	copy_buf.anms.clear();
-	copy_buf.pnms.clear();
-
+	ClearBuffer();
+	LockMap();	
 	copy_buf.pos.push_back(MapXY(0,0));
 	MapSprite tile;
 	if(spr->land_type)
@@ -2528,6 +2531,7 @@ int SpellMap::SetBuffer(Sprite *spr)
 	tile.elev = 0;
 	tile.flags = spr->GetMapFlags();
 	copy_buf.tiles.push_back(tile);
+	ReleaseMap();
 
 	return(0);
 }
@@ -2538,10 +2542,8 @@ int SpellMap::SetBuffer(AnimL1* anm)
 	if(!anm)
 		return(1);
 
-	copy_buf.pos.clear();
-	copy_buf.tiles.clear();
-	copy_buf.anms.clear();
-	copy_buf.pnms.clear();
+	ClearBuffer();
+	LockMap();
 
 	copy_buf.pos.push_back(MapXY(0,0));
 	MapSprite tile;	
@@ -2551,7 +2553,7 @@ int SpellMap::SetBuffer(AnimL1* anm)
 	new_anm.frame_limit = anm->frames.size();
 	new_anm.frame_ofs = rand() % new_anm.frame_limit;
 	copy_buf.anms.push_back(new_anm);
-
+	ReleaseMap();
 	return(0);
 }
 
@@ -2561,11 +2563,8 @@ int SpellMap::SetBuffer(AnimPNM* pnm,int x_ofs,int y_ofs)
 	if(!pnm)
 		return(1);
 
-	copy_buf.pos.clear();
-	copy_buf.tiles.clear();
-	copy_buf.anms.clear();
-	copy_buf.pnms.clear();
-
+	ClearBuffer();
+	LockMap();
 	copy_buf.pos.push_back(MapXY(0,0));
 	MapSprite tile;
 	copy_buf.tiles.push_back(tile);
@@ -2575,7 +2574,8 @@ int SpellMap::SetBuffer(AnimPNM* pnm,int x_ofs,int y_ofs)
 	new_pnm.y_ofs = y_ofs;
 	new_pnm.frame_limit = pnm->frames.size();
 	new_pnm.frame_ofs = rand() % new_pnm.frame_limit;
-	copy_buf.pnms.push_back(new_pnm);
+	copy_buf.pnms.push_back(new_pnm);	
+	ReleaseMap();
 
 	return(0);
 }
@@ -2583,12 +2583,14 @@ int SpellMap::SetBuffer(AnimPNM* pnm,int x_ofs,int y_ofs)
 // copy map data for copy&paste actions
 void SpellMap::CopyBuffer(std::vector<MapXY>& posxy,SpellMap::Layers layers)
 {
-	copy_buf.pos.clear();
-	copy_buf.tiles.clear();
-	copy_buf.anms.clear();
-	copy_buf.pnms.clear();
+	ClearBuffer();
+
+	if(posxy.empty())
+		return;
+
+	LockMap();
 	
-	// find reference tile (bottom right)
+	// find base elevation
 	int elev = 1<<30;
 	MapXY ref(1<<30,1<<30);
 	for(int k = 0; k < posxy.size(); k++)
@@ -2599,6 +2601,8 @@ void SpellMap::CopyBuffer(std::vector<MapXY>& posxy,SpellMap::Layers layers)
 		MapSprite sprite = tiles[xy];
 		elev = min(sprite.elev,elev);
 	}
+	// reference position is cursor
+	ref = posxy[0];
 	// ref tile is on even tile
 	bool y_is_even = !(ref.y & 1);
 		
@@ -2673,6 +2677,8 @@ void SpellMap::CopyBuffer(std::vector<MapXY>& posxy,SpellMap::Layers layers)
 		copy_buf.anms[k].x_pos -= ref2.x;
 		copy_buf.pnms[k].x_pos -= ref2.x;
 	}
+
+	ReleaseMap();
 }
 
 // cut map objects layer map data for copy&paste actions
@@ -2689,10 +2695,12 @@ void SpellMap::CutBuffer(std::vector<MapXY>& posxy,SpellMap::Layers layers)
 // clear copy buffer
 void SpellMap::ClearBuffer()
 {
+	LockMap();
 	copy_buf.pos.clear();
 	copy_buf.tiles.clear();
 	copy_buf.anms.clear();
 	copy_buf.pnms.clear();
+	ReleaseMap();
 }
 
 // paste from copy buffer
@@ -2700,6 +2708,9 @@ void SpellMap::PasteBuffer(std::vector<MapSprite>& tiles, std::vector<MapLayer3>
 {
 	if(copy_buf.pos.empty() || posxy.empty())
 		return;
+
+	LockMap();
+	HaltUnitRanging(true);
 
 	// repeat for every selection position if just one tile sized object
 	int repeat = (copy_buf.pos.size() == 1)?(posxy.size()):1;
@@ -2783,6 +2794,9 @@ void SpellMap::PasteBuffer(std::vector<MapSprite>& tiles, std::vector<MapLayer3>
 			}
 		}
 	}
+
+	ResumeUnitRanging(false);
+	ReleaseMap();
 }
 
 // has copy buffer something in it?
@@ -2795,6 +2809,8 @@ bool SpellMap::isCopyBufferFull()
 // delete selected objects from map
 int SpellMap::DeleteSelObjects(std::vector<MapXY>& posxy,SpellMap::Layers layers)
 {
+	LockMap();
+	HaltUnitRanging(true);
 	int removed = 0;
 	for(auto &pos: posxy)
 	{
@@ -2812,6 +2828,8 @@ int SpellMap::DeleteSelObjects(std::vector<MapXY>& posxy,SpellMap::Layers layers
 		if(layers.pnm)
 			removed += !RemovePNM(&pos);
 	}
+	ResumeUnitRanging(false);
+	ReleaseMap();
 	return(removed);
 }
 
@@ -2820,6 +2838,9 @@ int SpellMap::PasteRandSprites(std::vector<MapSprite>& tiles,std::vector<MapXY>&
 {
 	if(sprites.empty())
 		return(1);
+
+	LockMap();
+	HaltUnitRanging(true);
 
 	// regenerate random sprite ids?
 	static std::vector<int> rand_list = {};
@@ -2845,6 +2866,9 @@ int SpellMap::PasteRandSprites(std::vector<MapSprite>& tiles,std::vector<MapXY>&
 		else
 			tiles[mpos].L1 = sprite;
 	}
+
+	ResumeUnitRanging(false);
+	ReleaseMap();
 	return(0);
 }
 
@@ -3639,6 +3663,33 @@ int SpellMap::GetRender(uint8_t* buf, int x_size, int y_size, int x_pos, int y_p
 	return(0);
 }
 
+// configure map elements visibility
+void SpellMap::SetRender(bool wL1,bool wL2,bool wL3,bool wL4,bool wSTCI,bool wUnits,bool wSound,bool wSoundLoop,bool wEvents,bool highlight_obj)
+{
+	this->wL1 = wL1;
+	this->wL2 = wL2;
+	this->wL3 = wL3;
+	this->wL4 = wL4;
+	this->wSTCI = wSTCI;
+	this->wUnits = wUnits;
+	this->wSound = wSound;
+	this->wSoundLoop = wSoundLoop;
+	this->wEvents = wEvents;
+	this->wHighlight_obj = highlight_obj;
+}
+
+// set gamma correction for rendering
+void SpellMap::SetGamma(double gamma)
+{
+	this->gamma = gamma;
+	// forces recalculation of gamma table
+	last_gamma = 0.0;
+}
+double SpellMap::GetGamma()
+{
+	return(gamma);
+}
+
 // render frame
 int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::function<void(void)> hud_buttons_cb)
 {
@@ -3682,26 +3733,25 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 	unit_range->ResultLock(true);
 	unit_view->ResultLock(true);
 
-	// make local copies of layers so tools and clipboard can override'em
+	// make local copies of layers so tools and clipboard can override'em (not very effective solution)
 	std::vector<MapSprite> tiles = this->tiles;
 	std::vector<MapLayer3> L3 = this->L3;
 	std::vector<MapLayer4> L4 = this->L4;
 	
 
 	// edit tool pre-processing:
-	if(msel.size() && tool && tool->isObject())
+	/*if(msel.size() && tool && tool->isObject())
 	{
 		// object tool selected (house, etc.)
 		auto obj = tool->GetObject();
 		// place object's tiles to L1
 		obj->PlaceMapTiles(tiles,x_size,y_size,msel[0]);
-	}
+	}*/
 	if(msel.size() && tool && tool->isTool())
 	{
 		// tool selected (trees, etc.)
 		auto tool_sprites = terrain->GetToolSprites(*tool);
 		PasteRandSprites(tiles, msel, tool_sprites);
-		//terrain->gettoo		
 	}
 
 	// clipboard layers override:
@@ -3955,7 +4005,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 				fil = terrain->filter.darkpal;
 			else if(!use_view_mask && pos == cursor && wHighlight_obj)
 				fil = terrain->filter.goldpal; // highlight animation
-			else if(!use_view_mask && pnm_selection == pnm && sel_blink_state)
+			else if(!use_view_mask && pnm->Compare(pnm_selection) && sel_blink_state)
 				fil = terrain->filter.goldpal; // highlight selected animation
 			
 			
@@ -4560,7 +4610,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 	return(0);
 }
 
-
+// get offset of visible map part
 tuple<int,int> SpellMap::GetSurfPos(MapXY& pos)
 {
 	// relative pos in visible part of surface
@@ -4644,8 +4694,8 @@ SpellMap::MoveRange::MoveRange(SpellMap *map)
 	thread = new std::thread(&SpellMap::MoveRange::Worker,this);
 
 	// ready to accept data
-	is_halted = false;
-	was_halted = 0;
+	is_halted = true;
+	was_halted = 1;
 }
 
 // cleanup move range finder
@@ -6067,9 +6117,6 @@ void SpellMap::OnHUDcreateUnit()
 	unit->ResetTurnsCounter();
 }
 
-
-
-
 // clear all HUD buttons (or invalidate only)
 void SpellMap::ClearHUDbuttons(bool only_invalidate)
 {
@@ -6199,8 +6246,8 @@ SpellMap::ViewRange::ViewRange(SpellMap* map)
 	AttackRangeInit();	
 
 	// worker allowed to do stuff
-	is_halted = false;
-	was_halted = false;
+	is_halted = true;
+	was_halted = 1;
 }
 SpellMap::ViewRange::~ViewRange()
 {
@@ -7456,32 +7503,7 @@ bool SpellMap::TileIsVisible(int x,int y)
 	return(x_ok && y >= 8 && y < (y_size-14));
 }
 
-// configure map elements visibility
-void SpellMap::SetRender(bool wL1, bool wL2, bool wL3, bool wL4, bool wSTCI, bool wUnits,bool wSound,bool wSoundLoop,bool wEvents,bool highlight_obj)
-{
-	this->wL1 = wL1;
-	this->wL2 = wL2;
-	this->wL3 = wL3;
-	this->wL4 = wL4;
-	this->wSTCI = wSTCI;
-	this->wUnits = wUnits;
-	this->wSound = wSound;
-	this->wSoundLoop = wSoundLoop;
-	this->wEvents = wEvents;
-	this->wHighlight_obj = highlight_obj;
-}
 
-// set gamma correction for rendering
-void SpellMap::SetGamma(double gamma)
-{
-	this->gamma = gamma;
-	// forces recalculation of gamma table
-	last_gamma = 0.0;
-}
-double SpellMap::GetGamma()
-{
-	return(gamma);
-}
 
 // timer tick - update of palettes and animations
 int SpellMap::Tick()
@@ -7523,7 +7545,8 @@ int SpellMap::Tick()
 
 	if(tick_100ms)
 	{
-	
+		LockMap();
+
 		// cycle water palette
 		uint8_t water[10][3];
 		std::memcpy((void*)water, (void*)&pal[240][0], 10 * 3);
@@ -7556,6 +7579,8 @@ int SpellMap::Tick()
 			pnm_sipka.frame_ofs = 0;
 
 		update = true;
+
+		ReleaseMap();
 	}
 	
 	
@@ -7566,6 +7591,7 @@ int SpellMap::Tick()
 	auto duration = std::chrono::duration_cast<std::chrono::seconds>(now_time - ref_time).count();
 	if(duration >= rnd_sound_delay)
 	{
+		LockMap();
 		if(rnd_sound_delay && sounds && sounds->sounds.size())
 		{
 			// play some sound			
@@ -7578,28 +7604,27 @@ int SpellMap::Tick()
 				sound_obj->SetPanning(left_vol, right_vol);
 				sound_obj->Play(true);
 			}
-		}
+		}		
 		rnd_sound_delay = rand()%20;
 		ref_time = std::chrono::high_resolution_clock::now();
+		ReleaseMap();
 	}
 
+	// === Update loop sound volumes ===
 	if(tick_100ms && sounds)
 	{
+		LockMap();
 		sounds->UpdateVolumes(xs_ofs, ys_ofs, xs_size, ys_size);
+		ReleaseMap();
 	}
-
-
-
-
-	
+		
 	// get ref. unit
 	auto* unit = GetSelectedUnit();
 	if(!unit)
 		return(update);
 
-	
+	// === Unit state machine ===
 	LockMap();
-
 	if(unit->move_state != MapUnit::MOVE_STATE::IDLE)
 	{			
 		// === UNIT MOVEMENT ===
@@ -8504,8 +8529,7 @@ int SpellMap::Tick()
 					event_list.push_back(trig_event);
 
 			InvalidateHUDbuttons();
-		}		
-
+		}
 	}
 
 	// check if units position moved since last test (and clear movement flags)
@@ -8701,7 +8725,11 @@ MapUnit *SpellMap::CreateUnit(MapUnit *parent, SpellUnitRec *new_type)
 // add unit to map list (assuming there is no conflict)
 int SpellMap::AddUnit(MapUnit* unit)
 {
+	LockMap();
+	HaltUnitRanging(true);
 	units.push_back(unit);
+	ResumeUnitRanging(false);
+	ReleaseMap();
 	return(0);
 }
 

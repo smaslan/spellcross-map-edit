@@ -131,8 +131,9 @@ class Sprite
 		int SetPixel(int x, int y,uint8_t color);		
 		void SetIndex(int id);
 		int GetIndex();
-		void Render(uint8_t* buffer,uint8_t* buf_end,int buf_x,int buf_y, int x_size);
-		void Render(uint8_t* buffer, uint8_t* buf_end, int buf_x, int buf_y, int x_size, uint8_t* filter);
+		//void Render(uint8_t* buffer,uint8_t* buf_end,int buf_x,int buf_y, int x_size);
+		void Render(std::vector<uint8_t>& buf,int buf_x,int buf_y,int x_size,uint8_t* filter=NULL);
+		void Render(uint8_t* buffer, uint8_t* buf_end, int buf_x, int buf_y, int x_size, uint8_t* filter=NULL);
 		wxBitmap* Render(uint8_t* pal,double gamma=1.3, int x_size=-1, int y_size=-1, bool no_zoom=true);
 		int Decode(uint8_t* data,const char* name);
 		void GetTileModel(TFxyz* vert, int* face=NULL, int* face_count=NULL,int triangle_faces=false);
@@ -357,7 +358,7 @@ private:
 	// bitmap data
 	int surf_x;
 	int surf_y;
-	uint8_t* pic;
+	std::vector<uint8_t> pic;
 	uint8_t* pic_end;
 	// tool classes 
 	uint32_t tool_class;
@@ -370,6 +371,12 @@ private:
 	int RenderObjectGlyph();
 
 public:
+	
+	enum GLYPH_FORMAT{
+		INDEX_8BIT = 0,
+		LZ_INDEX_8BIT
+	};
+	
 	SpellObject(ifstream& fr,std::vector<Sprite*>& sprite_list,uint8_t* palette = NULL);
 	SpellObject(std::vector<MapXY> xy,std::vector<Sprite*> L1_list,std::vector<Sprite*> L2_list,std::vector<uint8_t> flag_list, uint8_t *palette = NULL, std::string desc = "");
 	~SpellObject();
@@ -379,7 +386,7 @@ public:
 	int WriteToFile(ofstream& fw);	
 	std::string GetDescription();
 	void SetDescription(std::string name);
-	int PlaceMapTiles(std::vector<MapSprite>& tiles,int x_size,int y_size,MapXY sel);
+	//int PlaceMapTiles(std::vector<MapSprite>& tiles,int x_size,int y_size,MapXY sel);
 	int GetObjectData(std::vector<MapXY> *pos, std::vector<MapSprite> *tiles);
 
 	void SetToolClass(int id);

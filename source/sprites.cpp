@@ -29,6 +29,7 @@
 #include "wx/dcbuffer.h"
 #include <wx/rawbmp.h>
 
+
 using namespace std;
 
 
@@ -281,9 +282,13 @@ uint8_t *Sprite::GetPixel(int x,int y)
 }
 
 // render sprite to target buffer, buffer is sprite origin, x_size is buffer width
-void Sprite::Render(uint8_t* buffer,uint8_t* buf_end,int buf_x,int buf_y,int x_size)
+/*void Sprite::Render(uint8_t* buffer,uint8_t* buf_end,int buf_x,int buf_y,int x_size)
 {
 	Render(buffer, buf_end, buf_x, buf_y, x_size, NULL);
+}*/
+void Sprite::Render(std::vector<uint8_t> &buf,int buf_x,int buf_y,int x_size,uint8_t* filter)
+{
+	Render(buf.data(),buf.data() + buf.size(),buf_x,buf_y,x_size,filter);
 }
 void Sprite::Render(uint8_t* buffer, uint8_t* buf_end, int buf_x, int buf_y, int x_size, uint8_t *filter)
 {
@@ -2938,7 +2943,7 @@ SpellObject::SpellObject(vector<MapXY> xy,vector<Sprite*> L1_list,vector<Sprite*
 	last_gamma = 0.0;
 	if(palette)
 		std::memcpy((void*)pal, (void*)palette, 256*3);
-	pic = NULL;
+	pic.clear();
 	surf_x = 0;
 	surf_y = 0;
 	tool_class = 0;
@@ -2988,9 +2993,7 @@ SpellObject::SpellObject(vector<MapXY> xy,vector<Sprite*> L1_list,vector<Sprite*
 }
 // clear objectg stuff
 SpellObject::~SpellObject()
-{
-	if(pic)
-		delete[] pic;
+{	
 }
 
 // render glyph to internal indexed buffer
@@ -3019,14 +3022,10 @@ int SpellObject::RenderObjectGlyph()
 	int org_x = x_ref;
 	int org_y = 0;
 
-	// (re)allocate image buffer
-	if(pic)
-		delete[] pic;
-	pic = new uint8_t[surf_x*surf_y];
-	pic_end = &pic[surf_x*surf_y];
-
-	// clear background
-	std::memset((void*)pic,230,surf_x*surf_y);
+	// make and clear image buffer
+	pic.clear();
+	pic.assign(surf_x*surf_y,230);
+	pic_end = pic.data() + pic.size();
 
 	// L1 render:
 	for(int tid = 0;tid < sprite_pos.size(); tid++)
@@ -3039,7 +3038,7 @@ int SpellObject::RenderObjectGlyph()
 
 		// render tile
 		Sprite* spr = L1_sprites[tid];
-		spr->Render(pic,pic_end,ref_x,ref_y,surf_x);
+		spr->Render(pic,ref_x,ref_y,surf_x);
 	}
 	// L2 render:
 	for(int tid = 0;tid < sprite_pos.size(); tid++)
@@ -3059,7 +3058,7 @@ int SpellObject::RenderObjectGlyph()
 		sy += L1->y_ofs;
 
 		// render tile		
-		spr->Render(pic,pic_end,ref_x,ref_y,surf_x);
+		spr->Render(pic,ref_x,ref_y,surf_x);
 	}
 
 	return(0);
@@ -3113,7 +3112,7 @@ wxBitmap* SpellObject::RenderPreview(double gamma, int x_size, int y_size, bool 
 }
 int SpellObject::RenderPreview(wxBitmap &bmp,double gamma)
 {
-	if(!pic)
+	if(pic.empty())
 		return(1);
 	
 	// apply gamma correction to palette:
@@ -3145,7 +3144,7 @@ int SpellObject::RenderPreview(wxBitmap &bmp,double gamma)
 		for(int y = 0; y < bmp_ysz; ++y)
 		{
 			uint8_t* scan = p.m_ptr;
-			uint8_t* src = &pic[(y + y_ofs)*surf_x + x_ofs];			
+			uint8_t* src = pic.data() + (y + y_ofs)*surf_x + x_ofs;
 			for(int x = 0; x < bmp_xsz; x++)
 			{
 				if((x + x_ofs) < 0 || (x + x_ofs) >= surf_x || (y + y_ofs) < 0 || (y + y_ofs) >= surf_y)
@@ -3180,7 +3179,7 @@ int SpellObject::RenderPreview(wxBitmap &bmp,double gamma)
 		for(int y = 0; y < bmp_ysz; ++y)
 		{
 			uint8_t* scan = p.m_ptr;
-			uint8_t* src = &pic[(y + y_ofs)*surf_x + x_ofs];
+			uint8_t* src = pic.data() + (y + y_ofs)*surf_x + x_ofs;
 			for(int x = 0; x < bmp_xsz; x++)
 			{
 				if((x + x_ofs) < 0 || (x + x_ofs) >= surf_x || (y + y_ofs) < 0 || (y + y_ofs) >= surf_y)
@@ -3208,7 +3207,7 @@ int SpellObject::RenderPreview(wxBitmap &bmp,double gamma)
 }
 
 // place object's tiles to map array at given position
-int SpellObject::PlaceMapTiles(std::vector<MapSprite> &tiles, int x_size, int y_size, MapXY sel)
+/*int SpellObject::PlaceMapTiles(std::vector<MapSprite> &tiles, int x_size, int y_size, MapXY sel)
 {
 	if(!sel.IsSelected())
 		return(1);
@@ -3238,7 +3237,7 @@ int SpellObject::PlaceMapTiles(std::vector<MapSprite> &tiles, int x_size, int y_
 	}
 
 	return(0);
-}
+}*/
 
 // copy object data to buffers
 int SpellObject::GetObjectData(std::vector<MapXY>* pos,std::vector<MapSprite>* tiles)
@@ -3309,11 +3308,13 @@ int SpellObject::WriteToFile(ofstream &fw)
 	}
 
 	// --- write image glyph data
-	if(!pic)
-	{
-		// render glyph if not done yet
+	// render glyph if not done yet
+	if(pic.empty())
 		RenderObjectGlyph();
-	}
+
+	// store format ID
+	uint32_t format = GLYPH_FORMAT::LZ_INDEX_8BIT;
+	ostream_write_u32(fw,format);
 
 	// write pic size
 	ostream_write_u32(fw,surf_x);
@@ -3323,12 +3324,24 @@ int SpellObject::WriteToFile(ofstream &fw)
 	fw.write((char*)pal,3*256);
 
 	// write image data
-	fw.write((char*)pic,surf_x*surf_y);
+	if(format == GLYPH_FORMAT::INDEX_8BIT)
+	{
+		// 8bit indexed
+		fw.write((char*)pic.data(),surf_x*surf_y);
+	}
+	else if(format == GLYPH_FORMAT::LZ_INDEX_8BIT)
+	{
+		// LZ compressed 8bit indexed
+		std::vector<uint8_t> lzdata;
+		LZspell lzw = LZspell(pic.data(),pic.size(),lzdata);
+		ostream_write_u32(fw,lzdata.size());
+		fw.write((char*)lzdata.data(),lzdata.size());
+	}
 
 	return(0);
 }
 
-// create object to a file
+// create object from a file
 SpellObject::SpellObject(ifstream& fr,vector<Sprite*> &sprite_list, uint8_t* palette)
 {
 	sprite_pos.clear();
@@ -3338,7 +3351,7 @@ SpellObject::SpellObject(ifstream& fr,vector<Sprite*> &sprite_list, uint8_t* pal
 	last_gamma = 0.0;
 	if(palette)
 		std::memcpy((void*)pal,(void*)palette,256*3);
-	pic = NULL;
+	pic.clear();
 	surf_x = 0;
 	surf_y = 0;
 	tool_class = 0;
@@ -3397,6 +3410,9 @@ SpellObject::SpellObject(ifstream& fr,vector<Sprite*> &sprite_list, uint8_t* pal
 		sprite_pos.push_back(pxy);
 	}
 
+	// read glyph format
+	uint32_t format = istream_read_u32(fr);
+
 	// read pic size
 	surf_x = istream_read_u32(fr);
 	surf_y = istream_read_u32(fr);
@@ -3404,10 +3420,29 @@ SpellObject::SpellObject(ifstream& fr,vector<Sprite*> &sprite_list, uint8_t* pal
 	// read palette
 	fr.read((char*)pal,3*256);
 
-	// read image data
-	pic = new uint8_t[surf_x*surf_y];
-	pic_end = &pic[surf_x*surf_y];
-	fr.read((char*)pic,surf_x*surf_y);
+	if(format == GLYPH_FORMAT::INDEX_8BIT)
+	{
+		// read 8bit indexed image data
+		pic.resize(surf_x*surf_y);
+		pic_end = pic.data() + pic.size();
+		fr.read((char*)pic.data(),surf_x*surf_y);
+	}
+	else if(format == GLYPH_FORMAT::LZ_INDEX_8BIT)
+	{
+		// read LZ compressed 8bit indexed data
+		uint32_t lzsize = istream_read_u32(fr);
+		std::vector<uint8_t> lzdata;
+		lzdata.resize(lzsize);
+		fr.read((char*)lzdata.data(),lzsize);
+		LZWexpand delz = LZWexpand(1048576);
+		pic = delz.Decode(lzdata.data(),lzdata.data() + lzsize);
+		if(pic.size() != surf_x*surf_y)
+		{
+			// image data wrong size
+			pic.clear();
+		}
+		pic_end = pic.data() + pic.size();
+	}
 
 }
 

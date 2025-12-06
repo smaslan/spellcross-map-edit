@@ -34,9 +34,12 @@ SpellDefCmd::SpellDefCmd(std::string command, std::string params, std::string co
 	name = command;
 	this->comment = comment;
 	this->full_command = command + "(" + params + ")";
-
+	// split parameters
 	std::regex regexz(",");
 	parameters = new vector<std::string>(std::sregex_token_iterator(params.begin(), params.end(), regexz, -1), std::sregex_token_iterator());
+	// cleanup params if empty
+	if(params.empty())
+		parameters->clear();
 }
 SpellDefCmd::~SpellDefCmd()
 {	
@@ -150,7 +153,7 @@ SpellDefSection *SpellDEF::GetSection(std::string section)
 		
 	while (1)
 	{
-		std::regex cmdexp("(.*\\r*\\n*) *([a-zA-Z]+)\\(([^\\)]+)\\)\\r*?\\n*?");
+		std::regex cmdexp("(.*\\r*\\n*) *([a-zA-Z]+)\\(([^\\)]*)\\)\\r*?\\n*?");
 		std::regex_search(sectxt, match, cmdexp);
 		if(match.size() != 4)
 		{
@@ -617,7 +620,7 @@ SpellData::SpellData(wstring &data_path,wstring& cd_data_path,wstring& spec_path
 		terr->font7 = font7;
 	}
 
-	// load video resoruces
+	// load video resources
 	if(status_list)
 		status_list("Loading video resources (MOVIE.FS, SPEAKER.FS)...");		
 	try {

@@ -61,7 +61,7 @@ int SpellMapEventRec::AddUnit(MapUnit* unit)
 	unit->is_event = true;
 
 	map->events->RelinkUnits();
-	map->ResumeUnitRanging();
+	map->ResumeUnitRanging(false);
 	map->ReleaseMap();
 	return(0);
 }
@@ -78,7 +78,7 @@ MapUnit *SpellMapEventRec::ExtractUnit(MapUnit* unit)
 			// unlink from this event
 			unit->creator_event = NULL;
 			unit->is_event = false;
-			map->ResumeUnitRanging();
+			map->ResumeUnitRanging(false);
 			map->ReleaseMap();
 			// return unit
 			return(unit);
@@ -94,7 +94,7 @@ void SpellMapEventRec::ClearUnits()
 	for(auto& unit : units)
 		delete unit.unit;
 	units.clear();
-	map->ResumeUnitRanging();
+	map->ResumeUnitRanging(false);
 	map->ReleaseMap();
 }
 void SpellMapEventRec::ClearTexts()
@@ -277,7 +277,7 @@ SpellMapEventRec* SpellMapEvents::AddEvent(SpellMapEventRec* event)
 	map->LockMap();
 	map->HaltUnitRanging(true);
 	events.push_back(event);	
-	map->ResumeUnitRanging();
+	map->ResumeUnitRanging(false);
 	map->ReleaseMap();
 
 	//###todo: check duplicates?
@@ -301,7 +301,7 @@ SpellMapEventRec* SpellMapEvents::ExtractEvent(SpellMapEventRec* event)
 		map->SelectEvent(NULL);
 	events.erase(id);
 	map->ReleaseMap();
-	map->ResumeUnitRanging();
+	map->ResumeUnitRanging(false);
 	return(event);
 }
 // erase event (deletes it, places linked units directly to map units)
@@ -334,7 +334,7 @@ int SpellMapEvents::EraseEvent(SpellMapEventRec* event)
 
 	map->SortUnits();
 	map->ReleaseMap();
-	map->ResumeUnitRanging();
+	map->ResumeUnitRanging(false);
 
 	delete evt;
 	return(0);
@@ -371,7 +371,7 @@ void SpellMapEvents::ClearEvents()
 		delete evt;
 	events.clear();
 	map->ReleaseMap();
-	map->ResumeUnitRanging();	
+	map->ResumeUnitRanging(false);	
 }
 
 
@@ -969,7 +969,7 @@ void SpellMapEvents::ResetEvents()
 	// make link to trigger units
 	RelinkUnits();
 
-	map->ResumeUnitRanging();
+	map->ResumeUnitRanging(false);
 	map->ReleaseMap();
 }
 
@@ -1035,7 +1035,7 @@ int SpellMapEvents::RelinkUnits(vector<MapUnit*> *map_units)
 		}
 	}
 
-	map->ResumeUnitRanging();
+	map->ResumeUnitRanging(false);
 	map->ReleaseMap();
 	
 	return(0);
