@@ -1347,9 +1347,11 @@ void MainFrame::OnCreateNewObject(wxCommandEvent& event)
 
         // get object descriptions
         std::string description = form->GetDescription();
+        int class_id = form->GetClass();
         
         // add object to list
-        spell_map->terrain->AddObject(xy_list, L1_spr_list, L2_spr_list, flag_list, (uint8_t*)spell_map->terrain->pal, description);
+        auto obj = spell_map->terrain->AddObject(xy_list, L1_spr_list, L2_spr_list, flag_list, (uint8_t*)spell_map->terrain->pal, description);
+        obj->SetToolClass(class_id);
                 
         // clear selection
         spell_map->SelectTiles(SpellMap::SELECT_CLEAR);

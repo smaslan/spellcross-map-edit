@@ -11,7 +11,7 @@
 
 FormNewObject::FormNewObject(wxWindow* parent,Terrain* terrain,wxWindowID id,const wxString& title,const wxPoint& pos,const wxSize& size,long style) : wxDialog(parent,id,title,pos,size,style)
 {
-	this->SetSizeHints(wxSize(400,120),wxDefaultSize);
+	this->SetSizeHints(wxSize(400,190),wxDefaultSize);
 
 	wxBoxSizer* szrNewObj;
 	szrNewObj = new wxBoxSizer(wxVERTICAL);
@@ -22,6 +22,15 @@ FormNewObject::FormNewObject(wxWindow* parent,Terrain* terrain,wxWindowID id,con
 
 	txtDescription = new wxTextCtrl(this,wxID_TXT_DESC,wxEmptyString,wxDefaultPosition,wxDefaultSize,0);
 	szrNewObj->Add(txtDescription,0,wxBOTTOM|wxEXPAND|wxLEFT|wxRIGHT,5);
+
+	m_staticText92 = new wxStaticText(this,wxID_ANY,wxT("Objects class:"),wxDefaultPosition,wxDefaultSize,0);
+	m_staticText92->Wrap(-1);
+	szrNewObj->Add(m_staticText92,0,wxLEFT|wxRIGHT|wxTOP,5);
+
+	wxArrayString chbClassChoices;
+	chbClass = new wxChoice(this,wxID_CHB_CLASS,wxDefaultPosition,wxDefaultSize,chbClassChoices,0);
+	chbClass->SetSelection(0);
+	szrNewObj->Add(chbClass,0,wxEXPAND|wxLEFT|wxRIGHT,5);
 
 
 	szrNewObj->Add(0,0,1,wxEXPAND,5);
@@ -49,6 +58,15 @@ FormNewObject::FormNewObject(wxWindow* parent,Terrain* terrain,wxWindowID id,con
 	// default object name
 	txtDescription->SetValue("New object");
 
+	// fill classes list
+	chbClass->Freeze();
+	chbClass->Clear();
+	chbClass->Append("None");
+	for(int k = 0; k < terrain->GetToolsCount(); k++)
+		chbClass->Append(terrain->GetToolSetName(k));
+	chbClass->Thaw();
+	chbClass->Select(0);
+
 	Bind(wxEVT_COMMAND_BUTTON_CLICKED,&FormNewObject::OnClose,this,wxID_BTN_OK);
 }
 
@@ -66,5 +84,9 @@ void FormNewObject::OnClose(wxCommandEvent& event)
 std::string FormNewObject::GetDescription()
 {
 	return(txtDescription->GetValue().ToStdString());
+}
+int FormNewObject::GetClass()
+{
+	return(chbClass->GetSelection());
 }
 

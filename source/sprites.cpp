@@ -2026,6 +2026,10 @@ int Terrain::InitSpriteContext(wstring &path)
 	// get objects count
 	int obj_count = istream_read_u32(fr);
 
+	// read object glyphs palette
+	uint8_t tpal[256*3];
+	fr.read((char*)tpal,sizeof(tpal));
+
 	// clear object list
 	objects.clear();
 	objects.reserve(obj_count);
@@ -2034,7 +2038,7 @@ int Terrain::InitSpriteContext(wstring &path)
 	for(int k = 0; k < obj_count;k++)
 	{
 		// read object data
-		SpellObject* obj = new SpellObject(fr,spr_list,(uint8_t*)pal);
+		SpellObject* obj = new SpellObject(fr,spr_list,tpal);
 		objects.push_back(obj);
 	}
 
@@ -2168,6 +2172,9 @@ int Terrain::SaveSpriteContext(wstring& path)
 
 	// store objects count
 	ostream_write_u32(fw,objects.size());
+
+	// store common palette for object glyphs
+	fw.write((char*)&pal,256*3);
 
 	// for each object:
 	for(auto const & obj : objects)
@@ -3076,8 +3083,12 @@ wxBitmap* SpellObject::RenderPreview(double gamma, int x_size, int y_size, bool 
 	if (x_size >= 0 && y_size >= 0)
 	{
 		// resampling active
-		double bmp_aspect = (double)x_size / y_size;
-		double glyph_aspect = (double)surf_x / surf_y;
+		double bmp_aspect = 1.0;
+		if(y_size > 0.0)
+			bmp_aspect = (double)x_size / y_size;
+		double glyph_aspect = 1.0;
+		if(surf_y > 0.0)
+			glyph_aspect = (double)surf_x / surf_y;
 		if (bmp_aspect >= glyph_aspect)
 		{
 			tmp_x = (int)((double)surf_y * bmp_aspect);
@@ -3101,7 +3112,7 @@ wxBitmap* SpellObject::RenderPreview(double gamma, int x_size, int y_size, bool 
 	RenderPreview(*bmp, gamma);	
 	
 	bool scale = (x_size < tmp_x || y_size < tmp_y) || !no_zoom;
-	if (x_size >= 0 && y_size >= 0 && scale)
+	if (x_size > 0 && y_size > 0 && scale)
 	{
 		wxImage img = bmp->ConvertToImage();
 		delete bmp;
@@ -3321,7 +3332,7 @@ int SpellObject::WriteToFile(ofstream &fw)
 	ostream_write_u32(fw,surf_y);
 
 	// write palette
-	fw.write((char*)pal,3*256);
+	//fw.write((char*)pal,3*256);
 
 	// write image data
 	if(format == GLYPH_FORMAT::INDEX_8BIT)
@@ -3418,7 +3429,7 @@ SpellObject::SpellObject(ifstream& fr,vector<Sprite*> &sprite_list, uint8_t* pal
 	surf_y = istream_read_u32(fr);
 
 	// read palette
-	fr.read((char*)pal,3*256);
+	//fr.read((char*)pal,3*256);
 
 	if(format == GLYPH_FORMAT::INDEX_8BIT)
 	{
@@ -3448,7 +3459,7 @@ SpellObject::SpellObject(ifstream& fr,vector<Sprite*> &sprite_list, uint8_t* pal
 
 
 // add object to list of object
-int Terrain::AddObject(vector<MapXY> xy,vector<Sprite*> L1_list,vector<Sprite*> L2_list,vector<uint8_t> flag_list,uint8_t* palette,std::string desc)
+SpellObject* Terrain::AddObject(vector<MapXY> xy,vector<Sprite*> L1_list,vector<Sprite*> L2_list,vector<uint8_t> flag_list,uint8_t* palette,std::string desc)
 {
 	// create object
 	SpellObject *obj = new SpellObject(xy,L1_list,L2_list,flag_list,(uint8_t*)pal,desc);
@@ -3459,13 +3470,14 @@ int Terrain::AddObject(vector<MapXY> xy,vector<Sprite*> L1_list,vector<Sprite*> 
 	// add to list
 	objects.push_back(obj);
 
-	return(0);
+	return(obj);
 }
 // remove object from list
 int Terrain::RemoveObject(int id)
 {
-	if (id < 0 || id >= objects.size())
+	if (id < -1 || id >= objects.size())
 		return(1);
+
 	delete objects[id];
 	objects.erase(objects.begin() + id);
 	return(0);
@@ -3505,6 +3517,16 @@ vector<SpellObject*>& Terrain::GetObjects()
 {
 	return(objects);
 }
+// find object position in list by its pointer
+int Terrain::FindObject(SpellObject *obj)
+{
+	auto id = std::find(objects.begin(),objects.end(),obj);
+	if(id == objects.end())
+		return(-1); // not found
+	return(id - objects.begin());
+}
+
+
 // tools class/group clasification
 void SpellObject::SetToolClass(int id)
 {

@@ -181,9 +181,9 @@ LZWexpand::~LZWexpand()
 //---------------------------------------------------------------------------
 int LZWexpand::GetWord(uint8_t** dsrc, uint8_t* dend)
 {
-	const uint32_t mskl[12] = { 0x80000000u,0xC0000000u,0xE0000000u,0xF0000000u,
-							    0xF8000000u,0xFC000000u,0xFE000000u,0xFF000000u,
-							    0xFF800000u,0xFFC00000u,0xFFE00000u,0xFFF00000u };
+	static const uint32_t mskl[12] = { 0x80000000u,0xC0000000u,0xE0000000u,0xF0000000u,
+									   0xF8000000u,0xFC000000u,0xFE000000u,0xFF000000u,
+									   0xFF800000u,0xFFC00000u,0xFFE00000u,0xFFF00000u };
 
 	// reset bitstream
 	if (!dsrc)

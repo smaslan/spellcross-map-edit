@@ -377,7 +377,7 @@ public:
 		LZ_INDEX_8BIT
 	};
 	
-	SpellObject(ifstream& fr,std::vector<Sprite*>& sprite_list,uint8_t* palette = NULL);
+	SpellObject(ifstream& fr,std::vector<Sprite*>& sprite_list,uint8_t* palette);
 	SpellObject(std::vector<MapXY> xy,std::vector<Sprite*> L1_list,std::vector<Sprite*> L2_list,std::vector<uint8_t> flag_list, uint8_t *palette = NULL, std::string desc = "");
 	~SpellObject();
 	int RenderPreview(wxBitmap& bmp,double gamma=1.30);
@@ -508,14 +508,15 @@ public:
 	int RenderSpritePreview(wxBitmap& bmp,Sprite* tile,int flags,double gamma);
 	int RenderPNMpreview(wxBitmap& bmp,Sprite* spr,int flags,double gamma);
 		
-	int AddObject(std::vector<MapXY> xy,std::vector<Sprite*> L1_list,std::vector<Sprite*> L2_list,std::vector<uint8_t> flag_list,uint8_t* palette,std::string desc);
+	SpellObject* AddObject(std::vector<MapXY> xy,std::vector<Sprite*> L1_list,std::vector<Sprite*> L2_list,std::vector<uint8_t> flag_list,uint8_t* palette,std::string desc);
 	int RemoveObject(int id);
 	int MoveObject(int posa, int posb);
 	int RenameObject(int id, string name);
 	int GetObjectsCount();
 	SpellObject *GetObject(int id);
 	std::vector<SpellObject*> &GetObjects();
-
+	int FindObject(SpellObject* obj);
+	
 	int GetToolsCount();
 	std::string GetToolSetName(int id);
 	std::string GetToolSetTitle(int id);

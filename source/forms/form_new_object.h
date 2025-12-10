@@ -23,6 +23,7 @@
 #include <wx/icon.h>
 #include <wx/sizer.h>
 #include <wx/dialog.h>
+#include <wx/choice.h>
 
 #include "spellcross.h"
 #include "sprites.h"
@@ -39,19 +40,22 @@ class FormNewObject : public wxDialog
 	protected:
 		enum
 		{
-			wxID_TXT_DESC = 1000,
-			wxID_BTN_OK
+			wxID_TXT_DESC = 5999,
+			wxID_CHB_CLASS,
+			wxID_BTN_OK,
 		};
 
 		wxStaticText* m_staticText11;
 		wxTextCtrl* txtDescription;
+		wxStaticText* m_staticText92;
+		wxChoice* chbClass;
 		wxStaticLine* m_staticline4;
 		wxButton* btnOk;
 
 
 	public:
 
-		FormNewObject(wxWindow* parent,Terrain* terrain,wxWindowID id = wxID_ANY,const wxString& title = wxT("New object"),const wxPoint& pos = wxDefaultPosition,const wxSize& size = wxSize(400,165),long style = wxDEFAULT_DIALOG_STYLE);
+		FormNewObject(wxWindow* parent,Terrain* terrain,wxWindowID id = wxID_ANY,const wxString& title = wxT("New object"),const wxPoint& pos = wxDefaultPosition,const wxSize& size = wxSize(400,190),long style = wxDEFAULT_DIALOG_STYLE);
 		//FormNewObject( wxWindow* parent, SpellData* spell_data, wxWindowID id = wxID_ANY, const wxString& title = wxT("New object"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 500,168 ), long style = wxDEFAULT_FRAME_STYLE|wxTAB_TRAVERSAL|wxSTAY_ON_TOP);
 		//FormObjects( wxWindow* parent,SpellData* spell_data, wxWindowID id = wxID_ANY, const wxString& title = wxEmptyString, const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 500,300 ), long style = wxDEFAULT_FRAME_STYLE|wxTAB_TRAVERSAL );
 
@@ -60,4 +64,5 @@ class FormNewObject : public wxDialog
 		void OnClose(wxCommandEvent& event);
 
 		std::string GetDescription();
+		int GetClass();
 };
