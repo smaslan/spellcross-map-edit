@@ -10,6 +10,7 @@
 #include "other.h"
 
 #include <filesystem>
+#include <regex>
 #include <wx/msgdlg.h>
 
 ///////////////////////////////////////////////////////////////////////////
@@ -111,12 +112,16 @@ FormObjects::FormObjects( wxWindow* parent,SpellData* spell_data,wxWindowID id, 
 
 	mnuEdit = new wxMenu();
 	wxMenuItem* mmRemove;
-	mmRemove = new wxMenuItem(mnuEdit,wxID_MM_REMOVE,wxString(wxT("Delete object")) + wxT('\t') + wxT("Delete"),wxEmptyString,wxITEM_NORMAL);
+	mmRemove = new wxMenuItem(mnuEdit,wxID_MM_REMOVE,wxString(wxT("Delete")) + wxT('\t') + wxT("Delete"),wxEmptyString,wxITEM_NORMAL);
 	mnuEdit->Append(mmRemove);
 
 	wxMenuItem* mmRename;
-	mmRename = new wxMenuItem(mnuEdit,wxID_MM_RENAME,wxString(wxT("Rename object")) + wxT('\t') + wxT("Ctrl+R"),wxEmptyString,wxITEM_NORMAL);
+	mmRename = new wxMenuItem(mnuEdit,wxID_MM_RENAME,wxString(wxT("Rename")) + wxT('\t') + wxT("Ctrl+R"),wxEmptyString,wxITEM_NORMAL);
 	mnuEdit->Append(mmRename);
+
+	wxMenuItem* mmNewClass;
+	mmNewClass = new wxMenuItem(mnuEdit,wxID_MM_NEW_CLASS,wxString(wxT("New class")) + wxT('\t') + wxT("Ctrl+N"),wxEmptyString,wxITEM_NORMAL);
+	mnuEdit->Append(mmNewClass);
 
 	m_menubar2->Append(mnuEdit,wxT("Edit"));
 
@@ -128,6 +133,8 @@ FormObjects::FormObjects( wxWindow* parent,SpellData* spell_data,wxWindowID id, 
 	// === AUTO GENERATED END ===
 
 	
+	//treeCtrlClasses->image
+	
 	//slideGamma->SetTickFreq(100);
 	// set icon
 	wxIcon appIcon;
@@ -135,6 +142,22 @@ FormObjects::FormObjects( wxWindow* parent,SpellData* spell_data,wxWindowID id, 
 	if(appIcon.IsOk())
 		SetIcon(appIcon);
 
+	wxInitAllImageHandlers();
+	imlist = new wxImageList(16,16);
+	wxBitmap img;
+	img.LoadFile("IDI_MULTI",wxBITMAP_TYPE_BMP_RESOURCE);
+	if(img.IsOk())
+		imlist->Add(img);
+	img.LoadFile("IDI_SINGLE",wxBITMAP_TYPE_BMP_RESOURCE);
+	if(img.IsOk())
+		imlist->Add(img);
+	img.LoadFile("IDI_FOLDER",wxBITMAP_TYPE_BMP_RESOURCE);
+	if(img.IsOk())
+		imlist->Add(img);
+	img.LoadFile("IDI_FOLDER_OPEN",wxBITMAP_TYPE_BMP_RESOURCE);
+	if(img.IsOk())
+		imlist->Add(img);
+	treeCtrlClasses->SetImageList(imlist);
 
 	// generate terrain menu content
 	for(int k = 0;k<spell_data->GetTerrainCount();k++)
@@ -154,6 +177,8 @@ FormObjects::FormObjects( wxWindow* parent,SpellData* spell_data,wxWindowID id, 
 
 	Bind(wxEVT_MENU,&FormObjects::OnRename,this,wxID_MM_RENAME);
 	Bind(wxEVT_MENU,&FormObjects::OnRemove,this,wxID_MM_REMOVE);
+	Bind(wxEVT_MENU,&FormObjects::OnNewClass,this,wxID_MM_NEW_CLASS);
+
 
 	// canvas stuff:
 	canvas->SetDoubleBuffered(true);
@@ -174,6 +199,51 @@ FormObjects::FormObjects( wxWindow* parent,SpellData* spell_data,wxWindowID id, 
 	SetMap(NULL);
 }
 
+// build toolset title from name and description
+std::string FormObjects::MakeToolsetTitle(std::string name,std::string desc)
+{
+	if(name.compare(desc) == 0 || desc.empty())
+		return(name);
+	return(name + ": " + desc);
+}
+// build toolset title from toolset id
+std::string FormObjects::GetToolsetTitle(int toolset_class_id)
+{
+	auto terr = FindTerrain();
+	return(MakeToolsetTitle(terr->GetToolSetName(toolset_class_id),terr->GetToolSetTitle(toolset_class_id)));
+}
+// rename toolset from single string "name: title"
+void FormObjects::RenameToolset(int toolset_class_id,std::string title)
+{
+	regex secexp("([^:]*)[:\\s]*(.*)");
+	smatch match;
+	std::regex_search(title,match,secexp);
+	if(match.size() != 3)
+	{
+		// failed
+		return;
+	}
+	std::string name = match[1];
+	title = match[2];
+	if(title.empty())
+		title = name;
+	auto terr = FindTerrain();
+	terr->SetToolSetName(toolset_class_id,name);
+	terr->SetToolSetTitle(toolset_class_id,title);
+}
+
+// new toolset class
+void FormObjects::OnNewClass(wxCommandEvent& evt)
+{
+	auto terr = FindTerrain();
+	std::string name = "New toolset";
+	terr->AddToolSet(name,name);
+	auto toolset_id = terr->GetToolSetID(name);
+
+	auto root_id = treeCtrlClasses->GetRootItem();
+	treeCtrlClasses->AppendItem(root_id,GetToolsetTitle(toolset_id),-1,-1,(wxTreeItemData*)new TreeNode(toolset_id));
+}
+
 // rename object by menu
 void FormObjects::OnRename(wxCommandEvent &evt)
 {
@@ -190,14 +260,27 @@ void FormObjects::OnRename(wxCommandEvent &evt)
 void FormObjects::OnRemove(wxCommandEvent& evt)
 {
 	auto item_id = treeCtrlClasses->GetSelection();
-	if(!item_id)
+	if(!item_id.IsOk())
 		return;
 	auto* obj = (TreeNode*)treeCtrlClasses->GetItemData(item_id);
-	if(!obj || !obj->m_obj)
+	if(!obj)
+		return;
+	if(!obj->m_obj && obj->m_class_id < 1)
 		return;
 	auto terr = FindTerrain();
-	terr->RemoveObject(terr->FindObject(obj->m_obj));
-	treeCtrlClasses->Delete(item_id);	
+	if(obj->m_obj)
+	{
+		// removing object
+		terr->RemoveObject(terr->FindObject(obj->m_obj));
+		treeCtrlClasses->Delete(item_id);
+	}
+	else
+	{
+		// removing toolset class
+		terr->RemoveToolSet(obj->m_class_id - 1);
+		FillToolsClasses();
+	}
+	SortItems();
 }
 
 void FormObjects::OnTreeClassBeginLabelEdit(wxTreeEvent& evt)
@@ -209,17 +292,23 @@ void FormObjects::OnTreeClassBeginLabelEdit(wxTreeEvent& evt)
 		evt.Veto();
 		return;
 	}
-	if(!obj->m_obj)
+	if(!obj->m_obj && obj->m_class_id < 1)
 	{
-		// no edit class name
+		// no edit unassigned class name
 		evt.Veto();
 		return;
 	}
 }
 void FormObjects::OnTreeClassEndLabelEdit(wxTreeEvent& evt)
 {
-	wxString text = evt.GetLabel();
-	auto* obj = (TreeNode*)treeCtrlClasses->GetItemData(evt.GetItem());
+	std::string text = evt.GetLabel().ToStdString();
+	if(text.empty())
+	{
+		evt.Veto();
+		return;
+	}
+	auto item_id = evt.GetItem();
+	auto* obj = (TreeNode*)treeCtrlClasses->GetItemData(item_id);
 	if(!obj)
 	{
 		// no edit root
@@ -228,11 +317,14 @@ void FormObjects::OnTreeClassEndLabelEdit(wxTreeEvent& evt)
 	}
 	if(!obj->m_obj)
 	{
-		// no edit class name
+		// edit class name
+		RenameToolset(obj->m_class_id - 1,text);
+		treeCtrlClasses->SetItemText(item_id,GetToolsetTitle(obj->m_class_id - 1));
 		evt.Veto();
 		return;
 	}
-	obj->m_obj->SetDescription(text.ToStdString());
+	// edit tool item name
+	obj->m_obj->SetDescription(text);
 }
 
 
@@ -251,25 +343,43 @@ void FormObjects::OnTreeClassEndDrag(wxTreeEvent& evt)
 		return;
 	auto obj = (TreeNode*)treeCtrlClasses->GetItemData(m_drag_item);
 	auto target_item = evt.GetItem();
+	if(!target_item.IsOk())
+		return;
 	if(treeCtrlClasses->GetRootItem() == target_item)
 		return; // cannot move to root
+	auto target_obj = (TreeNode*)treeCtrlClasses->GetItemData(target_item);
 	auto parent_node = treeCtrlClasses->GetItemParent(target_item);
-	wxTreeItemId nid;
-	if(treeCtrlClasses->GetRootItem() == parent_node)
+	if(!obj->m_obj)
 	{
-		// target is class node		
-		nid = treeCtrlClasses->AppendItem(target_item,treeCtrlClasses->GetItemText(m_drag_item),-1,-1,(wxTreeItemData*)new TreeNode(obj->m_obj));
-		treeCtrlClasses->SelectItem(nid);
+		// moving toolset class
+		if(treeCtrlClasses->GetRootItem() == parent_node && target_obj->m_class_id > 0)
+		{
+			// target is class node		
+			auto terr = FindTerrain();
+			terr->MoveToolSet(obj->m_class_id-1,target_obj->m_class_id-1);
+			FillToolsClasses();
+		}
 	}
 	else
 	{
-		// target is class item		
-		nid = treeCtrlClasses->InsertItem(parent_node,treeCtrlClasses->GetPrevSibling(target_item),treeCtrlClasses->GetItemText(m_drag_item),-1,-1,(wxTreeItemData*)new TreeNode(obj->m_obj));
-		treeCtrlClasses->SelectItem(nid);
+		// moving tool item
+		wxTreeItemId nid;
+		if(treeCtrlClasses->GetRootItem() == parent_node)
+		{
+			// target is class node		
+			nid = treeCtrlClasses->AppendItem(target_item,treeCtrlClasses->GetItemText(m_drag_item),Icons::SINGLE,-1,(wxTreeItemData*)new TreeNode(obj->m_obj));
+			treeCtrlClasses->SelectItem(nid);
+		}
+		else
+		{
+			// target is class item		
+			nid = treeCtrlClasses->InsertItem(parent_node,treeCtrlClasses->GetPrevSibling(target_item),treeCtrlClasses->GetItemText(m_drag_item),Icons::SINGLE,-1,(wxTreeItemData*)new TreeNode(obj->m_obj));
+			treeCtrlClasses->SelectItem(nid);
+		}
+		auto cls = (TreeNode*)treeCtrlClasses->GetItemData(treeCtrlClasses->GetItemParent(nid));	
+		obj->m_obj->SetToolClass(cls->m_class_id);
+		treeCtrlClasses->Delete(m_drag_item);
 	}
-	auto cls = (TreeNode*)treeCtrlClasses->GetItemData(treeCtrlClasses->GetItemParent(nid));	
-	obj->m_obj->SetToolClass(cls->m_class_id);
-	treeCtrlClasses->Delete(m_drag_item);
 
 	SortItems();
 }
@@ -331,6 +441,7 @@ void FormObjects::SortItems()
 
 FormObjects::~FormObjects()
 {
+	delete imlist;
 }
 
 void FormObjects::OnClose(wxCloseEvent& ev)
@@ -464,20 +575,20 @@ void FormObjects::FillToolsClasses()
 	Terrain* terr = FindTerrain();
 
 	treeCtrlClasses->DeleteAllItems();
-	auto rid = treeCtrlClasses->AddRoot("Classes");	
+	auto rid = treeCtrlClasses->AddRoot("Classes",Icons::FOLDER,Icons::FOLDER_OPEN);	
 	for(int k = 0; k <= terr->GetToolsCount(); k++)
 	{
 		wxTreeItemId cid;
 		if(k == 0)
-			cid = treeCtrlClasses->AppendItem(rid,"<Not assigned>",-1,-1,(wxTreeItemData*)new TreeNode(k));
+			cid = treeCtrlClasses->AppendItem(rid,"<Not assigned>",Icons::FOLDER,Icons::FOLDER_OPEN,(wxTreeItemData*)new TreeNode(k));
 		else
-			cid = treeCtrlClasses->AppendItem(rid,terr->GetToolSetName(k - 1),-1,-1,(wxTreeItemData*)new TreeNode(k));		
+			cid = treeCtrlClasses->AppendItem(rid,GetToolsetTitle(k - 1),Icons::FOLDER,Icons::FOLDER_OPEN,(wxTreeItemData*)new TreeNode(k));
 				
 		for(int oid = 0; oid < terr->GetObjectsCount(); oid++)
 		{			
 			auto obj = terr->objects[oid];
 			if(obj->GetToolClass() == k)
-				treeCtrlClasses->AppendItem(cid,obj->GetDescription(),-1,-1,(wxTreeItemData*)new TreeNode(obj));
+				treeCtrlClasses->AppendItem(cid,obj->GetDescription(),Icons::SINGLE,-1,(wxTreeItemData*)new TreeNode(obj));
 		}
 	}
 	treeCtrlClasses->Expand(rid);	

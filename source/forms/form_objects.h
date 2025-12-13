@@ -65,6 +65,7 @@ class FormObjects : public wxFrame
 		void FillToolItemsList();
 		void OnRename(wxCommandEvent& evt);
 		void OnRemove(wxCommandEvent& evt);
+		void OnNewClass(wxCommandEvent& evt);
 		//void OnToolClassChange(wxCommandEvent& event);
 		void OnToolClassItemChange(wxCommandEvent& event);
 
@@ -78,6 +79,9 @@ class FormObjects : public wxFrame
 		Terrain* FindTerrain();
 		void SelectTerrain();
 
+		std::string MakeToolsetTitle(std::string name,std::string desc);
+		std::string GetToolsetTitle(int toolset_class_id);
+		void RenameToolset(int toolset_class_id,std::string title);
 		void SortItems();
 
 		wxTreeItemId m_drag_item;
@@ -87,6 +91,14 @@ class FormObjects : public wxFrame
 			int m_class_id = 0;
 			TreeNode(SpellObject *obj) {m_obj = obj;};
 			TreeNode(int class_id) { m_class_id = class_id;};
+		};
+
+		wxImageList* imlist = NULL;
+		enum Icons{
+			MULTI = 0,
+			SINGLE,
+			FOLDER,
+			FOLDER_OPEN
 		};
 
 
@@ -103,6 +115,7 @@ class FormObjects : public wxFrame
 			wxID_MM_CLOSE,
 			wxID_MM_REMOVE,
 			wxID_MM_RENAME,
+			wxID_MM_NEW_CLASS,
 		};
 
 		wxStatusBar* sbar;

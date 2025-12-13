@@ -3599,6 +3599,8 @@ int Terrain::AddToolSet(string name, string title, int position)
 		tools.insert(tools.begin() + position, toolset);
 	else
 		return(1);
+	if(position < 0)
+		return(0);
 
 	for (auto const& spr : sprites)
 	{

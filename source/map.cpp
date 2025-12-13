@@ -2580,6 +2580,53 @@ int SpellMap::SetBuffer(AnimPNM* pnm,int x_ofs,int y_ofs)
 	return(0);
 }
 
+// set buffer with tool, eventually cycle objects of the tool (or randomize for multi-tile selection)
+int SpellMap::SetBuffer(SpellTool &tool,int cycle)
+{
+	ClearBuffer();
+	
+	if(!tool.isActive())
+		return(1);
+	if(!tool.isTool())
+		return(1);
+
+	auto tool_sprites = terrain->GetToolSprites(tool);
+	auto rsel = GetRelSelection();
+	if(rsel.size() > 1)
+		cycle = 0;
+
+	int tool_sprites_count = tool_sprites.size();
+	static int tool_sprites_id = 0;
+	tool_sprites_id += cycle;
+	if(cycle > 0 && tool_sprites_id >= tool_sprites_count)
+		tool_sprites_id = 0;
+	if(cycle < 0 && tool_sprites_id < 0)
+		tool_sprites_id = tool_sprites_count - 1;
+	if(cycle == 0)
+		tool_sprites_id = rand() % tool_sprites_count;
+
+	LockMap();
+	for(auto &pos: rsel)
+	{
+		if(rsel.size() > 1)
+			tool_sprites_id = rand() % tool_sprites_count;
+		auto tool_sprite = tool_sprites[tool_sprites_id];
+
+		copy_buf.pos.push_back(pos);
+		MapSprite tile;
+		if(tool_sprite->land_type == 0)
+			tile.L2 = tool_sprite;
+		else
+			tile.L1 = tool_sprite;
+		tile.flags = tool_sprite->GetMapFlags();
+		tile.elev = 0;
+		copy_buf.tiles.push_back(tile);
+	}
+	ReleaseMap();
+
+	return(0);
+}
+
 // copy map data for copy&paste actions
 void SpellMap::CopyBuffer(std::vector<MapXY>& posxy,SpellMap::Layers layers)
 {
@@ -2704,43 +2751,57 @@ void SpellMap::ClearBuffer()
 }
 
 // paste from copy buffer
-void SpellMap::PasteBuffer(std::vector<MapSprite>& tiles, std::vector<MapLayer3>& anms, std::vector<MapLayer4>& pnms, std::vector<MapXY> &posxy)
+void SpellMap::PasteBuffer(std::vector<MapSprite>& tiles, std::vector<MapLayer3>& anms, std::vector<MapLayer4>& pnms,std::vector<MapXY>& start,std::vector<MapXY>& escape,std::vector<MapXY>& target, MapXY &posxy)
 {
-	if(copy_buf.pos.empty() || posxy.empty())
+	if(copy_buf.pos.empty() || !posxy.IsSelected())
 		return;
 
 	LockMap();
 	HaltUnitRanging(true);
 
-	// repeat for every selection position if just one tile sized object
-	int repeat = (copy_buf.pos.size() == 1)?(posxy.size()):1;
-	for(int r = 0; r < repeat; r++)
+	MapXY sel = posxy;
+	// center of object
+	int ref_x = 0;
+	int ref_y = 0;
+	for(const auto& pos : copy_buf.pos)
 	{
-		MapXY sel = posxy[r];
-		// center of object
-		int ref_x = 0;
-		int ref_y = 0;
-		for(const auto& pos : copy_buf.pos)
-		{
-			ref_x += pos.x;
-			ref_y += pos.y;
-		}
-		ref_x /= copy_buf.pos.size();
-		ref_y /= copy_buf.pos.size();
-		//ref_y = (ref_y/2)*2;
-		ref_x += ((ref_y&1)&&(sel.y&1))?1:0;
+		ref_x += pos.x;
+		ref_y += pos.y;
+	}
+	ref_x /= copy_buf.pos.size();
+	ref_y /= copy_buf.pos.size();
+	//ref_y = (ref_y/2)*2;
+	ref_x += ((ref_y&1)&&(sel.y&1))?1:0;
 
-		sel = sel - MapXY(ref_x,ref_y);
+	sel = sel - MapXY(ref_x,ref_y);
 
-		for(int k = 0; k < copy_buf.pos.size(); k++)
+	for(int k = 0; k < copy_buf.pos.size(); k++)
+	{
+		MapXY pos = copy_buf.pos[k];
+		int x = sel.x + pos.x + (((sel.y&1)&&(pos.y&1))?-1:0);
+		int y = sel.y + pos.y;
+		int mxy = ConvXY(x,y);
+		if(x >= 0 && y >= 0 && x < x_size && y < y_size)
 		{
-			MapXY pos = copy_buf.pos[k];
-			int x = sel.x + pos.x + (((sel.y&1)&&(pos.y&1))?-1:0);
-			int y = sel.y + pos.y;
-			int mxy = ConvXY(x,y);
-			if(x >= 0 && y >= 0 && x < x_size && y < y_size)
+			auto &tile = copy_buf.tiles[k];				
+			if(tile.L2 == start_sprite)
 			{
-				auto &tile = copy_buf.tiles[k];				
+				std::vector<MapXY> sspos = {MapXY(x,y)};
+				PlaceStartEscape(sspos,start,escape,target,SpellMap::SPEC_TILE_START);
+			}
+			else if(tile.L2 == escape_sprite)
+			{
+				std::vector<MapXY> sspos ={MapXY(x,y)};
+				PlaceStartEscape(sspos,start,escape,target,SpellMap::SPEC_TILE_ESCAPE);
+			}
+			else if(tile.L2 == target_sprite)
+			{
+				std::vector<MapXY> sspos ={MapXY(x,y)};
+				PlaceStartEscape(sspos,start,escape,target,SpellMap::SPEC_TILE_TARGET);
+			}
+			else
+			{
+				// terrain and objects layers
 				if(tile.L1 && !tile.L2 && !tiles[mxy].L2)
 					tiles[mxy].flags = tile.flags;
 				if(tile.L1)
@@ -2753,47 +2814,48 @@ void SpellMap::PasteBuffer(std::vector<MapSprite>& tiles, std::vector<MapLayer3>
 					tiles[mxy].L2 = tile.L2;
 					tiles[mxy].flags = tile.flags;
 				}
-				if(k < copy_buf.anms.size())
-				{
-					// ANM layer
-					auto new_anm = copy_buf.anms[k];
-					if(new_anm.frame_limit)
-						new_anm.frame_ofs = std::rand() % new_anm.frame_limit;
-					new_anm.x_pos = x;
-					new_anm.y_pos = y;
-					// remove existing tile
-					for(int m = 0; m < anms.size(); m++)
-						if(anms[m].x_pos == x && anms[m].y_pos == y)
-						{
-							anms.erase(anms.begin() + m);
-							break;
-						}
-					// place new one
-					if(new_anm.anim)
-						anms.push_back(new_anm);
-				}
-				if(k < copy_buf.pnms.size())
-				{
-					// PNM layer
-					auto new_pnm = copy_buf.pnms[k];
-					if(new_pnm.frame_limit)
-						new_pnm.frame_ofs = std::rand() % new_pnm.frame_limit;
-					new_pnm.x_pos = x;
-					new_pnm.y_pos = y;
-					// remove existing tile
-					for(int m = 0; m < pnms.size(); m++)
-						if(pnms[m].x_pos == x && pnms[m].y_pos == y)
-						{
-							pnms.erase(pnms.begin() + m);
-							break;
-						}
-					// place new one
-					if(new_pnm.anim)
-						pnms.push_back(new_pnm);
-				}
+			}
+			if(k < copy_buf.anms.size())
+			{
+				// ANM layer
+				auto new_anm = copy_buf.anms[k];
+				if(new_anm.frame_limit)
+					new_anm.frame_ofs = std::rand() % new_anm.frame_limit;
+				new_anm.x_pos = x;
+				new_anm.y_pos = y;
+				// remove existing tile
+				for(int m = 0; m < anms.size(); m++)
+					if(anms[m].x_pos == x && anms[m].y_pos == y)
+					{
+						anms.erase(anms.begin() + m);
+						break;
+					}
+				// place new one
+				if(new_anm.anim)
+					anms.push_back(new_anm);
+			}
+			if(k < copy_buf.pnms.size())
+			{
+				// PNM layer
+				auto new_pnm = copy_buf.pnms[k];
+				if(new_pnm.frame_limit)
+					new_pnm.frame_ofs = std::rand() % new_pnm.frame_limit;
+				new_pnm.x_pos = x;
+				new_pnm.y_pos = y;
+				// remove existing tile
+				for(int m = 0; m < pnms.size(); m++)
+					if(pnms[m].x_pos == x && pnms[m].y_pos == y)
+					{
+						pnms.erase(pnms.begin() + m);
+						break;
+					}
+				// place new one
+				if(new_pnm.anim)
+					pnms.push_back(new_pnm);
 			}
 		}
 	}
+	
 
 	ResumeUnitRanging(false);
 	ReleaseMap();
@@ -3055,6 +3117,41 @@ vector<MapXY> &SpellMap::GetSelections(TScroll *scroll)
 
 	return(msel);
 }
+// get selector tiles relative to center
+std::vector<MapXY> SpellMap::GetRelSelection(TScroll* scroll)
+{
+	// default scroller
+	if(!scroll)
+		scroll = &scroller;
+
+	// first multiselect item is always central
+	std::vector<MapXY> list;
+	MapXY selxy = {100,100};
+	list.push_back(selxy - selxy);
+
+	// selection size
+	int size = scroll->GetSize();
+	int minref = -(size - 1)/2;
+	for(int j = 0; j < size; j++)
+	{
+		for(int i = 0; i < size; i++)
+		{
+			// this point
+			MapXY pxy;
+			pxy.x = (selxy.x*2 + ((selxy.y%2)?0:1) + minref+i+minref+j)>>1;
+			pxy.y = selxy.y + minref+j-(minref+i);
+
+			// skip point if center point
+			if(pxy.x == selxy.x && pxy.y == selxy.y)
+				continue;
+
+			// put new point to list
+			list.push_back(pxy - selxy);
+		}
+	}
+	return(list);
+}
+
 // clear last selection (when leaving valid map area)
 void SpellMap::ClearSelections()
 {
@@ -3737,6 +3834,10 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 	std::vector<MapSprite> tiles = this->tiles;
 	std::vector<MapLayer3> L3 = this->L3;
 	std::vector<MapLayer4> L4 = this->L4;
+	std::vector<MapXY> start = this->start;
+	std::vector<MapXY> escape = this->escape;
+	std::vector<MapXY> targets = this->target;
+
 	
 
 	// edit tool pre-processing:
@@ -3747,18 +3848,18 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 		// place object's tiles to L1
 		obj->PlaceMapTiles(tiles,x_size,y_size,msel[0]);
 	}*/
-	if(msel.size() && tool && tool->isTool())
+	/*if(msel.size() && tool && tool->isTool())
 	{
 		// tool selected (trees, etc.)
 		auto tool_sprites = terrain->GetToolSprites(*tool);
 		PasteRandSprites(tiles, msel, tool_sprites);
-	}
+	}*/
 
 	// clipboard layers override:
 	if(msel.size())
 	{
 		// override layers by clipboard buffer
-		PasteBuffer(tiles,L3,L4,msel);
+		PasteBuffer(tiles,L3,L4,start,escape,targets,msel[0]);
 	}
 
 	int use_view_mask = game_mode || units_view_debug_mode;
@@ -3874,7 +3975,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 	if (wSTCI)
 	{
 		// for each special sprite type
-		vector<MapXY> *spec[] = { &start, &escape, &target};
+		vector<MapXY> *spec[] = { &start, &escape, &targets};
 		Sprite* spec_sprite[] = { start_sprite, escape_sprite, target_sprite };
 		for (int sid = 0; sid < 3; sid++)
 		{
@@ -11458,7 +11559,7 @@ int SpellMap::BuildSpriteContext()
 
 
 // place/remove start/escape tiles to map data
-int SpellMap::PlaceStartEscape(vector<MapXY>& posxy, int spec_tile_type)
+int SpellMap::PlaceStartEscape(vector<MapXY>& posxy,std::vector<MapXY>& start,std::vector<MapXY>& escape,std::vector<MapXY>& target,int spec_tile_type)
 {
 	if(posxy.empty())
 		return(1);
@@ -11530,7 +11631,7 @@ int SpellMap::EditClass(vector<MapXY>& selection, SpellTool *tool, std::function
 		return(1);
 
 	// get tool sprites
-	auto tool_sprites = terrain->GetToolSprites(*tool);
+	/*auto tool_sprites = terrain->GetToolSprites(*tool);
 	if(!tool_sprites.empty() && tool_sprites[0]->land_type == 0)
 	{
 		if(tool_sprites[0] == start_sprite)
@@ -11552,7 +11653,7 @@ int SpellMap::EditClass(vector<MapXY>& selection, SpellTool *tool, std::function
 		// is objects layer tool
 		PasteRandSprites(tiles, selection, tool_sprites, true);				
 		return(0);
-	}
+	}*/
 
 
 	if(status_cb)

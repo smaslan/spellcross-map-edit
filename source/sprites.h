@@ -431,6 +431,7 @@ public:
 	bool isActive() { return(isObject() || isTool()); };
 	SpellObject* GetObject() { return(obj); };
 	std::tuple<int,int> GetTool() { return(std::make_tuple(class_id,tool_id)); };
+	bool isSame(SpellTool &tool) {return(obj == tool.obj && class_id == tool.class_id && tool_id == tool.tool_id);};
 };
 
 

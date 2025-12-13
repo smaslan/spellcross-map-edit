@@ -10,12 +10,12 @@
 //=============================================================================
 // 
 // For compilers that support precompilation, includes "wx/wx.h".
+//#define wxMSVC_VERSION_ABI_COMPAT
 #include <wx/wxprec.h>
 //#include <wx/msw/wx.rc>
 #ifndef WX_PRECOMP
 #include <wx/wx.h>
 #endif
-
 
 #include <wx/dcgraph.h>
 #include <wx/dcbuffer.h>
@@ -1273,6 +1273,7 @@ void MainFrame::OnViewVoxZ(wxCommandEvent& event)
     }
     
 }
+
 // view minimap
 void MainFrame::OnViewMiniMap(wxCommandEvent& event)
 {
@@ -1797,11 +1798,9 @@ void MainFrame::OnPasteBuf(wxCommandEvent& event)
 {
     if(!spell_map->IsLoaded())
         return;
-    auto list = spell_map->GetSelections();
-    if(list.empty())
-        return;
 
-    spell_map->PasteBuffer(spell_map->tiles,spell_map->L3,spell_map->L4,list);
+    auto pos = spell_map->GetSelection();
+    spell_map->PasteBuffer(spell_map->tiles,spell_map->L3,spell_map->L4,spell_map->start,spell_map->escape,spell_map->target,pos);
     Refresh();
 }
 
@@ -1883,15 +1882,16 @@ void MainFrame::OnCanvasLMouseDown(wxMouseEvent& event)
     {
         // LEFT DOWN event:
 
-        if(spell_map->isCopyBufferFull() && xy_list.size() && xy_list[0].IsSelected())
+        if(spell_map->isCopyBufferFull())
         {
             // something in copy buffer
-            spell_map->PasteBuffer(spell_map->tiles,spell_map->L3,spell_map->L4,xy_list);
+            auto pos = spell_map->GetSelection();
+            spell_map->PasteBuffer(spell_map->tiles,spell_map->L3,spell_map->L4,spell_map->start,spell_map->escape,spell_map->target,pos);
             Refresh();
         }
         else if(spell_tool.isActive() && xy_list.size() && xy_list[0].IsSelected())
         {
-            // some tool selected: edit map class        
+            // some tool selected: edit map class
             spell_map->EditClass(xy_list, &spell_tool, bind(&MainFrame::StatusStringCallback,this,placeholders::_1));
         }
         else
@@ -2151,8 +2151,24 @@ void MainFrame::OnCanvasMouseMove(wxMouseEvent& event)
 // on canvas wheel
 void MainFrame::OnCanvasMouseWheel(wxMouseEvent& event)
 {
-    spell_map->scroller.ResizeSelection(event.GetWheelRotation()/event.GetWheelDelta());
-    canvas->Refresh();
+    int delta = event.GetWheelRotation()/event.GetWheelDelta();
+    if(event.ControlDown())
+    {
+        // with CTRL: cycle objects within tool
+        if(spell_tool.isTool())
+        {
+            spell_map->SetBuffer(spell_tool,delta);
+            canvas->Refresh();
+        }
+    }
+    else
+    {
+        // no key: change selection size
+        spell_map->scroller.ResizeSelection(delta);
+        if(spell_tool.isTool())
+            spell_map->SetBuffer(spell_tool,delta);
+        canvas->Refresh();
+    }
 }
 // on canvas key down
 void MainFrame::OnCanvasKeyDown(wxKeyEvent& event)
@@ -2259,7 +2275,11 @@ void MainFrame::OnToolBtnClick(wxRibbonButtonBarEvent& event)
                         spell_map->SetBuffer(obj);
                     }
                     else
+                    {
                         spell_tool.Set(tid, iid); // tool is class
+                        if(spell_tool.isTool())
+                            spell_map->SetBuffer(spell_tool,0);
+                    }
                 }
             }
         }

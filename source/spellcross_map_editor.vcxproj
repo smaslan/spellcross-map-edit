@@ -143,6 +143,32 @@
   </ItemGroup>
   <ItemGroup>
     <Image Include="ico\map.ICO" />
+    <Image Include="ico\multi.png" />
+    <Image Include="ico\pal.ico" />
+    <Image Include="ico\sprite.ico" />
+    <Image Include="wx\msw\cdrom.ico" />
+    <Image Include="wx\msw\colours.bmp" />
+    <Image Include="wx\msw\computer.ico" />
+    <Image Include="wx\msw\csquery.bmp" />
+    <Image Include="wx\msw\drive.ico" />
+    <Image Include="wx\msw\file1.ico" />
+    <Image Include="wx\msw\floppy.ico" />
+    <Image Include="wx\msw\folder1.ico" />
+    <Image Include="wx\msw\folder2.ico" />
+    <Image Include="wx\msw\removble.ico" />
+    <Image Include="wx\msw\std.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="wx\msw\blank.cur" />
+    <None Include="wx\msw\bullseye.cur" />
+    <None Include="wx\msw\cross.cur" />
+    <None Include="wx\msw\hand.cur" />
+    <None Include="wx\msw\magnif1.cur" />
+    <None Include="wx\msw\pbrush.cur" />
+    <None Include="wx\msw\pencil.cur" />
+    <None Include="wx\msw\pntleft.cur" />
+    <None Include="wx\msw\pntright.cur" />
+    <None Include="wx\msw\roller.cur" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
@@ -229,19 +255,19 @@
     <LinkIncremental>true</LinkIncremental>
     <OutDir>$(SolutionDir)..\builds\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)..\builds\$(Platform)\$(Configuration)\</IntDir>
-    <IncludePath>$(wxwin)include;$(IncludePath)</IncludePath>
+    <IncludePath>$(wxwin)include\;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
     <OutDir>$(SolutionDir)..\builds\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)..\builds\$(Platform)\$(Configuration)\</IntDir>
-    <IncludePath>$(wxwin)include;$(IncludePath)</IncludePath>
+    <IncludePath>$(wxwin)include\;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release static|x64'">
     <LinkIncremental>false</LinkIncremental>
     <OutDir>$(SolutionDir)..\builds\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)..\builds\$(Platform)\$(Configuration)\</IntDir>
-    <IncludePath>$(wxwin)include;$(IncludePath)</IncludePath>
+    <IncludePath>$(wxwin)include\;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>

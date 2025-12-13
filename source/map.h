@@ -680,6 +680,7 @@ class SpellMap
 		
 		MapXY GetSelection(TScroll* scroll=NULL);
 		vector<MapXY> &GetSelections(TScroll* scroll=NULL);
+		std::vector<MapXY> GetRelSelection(TScroll* scroll=NULL);
 		void ClearSelections();
 		vector<Sprite*> GetL1sprites(vector<MapXY> &selection);
 		vector<Sprite*> GetL2sprites(vector<MapXY>& selection);
@@ -882,9 +883,10 @@ class SpellMap
 		int SetBuffer(Sprite* spr);
 		int SetBuffer(AnimL1* anm);
 		int SetBuffer(AnimPNM* pnm,int x_ofs=0,int y_ofs=0);
+		int SetBuffer(SpellTool& tool,int cycle=0);
 		void CutBuffer(std::vector<MapXY>& posxy,Layers layers);
 		void CopyBuffer(std::vector<MapXY> &posxy,Layers layers);
-		void PasteBuffer(std::vector<MapSprite>& tiles,std::vector<MapLayer3>& anms,std::vector<MapLayer4>& pnms,std::vector<MapXY>& posxy);
+		void PasteBuffer(std::vector<MapSprite>& tiles,std::vector<MapLayer3>& anms,std::vector<MapLayer4>& pnms,std::vector<MapXY>& start,std::vector<MapXY>& escape,std::vector<MapXY>& target,MapXY &posxy);
 		bool isCopyBufferFull();
 		int PasteRandSprites(std::vector<MapSprite>& tiles,std::vector<MapXY>& posxy,std::vector<Sprite*>& sprites,bool force_rand);
 		int DeleteSelObjects(std::vector<MapXY>& posxy,SpellMap::Layers layers);
@@ -894,7 +896,7 @@ class SpellMap
 			SPEC_TILE_ESCAPE,
 			SPEC_TILE_TARGET
 		};
-		int PlaceStartEscape(vector<MapXY>& posxy,int spec_tile_type);
+		int PlaceStartEscape(vector<MapXY>& posxy,std::vector<MapXY>& start,std::vector<MapXY>& escape,std::vector<MapXY>& target,int spec_tile_type);
 
 
 		
