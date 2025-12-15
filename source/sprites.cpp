@@ -3804,6 +3804,8 @@ int Terrain::AddToolSetItem(int toolset_id, string item, int position)
 		tools[toolset_id]->items.insert(tools[toolset_id]->items.begin() + position, item);
 	else
 		return(1);
+	if(position < 0)
+		return(0);
 
 	for (auto const& spr : sprites)
 	{
@@ -3861,7 +3863,7 @@ int Terrain::RemoveToolSetItem(int toolset_id, int position)
 		if (tid == position + 1)
 		{
 			obj->SetToolClassGroup(0);
-			obj->SetToolClass(0);
+			//obj->SetToolClass(0);
 		}
 		if (tid > position + 1)
 			obj->SetToolClassGroup(tid - 1);
@@ -3956,6 +3958,30 @@ std::vector<Sprite*> Terrain::GetToolSprites(SpellTool &tool)
 		{
 			// matching sprite class 
 			list.push_back(sid);
+		}
+	}
+
+	return(list);
+}
+// get all objects matching given tool
+std::vector<SpellObject*> Terrain::GetToolObjects(SpellTool& tool)
+{
+	std::vector<SpellObject*> list;
+	if(tool.isObject())
+		return(list);
+
+	// get tool
+	auto [tool_id,item_id] = tool.GetTool();
+
+	// find all matching sprites for the tool class
+	Sprite* tspr = NULL;
+	for(auto const& oid : objects)
+	{
+		if(oid->GetToolClass() == tool_id + 1 &&
+			oid->GetToolClassGroup() == item_id + 1)
+		{
+			// matching sprite class 
+			list.push_back(oid);
 		}
 	}
 

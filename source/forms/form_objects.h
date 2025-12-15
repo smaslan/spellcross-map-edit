@@ -56,18 +56,15 @@ class FormObjects : public wxFrame
 
 		void OnTerrainChange(wxCommandEvent& event);
 		void OnSaveObjects(wxCommandEvent& event);		
-		//void OnRemoveObject(wxCommandEvent& event);
 		void OnChangeGamma(wxCommandEvent& event);
 		void OnPaintCanvas(wxPaintEvent& event);
 
 		void FillToolsClasses();
-		//void UpdateToolClassesView();
-		void FillToolItemsList();
 		void OnRename(wxCommandEvent& evt);
 		void OnRemove(wxCommandEvent& evt);
 		void OnNewClass(wxCommandEvent& evt);
-		//void OnToolClassChange(wxCommandEvent& event);
-		void OnToolClassItemChange(wxCommandEvent& event);
+		void OnNewTool(wxCommandEvent& evt);
+
 
 		void OnTreeClassBeginLabelEdit(wxTreeEvent& evt);
 		void OnTreeClassEndLabelEdit(wxTreeEvent& evt);
@@ -89,8 +86,10 @@ class FormObjects : public wxFrame
 		public:
 			SpellObject *m_obj = NULL;
 			int m_class_id = 0;
+			int m_tool_id = 0;
 			TreeNode(SpellObject *obj) {m_obj = obj;};
 			TreeNode(int class_id) { m_class_id = class_id;};
+			TreeNode(int class_id, int tool_id) { m_class_id = class_id; m_tool_id = tool_id; };
 		};
 
 		wxImageList* imlist = NULL;
@@ -110,12 +109,12 @@ class FormObjects : public wxFrame
 			wxID_CANVAS,
 			wxID_TXT_GAMMA,
 			wxID_SLIDE_GAMMA,
-			wxID_CHB_GROUP,
 			wxID_MM_SAVE_OBJECTS,
 			wxID_MM_CLOSE,
 			wxID_MM_REMOVE,
 			wxID_MM_RENAME,
 			wxID_MM_NEW_CLASS,
+			wxID_MM_NEW_TOOL,
 		};
 
 		wxStatusBar* sbar;
@@ -127,13 +126,12 @@ class FormObjects : public wxFrame
 		wxStaticLine* m_staticline8;
 		wxStaticText* txtGamma;
 		wxSlider* slideGamma;
-		wxStaticLine* m_staticline6;
-		wxStaticText* m_staticText18;
-		wxChoice* chbObjectsGroup;
 		wxMenuBar* m_menubar2;
 		wxMenu* mnuFile;
 		wxMenu* mnuTerr;
 		wxMenu* mnuEdit;
+
+
 
 
 	public:

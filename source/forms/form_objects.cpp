@@ -71,25 +71,6 @@ FormObjects::FormObjects( wxWindow* parent,SpellData* spell_data,wxWindowID id, 
 
 	szrMain->Add(szrView,1,wxEXPAND,5);
 
-	m_staticline6 = new wxStaticLine(this,wxID_ANY,wxDefaultPosition,wxDefaultSize,wxLI_VERTICAL);
-	szrMain->Add(m_staticline6,0,wxEXPAND | wxALL,5);
-
-	wxBoxSizer* szrProps;
-	szrProps = new wxBoxSizer(wxVERTICAL);
-
-	szrProps->SetMinSize(wxSize(250,-1));
-	m_staticText18 = new wxStaticText(this,wxID_ANY,wxT("Objects group:"),wxDefaultPosition,wxDefaultSize,0);
-	m_staticText18->Wrap(-1);
-	szrProps->Add(m_staticText18,0,wxLEFT|wxTOP,5);
-
-	wxArrayString chbObjectsGroupChoices;
-	chbObjectsGroup = new wxChoice(this,wxID_CHB_GROUP,wxDefaultPosition,wxDefaultSize,chbObjectsGroupChoices,0);
-	chbObjectsGroup->SetSelection(0);
-	szrProps->Add(chbObjectsGroup,0,wxEXPAND|wxLEFT|wxRIGHT,5);
-
-
-	szrMain->Add(szrProps,0,wxEXPAND,5);
-
 
 	this->SetSizer(szrMain);
 	this->Layout();
@@ -123,6 +104,10 @@ FormObjects::FormObjects( wxWindow* parent,SpellData* spell_data,wxWindowID id, 
 	mmNewClass = new wxMenuItem(mnuEdit,wxID_MM_NEW_CLASS,wxString(wxT("New class")) + wxT('\t') + wxT("Ctrl+N"),wxEmptyString,wxITEM_NORMAL);
 	mnuEdit->Append(mmNewClass);
 
+	wxMenuItem* mmNewTool;
+	mmNewTool = new wxMenuItem(mnuEdit,wxID_MM_NEW_TOOL,wxString(wxT("New tool")) + wxT('\t') + wxT("Ctrl+T"),wxEmptyString,wxITEM_NORMAL);
+	mnuEdit->Append(mmNewTool);
+
 	m_menubar2->Append(mnuEdit,wxT("Edit"));
 
 	this->SetMenuBar(m_menubar2);
@@ -142,7 +127,7 @@ FormObjects::FormObjects( wxWindow* parent,SpellData* spell_data,wxWindowID id, 
 	if(appIcon.IsOk())
 		SetIcon(appIcon);
 
-	wxInitAllImageHandlers();
+	//wxInitAllImageHandlers();
 	imlist = new wxImageList(16,16);
 	wxBitmap img;
 	img.LoadFile("IDI_MULTI",wxBITMAP_TYPE_BMP_RESOURCE);
@@ -178,6 +163,7 @@ FormObjects::FormObjects( wxWindow* parent,SpellData* spell_data,wxWindowID id, 
 	Bind(wxEVT_MENU,&FormObjects::OnRename,this,wxID_MM_RENAME);
 	Bind(wxEVT_MENU,&FormObjects::OnRemove,this,wxID_MM_REMOVE);
 	Bind(wxEVT_MENU,&FormObjects::OnNewClass,this,wxID_MM_NEW_CLASS);
+	Bind(wxEVT_MENU,&FormObjects::OnNewTool,this,wxID_MM_NEW_TOOL);
 
 
 	// canvas stuff:
@@ -187,7 +173,7 @@ FormObjects::FormObjects( wxWindow* parent,SpellData* spell_data,wxWindowID id, 
 	// object tool classes stuff:	
 	FillToolsClasses();
 	// 
-	Bind(wxEVT_COMMAND_CHOICE_SELECTED,&FormObjects::OnToolClassItemChange,this,wxID_CHB_GROUP);
+	//Bind(wxEVT_COMMAND_CHOICE_SELECTED,&FormObjects::OnToolClassItemChange,this,wxID_CHB_GROUP);
 
 	Bind(wxEVT_TREE_SEL_CHANGED,&FormObjects::OnTreeSelectionChanged,this,wxID_TRC_CLASSES);
 	Bind(wxEVT_TREE_BEGIN_DRAG,&FormObjects::OnTreeClassBeginDrag,this,wxID_TRC_CLASSES);
@@ -241,7 +227,30 @@ void FormObjects::OnNewClass(wxCommandEvent& evt)
 	auto toolset_id = terr->GetToolSetID(name);
 
 	auto root_id = treeCtrlClasses->GetRootItem();
-	treeCtrlClasses->AppendItem(root_id,GetToolsetTitle(toolset_id),-1,-1,(wxTreeItemData*)new TreeNode(toolset_id));
+	treeCtrlClasses->AppendItem(root_id,GetToolsetTitle(toolset_id),Icons::FOLDER,Icons::FOLDER_OPEN,(wxTreeItemData*)new TreeNode(toolset_id));
+}
+
+// new tool within class
+void FormObjects::OnNewTool(wxCommandEvent& evt)
+{
+	auto item_id = treeCtrlClasses->GetSelection();
+	auto* obj = (TreeNode*)treeCtrlClasses->GetItemData(item_id);
+	if(!obj)
+		return; // nope in root
+	auto parent_id = treeCtrlClasses->GetItemParent(item_id);
+	auto* par_obj = (TreeNode*)treeCtrlClasses->GetItemData(parent_id);
+	int class_id = 0;
+	if(obj->m_obj && par_obj && par_obj->m_class_id)
+		class_id = par_obj->m_class_id;
+	else if(obj->m_class_id)
+		class_id = obj->m_class_id;
+	else
+		return;
+		
+	auto terr = FindTerrain();
+	std::string name = "New tool";
+	terr->AddToolSetItem(class_id-1,name);
+	FillToolsClasses();
 }
 
 // rename object by menu
@@ -272,7 +281,14 @@ void FormObjects::OnRemove(wxCommandEvent& evt)
 	{
 		// removing object
 		terr->RemoveObject(terr->FindObject(obj->m_obj));
+		//FillToolsClasses();
 		treeCtrlClasses->Delete(item_id);
+	}
+	else if(obj->m_tool_id)
+	{
+		// remove tool
+		terr->RemoveToolSetItem(obj->m_class_id-1,obj->m_tool_id-1);
+		FillToolsClasses();
 	}
 	else
 	{
@@ -315,6 +331,13 @@ void FormObjects::OnTreeClassEndLabelEdit(wxTreeEvent& evt)
 		evt.Veto();
 		return;
 	}
+	if(!obj->m_obj && obj->m_tool_id)
+	{
+		// rename tool name
+		auto terr = FindTerrain();
+		terr->RenameToolSetItem(obj->m_class_id-1,text,obj->m_tool_id-1);
+		return;
+	}
 	if(!obj->m_obj)
 	{
 		// edit class name
@@ -349,7 +372,7 @@ void FormObjects::OnTreeClassEndDrag(wxTreeEvent& evt)
 		return; // cannot move to root
 	auto target_obj = (TreeNode*)treeCtrlClasses->GetItemData(target_item);
 	auto parent_node = treeCtrlClasses->GetItemParent(target_item);
-	if(!obj->m_obj)
+	if(!obj->m_obj && obj->m_tool_id < 1)
 	{
 		// moving toolset class
 		if(treeCtrlClasses->GetRootItem() == parent_node && target_obj->m_class_id > 0)
@@ -360,24 +383,39 @@ void FormObjects::OnTreeClassEndDrag(wxTreeEvent& evt)
 			FillToolsClasses();
 		}
 	}
+	else if(obj->m_tool_id)
+	{
+		// moving objects group
+		
+	}
 	else
 	{
 		// moving tool item
 		wxTreeItemId nid;
+		int grp_id = 0;
 		if(treeCtrlClasses->GetRootItem() == parent_node)
 		{
-			// target is class node		
+			// target is class node: place it as single object at the end of the objects list
 			nid = treeCtrlClasses->AppendItem(target_item,treeCtrlClasses->GetItemText(m_drag_item),Icons::SINGLE,-1,(wxTreeItemData*)new TreeNode(obj->m_obj));
-			treeCtrlClasses->SelectItem(nid);
+		}
+		else if(target_obj && target_obj->m_obj)
+		{
+			// target is object: insert at position
+			grp_id = target_obj->m_obj->GetToolClassGroup();
+			nid = treeCtrlClasses->InsertItem(parent_node,treeCtrlClasses->GetPrevSibling(target_item),treeCtrlClasses->GetItemText(m_drag_item),Icons::SINGLE,-1,(wxTreeItemData*)new TreeNode(obj->m_obj));
+		}
+		else if(target_obj && target_obj->m_tool_id > 0)
+		{
+			// target is objects group: append
+			grp_id = target_obj->m_tool_id;
+			nid = treeCtrlClasses->AppendItem(target_item,treeCtrlClasses->GetItemText(m_drag_item),Icons::SINGLE,-1,(wxTreeItemData*)new TreeNode(obj->m_obj));			
 		}
 		else
-		{
-			// target is class item		
-			nid = treeCtrlClasses->InsertItem(parent_node,treeCtrlClasses->GetPrevSibling(target_item),treeCtrlClasses->GetItemText(m_drag_item),Icons::SINGLE,-1,(wxTreeItemData*)new TreeNode(obj->m_obj));
-			treeCtrlClasses->SelectItem(nid);
-		}
-		auto cls = (TreeNode*)treeCtrlClasses->GetItemData(treeCtrlClasses->GetItemParent(nid));	
+			return;
+		treeCtrlClasses->SelectItem(nid);
+		auto cls = (TreeNode*)treeCtrlClasses->GetItemData(treeCtrlClasses->GetItemParent(nid));
 		obj->m_obj->SetToolClass(cls->m_class_id);
+		obj->m_obj->SetToolClassGroup(grp_id);
 		treeCtrlClasses->Delete(m_drag_item);
 	}
 
@@ -395,48 +433,14 @@ void FormObjects::OnTreeSelectionChanged(wxTreeEvent& evt)
 		return; 
 	}
 	
-	FillToolItemsList();
+	//FillToolItemsList();
 
 	// is node
 	m_spell_obj = obj->m_obj;
 	canvas->Refresh();	
 }
 
-// sort objects per classe (call before leaving)
-void FormObjects::SortItems()
-{
-	auto terr = FindTerrain();	
 
-	// for each class:
-	int new_obj_id = 0;
-	auto root_id = treeCtrlClasses->GetRootItem();
-	wxTreeItemIdValue cookie;
-	auto class_id = treeCtrlClasses->GetFirstChild(root_id,cookie);
-	for(int cid = 0; cid <= terr->GetToolsCount(); cid++)
-	{
-		if(!class_id.IsOk())
-			break;
-		
-		wxTreeItemIdValue item_cookie;
-		auto item_id = treeCtrlClasses->GetFirstChild(class_id,item_cookie);
-		while(item_id.IsOk())
-		{
-			TreeNode *data = (TreeNode*)treeCtrlClasses->GetItemData(item_id);
-			if(!data)
-				continue;
-			
-			auto obj_id = terr->FindObject(data->m_obj);
-			if(obj_id < 0)
-				continue;
-			terr->MoveObject(new_obj_id,obj_id);
-			new_obj_id++;
-			
-			item_id = treeCtrlClasses->GetNextChild(class_id,item_cookie);
-		}
-		
-		class_id = treeCtrlClasses->GetNextChild(root_id,cookie);
-	}
-}
 
 
 FormObjects::~FormObjects()
@@ -568,85 +572,164 @@ void FormObjects::OnPaintCanvas(wxPaintEvent& event)
 
 
 
+
+class TreeCtrlState{
+public:
+	int level;
+	bool state;
+	bool sel;
+	std::string name;
+};
+
+// build recoursive list of tree elements with names, level and expand states
+void treeCtrlRecStates(wxTreeCtrl *ctrl,wxTreeItemId &id,std::vector<TreeCtrlState> &list,int level)
+{
+	if(!id.IsOk())
+		return;
+	wxTreeItemIdValue cookie;
+	auto node_id = ctrl->GetFirstChild(id,cookie);
+	while(node_id.IsOk())
+	{				
+		TreeCtrlState state = {level, ctrl->IsExpanded(node_id), ctrl->IsSelected(node_id), ctrl->GetItemText(node_id).ToStdString()};
+		list.push_back(state);
+		treeCtrlRecStates(ctrl,node_id,list,level+1);
+		node_id = ctrl->GetNextChild(id,cookie);
+	}
+}
+
+// try set expand state based on recoursive list of previous states
+void treeCtrlSetStates(wxTreeCtrl* ctrl,wxTreeItemId& id,std::vector<TreeCtrlState>& list,int level)
+{
+	if(!id.IsOk())
+		return;
+	wxTreeItemIdValue cookie;
+	auto node_id = ctrl->GetFirstChild(id,cookie);
+	while(node_id.IsOk())
+	{
+		for(auto &item: list)
+			if(item.state && item.level == level && item.name.compare(ctrl->GetItemText(node_id).ToStdString()) == 0)
+			{
+				ctrl->Expand(node_id);
+				if(item.sel)
+					ctrl->SelectItem(node_id);
+				break;
+			}
+		treeCtrlSetStates(ctrl,node_id,list,level+1);
+		node_id = ctrl->GetNextChild(id,cookie);
+	}
+}
+
+
 // fills tool class menu
 void FormObjects::FillToolsClasses()
 {
 	// get this terrain
 	Terrain* terr = FindTerrain();
+	
+	// remember last expand states
+	std::vector<TreeCtrlState> list;
+	wxTreeItemId root_id = treeCtrlClasses->GetRootItem();	
+	treeCtrlRecStates(treeCtrlClasses,root_id,list,0);
 
 	treeCtrlClasses->DeleteAllItems();
-	auto rid = treeCtrlClasses->AddRoot("Classes",Icons::FOLDER,Icons::FOLDER_OPEN);	
+	root_id = treeCtrlClasses->AddRoot("Classes",Icons::FOLDER,Icons::FOLDER_OPEN);	
 	for(int k = 0; k <= terr->GetToolsCount(); k++)
 	{
 		wxTreeItemId cid;
 		if(k == 0)
-			cid = treeCtrlClasses->AppendItem(rid,"<Not assigned>",Icons::FOLDER,Icons::FOLDER_OPEN,(wxTreeItemData*)new TreeNode(k));
+			cid = treeCtrlClasses->AppendItem(root_id,"<Not assigned>",Icons::FOLDER,Icons::FOLDER_OPEN,(wxTreeItemData*)new TreeNode(k));
 		else
-			cid = treeCtrlClasses->AppendItem(rid,GetToolsetTitle(k - 1),Icons::FOLDER,Icons::FOLDER_OPEN,(wxTreeItemData*)new TreeNode(k));
-				
+			cid = treeCtrlClasses->AppendItem(root_id,GetToolsetTitle(k - 1),Icons::FOLDER,Icons::FOLDER_OPEN,(wxTreeItemData*)new TreeNode(k));
+		
+		for(int tid = 0; tid < terr->GetToolSetItemsCount(k-1); tid++)
+		{
+			auto name = terr->GetToolSetItem(k-1,tid);
+			auto group_id = treeCtrlClasses->AppendItem(cid,name,Icons::MULTI,-1,(wxTreeItemData*)new TreeNode(k,tid + 1));
+			
+			for(int oid = 0; oid < terr->GetObjectsCount(); oid++)
+			{
+				auto obj = terr->objects[oid];
+				if(obj->GetToolClass() == k && obj->GetToolClassGroup() == tid + 1)
+					treeCtrlClasses->AppendItem(group_id,obj->GetDescription(),Icons::SINGLE,-1,(wxTreeItemData*)new TreeNode(obj));
+			}
+		}
+
 		for(int oid = 0; oid < terr->GetObjectsCount(); oid++)
 		{			
 			auto obj = terr->objects[oid];
-			if(obj->GetToolClass() == k)
+			if(obj->GetToolClass() == k && obj->GetToolClassGroup() == 0)
 				treeCtrlClasses->AppendItem(cid,obj->GetDescription(),Icons::SINGLE,-1,(wxTreeItemData*)new TreeNode(obj));
 		}
 	}
-	treeCtrlClasses->Expand(rid);	
-
+	// try restore last expand states
+	treeCtrlClasses->Expand(root_id);
+	treeCtrlSetStates(treeCtrlClasses,root_id,list,0);
 }
 
-// fill tool class items menu
-void FormObjects::FillToolItemsList()
+
+// sort objects per classe (call before leaving)
+void FormObjects::SortItems()
 {
-	// get this terrain
-	Terrain* terr = FindTerrain();
+	auto terr = FindTerrain();
 
-	// add neutral item
-	chbObjectsGroup->Clear();
-	chbObjectsGroup->Append("None");
-	chbObjectsGroup->Select(0);
+	// for each class:
+	int new_obj_id = 0;
+	auto root_id = treeCtrlClasses->GetRootItem();
 
-	if(m_spell_obj)
+	// for each toolset class:
+	wxTreeItemIdValue cookie;
+	auto class_id = treeCtrlClasses->GetFirstChild(root_id,cookie);
+	while(true)
 	{
-		
-		int class_id = m_spell_obj->GetToolClass();
-		if(class_id)
+		if(!class_id.IsOk())
+			break;
+
+		// for each tool/object:
+		wxTreeItemIdValue item_cookie;
+		auto item_id = treeCtrlClasses->GetFirstChild(class_id,item_cookie);
+		while(item_id.IsOk())
 		{
-			// make list of existing classes
-			//SpellToolsGroup* grp = terr->GetToolSet(class_id - 1);
+			TreeNode* data = (TreeNode*)treeCtrlClasses->GetItemData(item_id);
+			if(!data)
+			{
+				item_id = treeCtrlClasses->GetNextChild(class_id,item_cookie);
+				continue;
+			}
 
-			// fill the list
-			for(auto const & str : terr->GetToolSetItems(class_id - 1))
-				chbObjectsGroup->Append(str);
+			if(data->m_tool_id)
+			{
+				// tool
+				wxTreeItemIdValue tool_cookie;
+				auto tool_id = treeCtrlClasses->GetFirstChild(item_id,tool_cookie);
+				while(tool_id.IsOk())
+				{
+					TreeNode* data = (TreeNode*)treeCtrlClasses->GetItemData(tool_id);
+					if(data->m_obj)
+					{
+						auto obj_id = terr->FindObject(data->m_obj);
+						if(obj_id >= 0)
+						{
+							terr->MoveObject(new_obj_id,obj_id);
+							new_obj_id++;
+						}
+					}
+					tool_id = treeCtrlClasses->GetNextChild(item_id,tool_cookie);
+				}
+			}
+			else if(data->m_obj)
+			{
+				// object
+				auto obj_id = terr->FindObject(data->m_obj);
+				if(obj_id >= 0)
+				{
+					terr->MoveObject(new_obj_id,obj_id);
+					new_obj_id++;
+				}
+			}
 
-			int item_id = m_spell_obj->GetToolClassGroup();
-			chbObjectsGroup->Select(item_id);
+			item_id = treeCtrlClasses->GetNextChild(class_id,item_cookie);
 		}
 
-	}
-}
-
-
-// on change tool class item selection
-void FormObjects::OnToolClassItemChange(wxCommandEvent& event)
-{
-	// get this terrain
-	Terrain* terr = FindTerrain();
-
-	if(m_spell_obj)
-	{		
-		// new tool class for sprite
-		int class_id = m_spell_obj->GetToolClass();
-		if(class_id)
-		{
-			// update tool class item selection
-			int item_id = chbObjectsGroup->GetSelection();
-			m_spell_obj->SetToolClassGroup(item_id);
-		}
-		else
-			m_spell_obj->SetToolClassGroup(0); // invalidate item id if no tool class selected (should not happen)
-
-		// refresh selectors
-		//UpdateToolClassesView();
+		class_id = treeCtrlClasses->GetNextChild(root_id,cookie);
 	}
 }

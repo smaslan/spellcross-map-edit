@@ -2346,7 +2346,10 @@ void MainFrame::LoadToolsetRibbon(Terrain *terr)
             int item_id = 0;
             for (; item_id < terr->GetToolSetItemsCount(tool_id); item_id++)
             {
-                titles.push_back(terr->GetToolSetItem(tool_id, item_id));
+                SpellTool spell_tool;
+                spell_tool.Set(tool_id,item_id);
+                int has_multi = terr->GetToolSprites(spell_tool).size() + terr->GetToolObjects(spell_tool).size();
+                titles.push_back(terr->GetToolSetItem(tool_id, item_id) + ((has_multi > 1)?" [+]":""));
                 index.push_back(ID_TOOL_BASE + tool_id * ID_TOOL_CLASS_STEP + item_id);
                 size.push_back(terr->GetToolSetItemImageSize(tool_id, item_id));
                 objects.push_back(NULL);

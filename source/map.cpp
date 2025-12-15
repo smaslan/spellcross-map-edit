@@ -2589,28 +2589,42 @@ int SpellMap::SetBuffer(SpellTool &tool,int cycle)
 		return(1);
 	if(!tool.isTool())
 		return(1);
-
-	auto tool_sprites = terrain->GetToolSprites(tool);
+			
+	// get selection tiles
 	auto rsel = GetRelSelection();
 	if(rsel.size() > 1)
 		cycle = 0;
 
-	int tool_sprites_count = tool_sprites.size();
-	static int tool_sprites_id = 0;
-	tool_sprites_id += cycle;
-	if(cycle > 0 && tool_sprites_id >= tool_sprites_count)
-		tool_sprites_id = 0;
-	if(cycle < 0 && tool_sprites_id < 0)
-		tool_sprites_id = tool_sprites_count - 1;
-	if(cycle == 0)
-		tool_sprites_id = rand() % tool_sprites_count;
+	// select sprites (priority) or objects
+	auto tool_sprites = terrain->GetToolSprites(tool);
+	auto tool_objects = terrain->GetToolObjects(tool);
+	int tool_items_count = tool_sprites.size();
+	if(!tool_items_count)
+		tool_items_count = tool_objects.size();
+	if(!tool_items_count)
+		return(1);
 
+	// cycle tool items
+	static int tool_item_id = 0;
+	tool_item_id += cycle;
+	if(cycle > 0 && tool_item_id >= tool_items_count)
+		tool_item_id = 0;
+	if(cycle < 0 && tool_item_id < 0)
+		tool_item_id = tool_items_count - 1;
+	if(cycle == 0)
+		tool_item_id = rand() % tool_items_count;
+
+	// no sprites, use objects?
+	if(tool_sprites.empty())
+		return(SetBuffer(tool_objects[tool_item_id]));
+
+	// sprites mode
 	LockMap();
 	for(auto &pos: rsel)
 	{
 		if(rsel.size() > 1)
-			tool_sprites_id = rand() % tool_sprites_count;
-		auto tool_sprite = tool_sprites[tool_sprites_id];
+			tool_item_id = rand() % tool_items_count;
+		auto tool_sprite = tool_sprites[tool_item_id];
 
 		copy_buf.pos.push_back(pos);
 		MapSprite tile;

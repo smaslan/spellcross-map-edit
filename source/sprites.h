@@ -544,6 +544,7 @@ public:
 	tuple<int, int> GetToolSetItemImageSize(int tool_id, int item_id);
 
 	std::vector<Sprite*> GetToolSprites(SpellTool &tool);
+	std::vector<SpellObject*> GetToolObjects(SpellTool& tool);
 	int AddSpecialTools();
 
 
