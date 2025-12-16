@@ -1711,7 +1711,9 @@ int Terrain::Load(FSarchive *terrain_fs, uint8_t map_pal[][3],SpellGraphics* gre
 
 				// add animation to list
 				AnimPNM* pnm = new AnimPNM();
+				pnm->index = pnms.size();
 				pnms.push_back(pnm);
+				
 
 				// try decode animation data
 				if (pnm->Decode(data, name))
@@ -2023,6 +2025,26 @@ int Terrain::InitSpriteContext(wstring &path)
 		sprites[list[k]]->SetToolClassGroup(istream_read_u32(fr));
 	}
 
+
+
+	// get PNM list size
+	uint32_t pnms_count = istream_read_u32(fr);
+
+	// read PNM names
+	vector<AnimPNM*> pnm_list;
+	pnm_list.assign(pnms_count,NULL);
+	for(int k = 0; k < pnms_count; k++)
+	{
+		// get tile name
+		char tile_name[MAX_SPRITE_NAME+1];
+		fr.read(tile_name,sizeof(tile_name));
+
+		// try to find its index in terrain list
+		auto pnm = GetPNM(tile_name);
+		pnm_list[k] = pnm;
+	}
+
+
 	// get objects count
 	int obj_count = istream_read_u32(fr);
 
@@ -2038,7 +2060,7 @@ int Terrain::InitSpriteContext(wstring &path)
 	for(int k = 0; k < obj_count;k++)
 	{
 		// read object data
-		SpellObject* obj = new SpellObject(fr,spr_list,tpal);
+		SpellObject* obj = new SpellObject(fr,spr_list,pnm_list,tpal);
 		objects.push_back(obj);
 	}
 
@@ -2169,6 +2191,17 @@ int Terrain::SaveSpriteContext(wstring& path)
 		ostream_write_u32(fw,sprites[k]->GetToolClassGroup());
 	}
 
+	// store PNMs count
+	ostream_write_u32(fw,pnms.size());
+	// store PNM names
+	for(auto &pnm: pnms)
+	{
+		char name[MAX_SPRITE_NAME+1];
+		memset(name,'\0',sizeof(name));
+		strncpy(name,pnm->name,sizeof(name));
+		name[MAX_SPRITE_NAME] = '\0';
+		fw.write(name,sizeof(name));
+	}
 
 	// store objects count
 	ostream_write_u32(fw,objects.size());
@@ -2940,7 +2973,7 @@ AnimPNM* Terrain::GetPNM(std::string name)
 // Spellcross map objects stuff
 //=============================================================================
 // make object
-SpellObject::SpellObject(vector<MapXY> xy,vector<Sprite*> L1_list,vector<Sprite*> L2_list,vector<uint8_t> flag_list,uint8_t* palette,std::string desc)
+SpellObject::SpellObject(vector<MapXY> &xy,vector<Sprite*> &L1_list,vector<Sprite*> &L2_list,vector<uint8_t> &flag_list,std::vector<MapLayer4> &pnm_list,uint8_t* palette,std::string desc)
 {
 	sprite_pos.clear();
 	L1_sprites.clear();
@@ -2990,6 +3023,16 @@ SpellObject::SpellObject(vector<MapXY> xy,vector<Sprite*> L1_list,vector<Sprite*
 		auto sflags = L1->GetFlags();
 		sflags |= Sprite::IS_OBJECT;
 		L1->SetFlags(sflags);
+
+		// make PNM list
+		for(auto pnm: pnm_list)
+			if(pnm.x_pos == xy[k].x && pnm.y_pos == xy[k].y)
+			{
+				pnm.x_pos = pos.x - ref2.x;
+				pnm.y_pos = pos.y;
+				L4_list.push_back(pnm);
+				break;
+			}
 	}
 	// align from 0,0 (lazy solution)
 	for(int k = 0; k < sprite_pos.size(); k++)
@@ -3251,7 +3294,7 @@ int SpellObject::RenderPreview(wxBitmap &bmp,double gamma)
 }*/
 
 // copy object data to buffers
-int SpellObject::GetObjectData(std::vector<MapXY>* pos,std::vector<MapSprite>* tiles)
+int SpellObject::GetObjectData(std::vector<MapXY>* pos,std::vector<MapSprite>* tiles,std::vector<MapLayer4>* pnm_list)
 {
 	if(pos)
 	{
@@ -3270,6 +3313,15 @@ int SpellObject::GetObjectData(std::vector<MapXY>* pos,std::vector<MapSprite>* t
 			tile.flags = flags[k];
 			tile.elev = 0;
 			tiles->push_back(tile);
+						
+			MapLayer4 pnm_item = MapLayer4(NULL,pos->at(k).x,pos->at(k).y);
+			for(auto &pnm: L4_list)
+				if(pnm.x_pos == pos->at(k).x && pnm.y_pos == pos->at(k).y)
+				{
+					pnm_item = pnm;
+					break;
+				}
+			pnm_list->push_back(pnm_item);
 		}
 	}
 	return(0);
@@ -3314,8 +3366,25 @@ int SpellObject::WriteToFile(ofstream &fw)
 		fw.write((char*)&flag,sizeof(uint8_t));
 
 		// write tile relative position [x,y]
-		ostream_write_u32(fw, sprite_pos[k].x);
-		ostream_write_u32(fw, sprite_pos[k].y);
+		ostream_write_i32(fw, sprite_pos[k].x);
+		ostream_write_i32(fw, sprite_pos[k].y);
+	}
+
+	// PNM layer sprites count
+	ostream_write_u32(fw,L4_list.size());
+
+	// store PNM sprites
+	for(auto &pnm: L4_list)
+	{
+		// PNM order id
+		ostream_write_u32(fw,pnm.anim->index);
+		// PNM position
+		ostream_write_i32(fw,pnm.x_pos);
+		ostream_write_i32(fw,pnm.y_pos);
+		ostream_write_i32(fw,pnm.x_ofs);
+		ostream_write_i32(fw,pnm.y_ofs);
+		// PNM frames limit
+		ostream_write_u32(fw,pnm.frame_limit);
 	}
 
 	// --- write image glyph data
@@ -3353,7 +3422,7 @@ int SpellObject::WriteToFile(ofstream &fw)
 }
 
 // create object from a file
-SpellObject::SpellObject(ifstream& fr,vector<Sprite*> &sprite_list, uint8_t* palette)
+SpellObject::SpellObject(ifstream& fr, vector<Sprite*> &sprite_list, vector<AnimPNM*> &pnm_list, uint8_t* palette)
 {
 	sprite_pos.clear();
 	L1_sprites.clear();
@@ -3421,6 +3490,29 @@ SpellObject::SpellObject(ifstream& fr,vector<Sprite*> &sprite_list, uint8_t* pal
 		sprite_pos.push_back(pxy);
 	}
 
+	// used PNM count
+	int pnm_count = istream_read_u32(fr);
+
+	// for each PNM anim
+	for(int k = 0; k < pnm_count; k++)
+	{
+		// PNM order id
+		int pnm_id = istream_read_u32(fr);
+		// PNM position
+		int pnm_x_pos = istream_read_i32(fr);
+		int pnm_y_pos = istream_read_i32(fr);
+		int pnm_x_ofs = istream_read_i32(fr);
+		int pnm_y_ofs = istream_read_i32(fr);
+		// PNM frames limit
+		int pnm_frame_lim = istream_read_u32(fr);
+		
+		// add to object pnm list
+		if(pnm_id >= pnm_list.size())
+			continue;
+		L4_list.emplace_back(pnm_list[pnm_id],pnm_x_pos,pnm_y_pos,pnm_x_ofs,pnm_y_ofs);
+	}
+
+
 	// read glyph format
 	uint32_t format = istream_read_u32(fr);
 
@@ -3459,13 +3551,10 @@ SpellObject::SpellObject(ifstream& fr,vector<Sprite*> &sprite_list, uint8_t* pal
 
 
 // add object to list of object
-SpellObject* Terrain::AddObject(vector<MapXY> xy,vector<Sprite*> L1_list,vector<Sprite*> L2_list,vector<uint8_t> flag_list,uint8_t* palette,std::string desc)
-{
+SpellObject* Terrain::AddObject(vector<MapXY> xy,vector<Sprite*> L1_list,vector<Sprite*> L2_list,vector<uint8_t> flag_list,vector<MapLayer4> pnm_list,uint8_t* palette,std::string desc)
+{		
 	// create object
-	SpellObject *obj = new SpellObject(xy,L1_list,L2_list,flag_list,(uint8_t*)pal,desc);
-
-	// generate glyph
-	//obj->GenerateImage(glyph_path);
+	SpellObject *obj = new SpellObject(xy,L1_list,L2_list,flag_list,pnm_list,(uint8_t*)pal,desc);
 
 	// add to list
 	objects.push_back(obj);

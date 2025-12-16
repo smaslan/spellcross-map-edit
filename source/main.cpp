@@ -1340,22 +1340,40 @@ void MainFrame::OnCreateNewObject(wxCommandEvent& event)
     {
         // --- confirmed
 
-        // get selection    
-        auto xy_list = spell_map->GetPersistSelections();
-        auto L1_spr_list = spell_map->GetL1sprites(xy_list);
-        auto L2_spr_list = spell_map->GetL2sprites(xy_list);
-        auto flag_list = spell_map->GetFlags(xy_list);
-
         // get object descriptions
         std::string description = form->GetDescription();
         int class_id = form->GetClass();
+
+        // get layers mask
+        SpellMap::Layers lay;
+        lay.lay1 = GetMenuBar()->FindItem(ID_SelectLay1)->IsChecked();
+        lay.lay2 = GetMenuBar()->FindItem(ID_SelectLay2)->IsChecked();
+        lay.anm = GetMenuBar()->FindItem(ID_SelectLayANM)->IsChecked();
+        lay.pnm = GetMenuBar()->FindItem(ID_SelectLayPNM)->IsChecked();
+
+        auto posxy = spell_map->GetPersistSelections();
+        auto L1_list = spell_map->GetL1sprites(posxy);
+        auto L2_list = spell_map->GetL2sprites(posxy);
+        auto flag_list = spell_map->GetFlags(posxy);
+        auto pnm_list = spell_map->GetPNMs(posxy);
+        if(!lay.lay1)
+            for(auto& spr: L1_list)
+                spr = NULL;
+        if(!lay.lay2)
+            for(auto& spr: L2_list)
+                spr = NULL;
+        if(!lay.pnm)
+            pnm_list.clear();
         
         // add object to list
-        auto obj = spell_map->terrain->AddObject(xy_list, L1_spr_list, L2_spr_list, flag_list, (uint8_t*)spell_map->terrain->pal, description);
+        auto obj =spell_map->terrain->AddObject(posxy,L1_list,L2_list,flag_list,pnm_list,(uint8_t*)spell_map->terrain->pal,description);
         obj->SetToolClass(class_id);
                 
         // clear selection
         spell_map->SelectTiles(SpellMap::SELECT_CLEAR);
+
+        // refresh tools list
+        LoadToolsetRibbon(spell_map->terrain);
     }
     
     // destroy form
@@ -1764,11 +1782,13 @@ void MainFrame::OnCopyBuf(wxCommandEvent& event)
 {
     if(!spell_map->IsLoaded())
         return;
+    
     // get layers mask
     SpellMap::Layers lay;
     lay.lay1 = GetMenuBar()->FindItem(ID_SelectLay1)->IsChecked();
     lay.lay2 = GetMenuBar()->FindItem(ID_SelectLay2)->IsChecked();
     lay.anm = GetMenuBar()->FindItem(ID_SelectLayANM)->IsChecked();
+    lay.pnm = GetMenuBar()->FindItem(ID_SelectLayPNM)->IsChecked();
     
     // get selected area (preference of persistent selection over cursor)
     std::vector<MapXY> list;
@@ -1777,7 +1797,7 @@ void MainFrame::OnCopyBuf(wxCommandEvent& event)
         list = spell_map->GetSelections();
     
     if(event.GetId() == ID_CutBuf)
-        spell_map->CutBuffer(list,lay);
+        spell_map->CutBuffer(list, lay);
     else
         spell_map->CopyBuffer(list, lay);
     

@@ -333,6 +333,8 @@ class AnimPNM
 		int x_max;
 		int y_min;
 		int y_max;
+		// order id
+		int index;
 								
 		// void constructor
 		AnimPNM();
@@ -342,6 +344,7 @@ class AnimPNM
 };
 
 class MapSprite;
+class MapLayer4;
 
 // spellcross terrain object (group of sprites forming e.g. house)
 class SpellObject
@@ -355,6 +358,7 @@ private:
 	std::vector<Sprite*> L1_sprites;
 	std::vector<Sprite*> L2_sprites;
 	std::vector<uint8_t> flags;
+	std::vector<MapLayer4> L4_list;
 	// bitmap data
 	int surf_x;
 	int surf_y;
@@ -377,8 +381,9 @@ public:
 		LZ_INDEX_8BIT
 	};
 	
-	SpellObject(ifstream& fr,std::vector<Sprite*>& sprite_list,uint8_t* palette);
-	SpellObject(std::vector<MapXY> xy,std::vector<Sprite*> L1_list,std::vector<Sprite*> L2_list,std::vector<uint8_t> flag_list, uint8_t *palette = NULL, std::string desc = "");
+	SpellObject(ifstream& fr,std::vector<Sprite*>& sprite_list,vector<AnimPNM*>& pnm_list,uint8_t* palette);
+	SpellObject(vector<MapXY>& xy,vector<Sprite*>& L1_list,vector<Sprite*>& L2_list,vector<uint8_t>& flag_list,std::vector<MapLayer4>& pnm_list,uint8_t* palette=NULL,std::string desc="");
+	//SpellObject(std::vector<MapXY> xy,std::vector<Sprite*> L1_list,std::vector<Sprite*> L2_list,std::vector<uint8_t> flag_list, uint8_t *palette = NULL, std::string desc = "");
 	~SpellObject();
 	int RenderPreview(wxBitmap& bmp,double gamma=1.30);
 	tuple<int, int> GetGlyphSize();
@@ -387,7 +392,7 @@ public:
 	std::string GetDescription();
 	void SetDescription(std::string name);
 	//int PlaceMapTiles(std::vector<MapSprite>& tiles,int x_size,int y_size,MapXY sel);
-	int GetObjectData(std::vector<MapXY> *pos, std::vector<MapSprite> *tiles);
+	int GetObjectData(std::vector<MapXY> *pos, std::vector<MapSprite> *tiles, std::vector<MapLayer4> *pnm_list);
 
 	void SetToolClass(int id);
 	void SetToolClassGroup(int id);
@@ -433,6 +438,7 @@ public:
 	std::tuple<int,int> GetTool() { return(std::make_tuple(class_id,tool_id)); };
 	bool isSame(SpellTool &tool) {return(obj == tool.obj && class_id == tool.class_id && tool_id == tool.tool_id);};
 };
+
 
 
 class Terrain
@@ -509,7 +515,7 @@ public:
 	int RenderSpritePreview(wxBitmap& bmp,Sprite* tile,int flags,double gamma);
 	int RenderPNMpreview(wxBitmap& bmp,Sprite* spr,int flags,double gamma);
 		
-	SpellObject* AddObject(std::vector<MapXY> xy,std::vector<Sprite*> L1_list,std::vector<Sprite*> L2_list,std::vector<uint8_t> flag_list,uint8_t* palette,std::string desc);
+	SpellObject* AddObject(std::vector<MapXY> xy,std::vector<Sprite*> L1_list,std::vector<Sprite*> L2_list,std::vector<uint8_t> flag_list,std::vector<MapLayer4> pnm_list,uint8_t* palette,std::string desc);
 	int RemoveObject(int id);
 	int MoveObject(int posa, int posb);
 	int RenameObject(int id, string name);

@@ -2503,7 +2503,7 @@ int SpellMap::SetBuffer(SpellObject* obj)
 	// try obtain data of object
 	ClearBuffer();
 	LockMap();
-	int res = obj->GetObjectData(&copy_buf.pos,&copy_buf.tiles);
+	int res = obj->GetObjectData(&copy_buf.pos,&copy_buf.tiles,&copy_buf.pnms);
 	ReleaseMap();
 	return(res);
 }
@@ -3291,6 +3291,21 @@ vector<Sprite*> SpellMap::GetL2sprites(vector<MapXY>& selection)
 		if(selection[k].IsSelected())
 			spr = tiles[ConvXY(selection[k])].L2;
 		list.push_back(spr);
+	}
+	return(list);
+}
+// return vector of PNM matching the given selection
+vector<MapLayer4> SpellMap::GetPNMs(vector<MapXY>& selection)
+{
+	vector<MapLayer4> list;
+	for(auto &pos: selection)
+	{
+		for(auto &pnm: L4)
+			if(pnm.x_pos == pos.x && pnm.y_pos == pos.y)
+			{
+				list.push_back(pnm);
+				break;
+			}
 	}
 	return(list);
 }

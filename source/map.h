@@ -685,6 +685,7 @@ class SpellMap
 		vector<Sprite*> GetL1sprites(vector<MapXY> &selection);
 		vector<Sprite*> GetL2sprites(vector<MapXY>& selection);
 		vector<uint8_t> GetFlags(vector<MapXY>& selection);
+		vector<MapLayer4> GetPNMs(vector<MapXY>& selection);
 		int GetFlags(MapXY selection);
 		void SetFlags(MapXY selection,int flags);
 		void SetFlags(std::vector<MapXY> selections,int flags);
