@@ -13,6 +13,7 @@
 #include <wx/filedlg.h>
 
 #include <filesystem>
+#include <regex>
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -23,7 +24,7 @@ FormSprite::FormSprite( wxWindow* parent,SpellData* spell_data,wxWindowID id, co
 	
 	// === AUTO GENERATED STUFF STARTS HERE ===
 	
-	this->SetSizeHints(wxSize(1050,600),wxDefaultSize);
+	this->SetSizeHints(wxSize(1050,700),wxDefaultSize);
 	this->SetBackgroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_BTNFACE));
 
 	mMenu = new wxMenuBar(0);
@@ -124,7 +125,7 @@ FormSprite::FormSprite( wxWindow* parent,SpellData* spell_data,wxWindowID id, co
 	bSizer241->Add(txtAltList,0,wxTOP|wxLEFT,5);
 
 	lboxAlt = new wxListBox(this,wxID_LBOX_ALT,wxDefaultPosition,wxSize(120,-1),0,NULL,0|wxALWAYS_SHOW_SB|wxVSCROLL);
-	bSizer241->Add(lboxAlt,1,wxBOTTOM|wxRIGHT|wxLEFT,5);
+	bSizer241->Add(lboxAlt,1,wxBOTTOM|wxLEFT|wxRIGHT,5);
 
 
 	bSizer1->Add(bSizer241,0,wxEXPAND,5);
@@ -132,11 +133,8 @@ FormSprite::FormSprite( wxWindow* parent,SpellData* spell_data,wxWindowID id, co
 	wxBoxSizer* bSizer4;
 	bSizer4 = new wxBoxSizer(wxVERTICAL);
 
-	wxBoxSizer* bSizer5;
-	bSizer5 = new wxBoxSizer(wxVERTICAL);
 
-
-	bSizer5->Add(0,0,0,wxALL|wxEXPAND,4);
+	bSizer4->Add(0,0,0,wxALL|wxEXPAND,4);
 
 	wxStaticBoxSizer* sizerCanvas;
 	sizerCanvas = new wxStaticBoxSizer(new wxStaticBox(this,wxID_ANY,wxT(" Sprite(s) view:")),wxVERTICAL);
@@ -145,20 +143,17 @@ FormSprite::FormSprite( wxWindow* parent,SpellData* spell_data,wxWindowID id, co
 	sizerCanvas->Add(canvas,1,wxEXPAND | wxALL,5);
 
 
-	bSizer5->Add(sizerCanvas,1,wxALL|wxEXPAND,5);
+	bSizer4->Add(sizerCanvas,1,wxALL|wxEXPAND,5);
 
 	txtGamma = new wxStaticText(this,wxID_ANY,wxT("Set gamma correction:"),wxDefaultPosition,wxDefaultSize,0);
 	txtGamma->Wrap(-1);
-	bSizer5->Add(txtGamma,0,wxLEFT|wxTOP,5);
+	bSizer4->Add(txtGamma,0,wxLEFT|wxTOP,5);
 
 	slideGamma = new wxSlider(this,wxID_SLIDE_GAMMA,1300,500,2000,wxDefaultPosition,wxDefaultSize,wxSL_HORIZONTAL);
-	bSizer5->Add(slideGamma,0,wxEXPAND|wxLEFT|wxRIGHT|wxTOP,1);
+	bSizer4->Add(slideGamma,0,wxEXPAND|wxLEFT|wxRIGHT|wxTOP,1);
 
 	cbZoom = new wxCheckBox(this,wxID_CB_ZOOM,wxT("Zoom 2x"),wxDefaultPosition,wxDefaultSize,0);
-	bSizer5->Add(cbZoom,0,wxALL,5);
-
-
-	bSizer4->Add(bSizer5,1,wxEXPAND,5);
+	bSizer4->Add(cbZoom,0,wxALL,5);
 
 
 	bSizer1->Add(bSizer4,1,wxEXPAND,5);
@@ -171,20 +166,17 @@ FormSprite::FormSprite( wxWindow* parent,SpellData* spell_data,wxWindowID id, co
 	bSizer3->Add(m_staticText2,0,wxLEFT|wxTOP,5);
 
 	lboxNeighbor = new wxListBox(this,wxID_LBOX_NEIGHBOR,wxDefaultPosition,wxSize(120,-1),0,NULL,0|wxVSCROLL);
-	bSizer3->Add(lboxNeighbor,1,wxBOTTOM|wxLEFT|wxRIGHT,5);
-
-	m_staticline1 = new wxStaticLine(this,wxID_ANY,wxDefaultPosition,wxDefaultSize,wxLI_HORIZONTAL);
-	bSizer3->Add(m_staticline1,0,wxEXPAND | wxALL,5);
+	bSizer3->Add(lboxNeighbor,1,wxBOTTOM,5);
 
 	m_staticText3 = new wxStaticText(this,wxID_ANY,wxT("Side:"),wxDefaultPosition,wxDefaultSize,0);
 	m_staticText3->Wrap(-1);
-	bSizer3->Add(m_staticText3,0,wxLEFT,5);
+	bSizer3->Add(m_staticText3,0,0,5);
 
 	wxString chbSideChoices[] ={wxT("Q1"), wxT("Q2"), wxT("Q3"), wxT("Q4")};
 	int chbSideNChoices = sizeof(chbSideChoices) / sizeof(wxString);
 	chbSide = new wxChoice(this,wxID_CH_SIDE,wxDefaultPosition,wxDefaultSize,chbSideNChoices,chbSideChoices,0);
 	chbSide->SetSelection(0);
-	bSizer3->Add(chbSide,0,wxBOTTOM|wxEXPAND|wxLEFT|wxRIGHT,5);
+	bSizer3->Add(chbSide,0,wxBOTTOM|wxEXPAND,5);
 
 
 	bSizer1->Add(bSizer3,0,wxEXPAND,5);
@@ -421,6 +413,9 @@ FormSprite::FormSprite( wxWindow* parent,SpellData* spell_data,wxWindowID id, co
 	cbToolGlyph->SetValue(true);
 	sbSizer6->Add(cbToolGlyph,0,wxALL,5);
 
+	treeCtrlObjects = new wxTreeCtrl(sbSizer6->GetStaticBox(),wxID_TREE_OBJECTS,wxDefaultPosition,wxDefaultSize,wxTR_DEFAULT_STYLE|wxALWAYS_SHOW_SB|wxVSCROLL);
+	sbSizer6->Add(treeCtrlObjects,1,wxALL|wxEXPAND,5);
+
 
 	bSizer10->Add(sbSizer6,1,wxEXPAND|wxLEFT|wxTOP,5);
 
@@ -566,17 +561,154 @@ FormSprite::FormSprite( wxWindow* parent,SpellData* spell_data,wxWindowID id, co
 	slideGamma->SetValue(1500);
 
 	// stops flickering
-	canvas->SetDoubleBuffered(1);
+	canvas->SetDoubleBuffered(true);
 
 	// select terrain
 	SelectTerrain();
 	wxCommandEvent ev(wxEVT_COMMAND_SLIDER_UPDATED,wxID_SLIDE_GAMMA);
 	OnChangeGamma(ev);
 
+	// load icons for tree
+	imlist = new wxImageList(16,16);
+	wxBitmap img;
+	img.LoadFile("IDI_MULTI",wxBITMAP_TYPE_BMP_RESOURCE);
+	if(img.IsOk())
+		imlist->Add(img);
+	img.LoadFile("IDI_SINGLE",wxBITMAP_TYPE_BMP_RESOURCE);
+	if(img.IsOk())
+		imlist->Add(img);
+	img.LoadFile("IDI_FOLDER",wxBITMAP_TYPE_BMP_RESOURCE);
+	if(img.IsOk())
+		imlist->Add(img);
+	img.LoadFile("IDI_FOLDER_OPEN",wxBITMAP_TYPE_BMP_RESOURCE);
+	if(img.IsOk())
+		imlist->Add(img);
+	treeCtrlObjects->SetImageList(imlist);
+
+	FillToolsTree();
+
 }
 FormSprite::~FormSprite()
 {
+	delete imlist;
 }
+
+
+
+
+
+// build toolset title from name and description
+std::string FormSprite::MakeToolsetTitle(std::string name,std::string desc)
+{
+	if(name.compare(desc) == 0 || desc.empty())
+		return(name);
+	return(name + ": " + desc);
+}
+// build toolset title from toolset id
+std::string FormSprite::GetToolsetTitle(int toolset_class_id)
+{
+	auto terr = FindTerrain();
+	return(MakeToolsetTitle(terr->GetToolSetName(toolset_class_id),terr->GetToolSetTitle(toolset_class_id)));
+}
+// rename toolset from single string "name: title"
+void FormSprite::RenameToolset(int toolset_class_id,std::string title)
+{
+	regex secexp("([^:]*)[:\\s]*(.*)");
+	smatch match;
+	std::regex_search(title,match,secexp);
+	if(match.size() != 3)
+	{
+		// failed
+		return;
+	}
+	std::string name = match[1];
+	title = match[2];
+	if(title.empty())
+		title = name;
+	auto terr = FindTerrain();
+	terr->SetToolSetName(toolset_class_id,name);
+	terr->SetToolSetTitle(toolset_class_id,title);
+}
+
+
+
+// build recoursive list of tree elements with names, level and expand states
+void FormSprite::treeCtrlRecStates(wxTreeCtrl* ctrl,wxTreeItemId& id,std::vector<TreeCtrlState>& list,int level)
+{
+	if(!id.IsOk())
+		return;
+	wxTreeItemIdValue cookie;
+	auto node_id = ctrl->GetFirstChild(id,cookie);
+	while(node_id.IsOk())
+	{
+		TreeCtrlState state ={level, ctrl->IsExpanded(node_id), ctrl->IsSelected(node_id), ctrl->GetItemText(node_id).ToStdString()};
+		list.push_back(state);
+		treeCtrlRecStates(ctrl,node_id,list,level+1);
+		node_id = ctrl->GetNextChild(id,cookie);
+	}
+}
+
+// try set expand state based on recoursive list of previous states
+void FormSprite::treeCtrlSetStates(wxTreeCtrl* ctrl,wxTreeItemId& id,std::vector<TreeCtrlState>& list,int level)
+{
+	if(!id.IsOk())
+		return;
+	wxTreeItemIdValue cookie;
+	auto node_id = ctrl->GetFirstChild(id,cookie);
+	while(node_id.IsOk())
+	{
+		for(auto& item: list)
+			if(item.state && item.level == level && item.name.compare(ctrl->GetItemText(node_id).ToStdString()) == 0)
+			{
+				ctrl->Expand(node_id);
+				if(item.sel)
+					ctrl->SelectItem(node_id);
+				break;
+			}
+		treeCtrlSetStates(ctrl,node_id,list,level+1);
+		node_id = ctrl->GetNextChild(id,cookie);
+	}
+}
+
+// fills tool class menu
+void FormSprite::FillToolsTree()
+{
+	// get this terrain
+	Terrain* terr = FindTerrain();
+
+	// remember last expand states
+	std::vector<TreeCtrlState> list;
+	wxTreeItemId root_id = treeCtrlObjects->GetRootItem();
+	treeCtrlRecStates(treeCtrlObjects,root_id,list,0);
+
+	treeCtrlObjects->DeleteAllItems();
+	root_id = treeCtrlObjects->AddRoot("Toolsets",Icons::FOLDER,Icons::FOLDER_OPEN);
+	for(int k = 0; k < terr->GetToolsCount(); k++)
+	{
+		wxTreeItemId cid;
+		cid = treeCtrlObjects->AppendItem(root_id,GetToolsetTitle(k),Icons::FOLDER,Icons::FOLDER_OPEN,(wxTreeItemData*)new TreeNode(k));
+
+		for(int tid = 0; tid < terr->GetToolSetItemsCount(k); tid++)
+		{
+			auto name = terr->GetToolSetItem(k,tid);
+			auto group_id = treeCtrlObjects->AppendItem(cid,name,Icons::MULTI,-1,(wxTreeItemData*)new TreeNode(k,tid + 1));
+
+			SpellTool tool;
+			tool.Set(k,tid);
+			auto sprite_list = terr->GetToolSprites(tool);
+			for(auto &spr: sprite_list)
+				treeCtrlObjects->AppendItem(group_id,spr->name,Icons::SINGLE,-1,(wxTreeItemData*)new TreeNode(spr));
+		}
+	}
+	// try restore last expand states
+	treeCtrlObjects->Expand(root_id);
+	treeCtrlSetStates(treeCtrlObjects,root_id,list,0);
+}
+
+
+
+
+
 
 // set initial sprite
 void FormSprite::SetSprite(Terrain *terr, Sprite *spr)

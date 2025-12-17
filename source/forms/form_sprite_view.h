@@ -29,6 +29,7 @@
 #include <wx/slider.h>
 #include <wx/checkbox.h>
 #include <wx/textctrl.h>
+#include <wx/treectrl.h>
 
 #include "spellcross.h"
 #include "sprites.h"
@@ -182,6 +183,7 @@ class FormSprite : public wxFrame
 			wxID_CHB_TOOL_CLASS,
 			wxID_CHB_TOOL_OBJ_GROUP,
 			wxID_CB_TOOL_GLYPH,
+			wxID_TREE_OBJECTS,
 		};
 
 		wxMenuBar* mMenu;
@@ -198,7 +200,6 @@ class FormSprite : public wxFrame
 		wxCheckBox* cbZoom;
 		wxStaticText* m_staticText2;
 		wxListBox* lboxNeighbor;
-		wxStaticLine* m_staticline1;
 		wxStaticText* m_staticText3;
 		wxChoice* chbSide;
 		wxCheckBox* cbIsGrass;
@@ -255,11 +256,47 @@ class FormSprite : public wxFrame
 		wxStaticText* m_staticText14;
 		wxChoice* chbToolObjGroup;
 		wxCheckBox* cbToolGlyph;
+		wxTreeCtrl* treeCtrlObjects;
 		wxStatusBar* statBar;
+
+
+		class TreeNode : wxTreeItemData {
+		public:
+			Sprite* m_spr = NULL;
+			int m_class_id = 0;
+			int m_tool_id = 0;
+			TreeNode(Sprite* spr) { m_spr = spr; };
+			TreeNode(int class_id) { m_class_id = class_id; };
+			TreeNode(int class_id,int tool_id) { m_class_id = class_id; m_tool_id = tool_id; };
+		};
+
+		wxImageList* imlist = NULL;
+		enum Icons {
+			MULTI = 0,
+			SINGLE,
+			FOLDER,
+			FOLDER_OPEN
+		};
+
+		class TreeCtrlState {
+		public:
+			int level;
+			bool state;
+			bool sel;
+			std::string name;
+		};
+
+		std::string MakeToolsetTitle(std::string name,std::string desc);
+		std::string GetToolsetTitle(int toolset_class_id);
+		void treeCtrlRecStates(wxTreeCtrl* ctrl,wxTreeItemId& id,std::vector<TreeCtrlState>& list,int level);
+		void treeCtrlSetStates(wxTreeCtrl* ctrl,wxTreeItemId& id,std::vector<TreeCtrlState>& list,int level);
+		void RenameToolset(int toolset_class_id,std::string title);
+		void FillToolsTree();
+
 
 	public:
 
-		FormSprite( wxWindow* parent, SpellData *spell_data, wxWindowID id = wxID_ANY, const wxString& title = wxT("Sprite viewer"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 1250,600 ), long style = wxDEFAULT_FRAME_STYLE|wxTAB_TRAVERSAL|wxFRAME_FLOAT_ON_PARENT);
+		FormSprite( wxWindow* parent, SpellData *spell_data, wxWindowID id = wxID_ANY, const wxString& title = wxT("Sprite viewer"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 1250,700 ), long style = wxDEFAULT_FRAME_STYLE|wxTAB_TRAVERSAL|wxFRAME_FLOAT_ON_PARENT);
 		~FormSprite();
 		
 		void SetSprite(Terrain* terr,Sprite* spr);
