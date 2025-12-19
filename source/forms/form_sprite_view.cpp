@@ -12,6 +12,7 @@
 
 #include <wx/filedlg.h>
 
+
 #include <filesystem>
 #include <regex>
 
@@ -111,10 +112,10 @@ FormSprite::FormSprite( wxWindow* parent,SpellData* spell_data,wxWindowID id, co
 	txtSpriteList->Wrap(-1);
 	bSizer2->Add(txtSpriteList,0,wxLEFT|wxTOP,5);
 
-	lboxSprites = new wxListBox(this,wxID_LBOX_SPRITES,wxDefaultPosition,wxSize(120,-1),0,NULL,0|wxALWAYS_SHOW_SB|wxVSCROLL);
-	bSizer2->Add(lboxSprites,1,wxBOTTOM|wxLEFT,5);
-
-
+	lboxSprites = new wxListCtrl(this,wxID_LBOX_SPRITES,wxDefaultPosition,wxSize(120,-1),wxALWAYS_SHOW_SB|wxVSCROLL|wxLC_REPORT|wxLC_NO_HEADER|wxLC_SINGLE_SEL);
+	//lboxSprites = new wxListCtrl(this,wxID_LBOX_SPRITES,wxDefaultPosition,wxSize(120,-1),wxALWAYS_SHOW_SB|wxVSCROLL|wxLC_SINGLE_SEL|wxLC_SMALL_ICON);
+	bSizer2->Add(lboxSprites,1,wxBOTTOM|wxEXPAND|wxLEFT,5);
+	
 	bSizer1->Add(bSizer2,0,wxEXPAND|wxRIGHT,5);
 
 	wxBoxSizer* bSizer241;
@@ -488,8 +489,8 @@ FormSprite::FormSprite( wxWindow* parent,SpellData* spell_data,wxWindowID id, co
 	Bind(wxEVT_MENU,&FormSprite::OnSelectEdgeBtn,this,wxID_BTN_SEL_Q4);	
 
 
-	Bind(wxEVT_COMMAND_LISTBOX_SELECTED,&FormSprite::OnSelectSprite,this,wxID_LBOX_SPRITES);
-	Bind(wxEVT_COMMAND_LISTBOX_SELECTED,&FormSprite::OnSelectSprite,this,wxID_LBOX_ALT);
+	Bind(wxEVT_COMMAND_LIST_ITEM_SELECTED,&FormSprite::OnSelectSpriteAlt,this,wxID_LBOX_SPRITES);
+	Bind(wxEVT_COMMAND_LISTBOX_SELECTED,&FormSprite::OnSelectSpriteAlt,this,wxID_LBOX_ALT);
 	Bind(wxEVT_COMMAND_LISTBOX_SELECTED,&FormSprite::OnSelectNeighbor,this,wxID_LBOX_NEIGHBOR);
 	Bind(wxEVT_COMMAND_SLIDER_UPDATED,&FormSprite::OnChangeGamma,this,wxID_SLIDE_GAMMA);
 	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormSprite::OnChangeZoom,this,wxID_CB_ZOOM);
@@ -585,6 +586,15 @@ FormSprite::FormSprite( wxWindow* parent,SpellData* spell_data,wxWindowID id, co
 		imlist->Add(img);
 	treeCtrlObjects->SetImageList(imlist);
 
+	//lboxSprites->SetImageList(imlist,wxIMAGE_LIST_SMALL);
+
+
+	Bind(wxEVT_LIST_BEGIN_DRAG,&FormSprite::OnDragSprite,this,wxID_LBOX_SPRITES);
+	//Bind(wxEVT_TREE_END_DRAG,&FormSprite::OnDragSpriteEnd,this,wxID_TREE_OBJECTS);
+	
+	SpriteDropTarget* drop_target = new SpriteDropTarget(this);
+	treeCtrlObjects->SetDropTarget((wxDropTarget*)drop_target);
+
 	FillToolsTree();
 
 }
@@ -594,7 +604,54 @@ FormSprite::~FormSprite()
 }
 
 
+// begin sprite drag from sprite list
+void FormSprite::OnDragSprite(wxListEvent& event)
+{
+	auto item = event.GetItem();	
+	statBar->SetStatusText("drag: " + item.GetText(),0);
+	//event.Allow();
+	
+	wxTextDataObject tdo(item.GetText());
+	wxDropSource tds(tdo, this);
+	tds.DoDragDrop(wxDrag_CopyOnly);
+}
 
+bool FormSprite::SpriteDropTarget::OnDropText(wxCoord x,wxCoord y,const wxString& data)
+{
+	m_owner->statBar->SetStatusText("end drag: " + data,0);
+
+	auto item_id = m_owner->treeCtrlObjects->HitTest(wxPoint(x,y));
+	if(!item_id.IsOk())
+		return false;
+	auto item_data = (TreeNode*)m_owner->treeCtrlObjects->GetItemData(item_id);
+	if(!item_data)
+		return false;
+	if(item_data->m_tool_id < 0)
+		return false;
+	
+	auto terr = m_owner->FindTerrain();
+	SpellTool tool;
+	tool.Set(item_data->m_class_id,item_data->m_tool_id);
+	auto list = terr->GetToolSprites(tool);
+	for(auto &spr: list)
+		if(spr->name.compare(data) == 0)
+			return false;
+	
+	auto *sprite = terr->GetSprite(data);
+	if(!sprite)
+		return false;
+	sprite->SetToolClass(item_data->m_class_id + 1);
+	sprite->SetToolClassGroup(item_data->m_tool_id + 1);
+
+	m_owner->FillToolsTree();
+
+	return true;
+}
+
+void FormSprite::OnDragSpriteEnd(wxTreeEvent& evt)
+{
+	statBar->SetStatusText("end drag: ",0);
+}
 
 
 // build toolset title from name and description
@@ -691,7 +748,7 @@ void FormSprite::FillToolsTree()
 		for(int tid = 0; tid < terr->GetToolSetItemsCount(k); tid++)
 		{
 			auto name = terr->GetToolSetItem(k,tid);
-			auto group_id = treeCtrlObjects->AppendItem(cid,name,Icons::MULTI,-1,(wxTreeItemData*)new TreeNode(k,tid + 1));
+			auto group_id = treeCtrlObjects->AppendItem(cid,name,Icons::MULTI,-1,(wxTreeItemData*)new TreeNode(k,tid));
 
 			SpellTool tool;
 			tool.Set(k,tid);
@@ -729,11 +786,15 @@ void FormSprite::SetSprite(Terrain *terr, Sprite *spr)
 		return;
 
 	// select sprite in list
-	auto spr_id = lboxSprites->FindString(spr->name);
+	auto spr_id = lboxSprites->FindItem(-1,spr->name);
 	if(spr_id >= 0)
-		lboxSprites->Select(spr_id);	
+	{
+		lboxSprites->SetItemState(spr_id,wxLIST_STATE_SELECTED,wxLIST_STATE_SELECTED);
+		lboxSprites->EnsureVisible(spr_id);
+	}
+
 	wxCommandEvent evt;
-	OnSelectSprite(evt);
+	OnSelectSpriteAlt(evt);
 	
 	// sprite was set externally
 	m_was_set = true;
@@ -1302,7 +1363,7 @@ void FormSprite::OnCanvasRepaint(wxPaintEvent& event)
 
 
 // select sprite
-void FormSprite::OnSelectSprite(wxCommandEvent& event)
+void FormSprite::OnSelectSpriteAlt(wxCommandEvent& event)
 {
 	sprite_id = -1;
 	int is_alt = event.GetId() == wxID_LBOX_ALT;
@@ -1317,10 +1378,11 @@ void FormSprite::OnSelectSprite(wxCommandEvent& event)
 	}
 	else
 	{
-		// main list selected
-		if(lboxSprites->GetCount() && lboxSprites->GetSelection() >= 0)
-		{
-			sprite_id = lboxSprites->GetSelection();
+		// main list selected		
+		auto id = lboxSprites->GetNextItem(-1,wxLIST_NEXT_ALL,wxLIST_STATE_SELECTED);
+		if(id >= 0)
+		{			
+			sprite_id = id;
 		}
 	}	
 	if(sprite_id >= 0)
@@ -1340,17 +1402,17 @@ void FormSprite::OnSelectSprite(wxCommandEvent& event)
 // select sprite by shortcuts
 void FormSprite::OnSelectSpriteBtn(wxCommandEvent& event)
 {
+	if(!lboxSprites->GetItemCount())
+		return;
+	auto id = lboxSprites->GetNextItem(-1,wxLIST_NEXT_ALL,wxLIST_STATE_SELECTED);
+	if(id < 0)
+		return;
 	if(event.GetId() == wxID_BTN_NEXT)
-	{
-		if(lboxSprites->GetSelection() < lboxSprites->GetCount()-1)
-			lboxSprites->Select(lboxSprites->GetSelection()+1);
-	}
+		id = min(id + 1,lboxSprites->GetItemCount()-1);
 	else if(event.GetId() == wxID_BTN_PREV)
-	{
-		if(lboxSprites->GetSelection() > 0)
-			lboxSprites->Select(lboxSprites->GetSelection()-1);
-	}
-	OnSelectSprite(event);
+		id = max(id - 1,0);
+	lboxSprites->SetItemState(id,wxLIST_STATE_SELECTED,wxLIST_STATE_SELECTED);
+	OnSelectSpriteAlt(event);
 }
 
 // select neighbor sprite
@@ -1377,8 +1439,8 @@ Terrain *FormSprite::FindTerrain()
 void FormSprite::SelectTerrain()
 {
 	// loose old sprites list
-	lboxSprites->Clear();
-
+	lboxSprites->ClearAll();
+	
 	// found selection
 	Terrain* terr = FindTerrain();
 	if(!terr)
@@ -1388,15 +1450,22 @@ void FormSprite::SelectTerrain()
 	SetTitle(wxString::Format("Sprite viewer (%s)",terr->name));
 
 	// for each sprite:
+	//lboxSprites->report
 	lboxSprites->Freeze();
+	lboxSprites->AppendColumn("list",wxLIST_FORMAT_LEFT,wxLIST_AUTOSIZE);
 	for(int sid = 0;sid < terr->GetSpriteCount();sid++)
 	{
 		Sprite* spr = terr->GetSprite(sid);
-		lboxSprites->Append(spr->name);
+		/*wxListItem item;
+		item.SetText(spr->name);*/
+		lboxSprites->InsertItem(sid,spr->name);
 	}
+	lboxSprites->SetColumnWidth(0,wxLIST_AUTOSIZE_USEHEADER);
 
 	// select default
-	lboxSprites->Select(0);	
+	//lboxSprites->column
+	if(lboxSprites->GetItemCount())
+		lboxSprites->SetItemState(0,wxLIST_STATE_SELECTED,wxLIST_STATE_SELECTED);
 	lboxSprites->Thaw();
 	sprite_id = 0;
 }

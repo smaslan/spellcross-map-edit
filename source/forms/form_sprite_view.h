@@ -30,6 +30,8 @@
 #include <wx/checkbox.h>
 #include <wx/textctrl.h>
 #include <wx/treectrl.h>
+#include <wx/listctrl.h>
+#include <wx/dnd.h>
 
 #include "spellcross.h"
 #include "sprites.h"
@@ -54,7 +56,7 @@ class FormSprite : public wxFrame
 		void OnCloseClick(wxCommandEvent& event);
 		void OnSelectClick(wxCommandEvent& event);
 		void OnTerrainChange(wxCommandEvent& event);
-		void OnSelectSprite(wxCommandEvent& event);
+		void OnSelectSpriteAlt(wxCommandEvent& event);
 		void OnSelectSpriteBtn(wxCommandEvent& event);
 		void OnSelectNeighbor(wxCommandEvent& event);
 		void OnCanvasRepaint(wxPaintEvent& event);
@@ -191,7 +193,7 @@ class FormSprite : public wxFrame
 		wxMenu* mnuTerr;
 		wxMenu* mnuEdit;
 		wxStaticText* txtSpriteList;
-		wxListBox* lboxSprites;
+		wxListCtrl* lboxSprites;
 		wxStaticText* txtAltList;
 		wxListBox* lboxAlt;
 		wxPanel* canvas;
@@ -263,8 +265,8 @@ class FormSprite : public wxFrame
 		class TreeNode : wxTreeItemData {
 		public:
 			Sprite* m_spr = NULL;
-			int m_class_id = 0;
-			int m_tool_id = 0;
+			int m_class_id = -1;
+			int m_tool_id = -1;
 			TreeNode(Sprite* spr) { m_spr = spr; };
 			TreeNode(int class_id) { m_class_id = class_id; };
 			TreeNode(int class_id,int tool_id) { m_class_id = class_id; m_tool_id = tool_id; };
@@ -292,7 +294,17 @@ class FormSprite : public wxFrame
 		void treeCtrlSetStates(wxTreeCtrl* ctrl,wxTreeItemId& id,std::vector<TreeCtrlState>& list,int level);
 		void RenameToolset(int toolset_class_id,std::string title);
 		void FillToolsTree();
+		
+		void OnDragSprite(wxListEvent& event);
+		void OnDragSpriteEnd(wxTreeEvent& evt);
 
+		class SpriteDropTarget : public wxTextDropTarget {
+		public:
+			FormSprite* m_owner;
+			SpriteDropTarget(FormSprite* owner) { m_owner = owner; };
+			bool OnDropText(wxCoord x,wxCoord y,const wxString& data);
+		};
+		
 
 	public:
 
