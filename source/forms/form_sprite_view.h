@@ -33,10 +33,24 @@
 #include <wx/listctrl.h>
 #include <wx/dnd.h>
 
+#include <wx_other.h>
 #include "spellcross.h"
 #include "sprites.h"
 
 ///////////////////////////////////////////////////////////////////////////
+
+
+/*class wxListCtrlSprite : public wxListCtrl{
+	Terrain *m_terr = NULL;
+public:
+	wxListCtrlSprite(wxWindow* parent,wxWindowID id,const wxPoint& pos=wxDefaultPosition,const wxSize& size=wxDefaultSize,long style=wxLC_ICON,const wxValidator& validator=wxDefaultValidator,const wxString& name=wxListCtrlNameStr) 
+		: wxListCtrl(parent, id, pos, size, style, validator, name) {};
+	//virtual ~wxListCtrlSprite() = default;
+	wxString OnGetItemText(long item,long column) const;
+	int OnGetItemImage(long item) const;
+
+	void SetTerrain(Terrain *terr) {m_terr = terr;};
+};*/
 
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -85,11 +99,8 @@ class FormSprite : public wxFrame
 		//void SetSpecClasses();
 		Terrain* FindTerrain();
 
-		void FillToolsClasses();
-		void FillToolItemsList();
-		void UpdateToolClassesView();
-		void OnToolClassChange(wxCommandEvent& event);
-		void OnToolClassItemChange(wxCommandEvent& event);
+		//void OnToolClassChange(wxCommandEvent& event);
+		//void OnToolClassItemChange(wxCommandEvent& event);
 
 		void FillAltList();
 
@@ -133,7 +144,10 @@ class FormSprite : public wxFrame
 			wxID_EDIT_TILE_CONTEXT_AUTO,
 			wxID_BTN_AUTO_SHADING,
 			wxID_BTN_SAVE_CONTEXT,
-			wxID_LBOX_SPRITES,
+			wxID_MM_NEW_TOOLSET,
+			wxID_MM_NEW_TOOL,
+			wxID_MM_REMOVE_TOOL,
+			wxID_MM_EDIT_TOOLSET,
 			wxID_TXT_ALT,
 			wxID_LBOX_ALT,
 			wxID_SLIDE_GAMMA,
@@ -182,18 +196,18 @@ class FormSprite : public wxFrame
 			wxID_CB_SHADE_C3,
 			wxID_CB_SHADE_C4,
 			wxID_EDIT_MAP_TILE_FLAGS,
-			wxID_CHB_TOOL_CLASS,
-			wxID_CHB_TOOL_OBJ_GROUP,
 			wxID_CB_TOOL_GLYPH,
 			wxID_TREE_OBJECTS,
+
+			wxID_LBOX_SPRITES
 		};
 
 		wxMenuBar* mMenu;
 		wxMenu* mnuFile;
 		wxMenu* mnuTerr;
 		wxMenu* mnuEdit;
+		wxMenu* mnuTools;
 		wxStaticText* txtSpriteList;
-		wxListCtrl* lboxSprites;
 		wxStaticText* txtAltList;
 		wxListBox* lboxAlt;
 		wxPanel* canvas;
@@ -253,15 +267,13 @@ class FormSprite : public wxFrame
 		wxCheckBox* cbShadeC4;
 		wxStaticText* txtFlags;
 		wxTextCtrl* editMapFlags;
-		wxStaticText* m_staticText13;
-		wxChoice* chbToolClass;
-		wxStaticText* m_staticText14;
-		wxChoice* chbToolObjGroup;
 		wxCheckBox* cbToolGlyph;
 		wxTreeCtrl* treeCtrlObjects;
 		wxStatusBar* statBar;
 
+		wxListCtrlVirtual* lboxSprites;
 
+		wxTreeItemId m_drag_item;
 		class TreeNode : wxTreeItemData {
 		public:
 			Sprite* m_spr = NULL;
@@ -273,30 +285,35 @@ class FormSprite : public wxFrame
 		};
 
 		wxImageList* imlist = NULL;
-		enum Icons {
-			MULTI = 0,
-			SINGLE,
-			FOLDER,
-			FOLDER_OPEN
-		};
-
-		class TreeCtrlState {
-		public:
-			int level;
-			bool state;
-			bool sel;
-			std::string name;
-		};
+			
 
 		std::string MakeToolsetTitle(std::string name,std::string desc);
 		std::string GetToolsetTitle(int toolset_class_id);
-		void treeCtrlRecStates(wxTreeCtrl* ctrl,wxTreeItemId& id,std::vector<TreeCtrlState>& list,int level);
-		void treeCtrlSetStates(wxTreeCtrl* ctrl,wxTreeItemId& id,std::vector<TreeCtrlState>& list,int level);
 		void RenameToolset(int toolset_class_id,std::string title);
 		void FillToolsTree();
+		wxString OnGetItemText(long item);
+		int OnGetItemImage(long item);
 		
 		void OnDragSprite(wxListEvent& event);
 		void OnDragSpriteEnd(wxTreeEvent& evt);
+		void OnTreeClassBeginLabelEdit(wxTreeEvent& evt);
+		void OnTreeClassEndLabelEdit(wxTreeEvent& evt);
+		void OnTreeClassBeginDrag(wxTreeEvent& evt);
+		void OnTreeClassEndDrag(wxTreeEvent& evt);
+		void OnTreeSelectionChanged(wxTreeEvent& evt);
+		void OnRemoveToolset(wxCommandEvent& evt);
+		void OnNewToolset(wxCommandEvent& evt);
+		void OnNewTool(wxCommandEvent& evt);
+		void OnEditToolset(wxCommandEvent& evt);
+		void OnTreeClassMenu(wxTreeEvent& evt);
+		void OnTreeClassMenuClick(wxCommandEvent& evt);
+
+		enum TreeMenu{
+			MNU_REMOVE = 0,
+			MNU_NEW_TOOL,
+			MNU_NEW_TOOLSET,
+			MNU_EDIT_TOOLSET
+		};
 
 		class SpriteDropTarget : public wxTextDropTarget {
 		public:
@@ -316,5 +333,13 @@ class FormSprite : public wxFrame
 		Sprite *GetSelectedSprite();
 		bool wasSet();
 
+		public: enum Icons {
+			MULTI = 0,
+			SINGLE,
+			FOLDER,
+			FOLDER_OPEN,
+			SPR_A,
+			SPR_OBJ
+		};
 };
 

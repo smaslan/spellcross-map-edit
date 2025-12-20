@@ -29,6 +29,7 @@
   <ItemGroup>
     <ClCompile Include="forms\form_about.cpp" />
     <ClCompile Include="forms\form_anm.cpp" />
+    <ClCompile Include="forms\form_edit_toolset.cpp" />
     <ClCompile Include="forms\form_events.cpp" />
     <ClCompile Include="forms\form_flags.cpp" />
     <ClCompile Include="forms\form_gr_view.cpp" />
@@ -94,6 +95,7 @@
     <ClInclude Include="cxxmidi\track.hpp" />
     <ClInclude Include="forms\form_about.h" />
     <ClInclude Include="forms\form_anm.h" />
+    <ClInclude Include="forms\form_edit_toolset.h" />
     <ClInclude Include="forms\form_events.h" />
     <ClInclude Include="forms\form_flags.h" />
     <ClInclude Include="forms\form_gr_view.h" />
@@ -116,6 +118,7 @@
     <ClInclude Include="forms\form_video_box.h" />
     <ClInclude Include="fsu_archive.h" />
     <ClInclude Include="fs_archive.h" />
+    <ClInclude Include="wx_other.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="riff_loader.h" />
     <ClInclude Include="spell_midi.h" />

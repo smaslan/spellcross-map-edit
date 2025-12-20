@@ -19,7 +19,6 @@
 #include "spell_texts.h"
 #include "forms/form_loader.h"
 #include "forms/form_objects.h"
-#include "forms/form_tools.h"
 #include "forms/form_sprite_view.h"
 #include "forms/form_anm.h"
 #include "forms/form_pal_view.h"
@@ -104,7 +103,6 @@ private:
     void OnTimer(wxTimerEvent& event);
 
     void OnSetGamma(wxCommandEvent& event);
-    void OnViewTools(wxCommandEvent& event);
     void OnViewSprites(wxCommandEvent& event);
     void OnViewAnms(wxCommandEvent& event);
     void OnViewPnms(wxCommandEvent& event);
@@ -181,7 +179,6 @@ private:
         form_anms != NULL ||
         form_sounds != NULL ||
         form_objects != NULL ||
-        form_tools != NULL ||
         form_pal != NULL ||
         form_gres != NULL ||
         form_units != NULL ||
@@ -206,7 +203,6 @@ private:
     FormSprite* form_sprites = NULL;
     FormANM* form_anms = NULL;
     FormObjects* form_objects = NULL;
-    FormTools* form_tools = NULL;
     FormPalView* form_pal = NULL;
     FormGResView* form_gres = NULL;
     FormUnits* form_units = NULL;

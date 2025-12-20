@@ -8,6 +8,7 @@
 #include "form_objects.h"
 #include "sprites.h"
 #include "other.h"
+#include "wx_other.h"
 
 #include <filesystem>
 #include <regex>
@@ -39,7 +40,7 @@ FormObjects::FormObjects( wxWindow* parent,SpellData* spell_data,wxWindowID id, 
 	m_staticText14->Wrap(-1);
 	szrList->Add(m_staticText14,0,wxLEFT|wxTOP,5);
 
-	treeCtrlClasses = new wxTreeCtrl(this,wxID_TRC_CLASSES,wxDefaultPosition,wxDefaultSize,wxTR_DEFAULT_STYLE|wxTR_EDIT_LABELS|wxALWAYS_SHOW_SB|wxVSCROLL);
+	treeCtrlClasses = new wxTreeCtrl(this,wxID_TRC_CLASSES,wxDefaultPosition,wxDefaultSize,wxTR_DEFAULT_STYLE|wxTR_EDIT_LABELS|wxALWAYS_SHOW_SB|wxVSCROLL|wxTR_HIDE_ROOT);
 	szrList->Add(treeCtrlClasses,1,wxBOTTOM|wxEXPAND|wxLEFT|wxRIGHT,5);
 
 
@@ -380,13 +381,21 @@ void FormObjects::OnTreeClassEndDrag(wxTreeEvent& evt)
 			// target is class node		
 			auto terr = FindTerrain();
 			terr->MoveToolSet(obj->m_class_id-1,target_obj->m_class_id-1);
+			treeCtrlClasses->SelectItem(m_drag_item);
 			FillToolsClasses();
 		}
 	}
 	else if(obj->m_tool_id)
 	{
 		// moving objects group
-		
+		if(target_obj->m_class_id == obj->m_class_id)
+		{
+			// within same toolset
+			auto terr = FindTerrain();
+			terr->MoveToolSetItem(obj->m_class_id-1,obj->m_tool_id-1,target_obj->m_tool_id-1);
+			treeCtrlClasses->SelectItem(m_drag_item);
+			FillToolsClasses();
+		}
 	}
 	else
 	{
@@ -581,43 +590,7 @@ public:
 	std::string name;
 };
 
-// build recoursive list of tree elements with names, level and expand states
-void treeCtrlRecStates(wxTreeCtrl *ctrl,wxTreeItemId &id,std::vector<TreeCtrlState> &list,int level)
-{
-	if(!id.IsOk())
-		return;
-	wxTreeItemIdValue cookie;
-	auto node_id = ctrl->GetFirstChild(id,cookie);
-	while(node_id.IsOk())
-	{				
-		TreeCtrlState state = {level, ctrl->IsExpanded(node_id), ctrl->IsSelected(node_id), ctrl->GetItemText(node_id).ToStdString()};
-		list.push_back(state);
-		treeCtrlRecStates(ctrl,node_id,list,level+1);
-		node_id = ctrl->GetNextChild(id,cookie);
-	}
-}
 
-// try set expand state based on recoursive list of previous states
-void treeCtrlSetStates(wxTreeCtrl* ctrl,wxTreeItemId& id,std::vector<TreeCtrlState>& list,int level)
-{
-	if(!id.IsOk())
-		return;
-	wxTreeItemIdValue cookie;
-	auto node_id = ctrl->GetFirstChild(id,cookie);
-	while(node_id.IsOk())
-	{
-		for(auto &item: list)
-			if(item.state && item.level == level && item.name.compare(ctrl->GetItemText(node_id).ToStdString()) == 0)
-			{
-				ctrl->Expand(node_id);
-				if(item.sel)
-					ctrl->SelectItem(node_id);
-				break;
-			}
-		treeCtrlSetStates(ctrl,node_id,list,level+1);
-		node_id = ctrl->GetNextChild(id,cookie);
-	}
-}
 
 
 // fills tool class menu
@@ -627,12 +600,10 @@ void FormObjects::FillToolsClasses()
 	Terrain* terr = FindTerrain();
 	
 	// remember last expand states
-	std::vector<TreeCtrlState> list;
-	wxTreeItemId root_id = treeCtrlClasses->GetRootItem();	
-	treeCtrlRecStates(treeCtrlClasses,root_id,list,0);
+	wxTreeLister lister(treeCtrlClasses);
 
 	treeCtrlClasses->DeleteAllItems();
-	root_id = treeCtrlClasses->AddRoot("Classes",Icons::FOLDER,Icons::FOLDER_OPEN);	
+	auto root_id = treeCtrlClasses->AddRoot("Classes",Icons::FOLDER,Icons::FOLDER_OPEN);	
 	for(int k = 0; k <= terr->GetToolsCount(); k++)
 	{
 		wxTreeItemId cid;
@@ -662,8 +633,7 @@ void FormObjects::FillToolsClasses()
 		}
 	}
 	// try restore last expand states
-	treeCtrlClasses->Expand(root_id);
-	treeCtrlSetStates(treeCtrlClasses,root_id,list,0);
+	lister.treeCtrlSetStates(treeCtrlClasses);
 }
 
 

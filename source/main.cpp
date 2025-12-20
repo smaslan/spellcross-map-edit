@@ -140,7 +140,6 @@ MainFrame::MainFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY
     form_sprites = NULL;
     form_anms = NULL;
     form_objects = NULL;
-    form_tools = NULL;
     form_pal = NULL;
     form_gres = NULL;
     form_units = NULL;
@@ -243,14 +242,14 @@ MainFrame::MainFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY
     menuTools->Append(ID_ViewAnms,"Animations (ANM) viewer","",wxITEM_NORMAL);
     menuTools->Append(ID_ViewPnms,"Animations (PNM) viewer","",wxITEM_NORMAL);
     menuTools->Append(ID_SoundsViewer,"Sounds viewer","",wxITEM_NORMAL);
-    menuTools->Append(ID_ViewObjects,"Objects editor","",wxITEM_NORMAL);
-    menuTools->Append(ID_ViewTools, "Tools editor", "", wxITEM_NORMAL);
     menuTools->Append(ID_ViewPal,"Palette viewer","",wxITEM_NORMAL);
     menuTools->Append(ID_ViewGRes,"Graphics viewer","",wxITEM_NORMAL);
     menuTools->Append(ID_EditUnit,"Units viewer/editor\tCtrl+U","",wxITEM_NORMAL);
     menuTools->Append(ID_EditEvent,"Event viewer/editor\tCtrl+E","",wxITEM_NORMAL);
     menuTools->Append(ID_ViewVideo,"Video viewer","",wxITEM_NORMAL);
     menuTools->Append(ID_ViewMIDI,"MIDI player","",wxITEM_NORMAL);
+    menuTools->Append(wxID_ANY,"","",wxITEM_SEPARATOR);
+    menuTools->Append(ID_ViewObjects,"Objects editor","",wxITEM_NORMAL);
     menuTools->Append(ID_EditTileFlags,"Edit tile flags\tCtrl+F","",wxITEM_NORMAL);
     menuTools->Append(wxID_ANY,"","",wxITEM_SEPARATOR);
     menuTools->Append(ID_ViewMiniMap,"View mini-map","",wxITEM_NORMAL);
@@ -360,7 +359,6 @@ MainFrame::MainFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY
     Bind(wxEVT_MENU,&MainFrame::OnViewPnms,this,ID_ViewPnms);
     Bind(wxEVT_MENU,&MainFrame::OnViewSounds,this,ID_SoundsViewer);
     Bind(wxEVT_MENU,&MainFrame::OnViewObjects,this,ID_ViewObjects);
-    Bind(wxEVT_MENU,&MainFrame::OnViewTools, this, ID_ViewTools);
     Bind(wxEVT_MENU,&MainFrame::OnViewPal,this,ID_ViewPal);
     Bind(wxEVT_MENU,&MainFrame::OnViewGrRes,this,ID_ViewGRes);
     Bind(wxEVT_MENU,&MainFrame::OnEditUnit,this,ID_EditUnit);
@@ -443,11 +441,6 @@ void MainFrame::OnClose(wxCloseEvent& ev)
     if(ev.GetId() == ID_GAMMA_WIN)
     {
         form_gamma->Destroy();
-    }
-    else if (ev.GetId() == ID_TOOLS_WIN)
-    {
-        form_tools->Destroy();
-        LoadToolsetRibbon();
     }
     else if (ev.GetId() == ID_OBJECTS_WIN)
     {
@@ -1119,17 +1112,6 @@ void MainFrame::OnUpdateTileContextMaps(wxCommandEvent& event)
     spell_data->BuildSpriteContextOfMaps(path, "T11", bind(&MainFrame::StatusStringCallback,this,placeholders::_1));
 }
 
-// open tools editor
-void MainFrame::OnViewTools(wxCommandEvent& event)
-{
-    if(!FindWindowById(ID_TOOLS_WIN))
-    {
-        form_tools = new FormTools(this, spell_data, ID_TOOLS_WIN);
-        //form_tools->Connect(wxID_ANY, wxEVT_DESTROY, (wxObjectEventFunction)&MainFrame::OnViewToolsClose);
-        form_tools->SetMap(spell_map);
-        form_tools->Show();
-    }
-}
 
 // open objects viewer
 void MainFrame::OnViewObjects(wxCommandEvent& event)

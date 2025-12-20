@@ -6,6 +6,7 @@
 ///////////////////////////////////////////////////////////////////////////
 
 #include "form_sprite_view.h"
+#include "form_edit_toolset.h"
 #include "spellcross.h"
 #include "sprites.h"
 #include "other.h"
@@ -100,23 +101,39 @@ FormSprite::FormSprite( wxWindow* parent,SpellData* spell_data,wxWindowID id, co
 
 	mMenu->Append(mnuEdit,wxT("Edit"));
 
+	mnuTools = new wxMenu();
+	wxMenuItem* mmNewToolset;
+	mmNewToolset = new wxMenuItem(mnuTools,wxID_MM_NEW_TOOLSET,wxString(wxT("New Toolset")) + wxT('\t') + wxT("Ctrl+N"),wxEmptyString,wxITEM_NORMAL);
+	mnuTools->Append(mmNewToolset);
+
+	wxMenuItem* mmNewTool;
+	mmNewTool = new wxMenuItem(mnuTools,wxID_MM_NEW_TOOL,wxString(wxT("New Tool")) + wxT('\t') + wxT("Ctrl+T"),wxEmptyString,wxITEM_NORMAL);
+	mnuTools->Append(mmNewTool);
+
+	wxMenuItem* mmRemoveTool;
+	mmRemoveTool = new wxMenuItem(mnuTools,wxID_MM_REMOVE_TOOL,wxString(wxT("Remove Tool(set)")) + wxT('\t') + wxT("Delete"),wxEmptyString,wxITEM_NORMAL);
+	mnuTools->Append(mmRemoveTool);
+
+	wxMenuItem* mmEditToolset;
+	mmEditToolset = new wxMenuItem(mnuTools,wxID_MM_EDIT_TOOLSET,wxString(wxT("Edit Toolset")) + wxT('\t') + wxT("Ctrl+E"),wxEmptyString,wxITEM_NORMAL);
+	mnuTools->Append(mmEditToolset);
+
+	mMenu->Append(mnuTools,wxT("Tools"));
+
 	this->SetMenuBar(mMenu);
 
 	wxBoxSizer* bSizer1;
 	bSizer1 = new wxBoxSizer(wxHORIZONTAL);
 
-	wxBoxSizer* bSizer2;
-	bSizer2 = new wxBoxSizer(wxVERTICAL);
+	wxBoxSizer* sizerSpriteList;
+	sizerSpriteList = new wxBoxSizer(wxVERTICAL);
 
 	txtSpriteList = new wxStaticText(this,wxID_ANY,wxT("Sprite list:"),wxDefaultPosition,wxDefaultSize,0);
 	txtSpriteList->Wrap(-1);
-	bSizer2->Add(txtSpriteList,0,wxLEFT|wxTOP,5);
+	sizerSpriteList->Add(txtSpriteList,0,wxLEFT|wxTOP,5);
 
-	lboxSprites = new wxListCtrl(this,wxID_LBOX_SPRITES,wxDefaultPosition,wxSize(120,-1),wxALWAYS_SHOW_SB|wxVSCROLL|wxLC_REPORT|wxLC_NO_HEADER|wxLC_SINGLE_SEL);
-	//lboxSprites = new wxListCtrl(this,wxID_LBOX_SPRITES,wxDefaultPosition,wxSize(120,-1),wxALWAYS_SHOW_SB|wxVSCROLL|wxLC_SINGLE_SEL|wxLC_SMALL_ICON);
-	bSizer2->Add(lboxSprites,1,wxBOTTOM|wxEXPAND|wxLEFT,5);
-	
-	bSizer1->Add(bSizer2,0,wxEXPAND|wxRIGHT,5);
+
+	bSizer1->Add(sizerSpriteList,0,wxEXPAND|wxRIGHT,5);
 
 	wxBoxSizer* bSizer241;
 	bSizer241 = new wxBoxSizer(wxVERTICAL);
@@ -392,29 +409,11 @@ FormSprite::FormSprite( wxWindow* parent,SpellData* spell_data,wxWindowID id, co
 	wxStaticBoxSizer* sbSizer6;
 	sbSizer6 = new wxStaticBoxSizer(new wxStaticBox(this,wxID_ANY,wxT("Object/class/tools sorting:")),wxVERTICAL);
 
-	m_staticText13 = new wxStaticText(sbSizer6->GetStaticBox(),wxID_ANY,wxT("Objects class:"),wxDefaultPosition,wxDefaultSize,0);
-	m_staticText13->Wrap(-1);
-	sbSizer6->Add(m_staticText13,0,wxLEFT|wxTOP,5);
-
-	wxArrayString chbToolClassChoices;
-	chbToolClass = new wxChoice(sbSizer6->GetStaticBox(),wxID_CHB_TOOL_CLASS,wxDefaultPosition,wxDefaultSize,chbToolClassChoices,0);
-	chbToolClass->SetSelection(0);
-	sbSizer6->Add(chbToolClass,0,wxEXPAND|wxLEFT|wxRIGHT,5);
-
-	m_staticText14 = new wxStaticText(sbSizer6->GetStaticBox(),wxID_ANY,wxT("Objects group:"),wxDefaultPosition,wxDefaultSize,0);
-	m_staticText14->Wrap(-1);
-	sbSizer6->Add(m_staticText14,0,wxLEFT|wxTOP,5);
-
-	wxArrayString chbToolObjGroupChoices;
-	chbToolObjGroup = new wxChoice(sbSizer6->GetStaticBox(),wxID_CHB_TOOL_OBJ_GROUP,wxDefaultPosition,wxDefaultSize,chbToolObjGroupChoices,0);
-	chbToolObjGroup->SetSelection(0);
-	sbSizer6->Add(chbToolObjGroup,0,wxEXPAND|wxLEFT|wxRIGHT,5);
-
 	cbToolGlyph = new wxCheckBox(sbSizer6->GetStaticBox(),wxID_CB_TOOL_GLYPH,wxT("Use as tool glyph"),wxDefaultPosition,wxDefaultSize,0);
 	cbToolGlyph->SetValue(true);
 	sbSizer6->Add(cbToolGlyph,0,wxALL,5);
 
-	treeCtrlObjects = new wxTreeCtrl(sbSizer6->GetStaticBox(),wxID_TREE_OBJECTS,wxDefaultPosition,wxDefaultSize,wxTR_DEFAULT_STYLE|wxALWAYS_SHOW_SB|wxVSCROLL);
+	treeCtrlObjects = new wxTreeCtrl(sbSizer6->GetStaticBox(),wxID_TREE_OBJECTS,wxDefaultPosition,wxDefaultSize,wxTR_DEFAULT_STYLE|wxTR_EDIT_LABELS|wxTR_HIDE_ROOT|wxTR_SINGLE|wxALWAYS_SHOW_SB|wxVSCROLL);
 	sbSizer6->Add(treeCtrlObjects,1,wxALL|wxEXPAND,5);
 
 
@@ -431,6 +430,17 @@ FormSprite::FormSprite( wxWindow* parent,SpellData* spell_data,wxWindowID id, co
 	this->Centre(wxBOTH);
 
 	// === AUTO GENERATED STUFF ENDS HERE ===
+
+	lboxSprites = new wxListCtrlVirtual(this,wxID_LBOX_SPRITES,wxDefaultPosition,wxSize(120,-1),wxLC_NO_HEADER|wxLC_REPORT|wxLC_SINGLE_SEL|wxLC_VIRTUAL|wxALWAYS_SHOW_SB|wxVSCROLL);
+	sizerSpriteList->Add(lboxSprites,1,wxBOTTOM|wxEXPAND|wxLEFT,5);
+	lboxSprites->SetGetItemTextCb(bind(&FormSprite::OnGetItemText,this,placeholders::_1));
+	lboxSprites->SetGetItemImageCb(bind(&FormSprite::OnGetItemImage,this,placeholders::_1));
+		
+
+	//lboxSprites = new wxListCtrlSprite(this,wxID_LBOX_SPRITES,wxDefaultPosition,wxSize(120,-1),wxALWAYS_SHOW_SB|wxVSCROLL|wxLC_REPORT|wxLC_NO_HEADER|wxLC_SINGLE_SEL|wxLC_VIRTUAL);
+	//lboxSprites = new wxListCtrl(this,wxID_LBOX_SPRITES,wxDefaultPosition,wxSize(120,-1),wxALWAYS_SHOW_SB|wxVSCROLL|wxLC_SINGLE_SEL|wxLC_SMALL_ICON);
+	//bSizer2->Add(lboxSprites,1,wxBOTTOM|wxEXPAND|wxLEFT,5);
+
 
 	// set icon
 	wxIcon appIcon;
@@ -468,9 +478,6 @@ FormSprite::FormSprite( wxWindow* parent,SpellData* spell_data,wxWindowID id, co
 	/*Sprite tspr;
 	for(int k = 0; k < tspr.GetSpecClassCount(); k++)
 		chbSpecClass->Append(tspr.GetSpecClassName(k));*/
-
-	// fill tools classes
-	FillToolsClasses();
 
 	// bind events
 	Bind(wxEVT_CLOSE_WINDOW, &FormSprite::OnClose, this, this->m_windowId);
@@ -547,8 +554,6 @@ FormSprite::FormSprite( wxWindow* parent,SpellData* spell_data,wxWindowID id, co
 	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormSprite::OnEdgeShadeChange,this,wxID_CB_SHADE_C4);
 
 
-	Bind(wxEVT_COMMAND_CHOICE_SELECTED,&FormSprite::OnToolClassChange,this,wxID_CHB_TOOL_CLASS);
-	Bind(wxEVT_COMMAND_CHOICE_SELECTED,&FormSprite::OnToolClassItemChange,this,wxID_CHB_TOOL_OBJ_GROUP);
 	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormSprite::OnFlagsChange,this,wxID_CB_TOOL_GLYPH);
 	
 
@@ -584,14 +589,32 @@ FormSprite::FormSprite( wxWindow* parent,SpellData* spell_data,wxWindowID id, co
 	img.LoadFile("IDI_FOLDER_OPEN",wxBITMAP_TYPE_BMP_RESOURCE);
 	if(img.IsOk())
 		imlist->Add(img);
+	img.LoadFile("IDI_SPR_A",wxBITMAP_TYPE_BMP_RESOURCE);
+	if(img.IsOk())
+		imlist->Add(img);
+	img.LoadFile("IDI_SPR_OBJ",wxBITMAP_TYPE_BMP_RESOURCE);
+	if(img.IsOk())
+		imlist->Add(img);
 	treeCtrlObjects->SetImageList(imlist);
-
-	//lboxSprites->SetImageList(imlist,wxIMAGE_LIST_SMALL);
+	lboxSprites->SetImageList(imlist,wxIMAGE_LIST_SMALL);
+		
 
 
 	Bind(wxEVT_LIST_BEGIN_DRAG,&FormSprite::OnDragSprite,this,wxID_LBOX_SPRITES);
 	//Bind(wxEVT_TREE_END_DRAG,&FormSprite::OnDragSpriteEnd,this,wxID_TREE_OBJECTS);
-	
+
+	Bind(wxEVT_TREE_SEL_CHANGED,&FormSprite::OnTreeSelectionChanged,this,wxID_TREE_OBJECTS);
+	Bind(wxEVT_TREE_BEGIN_LABEL_EDIT,&FormSprite::OnTreeClassBeginLabelEdit,this,wxID_TREE_OBJECTS);
+	Bind(wxEVT_TREE_END_LABEL_EDIT,&FormSprite::OnTreeClassEndLabelEdit,this,wxID_TREE_OBJECTS);
+	Bind(wxEVT_TREE_BEGIN_DRAG,&FormSprite::OnTreeClassBeginDrag,this,wxID_TREE_OBJECTS);
+	Bind(wxEVT_TREE_END_DRAG,&FormSprite::OnTreeClassEndDrag,this,wxID_TREE_OBJECTS);
+	Bind(wxEVT_TREE_ITEM_MENU,&FormSprite::OnTreeClassMenu,this,wxID_TREE_OBJECTS);
+	//Bind(wxEVT_TREE_con,&FormSprite::OnTreeClassMenu,this,wxID_TREE_OBJECTS);
+	Bind(wxEVT_MENU,&FormSprite::OnRemoveToolset,this,wxID_MM_REMOVE_TOOL);
+	Bind(wxEVT_MENU,&FormSprite::OnNewToolset,this,wxID_MM_NEW_TOOLSET);
+	Bind(wxEVT_MENU,&FormSprite::OnNewTool,this,wxID_MM_NEW_TOOL);
+	Bind(wxEVT_MENU,&FormSprite::OnEditToolset,this,wxID_MM_EDIT_TOOLSET);
+		
 	SpriteDropTarget* drop_target = new SpriteDropTarget(this);
 	treeCtrlObjects->SetDropTarget((wxDropTarget*)drop_target);
 
@@ -607,18 +630,17 @@ FormSprite::~FormSprite()
 // begin sprite drag from sprite list
 void FormSprite::OnDragSprite(wxListEvent& event)
 {
-	auto item = event.GetItem();	
-	statBar->SetStatusText("drag: " + item.GetText(),0);
-	//event.Allow();
+	auto text = lboxSprites->GetItemText(event.GetIndex(),0);
+	//statBar->SetStatusText("drag: " + text,0);
 	
-	wxTextDataObject tdo(item.GetText());
+	wxTextDataObject tdo(text);
 	wxDropSource tds(tdo, this);
 	tds.DoDragDrop(wxDrag_CopyOnly);
 }
-
+// end sprite drag from sprite list
 bool FormSprite::SpriteDropTarget::OnDropText(wxCoord x,wxCoord y,const wxString& data)
 {
-	m_owner->statBar->SetStatusText("end drag: " + data,0);
+	//m_owner->statBar->SetStatusText("end drag: " + data,0);
 
 	auto item_id = m_owner->treeCtrlObjects->HitTest(wxPoint(x,y));
 	if(!item_id.IsOk())
@@ -626,12 +648,24 @@ bool FormSprite::SpriteDropTarget::OnDropText(wxCoord x,wxCoord y,const wxString
 	auto item_data = (TreeNode*)m_owner->treeCtrlObjects->GetItemData(item_id);
 	if(!item_data)
 		return false;
+	auto class_id = item_data->m_class_id;
+	auto tool_id = item_data->m_tool_id;
 	if(item_data->m_tool_id < 0)
-		return false;
+	{
+		auto parent_id = m_owner->treeCtrlObjects->GetItemParent(item_id);
+		if(!parent_id.IsOk())
+			return false;
+		auto parent_data = (TreeNode*)m_owner->treeCtrlObjects->GetItemData(parent_id);
+		if(!parent_data || parent_data->m_tool_id < 0)
+			return false;
+		class_id = parent_data->m_class_id;
+		tool_id = parent_data->m_tool_id;
+		item_id = parent_id;
+	}
 	
 	auto terr = m_owner->FindTerrain();
 	SpellTool tool;
-	tool.Set(item_data->m_class_id,item_data->m_tool_id);
+	tool.Set(class_id,tool_id);
 	auto list = terr->GetToolSprites(tool);
 	for(auto &spr: list)
 		if(spr->name.compare(data) == 0)
@@ -640,8 +674,11 @@ bool FormSprite::SpriteDropTarget::OnDropText(wxCoord x,wxCoord y,const wxString
 	auto *sprite = terr->GetSprite(data);
 	if(!sprite)
 		return false;
-	sprite->SetToolClass(item_data->m_class_id + 1);
-	sprite->SetToolClassGroup(item_data->m_tool_id + 1);
+	sprite->SetToolClass(class_id + 1);
+	sprite->SetToolClassGroup(tool_id + 1);
+
+	auto new_id = m_owner->treeCtrlObjects->AppendItem(item_id,data,Icons::SPR_OBJ,-1,(wxTreeItemData*)new TreeNode(sprite));
+	m_owner->treeCtrlObjects->SelectItem(new_id);
 
 	m_owner->FillToolsTree();
 
@@ -687,45 +724,287 @@ void FormSprite::RenameToolset(int toolset_class_id,std::string title)
 	terr->SetToolSetTitle(toolset_class_id,title);
 }
 
-
-
-// build recoursive list of tree elements with names, level and expand states
-void FormSprite::treeCtrlRecStates(wxTreeCtrl* ctrl,wxTreeItemId& id,std::vector<TreeCtrlState>& list,int level)
+// rename object class stuff
+void FormSprite::OnTreeClassBeginLabelEdit(wxTreeEvent& evt)
 {
-	if(!id.IsOk())
-		return;
-	wxTreeItemIdValue cookie;
-	auto node_id = ctrl->GetFirstChild(id,cookie);
-	while(node_id.IsOk())
+	auto* obj = (TreeNode*)treeCtrlObjects->GetItemData(evt.GetItem());
+	if(!obj)
 	{
-		TreeCtrlState state ={level, ctrl->IsExpanded(node_id), ctrl->IsSelected(node_id), ctrl->GetItemText(node_id).ToStdString()};
-		list.push_back(state);
-		treeCtrlRecStates(ctrl,node_id,list,level+1);
-		node_id = ctrl->GetNextChild(id,cookie);
+		// no edit root
+		evt.Veto();
+		return;
+	}
+	if(obj->m_spr || (obj->m_class_id < 0 && obj->m_tool_id < 0))
+	{
+		// no edit unassigned class name
+		evt.Veto();
+		return;
+	}
+}
+void FormSprite::OnTreeClassEndLabelEdit(wxTreeEvent& evt)
+{
+	std::string text = evt.GetLabel().ToStdString();
+	if(text.empty())
+	{
+		evt.Veto();
+		return;
+	}
+	auto item_id = evt.GetItem();
+	auto* obj = (TreeNode*)treeCtrlObjects->GetItemData(item_id);
+	if(!obj)
+	{
+		// no edit root
+		evt.Veto();
+		return;
+	}
+	if(!obj->m_spr && obj->m_tool_id >= 0)
+	{
+		// rename tool name
+		auto terr = FindTerrain();
+		terr->RenameToolSetItem(obj->m_class_id,text,obj->m_tool_id);
+		evt.Veto();
+		return;
+	}
+	if(!obj->m_spr && obj->m_class_id >= 0)
+	{
+		// edit class name
+		RenameToolset(obj->m_class_id,text);
+		treeCtrlObjects->SetItemText(item_id,GetToolsetTitle(obj->m_class_id));
+		evt.Veto();
+		return;
+	}
+	// edit tool item name
+	//obj->m_obj->SetDescription(text);
+}
+
+// drag object tree stuff
+void FormSprite::OnTreeClassBeginDrag(wxTreeEvent& evt)
+{
+	m_drag_item = evt.GetItem();
+	auto* obj = (TreeNode*)treeCtrlObjects->GetItemData(m_drag_item);
+	if(!obj)
+		m_drag_item.Unset();
+	evt.Allow();
+}
+// drop object tree stuff
+void FormSprite::OnTreeClassEndDrag(wxTreeEvent& evt)
+{
+	if(!m_drag_item)
+		return;
+	auto obj = (TreeNode*)treeCtrlObjects->GetItemData(m_drag_item);
+	auto target_item = evt.GetItem();
+	if(!target_item.IsOk())
+		return;
+	if(treeCtrlObjects->GetRootItem() == target_item)
+		return; // cannot move to root
+	auto target_obj = (TreeNode*)treeCtrlObjects->GetItemData(target_item);
+	auto parent_node = treeCtrlObjects->GetItemParent(target_item);
+	if(!obj->m_spr && obj->m_tool_id < 0)
+	{
+		// moving toolset class
+		if(treeCtrlObjects->GetRootItem() == parent_node && target_obj->m_class_id >= 0)
+		{
+			// target is class node		
+			auto terr = FindTerrain();
+			terr->MoveToolSet(obj->m_class_id,target_obj->m_class_id);
+			treeCtrlObjects->SelectItem(m_drag_item);
+			FillToolsTree();
+		}
+	}
+	else if(obj->m_tool_id >= 0)
+	{
+		// moving tool class
+		if(target_obj->m_class_id == obj->m_class_id)
+		{
+			// within same toolset
+			auto terr = FindTerrain();
+			terr->MoveToolSetItem(obj->m_class_id,obj->m_tool_id,target_obj->m_tool_id);
+			treeCtrlObjects->SelectItem(m_drag_item);
+			FillToolsTree();
+		}
+
+	}
+	else
+	{
+		// moving tool item
+		
 	}
 }
 
-// try set expand state based on recoursive list of previous states
-void FormSprite::treeCtrlSetStates(wxTreeCtrl* ctrl,wxTreeItemId& id,std::vector<TreeCtrlState>& list,int level)
+// remove object by menu
+void FormSprite::OnRemoveToolset(wxCommandEvent& evt)
 {
-	if(!id.IsOk())
+	auto item_id = treeCtrlObjects->GetSelection();
+	if(!item_id.IsOk())
 		return;
-	wxTreeItemIdValue cookie;
-	auto node_id = ctrl->GetFirstChild(id,cookie);
-	while(node_id.IsOk())
+	auto* obj = (TreeNode*)treeCtrlObjects->GetItemData(item_id);
+	if(!obj)
+		return;
+	if(!obj->m_spr && obj->m_class_id < 0)
+		return;
+	auto terr = FindTerrain();
+	if(obj->m_spr)
 	{
-		for(auto& item: list)
-			if(item.state && item.level == level && item.name.compare(ctrl->GetItemText(node_id).ToStdString()) == 0)
-			{
-				ctrl->Expand(node_id);
-				if(item.sel)
-					ctrl->SelectItem(node_id);
-				break;
-			}
-		treeCtrlSetStates(ctrl,node_id,list,level+1);
-		node_id = ctrl->GetNextChild(id,cookie);
+		// removing sprite
+		obj->m_spr->SetToolClass(0);
+		obj->m_spr->SetToolClassGroup(0);
+		treeCtrlObjects->Delete(item_id);
+	}
+	else if(obj->m_tool_id >= 0)
+	{
+		// remove tool
+		terr->RemoveToolSetItem(obj->m_class_id,obj->m_tool_id);
+		treeCtrlObjects->Delete(item_id);
+		//FillToolsTree();
+	}
+	else
+	{
+		// removing toolset class
+		terr->RemoveToolSet(obj->m_class_id);
+		treeCtrlObjects->Delete(item_id);
+		//FillToolsTree();
 	}
 }
+
+// new toolset class
+void FormSprite::OnNewToolset(wxCommandEvent& evt)
+{
+	auto terr = FindTerrain();
+	std::string name = "New toolset";
+	terr->AddToolSet(name,name);
+	auto toolset_id = terr->GetToolSetID(name);
+
+	auto root_id = treeCtrlObjects->GetRootItem();
+	auto new_id = treeCtrlObjects->AppendItem(root_id,GetToolsetTitle(toolset_id),Icons::FOLDER,Icons::FOLDER_OPEN,(wxTreeItemData*)new TreeNode(toolset_id));
+	treeCtrlObjects->SelectItem(new_id);
+	if(!treeCtrlObjects->IsVisible(new_id))
+		treeCtrlObjects->EnsureVisible(new_id);	
+}
+
+// new tool within class
+void FormSprite::OnNewTool(wxCommandEvent& evt)
+{
+	auto item_id = treeCtrlObjects->GetSelection();
+	auto* obj = (TreeNode*)treeCtrlObjects->GetItemData(item_id);
+	if(!obj)
+		return; // nope in root
+	auto parent_id = treeCtrlObjects->GetItemParent(item_id);
+	//auto* par_obj = (TreeNode*)treeCtrlObjects->GetItemData(parent_id);
+	int class_id = 0;
+	if(obj->m_spr)
+		return; // nope on sprite
+	if(obj->m_class_id < 0)
+		return;
+	if(obj->m_tool_id < 0)
+		parent_id = item_id;
+
+	auto terr = FindTerrain();
+	std::string name = "New tool";
+	terr->AddToolSetItem(obj->m_class_id,name);
+	auto tool_class_id = terr->GetToolSetItem(obj->m_class_id,name);	
+	auto tool_id = treeCtrlObjects->AppendItem(parent_id,name,Icons::MULTI,-1,(wxTreeItemData*)new TreeNode(obj->m_class_id,tool_class_id));
+	treeCtrlObjects->SelectItem(tool_id);
+	FillToolsTree();
+}
+
+// edit toolset class properties
+void FormSprite::OnEditToolset(wxCommandEvent& evt)
+{
+	auto item_id = treeCtrlObjects->GetSelection();
+	if(!item_id.IsOk())
+		return;
+	auto* obj = (TreeNode*)treeCtrlObjects->GetItemData(item_id);
+	auto terr = FindTerrain();
+	auto form = new FormEditToolset(this,terr,obj->m_class_id);
+	if(form->ShowModal() == wxID_OK)
+	{
+		// --- confirmed
+	}
+	delete form;
+	FillToolsTree();
+}
+
+// tool tree menu popup
+void FormSprite::OnTreeClassMenu(wxTreeEvent& evt)
+{
+	auto item_id = evt.GetItem();
+	if(!item_id.IsOk())
+		return;
+	treeCtrlObjects->SelectItem(item_id);
+	auto* obj = (TreeNode*)treeCtrlObjects->GetItemData(item_id);
+	
+	wxMenu menu;// = new wxMenu();
+	menu.SetClientData(item_id);
+	if(obj)
+		menu.Append(MNU_REMOVE,"Remove\tDelete");
+	if(!obj->m_spr && obj->m_class_id >= 0)
+		menu.Append(MNU_NEW_TOOL,"New tool\tCtrl+T");
+	menu.Append(MNU_NEW_TOOLSET,"New toolset\tCtrl+N");
+	if(!obj->m_spr && obj->m_class_id >= 0 && obj->m_tool_id < 0)
+		menu.Append(MNU_EDIT_TOOLSET,"Edit toolset parameters\tCtrl+E");
+	menu.Connect(wxEVT_COMMAND_MENU_SELECTED,wxCommandEventHandler(FormSprite::OnTreeClassMenuClick),NULL,this);
+	treeCtrlObjects->PopupMenu(&menu,evt.GetPoint());
+}
+// on tool tree menu click
+void FormSprite::OnTreeClassMenuClick(wxCommandEvent& evt)
+{
+	auto menu_id = evt.GetId();
+	auto menu = (wxMenu*)evt.GetEventObject();
+	auto item_id = (wxTreeItemId)menu->GetClientData();
+	if(menu_id == MNU_REMOVE)
+	{
+		wxCommandEvent event;
+		OnRemoveToolset(event);
+	}
+	else if(menu_id == MNU_NEW_TOOL)
+	{
+		wxCommandEvent event;
+		OnNewTool(event);
+	}
+	else if(menu_id == MNU_NEW_TOOLSET)
+	{
+		wxCommandEvent event;
+		OnNewToolset(event);
+	}
+	else if(menu_id == MNU_EDIT_TOOLSET)
+	{
+		wxCommandEvent event;
+		OnEditToolset(event);
+	}
+}
+
+// selected sprite in objects tree
+void FormSprite::OnTreeSelectionChanged(wxTreeEvent& evt)
+{
+	wxTreeItemId selectedNode = evt.GetItem();
+	auto* obj = (TreeNode*)treeCtrlObjects->GetItemData(selectedNode);
+	if(!obj)
+	{
+		// root
+		evt.Skip();
+		return;
+	}
+	if(!obj->m_spr)
+	{
+		// no sprite
+		evt.Skip();
+		return;
+	}
+
+	// is node
+	auto terr = FindTerrain();
+	sprite_id = terr->GetSpriteID(obj->m_spr);
+	
+	SelectQuad();
+	SetFlags();
+	SetEdgeClasses();
+	SetShadingFlags();
+	FillAltList();
+	canvas->Refresh();
+}
+
+
+
 
 // fills tool class menu
 void FormSprite::FillToolsTree()
@@ -734,12 +1013,10 @@ void FormSprite::FillToolsTree()
 	Terrain* terr = FindTerrain();
 
 	// remember last expand states
-	std::vector<TreeCtrlState> list;
-	wxTreeItemId root_id = treeCtrlObjects->GetRootItem();
-	treeCtrlRecStates(treeCtrlObjects,root_id,list,0);
-
+	wxTreeLister lister(treeCtrlObjects);
+	
 	treeCtrlObjects->DeleteAllItems();
-	root_id = treeCtrlObjects->AddRoot("Toolsets",Icons::FOLDER,Icons::FOLDER_OPEN);
+	auto root_id = treeCtrlObjects->AddRoot("Toolsets",Icons::FOLDER,Icons::FOLDER_OPEN);
 	for(int k = 0; k < terr->GetToolsCount(); k++)
 	{
 		wxTreeItemId cid;
@@ -753,13 +1030,12 @@ void FormSprite::FillToolsTree()
 			SpellTool tool;
 			tool.Set(k,tid);
 			auto sprite_list = terr->GetToolSprites(tool);
-			for(auto &spr: sprite_list)
-				treeCtrlObjects->AppendItem(group_id,spr->name,Icons::SINGLE,-1,(wxTreeItemData*)new TreeNode(spr));
+			for(auto &spr: sprite_list)			
+				treeCtrlObjects->AppendItem(group_id,spr->name,(spr->land_type > 0)?(Icons::SPR_A):(Icons::SPR_OBJ),-1,(wxTreeItemData*)new TreeNode(spr));
 		}
 	}
 	// try restore last expand states
-	treeCtrlObjects->Expand(root_id);
-	treeCtrlSetStates(treeCtrlObjects,root_id,list,0);
+	lister.treeCtrlSetStates(treeCtrlObjects);
 }
 
 
@@ -855,108 +1131,9 @@ bool FormSprite::wasSet()
 
 
 
-// fills tool class menu
-void FormSprite::FillToolsClasses()
-{
-	// get this terrain
-	Terrain* terr = FindTerrain();
 
-	// add neutral item
-	chbToolClass->Clear();
-	chbToolClass->Append("None");
-	chbToolClass->Select(0);
-	
-	// make list of existing classes
-	for(int k = 0; k < terr->GetToolsCount(); k++)
-		chbToolClass->Append(terr->GetToolSetName(k));
-}
 
-// update class selectors view
-void FormSprite::UpdateToolClassesView()
-{
-	// get this terrain
-	Terrain* terr = FindTerrain();
 
-	if(sprite_id >= 0)
-	{	
-		// select tool class
-		int class_id = terr->sprites[sprite_id]->GetToolClass();
-		chbToolClass->Select(class_id);
-
-		FillToolItemsList();
-	}	
-}
-
-// fill tool class items menu
-void FormSprite::FillToolItemsList()
-{
-	// get this terrain
-	Terrain* terr = FindTerrain();
-
-	// add neutral item
-	chbToolObjGroup->Freeze();
-	chbToolObjGroup->Clear();
-	chbToolObjGroup->Append("None");
-	chbToolObjGroup->Select(0);
-
-	if(sprite_id >= 0)
-	{
-		int class_id = terr->sprites[sprite_id]->GetToolClass();
-		if(class_id)
-		{
-			// fill the list			
-			for (auto const& str : terr->GetToolSetItems(class_id - 1))
-				chbToolObjGroup->Append(str);			
-
-			int item_id = terr->sprites[sprite_id]->GetToolClassGroup();
-			chbToolObjGroup->Select(item_id);
-		}
-	}
-	chbToolObjGroup->Thaw();
-}
-
-// on change tool class selection
-void FormSprite::OnToolClassChange(wxCommandEvent& event)
-{
-	if(sprite_id >= 0)
-	{
-		// get this terrain
-		Terrain* terr = FindTerrain();
-
-		// new tool class for sprite
-		int class_id = chbToolClass->GetSelection();
-		terr->sprites[sprite_id]->SetToolClass(class_id);
-		
-		// clear tool class item id
-		terr->sprites[sprite_id]->SetToolClassGroup(0);
-
-		// refresh selectors
-		UpdateToolClassesView();
-	}
-} 
-// on change tool class item selection
-void FormSprite::OnToolClassItemChange(wxCommandEvent& event)
-{
-	if(sprite_id >= 0)
-	{
-		// get this terrain
-		Terrain* terr = FindTerrain();
-
-		// new tool class for sprite
-		int class_id = chbToolClass->GetSelection();
-		if(class_id)
-		{
-			// update tool class item selection
-			int item_id = chbToolObjGroup->GetSelection();
-			terr->sprites[sprite_id]->SetToolClassGroup(item_id);
-		}
-		else
-			terr->sprites[sprite_id]->SetToolClassGroup(0); // invalidate item id if no tool class selected (should not happen)
-
-		// refresh selectors
-		UpdateToolClassesView();
-	}
-}
 
 
 // assign known parameter of sprites
@@ -1394,7 +1571,6 @@ void FormSprite::OnSelectSpriteAlt(wxCommandEvent& event)
 	SetFlags();
 	SetEdgeClasses();
 	SetShadingFlags();
-	UpdateToolClassesView();
 	if(!is_alt)
 		FillAltList();
 	canvas->Refresh();
@@ -1445,6 +1621,7 @@ void FormSprite::SelectTerrain()
 	Terrain* terr = FindTerrain();
 	if(!terr)
 		return;
+	lboxSprites->SetClientData(terr);
 
 	// update title
 	SetTitle(wxString::Format("Sprite viewer (%s)",terr->name));
@@ -1453,22 +1630,43 @@ void FormSprite::SelectTerrain()
 	//lboxSprites->report
 	lboxSprites->Freeze();
 	lboxSprites->AppendColumn("list",wxLIST_FORMAT_LEFT,wxLIST_AUTOSIZE);
-	for(int sid = 0;sid < terr->GetSpriteCount();sid++)
-	{
-		Sprite* spr = terr->GetSprite(sid);
-		/*wxListItem item;
-		item.SetText(spr->name);*/
-		lboxSprites->InsertItem(sid,spr->name);
-	}
+	lboxSprites->SetItemCount(terr->GetSpriteCount());
 	lboxSprites->SetColumnWidth(0,wxLIST_AUTOSIZE_USEHEADER);
-
+	
 	// select default
-	//lboxSprites->column
 	if(lboxSprites->GetItemCount())
 		lboxSprites->SetItemState(0,wxLIST_STATE_SELECTED,wxLIST_STATE_SELECTED);
 	lboxSprites->Thaw();
 	sprite_id = 0;
+
+	FillToolsTree();
 }
+
+wxString FormSprite::OnGetItemText(long item)
+{	
+	auto terr = (Terrain*)lboxSprites->GetClientData();
+	if(!terr)
+		return("");
+	auto spr = terr->GetSprite(item);
+	if(!spr)
+		return("");
+	return(spr->name);
+}
+
+int FormSprite::OnGetItemImage(long item)
+{
+	auto terr = (Terrain*)lboxSprites->GetClientData();
+	if(!terr)
+		return(-1);
+	auto spr = terr->GetSprite(item);
+	if(!spr)
+		return(-1);
+	if(spr->land_type == 0)
+		return(FormSprite::Icons::SPR_OBJ);
+	else
+		return(FormSprite::Icons::SPR_A);
+}
+
 // change terrain click
 void FormSprite::OnTerrainChange(wxCommandEvent& event)
 {

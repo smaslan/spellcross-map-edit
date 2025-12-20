@@ -137,6 +137,8 @@ IDI_MULTI               BITMAP                  "ico/multi.bmp"
 IDI_FOLDER              BITMAP                  "ico/folder.bmp"
 IDI_FOLDER_OPEN         BITMAP                  "ico/folder_open.bmp"
 IDI_SINGLE              BITMAP                  "ico/single.bmp"
+IDI_SPR_A               BITMAP                  "ico/spr_a.bmp"
+IDI_SPR_OBJ             BITMAP                  "ico/spr_obj.bmp"
 
 
 /////////////////////////////////////////////////////////////////////////////
