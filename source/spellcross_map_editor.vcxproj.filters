@@ -120,9 +120,6 @@
     <ClCompile Include="forms\form_sprite_view.cpp">
       <Filter>Source Files\forms</Filter>
     </ClCompile>
-    <ClCompile Include="forms\form_tools.cpp">
-      <Filter>Source Files\forms</Filter>
-    </ClCompile>
     <ClCompile Include="forms\form_unit_options.cpp">
       <Filter>Source Files\forms</Filter>
     </ClCompile>
@@ -255,9 +252,6 @@
       <Filter>Header Files\forms</Filter>
     </ClInclude>
     <ClInclude Include="forms\form_sprite_view.h">
-      <Filter>Header Files\forms</Filter>
-    </ClInclude>
-    <ClInclude Include="forms\form_tools.h">
       <Filter>Header Files\forms</Filter>
     </ClInclude>
     <ClInclude Include="forms\form_unit_options.h">

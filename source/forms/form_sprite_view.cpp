@@ -762,6 +762,8 @@ void FormSprite::OnTreeClassEndLabelEdit(wxTreeEvent& evt)
 		// rename tool name
 		auto terr = FindTerrain();
 		terr->RenameToolSetItem(obj->m_class_id,text,obj->m_tool_id);
+		treeCtrlObjects->SetItemText(item_id,text);
+		treeCtrlObjects->SelectItem(item_id);
 		evt.Veto();
 		return;
 	}
@@ -770,6 +772,7 @@ void FormSprite::OnTreeClassEndLabelEdit(wxTreeEvent& evt)
 		// edit class name
 		RenameToolset(obj->m_class_id,text);
 		treeCtrlObjects->SetItemText(item_id,GetToolsetTitle(obj->m_class_id));
+		treeCtrlObjects->SelectItem(item_id);
 		evt.Veto();
 		return;
 	}
@@ -784,6 +787,7 @@ void FormSprite::OnTreeClassBeginDrag(wxTreeEvent& evt)
 	auto* obj = (TreeNode*)treeCtrlObjects->GetItemData(m_drag_item);
 	if(!obj)
 		m_drag_item.Unset();
+	treeCtrlObjects->SelectItem(m_drag_item);
 	evt.Allow();
 }
 // drop object tree stuff
@@ -806,9 +810,11 @@ void FormSprite::OnTreeClassEndDrag(wxTreeEvent& evt)
 		{
 			// target is class node		
 			auto terr = FindTerrain();
-			terr->MoveToolSet(obj->m_class_id,target_obj->m_class_id);
+			terr->MoveToolSet(obj->m_class_id,target_obj->m_class_id,true);
 			treeCtrlObjects->SelectItem(m_drag_item);
 			FillToolsTree();
+			treeCtrlObjects->Refresh();
+			evt.Veto();
 		}
 	}
 	else if(obj->m_tool_id >= 0)
@@ -818,11 +824,12 @@ void FormSprite::OnTreeClassEndDrag(wxTreeEvent& evt)
 		{
 			// within same toolset
 			auto terr = FindTerrain();
-			terr->MoveToolSetItem(obj->m_class_id,obj->m_tool_id,target_obj->m_tool_id);
-			treeCtrlObjects->SelectItem(m_drag_item);
+			terr->MoveToolSetItem(obj->m_class_id,obj->m_tool_id,target_obj->m_tool_id,true);
+			treeCtrlObjects->SelectItem(m_drag_item);			
 			FillToolsTree();
+			treeCtrlObjects->Refresh();
+			evt.Veto();
 		}
-
 	}
 	else
 	{
@@ -889,7 +896,6 @@ void FormSprite::OnNewTool(wxCommandEvent& evt)
 	if(!obj)
 		return; // nope in root
 	auto parent_id = treeCtrlObjects->GetItemParent(item_id);
-	//auto* par_obj = (TreeNode*)treeCtrlObjects->GetItemData(parent_id);
 	int class_id = 0;
 	if(obj->m_spr)
 		return; // nope on sprite

@@ -1935,7 +1935,8 @@ int Terrain::InitSpriteContext(wstring &path)
 		for(int k = 0; k < items_count; k++)
 		{
 			// get item name
-			AddToolSetItem(tid, istream_read_string(fr));
+			auto item_name = istream_read_string(fr);
+			AddToolSetItem(tid, item_name);
 		}
 		
 	}
@@ -3606,6 +3607,15 @@ vector<SpellObject*>& Terrain::GetObjects()
 {
 	return(objects);
 }
+// get list of object names matching toolset id (or all if not provided)
+std::vector<std::string> Terrain::GetObjectNames(int toolset_id)
+{
+	std::vector<std::string> list;
+	for(auto &obj: objects)
+		if(obj->GetToolClass() == toolset_id + 1 && obj->GetToolClassGroup() == 0)
+			list.push_back(obj->GetDescription());
+	return(list);
+}
 // find object position in list by its pointer
 int Terrain::FindObject(SpellObject *obj)
 {
@@ -3644,7 +3654,10 @@ int Terrain::AddSpecialTools()
 	// get/create special toolset
 	auto ts_id = GetToolSetID("Special");
 	if(ts_id < 0)
-		AddToolSet("Special","Special stuff");
+	{
+		std::string name = "Special";
+		AddToolSet(name,"Special stuff");
+	}
 	ts_id = GetToolSetID("Special");
 
 	// get/create start/escape tiles
@@ -3654,7 +3667,10 @@ int Terrain::AddSpecialTools()
 	{
 		auto tool_id = GetToolSetItem(ts_id,tool_names[k]);
 		if(tool_id < 0)
-			AddToolSetItem(ts_id,tool_names[k], 0);
+		{
+			int pos = 0;
+			AddToolSetItem(ts_id,tool_names[k], pos);
+		}
 		tool_id = GetToolSetItem(ts_id,tool_names[k]);
 		auto sprite = GetSprite(sprite_names[k].c_str());
 		if(sprite)
@@ -3675,15 +3691,33 @@ int Terrain::GetToolsCount()
 {
 	return(tools.size());
 }
-// add new tool
-int Terrain::AddToolSet(string name, string title, int position)
+// get list of toolset names
+std::vector<std::string> Terrain::GetToolSetNames()
+{
+	std::vector<std::string> list;
+	for(auto &toolset: tools)
+		list.push_back(toolset->name);
+	return(list);
+}
+// add new tool (name can be modified if duplicate)
+int Terrain::AddToolSet(string& name,string title)
+{
+	int position = -1;
+	return(AddToolSet(name,title,position));
+}
+int Terrain::AddToolSet(string &name, string title, int &position)
 {
 	SpellToolsGroup *toolset = new SpellToolsGroup();
-	toolset->name = name;
+	auto names_list = GetToolSetNames();
+	toolset->name = fix_no_duplicate_string(name,names_list); // fix name to not be duplicate
+	name = toolset->name;
 	toolset->title = title;
 	
 	if (position < 0)
+	{
+		position = tools.size();
 		tools.push_back(toolset);
+	}
 	else if (position >= 0 && position < tools.size())
 		tools.insert(tools.begin() + position, toolset);
 	else
@@ -3729,30 +3763,50 @@ int Terrain::RemoveToolSet(int position)
 	}
 	return(0);
 }
-// move tool from to position
-int Terrain::MoveToolSet(int posa, int posb)
-{
-	if (posa < 0 || posa >= tools.size() || posb < 0 || posb >= tools.size())
+// move tool from posa to posb (default: swap posa<->posb, optional insert to posb)
+int Terrain::MoveToolSet(int posa, int posb,bool insert)
+{	
+	if(!insert)
+		return(SwapToolSets(posa,posb));
+
+	// lazy insertion way using temp tool item
+	std::string temp = "dummy";
+	int temp_pos = -1;
+	if(AddToolSet(temp,temp,temp_pos))
 		return(1);
-	
+	SwapToolSets(posa,temp_pos);
+	RemoveToolSet(posa);
+	if(AddToolSet(temp,temp,posb))
+		return(1);
+	SwapToolSets(temp_pos,posb);
+	RemoveToolSet(temp_pos);
+
+	return(0);
+}
+// swap toolset posa<->posb
+int Terrain::SwapToolSets(int posa,int posb)
+{
+	if(posa < 0 || posa >= tools.size() || posb < 0 || posb >= tools.size())
+		return(1);
+
 	auto temp = tools[posa];
 	tools[posa] = tools[posb];
 	tools[posb] = temp;
 
-	for (auto const& spr : sprites)
+	for(auto const& spr : sprites)
 	{
 		auto tid = spr->GetToolClass();
-		if (tid == posa + 1)
+		if(tid == posa + 1)
 			spr->SetToolClass(posb + 1);
 		else if(tid == posb + 1)
 			spr->SetToolClass(posa + 1);
 	}
-	for (auto const& obj : objects)
+	for(auto const& obj : objects)
 	{
 		auto tid = obj->GetToolClass();
-		if (tid == posa + 1)
+		if(tid == posa + 1)
 			obj->SetToolClass(posb + 1);
-		else if (tid == posb + 1)
+		else if(tid == posb + 1)
 			obj->SetToolClass(posa + 1);
 	}
 
@@ -3882,14 +3936,29 @@ int Terrain::SetToolSetGlyphScaling(int id, int x, int y)
 	return(0);
 }
 
-// add toolset item to position
-int Terrain::AddToolSetItem(int toolset_id, string item, int position)
+// add toolset item to position (item name can be modified to prevent duplicates)
+int Terrain::AddToolSetItem(int toolset_id,string& item)
 {
+	int position = -1;
+	return(AddToolSetItem(toolset_id,item,position));
+}
+int Terrain::AddToolSetItem(int toolset_id, string &item, int &position)
+{	
 	if (toolset_id < 0 || toolset_id >= tools.size())
 		return(1);
-	else if (position < 0)
-		tools[toolset_id]->items.push_back(item);
-	else if (position >= 0 && position < tools[toolset_id]->items.size())
+
+	// ensure not duplicate with object or tool names
+	auto obj_list = GetObjectNames(toolset_id);
+	auto &item_list = tools[toolset_id]->items;
+	obj_list.insert(obj_list.end(), item_list.begin(), item_list.end());
+	item = fix_no_duplicate_string(item,obj_list);
+
+	if(position < 0)
+	{
+		position = tools[toolset_id]->items.size();
+		tools[toolset_id]->items.push_back(item);		
+	}
+	else if(position >= 0 && position < tools[toolset_id]->items.size())
 		tools[toolset_id]->items.insert(tools[toolset_id]->items.begin() + position, item);
 	else
 		return(1);
@@ -3960,8 +4029,27 @@ int Terrain::RemoveToolSetItem(int toolset_id, int position)
 
 	return(0);
 }
-// move toolset item
-int Terrain::MoveToolSetItem(int toolset_id, int posa, int posb)
+// move toolset item from posa to posb (default: swap posa<->posb, optional insert to posb)
+int Terrain::MoveToolSetItem(int toolset_id,int posa,int posb,bool insert)
+{
+	if(!insert)
+		return(SwapToolSetItems(toolset_id,posa,posb));
+
+	// lazy insertion way using temp tool item
+	std::string temp = "dummy";
+	int temp_pos = -1;
+	if(AddToolSetItem(toolset_id,temp,temp_pos))
+		return(1);
+	SwapToolSetItems(toolset_id,posa,temp_pos);
+	RemoveToolSetItem(toolset_id,posa);
+	if(AddToolSetItem(toolset_id,temp,posb))
+		return(1);
+	SwapToolSetItems(toolset_id,temp_pos,posb);
+	RemoveToolSetItem(toolset_id,temp_pos);
+	return(0);
+}
+// swap toolset items posa <-> posb
+int Terrain::SwapToolSetItems(int toolset_id, int posa, int posb)
 {
 	if (toolset_id < 0 || toolset_id >= tools.size() || posa < 0 || posa >= tools[toolset_id]->items.size() || posb < 0 || posb >= tools[toolset_id]->items.size())
 		return(1);

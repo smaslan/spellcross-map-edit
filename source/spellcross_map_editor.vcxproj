@@ -45,7 +45,6 @@
     <ClCompile Include="forms\form_pal_view.cpp" />
     <ClCompile Include="forms\form_sound.cpp" />
     <ClCompile Include="forms\form_sprite_view.cpp" />
-    <ClCompile Include="forms\form_tools.cpp" />
     <ClCompile Include="forms\form_units.cpp" />
     <ClCompile Include="forms\form_unit_options.cpp" />
     <ClCompile Include="forms\form_video.cpp" />
@@ -111,7 +110,6 @@
     <ClInclude Include="forms\form_pal_view.h" />
     <ClInclude Include="forms\form_sound.h" />
     <ClInclude Include="forms\form_sprite_view.h" />
-    <ClInclude Include="forms\form_tools.h" />
     <ClInclude Include="forms\form_units.h" />
     <ClInclude Include="forms\form_unit_options.h" />
     <ClInclude Include="forms\form_video.h" />

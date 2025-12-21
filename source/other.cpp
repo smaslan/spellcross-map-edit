@@ -4,6 +4,7 @@
 #include <codecvt>
 #include <filesystem>
 #include <random>
+#include <regex>
 
 
 std::wstring char2wstring(const char* str)
@@ -204,6 +205,30 @@ bool iequals(const std::string& a,const std::string& b)
         [](char a,char b) {
             return std::tolower(a) == std::tolower(b);
         });
+}
+
+// checks string for duplicates in the list, modify it to not be duplicate, like e.g. "my string 1" to "my string 2", etc.
+std::string fix_no_duplicate_string(std::string str, std::vector<std::string> &list)
+{
+    while(std::find(list.begin(), list.end(), str) != list.end())
+    {
+        std::regex secexp("(.*\\D+)(\\d*$)");
+        std::smatch match;
+        std::regex_search(str,match,secexp);
+        if(match.size() != 3)
+        {
+            // failed
+            return(str);
+        }
+        std::string prefix = match[1];
+        std::string num = match[2];
+        if(num.empty())
+            num = " 1";
+        else
+            num = std::to_string(std::stoi(num) + 1);
+        str = prefix + num;
+    }
+    return(str);
 }
 
 

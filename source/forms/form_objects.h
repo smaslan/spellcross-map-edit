@@ -71,6 +71,16 @@ class FormObjects : public wxFrame
 		void OnTreeSelectionChanged(wxTreeEvent& evt);
 		void OnTreeClassBeginDrag(wxTreeEvent& evt);
 		void OnTreeClassEndDrag(wxTreeEvent& evt);
+		void OnEditToolset(wxCommandEvent& evt);
+		void OnTreeClassMenu(wxTreeEvent& evt);
+		void OnTreeClassMenuClick(wxCommandEvent& evt);
+
+		enum TreeMenu {
+			MNU_REMOVE = 0,
+			MNU_NEW_TOOL,
+			MNU_NEW_TOOLSET,
+			MNU_EDIT_TOOLSET
+		};
 		
 
 		Terrain* FindTerrain();
@@ -115,6 +125,7 @@ class FormObjects : public wxFrame
 			wxID_MM_RENAME,
 			wxID_MM_NEW_CLASS,
 			wxID_MM_NEW_TOOL,
+			wxID_MM_EDIT_TOOLSET,
 		};
 
 		wxStatusBar* sbar;

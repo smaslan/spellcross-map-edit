@@ -456,8 +456,12 @@ private:
 	std::vector<SpellToolsGroup*> tools;
 
 	void RandomizeSpriteContextTh(std::vector<Sprite*> *spr,int ofs,int step);
+	int SwapToolSetItems(int toolset_id,int posa,int posb);
+	int SwapToolSets(int posa,int posb);
 
 	//int CheckNeighborValid(Sprite *ref,Sprite *neig,int eid);	
+
+	
 
 public:
 	// terrain name
@@ -522,9 +526,11 @@ public:
 	int GetObjectsCount();
 	SpellObject *GetObject(int id);
 	std::vector<SpellObject*> &GetObjects();
+	std::vector<std::string> GetObjectNames(int toolset_id=-1);
 	int FindObject(SpellObject* obj);
 	
 	int GetToolsCount();
+	std::vector<std::string> GetToolSetNames();
 	std::string GetToolSetName(int id);
 	std::string GetToolSetTitle(int id);
 	int SetToolSetName(int id,std::string name);
@@ -536,14 +542,16 @@ public:
 	int GetToolSetItemsCount(int id);
 	int GetToolSetItem(int toolset_id,std::string tool_name);
 	std::vector<std::string> GetToolSetItems(int toolset_id);
-	std::string GetToolSetItem(int toolset_id, int tool_id);
-	int AddToolSetItem(int toolset_id,std::string item, int position = -1);
+	std::string GetToolSetItem(int toolset_id, int tool_id);	
+	int AddToolSetItem(int toolset_id,std::string& item);
+	int AddToolSetItem(int toolset_id,std::string &item, int &position);
 	int RenameToolSetItem(int toolset_id,std::string item, int position);
 	int RemoveToolSetItem(int toolset_id, int position);
-	int MoveToolSetItem(int toolset_id, int posa, int posb);
-	int AddToolSet(std::string name,std::string title, int position=-1);
+	int MoveToolSetItem(int toolset_id,int posa,int posb,bool insert=false);	
+	int AddToolSet(std::string& name,std::string title);
+	int AddToolSet(std::string &name,std::string title,int &position);
 	int RemoveToolSet(int position);
-	int MoveToolSet(int posa, int posb);
+	int MoveToolSet(int posa, int posb,bool insert=false);
 	int GetToolSetID(string& name);
 	int GetToolSetID(const char *name);
 	wxBitmap* RenderToolSetItemImage(int tool_id, int item_id, double gamma=1.30, int x_size=-1, int y_size=-1, bool no_zoom=true);

@@ -6,6 +6,7 @@
 ///////////////////////////////////////////////////////////////////////////
 
 #include "form_objects.h"
+#include "form_edit_toolset.h"
 #include "sprites.h"
 #include "other.h"
 #include "wx_other.h"
@@ -40,7 +41,7 @@ FormObjects::FormObjects( wxWindow* parent,SpellData* spell_data,wxWindowID id, 
 	m_staticText14->Wrap(-1);
 	szrList->Add(m_staticText14,0,wxLEFT|wxTOP,5);
 
-	treeCtrlClasses = new wxTreeCtrl(this,wxID_TRC_CLASSES,wxDefaultPosition,wxDefaultSize,wxTR_DEFAULT_STYLE|wxTR_EDIT_LABELS|wxALWAYS_SHOW_SB|wxVSCROLL|wxTR_HIDE_ROOT);
+	treeCtrlClasses = new wxTreeCtrl(this,wxID_TRC_CLASSES,wxDefaultPosition,wxDefaultSize,wxTR_DEFAULT_STYLE|wxTR_EDIT_LABELS|wxTR_HIDE_ROOT|wxTR_SINGLE|wxALWAYS_SHOW_SB|wxVSCROLL);
 	szrList->Add(treeCtrlClasses,1,wxBOTTOM|wxEXPAND|wxLEFT|wxRIGHT,5);
 
 
@@ -102,12 +103,16 @@ FormObjects::FormObjects( wxWindow* parent,SpellData* spell_data,wxWindowID id, 
 	mnuEdit->Append(mmRename);
 
 	wxMenuItem* mmNewClass;
-	mmNewClass = new wxMenuItem(mnuEdit,wxID_MM_NEW_CLASS,wxString(wxT("New class")) + wxT('\t') + wxT("Ctrl+N"),wxEmptyString,wxITEM_NORMAL);
+	mmNewClass = new wxMenuItem(mnuEdit,wxID_MM_NEW_CLASS,wxString(wxT("New toolset")) + wxT('\t') + wxT("Ctrl+N"),wxEmptyString,wxITEM_NORMAL);
 	mnuEdit->Append(mmNewClass);
 
 	wxMenuItem* mmNewTool;
 	mmNewTool = new wxMenuItem(mnuEdit,wxID_MM_NEW_TOOL,wxString(wxT("New tool")) + wxT('\t') + wxT("Ctrl+T"),wxEmptyString,wxITEM_NORMAL);
 	mnuEdit->Append(mmNewTool);
+
+	wxMenuItem* mmEditToolset;
+	mmEditToolset = new wxMenuItem(mnuEdit,wxID_MM_EDIT_TOOLSET,wxString(wxT("Edit toolset")) + wxT('\t') + wxT("Ctrl+E"),wxEmptyString,wxITEM_NORMAL);
+	mnuEdit->Append(mmEditToolset);
 
 	m_menubar2->Append(mnuEdit,wxT("Edit"));
 
@@ -165,6 +170,7 @@ FormObjects::FormObjects( wxWindow* parent,SpellData* spell_data,wxWindowID id, 
 	Bind(wxEVT_MENU,&FormObjects::OnRemove,this,wxID_MM_REMOVE);
 	Bind(wxEVT_MENU,&FormObjects::OnNewClass,this,wxID_MM_NEW_CLASS);
 	Bind(wxEVT_MENU,&FormObjects::OnNewTool,this,wxID_MM_NEW_TOOL);
+	Bind(wxEVT_MENU,&FormObjects::OnEditToolset,this,wxID_MM_EDIT_TOOLSET);
 
 
 	// canvas stuff:
@@ -173,14 +179,13 @@ FormObjects::FormObjects( wxWindow* parent,SpellData* spell_data,wxWindowID id, 
 
 	// object tool classes stuff:	
 	FillToolsClasses();
-	// 
-	//Bind(wxEVT_COMMAND_CHOICE_SELECTED,&FormObjects::OnToolClassItemChange,this,wxID_CHB_GROUP);
 
 	Bind(wxEVT_TREE_SEL_CHANGED,&FormObjects::OnTreeSelectionChanged,this,wxID_TRC_CLASSES);
 	Bind(wxEVT_TREE_BEGIN_DRAG,&FormObjects::OnTreeClassBeginDrag,this,wxID_TRC_CLASSES);
 	Bind(wxEVT_TREE_END_DRAG,&FormObjects::OnTreeClassEndDrag,this,wxID_TRC_CLASSES);
 	Bind(wxEVT_TREE_BEGIN_LABEL_EDIT,&FormObjects::OnTreeClassBeginLabelEdit,this,wxID_TRC_CLASSES);
 	Bind(wxEVT_TREE_END_LABEL_EDIT,&FormObjects::OnTreeClassEndLabelEdit,this,wxID_TRC_CLASSES);
+	Bind(wxEVT_TREE_ITEM_MENU,&FormObjects::OnTreeClassMenu,this,wxID_TRC_CLASSES);
 
 	// default map
 	SetMap(NULL);
@@ -228,7 +233,10 @@ void FormObjects::OnNewClass(wxCommandEvent& evt)
 	auto toolset_id = terr->GetToolSetID(name);
 
 	auto root_id = treeCtrlClasses->GetRootItem();
-	treeCtrlClasses->AppendItem(root_id,GetToolsetTitle(toolset_id),Icons::FOLDER,Icons::FOLDER_OPEN,(wxTreeItemData*)new TreeNode(toolset_id));
+	auto new_id = treeCtrlClasses->AppendItem(root_id,GetToolsetTitle(toolset_id),Icons::FOLDER,Icons::FOLDER_OPEN,(wxTreeItemData*)new TreeNode(toolset_id));
+	treeCtrlClasses->SelectItem(new_id);
+	if(!treeCtrlClasses->IsVisible(new_id))
+		treeCtrlClasses->EnsureVisible(new_id);
 }
 
 // new tool within class
@@ -247,10 +255,15 @@ void FormObjects::OnNewTool(wxCommandEvent& evt)
 		class_id = obj->m_class_id;
 	else
 		return;
+	if(obj->m_tool_id <= 0)
+		parent_id = item_id;
 		
 	auto terr = FindTerrain();
 	std::string name = "New tool";
 	terr->AddToolSetItem(class_id-1,name);
+	auto tool_class_id = terr->GetToolSetItem(class_id-1,name);
+	auto tool_id = treeCtrlClasses->AppendItem(parent_id,name,Icons::MULTI,-1,(wxTreeItemData*)new TreeNode(class_id,tool_class_id+1));
+	treeCtrlClasses->SelectItem(tool_id);
 	FillToolsClasses();
 }
 
@@ -380,9 +393,11 @@ void FormObjects::OnTreeClassEndDrag(wxTreeEvent& evt)
 		{
 			// target is class node		
 			auto terr = FindTerrain();
-			terr->MoveToolSet(obj->m_class_id-1,target_obj->m_class_id-1);
+			terr->MoveToolSet(obj->m_class_id-1,target_obj->m_class_id-1,true);
 			treeCtrlClasses->SelectItem(m_drag_item);
 			FillToolsClasses();
+			treeCtrlClasses->Refresh();
+			evt.Veto();
 		}
 	}
 	else if(obj->m_tool_id)
@@ -392,9 +407,11 @@ void FormObjects::OnTreeClassEndDrag(wxTreeEvent& evt)
 		{
 			// within same toolset
 			auto terr = FindTerrain();
-			terr->MoveToolSetItem(obj->m_class_id-1,obj->m_tool_id-1,target_obj->m_tool_id-1);
+			terr->MoveToolSetItem(obj->m_class_id-1,obj->m_tool_id-1,target_obj->m_tool_id-1,true);
 			treeCtrlClasses->SelectItem(m_drag_item);
 			FillToolsClasses();
+			treeCtrlClasses->Refresh();
+			evt.Veto();
 		}
 	}
 	else
@@ -447,6 +464,72 @@ void FormObjects::OnTreeSelectionChanged(wxTreeEvent& evt)
 	// is node
 	m_spell_obj = obj->m_obj;
 	canvas->Refresh();	
+}
+
+// edit toolset class properties
+void FormObjects::OnEditToolset(wxCommandEvent& evt)
+{
+	auto item_id = treeCtrlClasses->GetSelection();
+	if(!item_id.IsOk())
+		return;
+	auto* obj = (TreeNode*)treeCtrlClasses->GetItemData(item_id);
+	auto terr = FindTerrain();
+	auto form = new FormEditToolset(this,terr,obj->m_class_id-1);
+	if(form->ShowModal() == wxID_OK)
+	{
+		// --- confirmed
+	}
+	delete form;
+	FillToolsClasses();
+}
+
+// tool tree menu popup
+void FormObjects::OnTreeClassMenu(wxTreeEvent& evt)
+{
+	auto item_id = evt.GetItem();
+	if(!item_id.IsOk())
+		return;
+	treeCtrlClasses->SelectItem(item_id);
+	auto* obj = (TreeNode*)treeCtrlClasses->GetItemData(item_id);
+
+	wxMenu menu;// = new wxMenu();
+	menu.SetClientData(item_id);
+	if(obj)
+		menu.Append(MNU_REMOVE,"Remove\tDelete");
+	if(!obj->m_obj && obj->m_class_id > 0)
+		menu.Append(MNU_NEW_TOOL,"New tool\tCtrl+T");
+	menu.Append(MNU_NEW_TOOLSET,"New toolset\tCtrl+N");
+	if(!obj->m_obj && obj->m_class_id > 0 && obj->m_tool_id <= 0)
+		menu.Append(MNU_EDIT_TOOLSET,"Edit toolset parameters\tCtrl+E");
+	menu.Connect(wxEVT_COMMAND_MENU_SELECTED,wxCommandEventHandler(FormObjects::OnTreeClassMenuClick),NULL,this);
+	treeCtrlClasses->PopupMenu(&menu,evt.GetPoint());
+}
+// on tool tree menu click
+void FormObjects::OnTreeClassMenuClick(wxCommandEvent& evt)
+{
+	auto menu_id = evt.GetId();
+	auto menu = (wxMenu*)evt.GetEventObject();
+	auto item_id = (wxTreeItemId)menu->GetClientData();
+	if(menu_id == MNU_REMOVE)
+	{
+		wxCommandEvent event;
+		OnRemove(event);
+	}
+	else if(menu_id == MNU_NEW_TOOL)
+	{
+		wxCommandEvent event;
+		OnNewTool(event);
+	}
+	else if(menu_id == MNU_NEW_TOOLSET)
+	{
+		wxCommandEvent event;
+		OnNewClass(event);
+	}
+	else if(menu_id == MNU_EDIT_TOOLSET)
+	{
+		wxCommandEvent event;
+		OnEditToolset(event);
+	}
 }
 
 
