@@ -1884,7 +1884,7 @@ int Terrain::InitSpriteContext(wstring &path)
 	if(!path.length())
 		return(1);
 	
-	ifstream fr(path,ios::in | ios::binary);
+	ifstreamext fr(path,ios::in | ios::binary);
 	if(!fr.is_open())
 		return(1);
 
@@ -1899,7 +1899,7 @@ int Terrain::InitSpriteContext(wstring &path)
 	}
 
 	// check terrain tag
-	string terr_name = istream_read_string(fr);
+	string terr_name = fr.read_str_p16();
 	if(name.compare(terr_name) != 0)
 	{
 		// wrong terrain type
@@ -1911,31 +1911,31 @@ int Terrain::InitSpriteContext(wstring &path)
 	// --- tool clasification:	
 
 	// read tool classes count
-	uint32_t tool_count = istream_read_u32(fr);
+	uint32_t tool_count = fr.read_u32();
 	// for each tool list:
 	for(int tid = 0; tid < tool_count; tid++)
 	{
 		// get class name/title
-		string name = istream_read_string(fr);
-		string title = istream_read_string(fr);
+		string name = fr.read_str_p16();
+		string title = fr.read_str_p16();
 		AddToolSet(name, title);
 
 		// get glyph params
-		uint32_t glyph_mode = istream_read_u32(fr);
-		uint32_t glyph_w = istream_read_u32(fr);
-		uint32_t glyph_h = istream_read_u32(fr);
+		uint32_t glyph_mode = fr.read_u32();
+		uint32_t glyph_w = fr.read_u32();
+		uint32_t glyph_h = fr.read_u32();
 		SetToolSetGlyphScalingMode(tid,glyph_mode);
 		SetToolSetGlyphScaling(tid, glyph_w, glyph_h);
 
 		// read tool items count in class
-		uint32_t items_count = istream_read_u32(fr);
+		uint32_t items_count = fr.read_u32();
 
 		// for each item in tool class:
 		vector<int> list;
 		for(int k = 0; k < items_count; k++)
 		{
 			// get item name
-			auto item_name = istream_read_string(fr);
+			auto item_name = fr.read_str_p16();
 			AddToolSetItem(tid, item_name);
 		}
 		
@@ -1943,7 +1943,7 @@ int Terrain::InitSpriteContext(wstring &path)
 
 
 	// get context tile list size
-	uint32_t count = istream_read_u32(fr);
+	uint32_t count = fr.read_u32();
 
 	// read tile names
 	vector<int> list;
@@ -1972,7 +1972,7 @@ int Terrain::InitSpriteContext(wstring &path)
 		for(int quid = 0; quid < 4; quid++)
 		{
 			// L1 context count
-			uint32_t cont_count = istream_read_u32(fr);
+			uint32_t cont_count = fr.read_u32();
 
 			// reserve context buffer (faster adding tiles)
 			/*for(int tid = 'A'; tid <= 'M'; tid++) // ###temp
@@ -2005,31 +2005,31 @@ int Terrain::InitSpriteContext(wstring &path)
 		}
 
 		// load flags
-		sprites[list[k]]->SetFlags(istream_read_u32(fr));
+		sprites[list[k]]->SetFlags(fr.read_u32());
 		
 		// load special flags
-		sprites[list[k]]->SetGlyphFlags(istream_read_u32(fr));
+		sprites[list[k]]->SetGlyphFlags(fr.read_u32());
 
 		// load special tile class
-		sprites[list[k]]->SetSpecClass(istream_read_u32(fr));
+		sprites[list[k]]->SetSpecClass(fr.read_u32());
 
 		// load map tile flags
-		sprites[list[k]]->SetMapFlags(istream_read_u32(fr));
+		sprites[list[k]]->SetMapFlags(fr.read_u32());
 
 		// load shading flags		
-		uint32_t flags = istream_read_u32(fr);
+		uint32_t flags = fr.read_u32();
 		sprites[list[k]]->SetShadingFlags(flags & 0x00FF);
 		sprites[list[k]]->SetShadingMask((flags >> 8) & 0x00FF);
 
 		// load tools classes ids
-		sprites[list[k]]->SetToolClass(istream_read_u32(fr));
-		sprites[list[k]]->SetToolClassGroup(istream_read_u32(fr));
+		sprites[list[k]]->SetToolClass(fr.read_u32());
+		sprites[list[k]]->SetToolClassGroup(fr.read_u32());
 	}
 
 
 
 	// get PNM list size
-	uint32_t pnms_count = istream_read_u32(fr);
+	uint32_t pnms_count = fr.read_u32();
 
 	// read PNM names
 	vector<AnimPNM*> pnm_list;
@@ -2047,7 +2047,7 @@ int Terrain::InitSpriteContext(wstring &path)
 
 
 	// get objects count
-	int obj_count = istream_read_u32(fr);
+	int obj_count = fr.read_u32();
 
 	// read object glyphs palette
 	uint8_t tpal[256*3];
@@ -2083,7 +2083,7 @@ int Terrain::InitSpriteContext(wstring &path)
 int Terrain::SaveSpriteContext(wstring& path)
 {
 	// create file
-	ofstream fw(path,ios::out | ios::binary);
+	ofstreamext fw(path,ios::out | ios::binary);
 	if(!fw.is_open())
 		return(1);
 
@@ -2095,42 +2095,42 @@ int Terrain::SaveSpriteContext(wstring& path)
 	fw.write(ver, sizeof(ver));
 
 	// store terrain name
-	ostream_write_string(fw, this->name);
+	fw.write_str_p16(this->name);
 
 	// --- tool clasification:
 	// store tool classes count
-	ostream_write_u32(fw,GetToolsCount());
+	fw.write(GetToolsCount());
 
 	// for each tool list:
 	for(int tid = 0; tid < GetToolsCount(); tid++)
 	{		
 		// store tool set name
-		ostream_write_string(fw, GetToolSetName(tid));
+		fw.write_str_p16(GetToolSetName(tid));
 
 		// store tool set title
-		ostream_write_string(fw,GetToolSetTitle(tid));
+		fw.write_str_p16(GetToolSetTitle(tid));
 		
 		// store glyph formatting
-		ostream_write_u32(fw,GetToolSetGlyphScalingMode(tid));
+		fw.write(GetToolSetGlyphScalingMode(tid));
 		auto [ww, hh] = GetToolSetGlyphScaling(tid);
-		ostream_write_u32(fw,ww);
-		ostream_write_u32(fw,hh);
+		fw.write(ww);
+		fw.write(hh);
 
 		// store class items count
-		ostream_write_u32(fw,GetToolSetItemsCount(tid));
+		fw.write((uint32_t)GetToolSetItemsCount(tid));
 
 		// store class item names:
 		for(int k = 0; k < GetToolSetItemsCount(tid); k++)
 		{
 			// store item name
-			ostream_write_string(fw, GetToolSetItem(tid,k));
+			fw.write_str_p16(GetToolSetItem(tid,k));
 		}
 	}
 
 
 	// store sprite count
 	uint32_t count = sprites.size();
-	ostream_write_u32(fw,count);
+	fw.write(count);
 
 	// store sprite name list, following code will work with indexes corresponding to this list
 	for(int k = 0; k < count;k++)
@@ -2150,7 +2150,7 @@ int Terrain::SaveSpriteContext(wstring& path)
 		{
 			// L1 context count
 			uint32_t cont_count = sprites[k]->GetContextCount(quid);
-			ostream_write_u32(fw,cont_count);
+			fw.write(cont_count);
 
 			// for each context tile
 			for(int sid = 0; sid < cont_count; sid++)
@@ -2159,7 +2159,8 @@ int Terrain::SaveSpriteContext(wstring& path)
 				Sprite *sprite = sprites[k]->GetContext(quid, sid);
 				// store index
 				uint16_t tile_id = sprite->GetIndex();
-				fw.write((char*)&tile_id,sizeof(uint16_t));
+				//fw.write((char*)&tile_id,sizeof(uint16_t));
+				fw.write(tile_id);
 			}
 
 		}
@@ -2167,33 +2168,34 @@ int Terrain::SaveSpriteContext(wstring& path)
 		for(int quid = 0; quid < 4; quid++)
 		{
 			uint8_t edge_class = sprites[k]->GetEdgeClass(quid);
-			fw.write((char*)&edge_class,sizeof(uint8_t));
+			//fw.write((char*)&edge_class,sizeof(uint8_t));
+			fw.write(edge_class);
 		}
 
 		// store flags
-		ostream_write_u32(fw,sprites[k]->GetFlags());
+		fw.write((uint32_t)sprites[k]->GetFlags());
 		
 		// store special flags
-		ostream_write_u32(fw,sprites[k]->GetGlyphFlags());
+		fw.write((uint32_t)sprites[k]->GetGlyphFlags());
 		
 		// store special tile class
-		ostream_write_u32(fw,sprites[k]->GetSpecClass());
+		fw.write((uint32_t)sprites[k]->GetSpecClass());
 
 		// store map tile flags
-		ostream_write_u32(fw,sprites[k]->GetMapFlags());
+		fw.write((uint32_t)sprites[k]->GetMapFlags());
 		
 		// store shading flags and masks
-		ostream_write_u32(fw,sprites[k]->GetShadingFlags() | (sprites[k]->GetShadingMask() << 8));
+		fw.write((uint32_t)sprites[k]->GetShadingFlags() | (sprites[k]->GetShadingMask() << 8));
 
 		// store tool class
-		ostream_write_u32(fw,sprites[k]->GetToolClass());
+		fw.write((uint32_t)sprites[k]->GetToolClass());
 
 		// store tool class item
-		ostream_write_u32(fw,sprites[k]->GetToolClassGroup());
+		fw.write((uint32_t)sprites[k]->GetToolClassGroup());
 	}
 
 	// store PNMs count
-	ostream_write_u32(fw,pnms.size());
+	fw.write((uint32_t)pnms.size());
 	// store PNM names
 	for(auto &pnm: pnms)
 	{
@@ -2205,7 +2207,7 @@ int Terrain::SaveSpriteContext(wstring& path)
 	}
 
 	// store objects count
-	ostream_write_u32(fw,objects.size());
+	fw.write((uint32_t)objects.size());
 
 	// store common palette for object glyphs
 	fw.write((char*)&pal,256*3);
@@ -3339,53 +3341,54 @@ void SpellObject::SetDescription(std::string name)
 }
 
 // write object to a file (for saving objects list)
-int SpellObject::WriteToFile(ofstream &fw)
+int SpellObject::WriteToFile(ofstreamext &fw)
 {
 	// write description string
-	ostream_write_string(fw, description);
+	fw.write_str_p16(description);
 
 	// store tool class
-	ostream_write_u32(fw,tool_class);
+	fw.write((uint32_t)tool_class);
 
 	// store tool class item
-	ostream_write_u32(fw,tool_group);
+	fw.write((uint32_t)tool_group);
 
 	// write tiles count
-	ostream_write_u32(fw,L1_sprites.size());
+	fw.write((uint32_t)L1_sprites.size());
 
 	// for each tile:
 	for(int k = 0;k < L1_sprites.size(); k++)
 	{	
 		// write L1 sprite index
-		ostream_write_u32(fw,L1_sprites[k]->GetIndex());
+		fw.write((uint32_t)L1_sprites[k]->GetIndex());
 
 		// write L2 sprite index
-		ostream_write_u32(fw,(L2_sprites[k])?(L2_sprites[k]->GetIndex()):(-1));
+		fw.write((uint32_t)(L2_sprites[k])?(L2_sprites[k]->GetIndex()):(-1));
 
 		// write flags
 		uint8_t flag = flags[k];
-		fw.write((char*)&flag,sizeof(uint8_t));
+		//fw.write((char*)&flag,sizeof(uint8_t));
+		fw.write(flag);
 
 		// write tile relative position [x,y]
-		ostream_write_i32(fw, sprite_pos[k].x);
-		ostream_write_i32(fw, sprite_pos[k].y);
+		fw.write((int32_t)sprite_pos[k].x);
+		fw.write((int32_t)sprite_pos[k].y);
 	}
 
 	// PNM layer sprites count
-	ostream_write_u32(fw,L4_list.size());
+	fw.write((uint32_t)L4_list.size());
 
 	// store PNM sprites
 	for(auto &pnm: L4_list)
 	{
 		// PNM order id
-		ostream_write_u32(fw,pnm.anim->index);
+		fw.write((uint32_t)pnm.anim->index);
 		// PNM position
-		ostream_write_i32(fw,pnm.x_pos);
-		ostream_write_i32(fw,pnm.y_pos);
-		ostream_write_i32(fw,pnm.x_ofs);
-		ostream_write_i32(fw,pnm.y_ofs);
+		fw.write((int32_t)pnm.x_pos);
+		fw.write((int32_t)pnm.y_pos);
+		fw.write((int32_t)pnm.x_ofs);
+		fw.write((int32_t)pnm.y_ofs);
 		// PNM frames limit
-		ostream_write_u32(fw,pnm.frame_limit);
+		fw.write((uint32_t)pnm.frame_limit);
 	}
 
 	// --- write image glyph data
@@ -3395,11 +3398,11 @@ int SpellObject::WriteToFile(ofstream &fw)
 
 	// store format ID
 	uint32_t format = GLYPH_FORMAT::LZ_INDEX_8BIT;
-	ostream_write_u32(fw,format);
+	fw.write((uint32_t)format);
 
 	// write pic size
-	ostream_write_u32(fw,surf_x);
-	ostream_write_u32(fw,surf_y);
+	fw.write((uint32_t)surf_x);
+	fw.write((uint32_t)surf_y);
 
 	// write palette
 	//fw.write((char*)pal,3*256);
@@ -3415,7 +3418,7 @@ int SpellObject::WriteToFile(ofstream &fw)
 		// LZ compressed 8bit indexed
 		std::vector<uint8_t> lzdata;
 		LZspell lzw = LZspell(pic.data(),pic.size(),lzdata);
-		ostream_write_u32(fw,lzdata.size());
+		fw.write((uint32_t)lzdata.size());
 		fw.write((char*)lzdata.data(),lzdata.size());
 	}
 
@@ -3423,7 +3426,7 @@ int SpellObject::WriteToFile(ofstream &fw)
 }
 
 // create object from a file
-SpellObject::SpellObject(ifstream& fr, vector<Sprite*> &sprite_list, vector<AnimPNM*> &pnm_list, uint8_t* palette)
+SpellObject::SpellObject(ifstreamext& fr, vector<Sprite*> &sprite_list, vector<AnimPNM*> &pnm_list, uint8_t* palette)
 {
 	sprite_pos.clear();
 	L1_sprites.clear();
@@ -3439,16 +3442,16 @@ SpellObject::SpellObject(ifstream& fr, vector<Sprite*> &sprite_list, vector<Anim
 	tool_group = 0;
 
 	// read description string	
-	description = istream_read_string(fr);
+	description = fr.read_str_p16();
 
 	// load tools class id
-	tool_class = istream_read_u32(fr);
+	tool_class = fr.read_u32();
 
 	// load tools class item id
-	tool_group = istream_read_u32(fr);
+	tool_group = fr.read_u32();
 	
 	// read tiles count
-	uint32_t tile_count = istream_read_u32(fr);
+	uint32_t tile_count = fr.read_u32();
 	
 	L1_sprites.reserve(tile_count);
 	L2_sprites.reserve(tile_count);
@@ -3459,7 +3462,7 @@ SpellObject::SpellObject(ifstream& fr, vector<Sprite*> &sprite_list, vector<Anim
 	for(int k = 0;k < tile_count; k++)
 	{
 		// read L1 sprite index
-		uint32_t id1 = istream_read_u32(fr);
+		uint32_t id1 = fr.read_u32();
 		if(id1 >= sprite_list.size())
 			return;		
 		Sprite *spr = sprite_list[id1];
@@ -3471,7 +3474,7 @@ SpellObject::SpellObject(ifstream& fr, vector<Sprite*> &sprite_list, vector<Anim
 		spr->SetFlags(sflags);
 
 		// read L2 sprite index
-		uint32_t id2 = istream_read_u32(fr);
+		uint32_t id2 = fr.read_u32();
 		if(id2 == 0xFFFFFFFFu)
 			L2_sprites.push_back(NULL);
 		else if(id2 >= sprite_list.size())
@@ -3485,27 +3488,27 @@ SpellObject::SpellObject(ifstream& fr, vector<Sprite*> &sprite_list, vector<Anim
 		flags.push_back(flag);
 		
 		// read tile relative position [x,y]
-		uint32_t x_pos = istream_read_u32(fr);
-		uint32_t y_pos = istream_read_u32(fr);
+		uint32_t x_pos = fr.read_u32();
+		uint32_t y_pos = fr.read_u32();
 		MapXY pxy(x_pos, y_pos);
 		sprite_pos.push_back(pxy);
 	}
 
 	// used PNM count
-	int pnm_count = istream_read_u32(fr);
+	int pnm_count = fr.read_u32();
 
 	// for each PNM anim
 	for(int k = 0; k < pnm_count; k++)
 	{
 		// PNM order id
-		int pnm_id = istream_read_u32(fr);
+		int pnm_id = fr.read_u32();
 		// PNM position
-		int pnm_x_pos = istream_read_i32(fr);
-		int pnm_y_pos = istream_read_i32(fr);
-		int pnm_x_ofs = istream_read_i32(fr);
-		int pnm_y_ofs = istream_read_i32(fr);
+		int pnm_x_pos = fr.read_i32();
+		int pnm_y_pos = fr.read_i32();
+		int pnm_x_ofs = fr.read_i32();
+		int pnm_y_ofs = fr.read_i32();
 		// PNM frames limit
-		int pnm_frame_lim = istream_read_u32(fr);
+		int pnm_frame_lim = fr.read_u32();
 		
 		// add to object pnm list
 		if(pnm_id >= pnm_list.size())
@@ -3515,11 +3518,11 @@ SpellObject::SpellObject(ifstream& fr, vector<Sprite*> &sprite_list, vector<Anim
 
 
 	// read glyph format
-	uint32_t format = istream_read_u32(fr);
+	uint32_t format = fr.read_u32();
 
 	// read pic size
-	surf_x = istream_read_u32(fr);
-	surf_y = istream_read_u32(fr);
+	surf_x = fr.read_u32();
+	surf_y = fr.read_u32();
 
 	// read palette
 	//fr.read((char*)pal,3*256);
@@ -3534,7 +3537,7 @@ SpellObject::SpellObject(ifstream& fr, vector<Sprite*> &sprite_list, vector<Anim
 	else if(format == GLYPH_FORMAT::LZ_INDEX_8BIT)
 	{
 		// read LZ compressed 8bit indexed data
-		uint32_t lzsize = istream_read_u32(fr);
+		uint32_t lzsize = fr.read_u32();
 		std::vector<uint8_t> lzdata;
 		lzdata.resize(lzsize);
 		fr.read((char*)lzdata.data(),lzsize);

@@ -233,7 +233,7 @@ std::string fix_no_duplicate_string(std::string str, std::vector<std::string> &l
 
 
 // write string with string size prefix (16bit)
-int ostream_write_string(std::ofstream& fw,std::string &str)
+/*int ostream_write_string(std::ofstream& fw,std::string &str)
 {
     return(ostream_write_string(fw,str.c_str()));
 }
@@ -247,10 +247,10 @@ int ostream_write_string(std::ofstream& fw, const char *str)
     fw.write((char*)&len,sizeof(uint16_t));
     fw.write(str,len);
     return(0);
-}
+}*/
 
 // read string item with size prefix (16bit)
-std::string istream_read_string(std::ifstream& fr)
+/*std::string istream_read_string(std::ifstream& fr)
 {
     uint16_t len;
     fr.read((char*)&len,sizeof(uint16_t));
@@ -259,51 +259,51 @@ std::string istream_read_string(std::ifstream& fr)
     fr.read(str.data(),len);
     str.resize(len-1);
     return(str);
-}
+}*/
 
 // write u8 value
-int ostream_write_u8(std::ofstream& fw,uint8_t val)
+/*int ostream_write_u8(std::ofstream& fw,uint8_t val)
 {
     fw.write((char*)&val,sizeof(uint8_t));
     return(0);
-}
+}*/
 
 // write u16 value
-int ostream_write_u16(std::ofstream& fw,uint16_t val)
+/*int ostream_write_u16(std::ofstream& fw,uint16_t val)
 {
     fw.write((char*)&val,sizeof(uint16_t));
     return(0);
-}
+}*/
 
 // write u32 value
-int ostream_write_u32(std::ofstream& fw,uint32_t val)
+/*int ostream_write_u32(std::ofstream& fw,uint32_t val)
 {
     fw.write((char*)&val,sizeof(uint32_t));
     return(0);
-}
+}*/
 
 // write i32 value
-int ostream_write_i32(std::ofstream& fw,int32_t val)
+/*int ostream_write_i32(std::ofstream& fw,int32_t val)
 {
     fw.write((char*)&val,sizeof(int32_t));
     return(0);
-}
+}*/
 
 // read uint32_t
-uint32_t istream_read_u32(std::ifstream& fr)
+/*uint32_t istream_read_u32(std::ifstream& fr)
 {
     uint32_t val;
     fr.read((char*)&val,sizeof(uint32_t));
     return(val);
-}
+}*/
 
 // read int32_t
-int32_t istream_read_i32(std::ifstream& fr)
+/*int32_t istream_read_i32(std::ifstream& fr)
 {
     int32_t val;
     fr.read((char*)&val,sizeof(int32_t));
     return(val);
-}
+}*/
 
 
 

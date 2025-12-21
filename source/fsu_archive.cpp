@@ -459,7 +459,7 @@ int FSUarchive::GetCount()
 int FSUarchive::SaveAuxData(std::wstring path)
 {
 	// create file
-	ofstream fw(path,ios::out | ios::binary);
+	ofstreamext fw(path,ios::out | ios::binary);
 	if(!fw.is_open())
 		return(1);
 
@@ -471,41 +471,41 @@ int FSUarchive::SaveAuxData(std::wstring path)
 	fw.write(ver,sizeof(ver));
 
 	// store resource count
-	ostream_write_i32(fw,GetCount());
+	fw.write((int32_t)GetCount());
 
 	// store list of resource names
 	for(auto & res : list)
-		ostream_write_string(fw,res->name);
+		fw.write_str_p16(res->name);
 	
 	// store resouce data for each:
 	for(auto& res : list)
 	{
 		// static data:
 		auto &stat = res->stat;
-		ostream_write_i32(fw,stat.slopes);
+		fw.write((int32_t)stat.slopes);
 		for(int sid = 0; sid < stat.slopes; sid++)
 		{
 			auto &forg = stat.fire_origin[sid];
-			ostream_write_i32(fw,forg.size());
+			fw.write((int32_t)forg.size());
 			for(auto & aorg : forg)
 			{
-				ostream_write_i32(fw,aorg.x);
-				ostream_write_i32(fw,aorg.y);
+				fw.write((int32_t)aorg.x);
+				fw.write((int32_t)aorg.y);
 			}
-			ostream_write_i32(fw,stat.fire_center[sid].x);
-			ostream_write_i32(fw,stat.fire_center[sid].y);
+			fw.write((int32_t)stat.fire_center[sid].x);
+			fw.write((int32_t)stat.fire_center[sid].y);
 		}
 
 		// animation data:
 		auto& anim = res->anim;
-		ostream_write_i32(fw,anim.fire_origin.size());
+		fw.write((int32_t)anim.fire_origin.size());
 		for(auto& aorg : anim.fire_origin)
 		{
-			ostream_write_i32(fw,aorg.x);
-			ostream_write_i32(fw,aorg.y);
+			fw.write((int32_t)aorg.x);
+			fw.write((int32_t)aorg.y);
 		}
-		ostream_write_i32(fw,anim.fire_center.x);
-		ostream_write_i32(fw,anim.fire_center.y);
+		fw.write((int32_t)anim.fire_center.x);
+		fw.write((int32_t)anim.fire_center.y);
 	}
 
 	// close file
@@ -518,7 +518,7 @@ int FSUarchive::SaveAuxData(std::wstring path)
 int FSUarchive::LoadAuxData(std::wstring path)
 {
 	// create file
-	ifstream fr(path,ios::in | ios::binary);
+	ifstreamext fr(path,ios::in | ios::binary);
 	if(!fr.is_open())
 		return(1);
 
@@ -536,14 +536,14 @@ int FSUarchive::LoadAuxData(std::wstring path)
 	}
 
 	// get aux resouce count
-	uint32_t count = istream_read_u32(fr);
+	uint32_t count = fr.read_u32();
 
 	// load list of resources
 	vector<string> names;
 	for(int uid = 0; uid < count; uid++)
 	{
 		// resource name
-		string name = istream_read_string(fr);
+		string name = fr.read_str_p16();
 		names.push_back(name);
 	}
 
@@ -554,34 +554,34 @@ int FSUarchive::LoadAuxData(std::wstring path)
 		auto *res = GetResource(rname.c_str());
 
 		// load statics
-		int stat_slopes = istream_read_i32(fr);
+		int stat_slopes = fr.read_i32();
 		for(int sid = 0; sid < stat_slopes; sid++)
 		{
-			int stat_azims = istream_read_i32(fr);			
+			int stat_azims = fr.read_i32();
 			for(int aid = 0; aid < stat_azims; aid++)
 			{
-				int x = istream_read_i32(fr);
-				int y = istream_read_i32(fr);
+				int x = fr.read_i32();
+				int y = fr.read_i32();
 				if(res && sid < res->stat.slopes && aid < res->stat.azimuths)
 					res->stat.fire_origin[sid][aid] = FSU_resource::Txy(x,y);				
 			}
-			int x = istream_read_i32(fr);
-			int y = istream_read_i32(fr);
+			int x = fr.read_i32();
+			int y = fr.read_i32();
 			if(res && sid < res->stat.slopes)
 				res->stat.fire_center[sid] = FSU_resource::Txy(x,y);
 		}
 
 		// load animations
-		uint32_t anim_azims = istream_read_i32(fr);
+		uint32_t anim_azims = fr.read_i32();
 		for(int aid = 0; aid < anim_azims; aid++)
 		{
-			int x = istream_read_i32(fr);
-			int y = istream_read_i32(fr);
+			int x = fr.read_i32();
+			int y = fr.read_i32();
 			if(res && aid < res->anim.azimuths)
 				res->anim.fire_origin[aid] = FSU_resource::Txy(x,y);
 		}		
-		int x = istream_read_i32(fr);
-		int y = istream_read_i32(fr);
+		int x = fr.read_i32();
+		int y = fr.read_i32();
 		if(res)
 			res->anim.fire_center = FSU_resource::Txy(x,y);
 	}

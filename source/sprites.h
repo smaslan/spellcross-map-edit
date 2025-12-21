@@ -18,6 +18,7 @@
 #include <algorithm>
 #include <thread>
 
+#include "other.h"
 #include "fs_archive.h"
 #include "fsu_archive.h"
 #include "map_types.h"
@@ -381,14 +382,14 @@ public:
 		LZ_INDEX_8BIT
 	};
 	
-	SpellObject(ifstream& fr,std::vector<Sprite*>& sprite_list,vector<AnimPNM*>& pnm_list,uint8_t* palette);
+	SpellObject(ifstreamext& fr,std::vector<Sprite*>& sprite_list,vector<AnimPNM*>& pnm_list,uint8_t* palette);
 	SpellObject(vector<MapXY>& xy,vector<Sprite*>& L1_list,vector<Sprite*>& L2_list,vector<uint8_t>& flag_list,std::vector<MapLayer4>& pnm_list,uint8_t* palette=NULL,std::string desc="");
 	//SpellObject(std::vector<MapXY> xy,std::vector<Sprite*> L1_list,std::vector<Sprite*> L2_list,std::vector<uint8_t> flag_list, uint8_t *palette = NULL, std::string desc = "");
 	~SpellObject();
 	int RenderPreview(wxBitmap& bmp,double gamma=1.30);
 	tuple<int, int> GetGlyphSize();
 	wxBitmap *RenderPreview(double gamma = 1.30, int x_size = -1, int y_size = -1, bool no_zoom=true);
-	int WriteToFile(ofstream& fw);	
+	int WriteToFile(ofstreamext& fw);
 	std::string GetDescription();
 	void SetDescription(std::string name);
 	//int PlaceMapTiles(std::vector<MapSprite>& tiles,int x_size,int y_size,MapXY sel);

@@ -1505,7 +1505,7 @@ int SpellMap::SaveDTA(std::wstring path)
 	last_error = "";
 	
 	// try open file
-	ofstream fw(path,ios::out | ios::binary | ios::trunc);
+	ofstreamext fw(path,ios::out | ios::binary | ios::trunc);
 	if(!fw.is_open())
 		return(1);
 
@@ -1536,17 +1536,17 @@ int SpellMap::SaveDTA(std::wstring path)
 
 	// write L1 data offset
 	uint32_t L1_offset = L1_count*8 + 0x1A;
-	ostream_write_u32(fw,L1_offset);
+	fw.write((uint32_t)L1_offset);
 
 	// write L1 sprites count
-	ostream_write_u32(fw,L1_count);
+	fw.write((uint32_t)L1_count);
 
 	// version ID
-	ostream_write_u8(fw,0x12);
+	fw.write((uint8_t)0x12);
 
 	// write map size
-	ostream_write_u16(fw,x_size);
-	ostream_write_u16(fw,y_size);
+	fw.write((uint16_t)x_size);
+	fw.write((uint16_t)y_size);
 
 	// terrain name	
 	char terr_name[13];
@@ -1598,7 +1598,7 @@ int SpellMap::SaveDTA(std::wstring path)
 	uint32_t L2_count = L2_list.size();
 
 	// write L2 sprites count
-	ostream_write_u32(fw,L2_count);
+	fw.write((uint32_t)L2_count);
 
 	// write L2 sprites names
 	for(auto spr: L2_list)
@@ -1634,7 +1634,7 @@ int SpellMap::SaveDTA(std::wstring path)
 	uint32_t L3_count = L3_list.size();
 
 	// write ANM used animations count
-	ostream_write_u32(fw,L3_count);
+	fw.write((uint32_t)L3_count);
 
 	// write ANM names list
 	for(auto anm: L3_list)
@@ -1648,7 +1648,7 @@ int SpellMap::SaveDTA(std::wstring path)
 
 	// write ANM items count in map
 	if(L3_count)
-		ostream_write_u32(fw,L3.size());
+		fw.write((uint32_t)L3.size());
 
 	// write ANM items in map
 	for(auto anm: L3)
@@ -1660,17 +1660,17 @@ int SpellMap::SaveDTA(std::wstring path)
 
 		// randomize first frame offset
 		uint8_t ofs = rand() % anm.anim->frames.size();
-		ostream_write_u8(fw,ofs);
+		fw.write((uint8_t)ofs);
 
 		// write frames limit (or whatever it is)
-		ostream_write_u16(fw,anm.frame_limit);
+		fw.write((uint16_t)anm.frame_limit);
 
 		// write map position
-		ostream_write_u16(fw,anm.x_pos);
-		ostream_write_u16(fw,anm.y_pos);
+		fw.write((uint16_t)anm.x_pos);
+		fw.write((uint16_t)anm.y_pos);
 
 		// write ANM id
-		ostream_write_u16(fw,aid);
+		fw.write((uint16_t)aid);
 	}
 
 
@@ -1694,7 +1694,7 @@ int SpellMap::SaveDTA(std::wstring path)
 	uint32_t L4_count = L4_list.size();
 
 	// write PNM used animations count
-	ostream_write_u32(fw,L4_count);
+	fw.write((uint32_t)L4_count);
 
 	// write PNM names list
 	for(auto pnm: L4_list)
@@ -1708,7 +1708,7 @@ int SpellMap::SaveDTA(std::wstring path)
 
 	// write PNM items count in map
 	if(L4_count)
-		ostream_write_u32(fw,L4.size());
+		fw.write((uint32_t)L4.size());
 
 	// write PNM items in map
 	for(auto pnm: L4)
@@ -1720,29 +1720,29 @@ int SpellMap::SaveDTA(std::wstring path)
 
 		// randomize first frame offset
 		uint8_t ofs = rand() % pnm.anim->frames.size();
-		ostream_write_u8(fw,ofs);
+		fw.write((uint8_t)ofs);
 
 		// write frames limit (or whatever it is)
-		ostream_write_u16(fw,pnm.frame_limit);
+		fw.write((uint16_t)pnm.frame_limit);
 
 		// write map position
-		ostream_write_u16(fw,pnm.x_pos);
-		ostream_write_u16(fw,pnm.y_pos);
+		fw.write((uint16_t)pnm.x_pos);
+		fw.write((uint16_t)pnm.y_pos);
 
 		// write PNM id
-		ostream_write_u16(fw,aid);
+		fw.write((uint16_t)aid);
 
 		// write PNM origin offset (y,x order for whatever reason)
-		ostream_write_i32(fw,pnm.y_ofs);
-		ostream_write_i32(fw,pnm.x_ofs);
+		fw.write((int32_t)pnm.y_ofs);
+		fw.write((int32_t)pnm.x_ofs);
 	}
 
 	
 	// write mystery L5 items
-	ostream_write_u32(fw,0);
+	fw.write((uint32_t)0);
 
 	// write mystery L6 items
-	ostream_write_u32(fw,0);
+	fw.write((uint32_t)0);
 
 
 	
@@ -1770,7 +1770,7 @@ int SpellMap::SaveDTA(std::wstring path)
 	uint32_t L7_list_size = L7_list.size();
 
 	// write unique sounds count
-	ostream_write_u32(fw,L7_list_size);
+	fw.write((uint32_t)L7_list_size);
 
 	// write unique sounds names list
 	for(auto snd: L7_list)
@@ -1781,7 +1781,7 @@ int SpellMap::SaveDTA(std::wstring path)
 
 	// write sound items count in map
 	if(L7_list_size)
-		ostream_write_u32(fw,L7_count);
+		fw.write((uint32_t)L7_count);
 	if(L7_count > 255)
 	{
 		// too many sounds placed
@@ -1802,10 +1802,10 @@ int SpellMap::SaveDTA(std::wstring path)
 
 		// write position (combined xy)
 		auto mxy = snd.GetPosition();
-		ostream_write_u16(fw,ConvXY(mxy));
+		fw.write((uint16_t)ConvXY(mxy));
 
 		// write sound id
-		ostream_write_u8(fw,sndid);
+		fw.write((uint8_t)sndid);
 	}
 
 
@@ -1833,7 +1833,7 @@ int SpellMap::SaveDTA(std::wstring path)
 	uint32_t L8_list_size = L8_list.size();
 
 	// write unique sounds count
-	ostream_write_u32(fw,L8_list_size);
+	fw.write((uint32_t)L8_list_size);
 
 	// write unique sounds names list
 	for(auto snd: L8_list)
@@ -1844,7 +1844,7 @@ int SpellMap::SaveDTA(std::wstring path)
 
 	// write sound items count in map
 	if(L8_list_size)
-		ostream_write_u32(fw,L8_count);
+		fw.write((uint32_t)L8_count);
 	if(L8_count > 255)
 	{
 		// too many sounds placed
@@ -1865,15 +1865,15 @@ int SpellMap::SaveDTA(std::wstring path)
 
 		// write position (combined xy)
 		auto mxy = snd.GetPosition();
-		ostream_write_u16(fw,ConvXY(mxy));
+		fw.write((uint16_t)ConvXY(mxy));
 
 		// write sound id
-		ostream_write_u8(fw,sndid);
+		fw.write((uint8_t)sndid);
 	}
 
 
 	// write unknown termination (likely some other optional list, but dunno what is it)
-	ostream_write_u32(fw,0);
+	fw.write((uint32_t)0);
 		
 	// close file
 	fw.close();

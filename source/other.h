@@ -27,15 +27,15 @@ char num2hex(int num);
 std::string fix_no_duplicate_string(std::string str,std::vector<std::string>& list);
 
 //int ostream_write_string(ofstream& fw,std::string &str);
-int ostream_write_string(std::ofstream& fw,std::string str);
-int ostream_write_string(std::ofstream& fw,const char* str);
-std::string istream_read_string(std::ifstream& fr);
-int ostream_write_u8(std::ofstream& fw,uint8_t val);
-int ostream_write_u16(std::ofstream& fw,uint16_t val);
-int ostream_write_u32(std::ofstream& fw,uint32_t val);
-int ostream_write_i32(std::ofstream& fw,int32_t val);
-uint32_t istream_read_u32(std::ifstream& fr);
-int32_t istream_read_i32(std::ifstream& fr);
+//int ostream_write_string(std::ofstream& fw,std::string str);
+//int ostream_write_string(std::ofstream& fw,const char* str);
+//std::string istream_read_string(std::ifstream& fr);
+//int ostream_write_u8(std::ofstream& fw,uint8_t val);
+//int ostream_write_u16(std::ofstream& fw,uint16_t val);
+//int ostream_write_u32(std::ofstream& fw,uint32_t val);
+//int ostream_write_i32(std::ofstream& fw,int32_t val);
+//uint32_t istream_read_u32(std::ifstream& fr);
+//int32_t istream_read_i32(std::ifstream& fr);
 
 
 void plot_line(uint8_t* buffer,uint8_t* buf_end,int buf_x,int buf_y,int x_size,uint8_t color,int x0,int y0,int x1,int y1);
@@ -51,13 +51,137 @@ double randgman(double shape,double scale,double max=1e9,double min=0);
 class ofstreamext : public basic_ofstream<charT,Traits> {
 public:
     ofstreamext(const char* name)
-        : basic_ofstream<charT,Traits>(name) {}
+        : std::basic_ofstream<charT,Traits>(name) {}
     
     basic_ofstream<charT,Traits>& write(uint32_t data){
-        write(
+        
     };
 
 };*/
+
+//template <class charT,class Traits>
+class ofstreamext : public std::ofstream {
+public:
+    ofstreamext(const char* name,int options)
+        : std::ofstream(name,options) {};
+    ofstreamext(std::string name,int options)
+        : std::ofstream(name,options) {};
+    ofstreamext(std::wstring name,int options)
+        : std::ofstream(name,options) {};
+    ~ofstreamext() = default;
+    
+    int write(const char *data, long size) {
+        std::ofstream::write((const char*)data,size);
+        return(0);
+    };
+
+    int write(uint32_t data) {
+        std::ofstream::write((const char*)&data,sizeof(uint32_t));
+        return(0);
+    };
+
+    int write(int32_t data) {
+        std::ofstream::write((const char*)&data,sizeof(int32_t));
+        return(0);
+    };
+
+    int write(uint16_t data) {
+        std::ofstream::write((const char*)&data,sizeof(uint16_t));
+        return(0);
+    };
+
+    int write(int16_t data) {
+        std::ofstream::write((const char*)&data,sizeof(int16_t));
+        return(0);
+    };
+
+    int write(uint8_t data) {
+        std::ofstream::write((const char*)&data,sizeof(uint8_t));
+        return(0);
+    };
+
+    int write(int8_t data) {
+        std::ofstream::write((const char*)&data,sizeof(int8_t));
+        return(0);
+    };
+
+    // write string with 16bit size prefix
+    int write_str_p16(const char *data) {
+        uint16_t len = std::strlen(data) + 1;
+        std::ofstream::write((char*)&len,sizeof(uint16_t));
+        std::ofstream::write(data,len);
+        return(0);
+    };
+
+    /*int write(std::string& data) {
+        return(write(data.c_str()));
+    };*/
+
+    int write_str_p16(std::string data) {
+        return(write_str_p16(data.c_str()));
+    };
+
+};
+
+
+class ifstreamext : public std::ifstream {
+public:
+    ifstreamext(const char* name,int options)
+        : std::ifstream(name,options) {};
+    ifstreamext(std::string name,int options)
+        : std::ifstream(name,options) {};
+    ifstreamext(std::wstring name,int options)
+        : std::ifstream(name,options) {};
+    ~ifstreamext() = default;
+
+    uint32_t read_u32(){
+        uint32_t val;
+        std::ifstream::read((char*)&val,sizeof(uint32_t));
+        return(val);
+    };
+
+    int32_t read_i32() {
+        int32_t val;
+        std::ifstream::read((char*)&val,sizeof(int32_t));
+        return(val);
+    };
+
+    uint16_t read_u16() {
+        uint16_t val;
+        std::ifstream::read((char*)&val,sizeof(uint16_t));
+        return(val);
+    };
+
+    int16_t read_i16() {
+        int16_t val;
+        std::ifstream::read((char*)&val,sizeof(int16_t));
+        return(val);
+    };
+
+    uint8_t read_u8() {
+        uint8_t val;
+        std::ifstream::read((char*)&val,sizeof(uint8_t));
+        return(val);
+    };
+
+    int8_t read_i8() {
+        int8_t val;
+        std::ifstream::read((char*)&val,sizeof(int8_t));
+        return(val);
+    };
+  
+    // read string item with size prefix (16bit)
+    std::string read_str_p16()
+    {
+        uint16_t len = read_u16();
+        std::string str(len,'\0');
+        std::ifstream::read(str.data(),len);
+        str.resize(len-1);
+        return(str);
+    }
+
+};
+
 
 /*class ofstreamext : public basic_ofstream<char,char_traits<char>>
 {
