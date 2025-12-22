@@ -2666,7 +2666,7 @@ int Terrain::InitSpriteMapTileFlags()
 		}
 		else if(wildcmp("PL???_??",spr->name.c_str()))
 		{
-			// generap terrain plain
+			// general terrain plain
 			spr->SetMapFlags(0x00);
 		}
 		else if(wildcmp("MTA0?_??",spr->name.c_str()) || wildcmp("MTA2?_??",spr->name.c_str()) || wildcmp("MTA3?_??",spr->name.c_str()))
@@ -3049,6 +3049,52 @@ SpellObject::~SpellObject()
 {	
 }
 
+// compare this object with target object
+bool SpellObject::Compare(SpellObject* obj)
+{	
+	if(!obj)
+		return(false);
+
+	if(this == obj)
+		return(true); // apparently, it is the same object
+
+	if(sprite_pos.size() != obj->sprite_pos.size())
+		return(false); // fast check
+
+	// align tile positions to min xy
+	MapXY min_pos(1<<30,1<<30);
+	for(auto &pos: sprite_pos)
+		min_pos = min_pos.Min(pos);
+	std::vector<MapXY> ref_pos;
+	for(auto& pos: sprite_pos)
+		ref_pos.push_back(pos - min_pos);
+
+	min_pos = MapXY(1<<30,1<<30);
+	for(auto &pos: obj->sprite_pos)
+		min_pos = min_pos.Min(pos);
+	std::vector<MapXY> obj_pos;
+	for(auto& pos: obj->sprite_pos)
+		obj_pos.push_back(pos - min_pos);
+
+	//std::vector<int> comp(ref_pos.size(),0);
+	// compare content
+	for(int k = 0; k < ref_pos.size(); k++)	
+	{
+		auto pos = ref_pos[k];
+		auto obj_pos_it = std::find(obj_pos.begin(), obj_pos.end(), pos);
+		if(obj_pos_it == obj_pos.end())
+			return(false); // position not even present in target
+		auto pos_id = obj_pos_it - obj_pos.begin();
+
+		if(L1_sprites[k] != obj->L1_sprites[pos_id])
+			return(false);
+		if(L2_sprites[k] != obj->L2_sprites[pos_id])
+			return(false);
+	}
+	
+	return(true);
+}
+
 // render glyph to internal indexed buffer
 int SpellObject::RenderObjectGlyph()
 {
@@ -3362,7 +3408,7 @@ int SpellObject::WriteToFile(ofstreamext &fw)
 		fw.write((uint32_t)L1_sprites[k]->GetIndex());
 
 		// write L2 sprite index
-		fw.write((uint32_t)(L2_sprites[k])?(L2_sprites[k]->GetIndex()):(-1));
+		fw.write((int32_t)((L2_sprites[k])?(L2_sprites[k]->GetIndex()):(-1)));
 
 		// write flags
 		uint8_t flag = flags[k];
@@ -3554,7 +3600,7 @@ SpellObject::SpellObject(ifstreamext& fr, vector<Sprite*> &sprite_list, vector<A
 }
 
 
-// add object to list of object
+// add object to list of objects
 SpellObject* Terrain::AddObject(vector<MapXY> xy,vector<Sprite*> L1_list,vector<Sprite*> L2_list,vector<uint8_t> flag_list,vector<MapLayer4> pnm_list,uint8_t* palette,std::string desc)
 {		
 	// create object
@@ -3565,6 +3611,23 @@ SpellObject* Terrain::AddObject(vector<MapXY> xy,vector<Sprite*> L1_list,vector<
 
 	return(obj);
 }
+// add existing object to list of objects
+SpellObject* Terrain::AddObject(SpellObject* obj)
+{
+	// add to list
+	objects.push_back(obj);
+
+	return(obj);
+}
+// check if object exists somewhere in the list
+bool Terrain::CheckObjectDuplicates(SpellObject* obj)
+{
+	for(auto ref_obj: objects)
+		if(obj->Compare(ref_obj))
+			return(true);
+	return(false);
+}
+
 // remove object from list
 int Terrain::RemoveObject(int id)
 {

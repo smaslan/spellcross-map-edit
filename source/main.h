@@ -120,6 +120,8 @@ private:
     void OnUnitViewDebug(wxCommandEvent& event);
     void OnUpdateTileContext(wxCommandEvent& event);
     void OnUpdateTileContextMaps(wxCommandEvent& event);    
+    void OnGenDMAobjects(wxCommandEvent& event);
+    void OnGenDMAobjectsMaps(wxCommandEvent& event);
     void OnSelectAll(wxCommandEvent& event);
     void OnDeselectAll(wxCommandEvent& event);
     void OnSelectDeselect(wxCommandEvent& event);
@@ -267,6 +269,7 @@ private:
         ID_POP_REM_SAVE_UNIT,
         ID_POP_REM_TRANSPORT_UNIT,
         ID_POP_REM_DESTROY_UNIT,
+        ID_POP_ADD_SPAWN_UNIT,
         ID_POP_EDIT_EVENT,
         ID_POP_ANOTHER_EVENT,
         ID_POP_EDIT_UNIT,
@@ -351,6 +354,8 @@ enum
     ID_CreateNewObject,
     ID_AddUnit,
     ID_UpdateSprContextMaps,
+    ID_GenDMAobjects,
+    ID_GenDMAobjectsMaps,
     ID_ViewVideo,
     ID_ViewMIDI,
     ID_EditTileFlags

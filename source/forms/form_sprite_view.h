@@ -85,7 +85,8 @@ class FormSprite : public wxFrame
 		//void OnSpecClassChange(wxCommandEvent& event);
 
 		void OnAssignKnowns(wxCommandEvent& event);
-		void OnClearContext(wxCommandEvent& event);
+		void OnClearAllContext(wxCommandEvent& event);
+		void OnClearContext(wxCommandEvent& event);		
 		void OnUpdateContext(wxCommandEvent& event);
 		void OnUpdateContextCb(string status);
 		void OnAutoShadeFlags(wxCommandEvent& event);
@@ -141,6 +142,7 @@ class FormSprite : public wxFrame
 			wxID_BTN_PREV,
 			wxID_BTN_SET_KNOWS,
 			wxID_BTN_CLR_CONTEXT,
+			wxID_BTN_CLR_ALL_CONTEXT,
 			wxID_EDIT_TILE_CONTEXT_AUTO,
 			wxID_BTN_AUTO_SHADING,
 			wxID_BTN_SAVE_CONTEXT,

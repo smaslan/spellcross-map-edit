@@ -85,7 +85,7 @@ FormObjects::FormObjects( wxWindow* parent,SpellData* spell_data,wxWindowID id, 
 	mnuFile->AppendSeparator();
 
 	wxMenuItem* btnClose;
-	btnClose = new wxMenuItem(mnuFile,wxID_MM_CLOSE,wxString(wxT("Close")),wxEmptyString,wxITEM_NORMAL);
+	btnClose = new wxMenuItem(mnuFile,wxID_MM_CLOSE,wxString(wxT("Close")) + wxT('\t') + wxT("Escape"),wxEmptyString,wxITEM_NORMAL);
 	mnuFile->Append(btnClose);
 
 	m_menubar2->Append(mnuFile,wxT("File"));

@@ -135,6 +135,7 @@ FormAbout::FormAbout( wxWindow* parent, wxWindowID id, const wxString& title, co
 	// assign button shortcuts
 	std::vector<wxAcceleratorEntry> entries;
 	entries.emplace_back(wxACCEL_NORMAL,WXK_RETURN,wxID_BTN_OK);
+	entries.emplace_back(wxACCEL_NORMAL,WXK_ESCAPE,wxID_BTN_OK);
 	wxAcceleratorTable accel(entries.size(),entries.data());
 	this->SetAcceleratorTable(accel);
 

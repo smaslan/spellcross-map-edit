@@ -12,6 +12,7 @@
 #include "fs_archive.h"
 #include "fsu_archive.h"
 #include "spell_units.h"
+#include "sprites.h"
 #include "other.h"
 
 #include <fstream>
@@ -11584,6 +11585,107 @@ int SpellMap::BuildSpriteContext()
 	}
 	
 	return(0);
+}
+
+// auto scan map for objects consisting of DMA?_??? sprites, make non-duplicate objects
+int SpellMap::BuildHouseObjects()
+{
+	// make or get target toolset
+	std::string toolset_name = "DMA?_??? objects";
+	auto toolset_id = terrain->GetToolSetID(toolset_name);
+	if(toolset_id < 0)
+	{
+		terrain->AddToolSet(toolset_name,"Auto generated DMA?_??? objects");
+		toolset_id = terrain->GetToolSetID(toolset_name);
+		terrain->SetToolSetGlyphScalingMode(toolset_id,SpellToolsGroup::SCALE_MEAN);
+		terrain->SetToolSetGlyphScaling(toolset_id,100,80);
+	}
+	SpellTool tool;
+	tool.Set(toolset_id,-1);	
+	int house_id = 1 + terrain->GetToolObjects(tool).size();
+	
+	// used tiles flags
+	std::vector<int> used(tiles.size(),0);
+	
+	// for each tile:
+	for(int y = 0; y < y_size; y++)
+	{
+		for(int x = 0; x < x_size; x++)
+		{
+			int pxy = ConvXY(x,y);
+			if(used[pxy])
+				continue;
+			auto tile = tiles[pxy];
+						
+			std::vector<MapXY> xylist;
+			int found = BuildHouseObjectsScan(used,xylist,x,y);
+			if(!found)
+				continue;
+			// found some house object
+			
+			// make list of object sprites
+			std::vector<Sprite*> L1_list;
+			std::vector<Sprite*> L2_list;
+			std::vector<uint8_t> flag_list;
+			std::vector<MapLayer4> pnm_list;
+			for(auto &pos: xylist)
+			{
+				int pxy = ConvXY(pos);
+				auto tile = tiles[pxy];
+				L1_list.push_back(tile.L1);
+				L2_list.push_back(NULL);
+				flag_list.push_back(tile.flags);
+			}
+			
+			// make object
+			std::string name = string_format("House #%02d",house_id);
+			SpellObject *obj = new SpellObject(xylist,L1_list,L2_list,flag_list,pnm_list,(uint8_t*)terrain->pal,name);
+
+			// check duplicates
+			if(terrain->CheckObjectDuplicates(obj))
+			{
+				delete obj;
+				continue;
+			}
+			
+			// add to list
+			terrain->AddObject(obj);
+			obj->SetToolClass(toolset_id + 1);
+			house_id++;
+		}
+	}
+
+	return(0);
+}
+int SpellMap::BuildHouseObjectsScan(std::vector<int> &used,std::vector<MapXY> &list,int x,int y)
+{
+	// add this tile to list
+	int pxy = ConvXY(x,y);	
+	auto tile = tiles[pxy];
+	if(!wildcmp("DMA?_???",tile.L1->name.c_str()))
+		return(0);
+	
+	// we have suspect house tile
+	used[pxy] = 1;
+	list.emplace_back(x,y);
+	int found = 1;
+
+	// for each neighbor
+	for(int q = 0; q < 4; q++)
+	{
+		if(tile.L1->GetEdgeClass(q))
+			continue; // skip non-generic edge directions
+		auto npos = GetNeighborTile(x,y,q);
+		if(!npos.IsSelected())
+			continue; // skip map outsiders
+		int nxy = ConvXY(npos);
+		if(used[nxy])
+			continue; // skip already tested tiles
+		// try look further
+		found += BuildHouseObjectsScan(used,list,npos.x,npos.y);
+	}
+
+	return(found);
 }
 
 

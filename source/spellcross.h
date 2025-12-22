@@ -166,6 +166,7 @@ public:
 	Terrain* GetTerrain(int index);
 	int GetTerrainCount();
 	int BuildSpriteContextOfMaps(wstring folder,string terrain_name,std::function<void(std::string)> status_cb);	
+	int BuildHouseObjectsOfMaps(wstring folder,string terrain_name,std::function<void(std::string)> status_cb);
 };
 
 

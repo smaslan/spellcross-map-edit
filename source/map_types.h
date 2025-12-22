@@ -9,6 +9,7 @@
 
 #include <tuple>
 #include <cmath>
+#include <algorithm>
 //#include "sprites.h"
 
 #ifndef M_PI
@@ -82,6 +83,18 @@ public:
 	int operator != (MapXY par)
 	{
 		return(this->x != par.x || this->y != par.y);
+	}
+	MapXY Min(MapXY pos)
+	{
+		pos.x = (std::min)(this->x,pos.x);
+		pos.y = (std::min)(this->y,pos.y);
+		return(pos);
+	}
+	MapXY Max(MapXY pos)
+	{
+		pos.x = (std::max)(this->x,pos.x);
+		pos.y = (std::max)(this->y,pos.y);
+		return(pos);
 	}
 };
 

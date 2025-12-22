@@ -344,6 +344,7 @@ class SpellMap
 		void EditElevNbr(uint8_t* flag,int elv,int edir,int x,int y);
 		void EditElevSlope(uint8_t* flag);
 		void EditElevText(uint8_t* flag);
+		int BuildHouseObjectsScan(std::vector<int>& used,std::vector<MapXY>& list,int x,int y);
 
 		// shading flags stuff
 		vector<int> shading;
@@ -849,6 +850,7 @@ class SpellMap
 		MapXY GetNeighborTile8D(int x,int y,int angle);
 		MapXY GetNeighborTile8D(MapXY mxy,int angle);
 		int BuildSpriteContext();
+		int BuildHouseObjects();		
 
 		enum{
 			HUD_ACTION_MINIMAP = 1000,

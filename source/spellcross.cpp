@@ -719,6 +719,49 @@ int SpellData::BuildSpriteContextOfMaps(wstring folder, string terrain_name,std:
 			// build context from entire map
 			map.SelectTiles(SpellMap::SELECT_ADD);
 			map.BuildSpriteContext();
+			map.Close();
+		}
+	}
+
+
+	string status = string_format("Done (%d files processed)",count);
+	if(status_cb)
+		status_cb(status);
+
+	return(0);
+}
+
+// auto build house objects (DMAx_xxx tiles) from all available spellcross maps
+int SpellData::BuildHouseObjectsOfMaps(wstring folder,string terrain_name,std::function<void(std::string)> status_cb)
+{
+	// for each file in given folder:
+	int count = 0;
+	for(const auto& entry : std::filesystem::directory_iterator(folder))
+	{
+		if(wildcmp("*.DTA",wstring2string(entry.path().filename()).c_str()))
+		{
+			// this seems to be a map data file
+			wstring map_path = entry.path();
+
+			// try to load map
+			SpellMap map;
+			if(map.Load(map_path,this))
+				continue;
+
+			// check if this is correct terrain type
+			if(terrain_name.compare(map.terrain_name))
+			{
+				map.Close();
+				continue;
+			}
+
+			string name = wstring2string(entry.path().filename());
+			string status = string_format("Processing map #%d: %s",++count,name.c_str());
+			if(status_cb)
+				status_cb(status);
+
+			// build context from entire map			
+			map.BuildHouseObjects();
 			map.Close();			
 		}
 	}
@@ -730,6 +773,7 @@ int SpellData::BuildSpriteContextOfMaps(wstring folder, string terrain_name,std:
 
 	return(0);
 }
+
 
 
 // load generic graphics resources

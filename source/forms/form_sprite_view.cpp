@@ -12,6 +12,7 @@
 #include "other.h"
 
 #include <wx/filedlg.h>
+#include <wx/msgdlg.h>
 
 
 #include <filesystem>
@@ -86,6 +87,10 @@ FormSprite::FormSprite( wxWindow* parent,SpellData* spell_data,wxWindowID id, co
 	wxMenuItem* btnClearContext;
 	btnClearContext = new wxMenuItem(mnuEdit,wxID_BTN_CLR_CONTEXT,wxString(wxT("Clear tile context")),wxEmptyString,wxITEM_NORMAL);
 	mnuEdit->Append(btnClearContext);
+
+	wxMenuItem* btnClearAllContext;
+	btnClearAllContext = new wxMenuItem(mnuEdit,wxID_BTN_CLR_ALL_CONTEXT,wxString(wxT("Clear all tiles context")),wxEmptyString,wxITEM_NORMAL);
+	mnuEdit->Append(btnClearAllContext);
 
 	wxMenuItem* btnBuildContext;
 	btnBuildContext = new wxMenuItem(mnuEdit,wxID_EDIT_TILE_CONTEXT_AUTO,wxString(wxT("Update tiles' context")),wxT("Auto generate tile context from edge class data. Not it may take some time!"),wxITEM_NORMAL);
@@ -487,6 +492,7 @@ FormSprite::FormSprite( wxWindow* parent,SpellData* spell_data,wxWindowID id, co
 	Bind(wxEVT_MENU,&FormSprite::OnSelectSpriteBtn,this,wxID_BTN_PREV);
 	Bind(wxEVT_MENU,&FormSprite::OnAssignKnowns,this,wxID_BTN_SET_KNOWS);
 	Bind(wxEVT_MENU,&FormSprite::OnClearContext,this,wxID_BTN_CLR_CONTEXT);
+	Bind(wxEVT_MENU,&FormSprite::OnClearAllContext,this,wxID_BTN_CLR_ALL_CONTEXT);
 	Bind(wxEVT_MENU,&FormSprite::OnUpdateContext,this,wxID_EDIT_TILE_CONTEXT_AUTO);	
 	Bind(wxEVT_MENU,&FormSprite::OnAutoShadeFlags,this,wxID_BTN_AUTO_SHADING);
 	Bind(wxEVT_MENU,&FormSprite::OnSaveTileContext,this,wxID_BTN_SAVE_CONTEXT);
@@ -1145,30 +1151,66 @@ bool FormSprite::wasSet()
 // assign known parameter of sprites
 void FormSprite::OnAssignKnowns(wxCommandEvent& event)
 {
+	wxMessageDialog dial(NULL,"Assign known tiles' map flags? These are tile flags used in map terrain and objects layer, e.g. 0x90 for trees, etc.","Set known tiles flags...",wxYES_NO);
+	if(dial.ShowModal() != wxID_YES)
+		return;
+
 	// get this terrain
 	Terrain* terr = FindTerrain();
 	// init map tile flags
 	terr->InitSpriteMapTileFlags();
 	terr->FixSpriteLandTypes();
-	Refresh();
+	
+	OnSelectSpriteAlt(event);
 }
 // clear tiles context
-void FormSprite::OnClearContext(wxCommandEvent& event)
+void FormSprite::OnClearAllContext(wxCommandEvent& event)
 {
+	wxMessageDialog dial(NULL,"Clear all tiles' context data (valid neighboring tiles)? Context data are used for auto tile mapping.","Clearing tiles' context data...",wxYES_NO);
+	if(dial.ShowModal() != wxID_YES)
+		return;
+
 	// get this terrain
 	Terrain* terr = FindTerrain();
 	// clear all tiles context
 	terr->ClearSpriteContext();
-	Refresh();
+	
+	OnSelectSpriteAlt(event);
+}
+// clear selected context
+void FormSprite::OnClearContext(wxCommandEvent& event)
+{
+	wxMessageDialog dial(NULL,"Clear this tile context data (valid neighboring tiles)? Context data are used for auto tile mapping.","Clearing tile's context data...",wxYES_NO);
+	if(dial.ShowModal() != wxID_YES)
+		return;
+
+	if(sprite_id < 0)
+		return;
+	// get this terrain
+	Terrain* terr = FindTerrain();
+	if(!terr)
+		return;
+	auto sprite = terr->GetSprite(sprite_id);
+	if(!sprite)
+		return;
+	for(int k = 0; k < 4; k++)
+		sprite->ClearContext(k);
+	
+	OnSelectSpriteAlt(event);
 }
 // update tiles' context from edge class data
 void FormSprite::OnUpdateContext(wxCommandEvent& event)
 {
+	wxMessageDialog dial(NULL,"Update all tiles' context data (valid neighboring tiles) from tile edge classes? Context data are used for auto tile mapping.","Update tiles' context data...",wxYES_NO);
+	if(dial.ShowModal() != wxID_YES)
+		return;
+
 	// get this terrain
 	Terrain* terr = FindTerrain();
 	// build context from edge class data
 	terr->UpdateSpriteContext(bind(&FormSprite::OnUpdateContextCb,this, placeholders::_1));
-	Refresh();
+	
+	OnSelectSpriteAlt(event);
 }
 void FormSprite::OnUpdateContextCb(string status)
 {
@@ -1177,11 +1219,16 @@ void FormSprite::OnUpdateContextCb(string status)
 // auto set edge shading flags
 void FormSprite::OnAutoShadeFlags(wxCommandEvent& event)
 {
+	wxMessageDialog dial(NULL,"Set all tiles' edge shading flags for known sprites? Edge shading flags are part of auto tile mapping.","Update tiles' context data...",wxYES_NO);
+	if(dial.ShowModal() != wxID_YES)
+		return;
+
 	// get this terrain
 	Terrain* terr = FindTerrain();
 	// build context from edge class data
 	terr->InitSpriteContextShading();
-	Refresh();
+	
+	OnSelectSpriteAlt(event);
 }
 // save tiles' context to file
 void FormSprite::OnSaveTileContext(wxCommandEvent& event)

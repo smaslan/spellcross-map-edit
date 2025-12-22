@@ -256,8 +256,10 @@ MainFrame::MainFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY
     menuTools->Append(ID_ViewVoxZ,"View Z-map","",wxITEM_NORMAL);
     menuTools->Append(ID_ExportVoxZ,"Export Z-map","",wxITEM_NORMAL);
     menuTools->Append(wxID_ANY,"","",wxITEM_SEPARATOR);
-    menuTools->Append(ID_UpdateSprContext, "Update tile context from map","",wxITEM_NORMAL);
+    menuTools->Append(ID_UpdateSprContext, "Update tile context from this map","",wxITEM_NORMAL);
     menuTools->Append(ID_UpdateSprContextMaps,"Update tile context from ALL maps","",wxITEM_NORMAL);
+    menuTools->Append(ID_GenDMAobjects,"Generate DMAx_xxx objects from this map","",wxITEM_NORMAL);
+    menuTools->Append(ID_GenDMAobjectsMaps,"Generate DMAx_xxx objects from ALL maps","",wxITEM_NORMAL);
     
         
     // Help menu
@@ -372,6 +374,8 @@ MainFrame::MainFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY
     Bind(wxEVT_MENU,&MainFrame::OnUnitViewDebug,this,ID_UnitViewDbg);
     Bind(wxEVT_MENU,&MainFrame::OnUpdateTileContext,this,ID_UpdateSprContext);
     Bind(wxEVT_MENU,&MainFrame::OnUpdateTileContextMaps,this,ID_UpdateSprContextMaps);
+    Bind(wxEVT_MENU,&MainFrame::OnGenDMAobjects,this,ID_GenDMAobjects);
+    Bind(wxEVT_MENU,&MainFrame::OnGenDMAobjectsMaps,this,ID_GenDMAobjectsMaps);
     
     Bind(wxEVT_MENU,&MainFrame::OnEditMissionParams,this,ID_EditMissionParams);
     Bind(wxEVT_MENU,&MainFrame::OnCopyBuf,this,ID_CopyBuf);
@@ -1096,6 +1100,33 @@ void MainFrame::OnUpdateTileContext(wxCommandEvent& event)
     spell_map->BuildSpriteContext();
 }
 
+// generate DMAx_xxx tiles objects from this map
+void MainFrame::OnGenDMAobjects(wxCommandEvent& event)
+{
+    if(!spell_map->IsLoaded())
+        return;
+    spell_map->BuildHouseObjects();
+    LoadToolsetRibbon();
+}
+
+// generate DMAx_xxx tiles objects from all maps
+void MainFrame::OnGenDMAobjectsMaps(wxCommandEvent& event)
+{
+    // split path to folder and file
+    wstring dir = spell_data->spell_data_root + L"\\DATA\\COMMON\\";
+
+    // show open dialog
+    wxDirDialog fd = wxDirDialog(this,_("Select Spellcross COMMON folder"),dir,wxDD_DIR_MUST_EXIST);
+    if(fd.ShowModal() == wxID_CANCEL)
+        return;
+    wstring path = wstring(fd.GetPath().ToStdWstring());
+
+    // load map context (###todo: add terrain type selector?)
+    spell_data->BuildHouseObjectsOfMaps(path,"T11",bind(&MainFrame::StatusStringCallback,this,placeholders::_1));
+
+    LoadToolsetRibbon();
+}
+
 // update tiles context from all maps
 void MainFrame::OnUpdateTileContextMaps(wxCommandEvent& event)
 {   
@@ -1460,6 +1491,12 @@ void MainFrame::OnCanvasPopupSelect(wxCommandEvent& event)
         auto evt = spell_map->events->CheckEvent(SpellMapEventRec::EvtTypes::EVT_SEE_PLACE,&spell_pos);
         spell_map->events->EraseEvent(evt);
     }
+    else if(menu_id == ID_POP_ADD_SPAWN_UNIT)
+    {
+        // try add/remove unit to event
+        auto cur_evt = spell_map->GetSelectEvent();
+        spell_map->UpdateEventUnit(cur_evt,cur_unit);
+    }
     else if(menu_id == ID_POP_EDIT_EVENT)
     {
         // edit event        
@@ -1673,6 +1710,10 @@ void MainFrame::OnCanvasRMouse(wxMouseEvent& event)
             {
                 menu.Append(ID_POP_REM_SEE_PLACE,"Remove SeePlace event");
             }
+            if(cur_unit && sel_evt)
+            {
+                menu.Append(ID_POP_ADD_SPAWN_UNIT,"Add/remove unit to/from event spawn units list\tCtrl+Left Click");
+            }
             if(cur_unit)
             {
                 if(menu.GetMenuItemCount())
@@ -1803,6 +1844,11 @@ void MainFrame::OnPasteBuf(wxCommandEvent& event)
 
     auto pos = spell_map->GetSelection();
     spell_map->PasteBuffer(spell_map->tiles,spell_map->L3,spell_map->L4,spell_map->start,spell_map->escape,spell_map->target,pos);
+
+    // optional cycling of tool items
+    /*if(spell_tool.isTool())
+        spell_map->SetBuffer(spell_tool,+1);*/
+
     Refresh();
 }
 
@@ -1889,6 +1935,9 @@ void MainFrame::OnCanvasLMouseDown(wxMouseEvent& event)
             // something in copy buffer
             auto pos = spell_map->GetSelection();
             spell_map->PasteBuffer(spell_map->tiles,spell_map->L3,spell_map->L4,spell_map->start,spell_map->escape,spell_map->target,pos);
+            // optional cycling of tool items
+            if(event.ControlDown() && spell_tool.isTool())
+                spell_map->SetBuffer(spell_tool,+1);
             Refresh();
         }
         else if(spell_tool.isActive() && xy_list.size() && xy_list[0].IsSelected())
