@@ -963,7 +963,7 @@ MapUnit::MapUnit(SpellMap *map)
 	// unit idnetifier index within map
 	id = 0;
 	// unit type ID
-	type_id = 0;
+	//type_id = 0;
 	unit =  NULL;
 	// position
 	coor = MapXY();

@@ -1310,13 +1310,13 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 				unit->id = stoi(cmd->parameters->at(0));
 
 				// unit type index
-				unit->type_id = stoi(cmd->parameters->at(1));
+				int unit_type_id = stoi(cmd->parameters->at(1));
 				
 				// try fetch unit record from spelldata
-				unit->unit = spelldata->units->GetUnit(unit->type_id);
+				unit->unit = spelldata->units->GetUnit(unit_type_id);
 				if(!unit->unit)
 				{
-					last_error = string_format("Unknown unit type %d parameter in command '%s'!",unit->type_id,cmd->full_command.c_str());
+					last_error = string_format("Unknown unit type %d parameter in command '%s'!",unit_type_id,cmd->full_command.c_str());
 					delete mission_data;
 					delete unit;
 					delete def;
@@ -8816,9 +8816,10 @@ MapUnit *SpellMap::CreateUnit(MapUnit *parent, SpellUnitRec *new_type)
 		unit = new MapUnit(this);		
 
 		// define unit type
+		int type_id = 0;
 		if(new_type)
-			unit->type_id = new_type->type_id;
-		unit->unit = spelldata->units->GetUnit(unit->type_id);
+			type_id = new_type->type_id;
+		unit->unit = spelldata->units->GetUnit(type_id);
 		
 		// default position
 		unit->coor = GetSelection();

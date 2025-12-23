@@ -700,13 +700,13 @@ int SpellMapEvents::AddSpecialEvent(SpellData *data, SpellDEF* def, SpellDefCmd*
 				unit->id = GetNextID();
 
 			// unit type index			
-			unit->type_id = stoi(evcmd->parameters->at(1));
+			int unit_type_id = stoi(evcmd->parameters->at(1));
 
 			// try fetch unit record from spelldata
-			unit->unit = data->units->GetUnit(unit->type_id);
+			unit->unit = data->units->GetUnit(unit_type_id);
 			if(!unit->unit)
 			{
-				last_error = string_format("Unknown unit type is '%d' in command '%s'!",unit->type_id,evcmd->full_command.c_str());
+				last_error = string_format("Unknown unit type is '%d' in command '%s'!",unit->unit->type_id,evcmd->full_command.c_str());
 				delete event_data;
 				delete unit;
 				if(is_new_event)
@@ -923,7 +923,7 @@ std::tuple<std::string, std::string> SpellMapEventRec::FormatDEFrecord(int *init
 				else if(unit.unit->spec_type == MapUnitType::Values::SpecUnit && unit.unit->id == 49)
 					spec_type_str = "SpecUnit2";
 				data += string_format("EventData(%d) {\n",(*initial_id)++);
-				data += string_format("    AddSpecialUnit(%s,%d,%d,%02d,%d,%s)\n}\n\n",spec_type_str.c_str(),unit.unit->type_id,map->ConvXY(unit.unit->coor),unit.unit->experience_init,unit.unit->man,wstring2stringCP895(string2wstring(name)).c_str());
+				data += string_format("    AddSpecialUnit(%s,%d,%d,%02d,%d,%s)\n}\n\n",spec_type_str.c_str(),unit.unit->unit->type_id,map->ConvXY(unit.unit->coor),unit.unit->experience_init,unit.unit->man,wstring2stringCP895(string2wstring(name)).c_str());
 			}
 		}
 	}

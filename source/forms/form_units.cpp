@@ -504,7 +504,7 @@ void FormUnits::SetMapUnit(MapUnit *unit, SpellMap* map)
 		// no map unit link provided - make new unit
 		unit = new MapUnit(map);
 		
-		unit->unit = m_spell_data->units->GetUnit(unit->type_id);
+		unit->unit = m_spell_data->units->GetUnit(0);
 		unit->is_event = true;
 		unit->behave = MapUnitType::Values::NormalUnit;
 		unit->spec_type = MapUnitType::Values::MissionUnit;

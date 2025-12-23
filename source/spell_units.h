@@ -469,7 +469,7 @@ public:
 	// unit idnetifier index within map
 	int id;
 	// unit type ID
-	int type_id;
+	//int type_id;
 	SpellUnitRec* unit;
 	// position
 	MapXY coor;
