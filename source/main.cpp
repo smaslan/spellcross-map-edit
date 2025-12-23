@@ -554,6 +554,7 @@ void MainFrame::OnClose(wxCloseEvent& ev)
     else if(ev.GetId() == ID_MINIMAP_WIN)
     {
         delete form_minimap;
+        form_minimap = NULL;
     }
     else if(ev.GetId() == ID_UNITS_WIN)
     {
@@ -1933,7 +1934,14 @@ void MainFrame::OnCanvasLMouseDown(wxMouseEvent& event)
     if(!spell_map->IsLoaded())
         return;
     if(inUnitOptions())
-        return;    
+        return;
+
+    // close minimap when clicked outside
+    if(form_minimap && form_minimap->form)
+    {
+        wxCloseEvent evt(wxEVT_CLOSE_WINDOW,ID_MINIMAP_WIN);
+        wxQueueEvent(form_minimap->form,new wxCloseEvent(evt));
+    }
        
     // get selection
     auto xy_list = spell_map->GetSelections();

@@ -132,7 +132,8 @@ void FormMiniMap::OnClose(wxCloseEvent& ev)
 {       
     // terminate (and send message to parent)
     form->DeletePendingEvents();
-    wxQueueEvent(form->GetParent(),new wxCloseEvent(ev));    
+    wxQueueEvent(form->GetParent(),new wxCloseEvent(ev));
+    //wxQueueEvent(form->GetParent(),new wxCloseEvent(ev));    
 }
 
 void FormMiniMap::OnPaintTab(wxPaintEvent& event)

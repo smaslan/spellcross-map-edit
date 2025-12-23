@@ -25,13 +25,14 @@ public:
 
     FormMiniMap(wxPanel* parent,wxWindowID win_id,SpellData* spell_data,TMiniMap &minimap);
     ~FormMiniMap();
+    wxWindow* form;
 
 private:
     SpellData* m_spelldata;
     wxBitmap* m_frame;
     TMiniMap m_minimap;
 
-    wxWindow* form;    
+        
     
     wxPoint m_click_pos;
     int m_in_move;
