@@ -16,7 +16,7 @@ FormEditToolset::FormEditToolset( wxWindow* parent,Terrain* terr,int toolset_id,
 	m_toolset_id = toolset_id;
 	
 	// === AUTO GENERATED STUFF STARTS HERE ===
-	this->SetSizeHints(wxSize(400,180),wxDefaultSize);
+	this->SetSizeHints(wxSize(400,-1),wxDefaultSize);
 
 	wxBoxSizer* szrNewObj;
 	szrNewObj = new wxBoxSizer(wxVERTICAL);
@@ -89,7 +89,7 @@ FormEditToolset::FormEditToolset( wxWindow* parent,Terrain* terr,int toolset_id,
 	szrNewObj->Add(szrScaling,1,wxEXPAND,5);
 
 
-	szrNewObj->Add(0,0,1,wxEXPAND,5);
+	//szrNewObj->Add(0,0,1,wxEXPAND,5);
 
 	m_staticline4 = new wxStaticLine(this,wxID_ANY,wxDefaultPosition,wxDefaultSize,wxLI_HORIZONTAL);
 	szrNewObj->Add(m_staticline4,0,wxEXPAND | wxALL,5);
@@ -104,6 +104,7 @@ FormEditToolset::FormEditToolset( wxWindow* parent,Terrain* terr,int toolset_id,
 	this->Centre(wxBOTH);
 
 	// === AUTO GENERATED STUFF ENDS HERE ===
+	this->Fit();
 
 	if(!m_terr || m_toolset_id < 0)
 	{

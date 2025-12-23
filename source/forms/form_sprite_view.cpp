@@ -1006,6 +1006,13 @@ void FormSprite::OnTreeSelectionChanged(wxTreeEvent& evt)
 	// is node
 	auto terr = FindTerrain();
 	sprite_id = terr->GetSpriteID(obj->m_spr);
+
+	if(sprite_id < lboxSprites->GetItemCount())
+	{
+		lboxSprites->SetItemState(sprite_id,wxLIST_STATE_SELECTED,wxLIST_STATE_SELECTED);	
+		if(!lboxSprites->IsVisible(sprite_id))
+			lboxSprites->EnsureVisible(sprite_id);
+	}
 	
 	SelectQuad();
 	SetFlags();

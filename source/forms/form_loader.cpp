@@ -6,6 +6,7 @@
 ///////////////////////////////////////////////////////////////////////////
 
 #include "form_loader.h"
+#include <wx/stdpaths.h>
 
 #include <filesystem>
 
@@ -103,14 +104,20 @@ void FormLoader::Loader(std::wstring config_path,SpellData* &spell_data)
 		return;
 	}
 
+	// get exec path
+	std::wstring exe_path = ::wxStandardPaths::Get().GetExecutablePath().ToStdWstring();	
+	#ifdef __WXMSW__
+		exe_path = std::filesystem::path(exe_path).parent_path();
+	#endif
+
 	// spellcross data root path
 	wstring spelldata_path = char2wstring(ini.GetValue("SPELCROS","spell_path",""));
 	// spellcross data root path
 	wstring spellcd_path = char2wstring(ini.GetValue("SPELCROS","spellcd_path",""));
 	// special data folder
-	wstring spec_folder = char2wstring(ini.GetValue("DATA","spec_data_path",""));
+	wstring spec_folder = std::filesystem::path(exe_path) / std::filesystem::path(char2wstring(ini.GetValue("DATA","spec_data_path","")));
 	// units aux data path
-	wstring units_aux_data_path = char2wstring(ini.GetValue("DATA","units_aux_data_path",""));
+	wstring units_aux_data_path = std::filesystem::path(exe_path) / std::filesystem::path(char2wstring(ini.GetValue("DATA","units_aux_data_path","")));
 
 	// try load spellcross data
 	try{

@@ -1112,6 +1112,12 @@ void MainFrame::OnGenDMAobjects(wxCommandEvent& event)
 // generate DMAx_xxx tiles objects from all maps
 void MainFrame::OnGenDMAobjectsMaps(wxCommandEvent& event)
 {
+    FormTerrain form(this,spell_data,ID_TARRAIN_WIN);
+    if(form.ShowModal() != wxID_OK)
+        return;
+    // --- confirmed
+    auto terr_name = form.GetTerrain();
+        
     // split path to folder and file
     wstring dir = spell_data->spell_data_root + L"\\DATA\\COMMON\\";
 
@@ -1121,8 +1127,8 @@ void MainFrame::OnGenDMAobjectsMaps(wxCommandEvent& event)
         return;
     wstring path = wstring(fd.GetPath().ToStdWstring());
 
-    // load map context (###todo: add terrain type selector?)
-    spell_data->BuildHouseObjectsOfMaps(path,"T11",bind(&MainFrame::StatusStringCallback,this,placeholders::_1));
+    // load map context
+    spell_data->BuildHouseObjectsOfMaps(path,terr_name,bind(&MainFrame::StatusStringCallback,this,placeholders::_1));
 
     LoadToolsetRibbon();
 }
@@ -1130,6 +1136,12 @@ void MainFrame::OnGenDMAobjectsMaps(wxCommandEvent& event)
 // update tiles context from all maps
 void MainFrame::OnUpdateTileContextMaps(wxCommandEvent& event)
 {   
+    FormTerrain form(this,spell_data,ID_TARRAIN_WIN);
+    if(form.ShowModal() != wxID_OK)
+        return;
+    // --- confirmed
+    auto terr_name = form.GetTerrain();
+
     // split path to folder and file
     wstring dir = spell_data->spell_data_root + L"\\DATA\\COMMON\\";
 
@@ -1139,8 +1151,8 @@ void MainFrame::OnUpdateTileContextMaps(wxCommandEvent& event)
         return;
     wstring path = wstring(fd.GetPath().ToStdWstring());
     
-    // load map context (###todo: add terrain type selector?)
-    spell_data->BuildSpriteContextOfMaps(path, "T11", bind(&MainFrame::StatusStringCallback,this,placeholders::_1));
+    // load map context
+    spell_data->BuildSpriteContextOfMaps(path,terr_name, bind(&MainFrame::StatusStringCallback,this,placeholders::_1));
 }
 
 
@@ -1348,14 +1360,14 @@ void MainFrame::OnCreateNewObject(wxCommandEvent& event)
     if(!spell_map->IsLoaded())
         return;
 
-    FormNewObject* form = new FormNewObject(this,spell_map->terrain);
-    if(form->ShowModal() == wxID_OK)
+    FormNewObject form(this,spell_map->terrain);
+    if(form.ShowModal() == wxID_OK)
     {
         // --- confirmed
 
         // get object descriptions
-        std::string description = form->GetDescription();
-        int class_id = form->GetClass();
+        std::string description = form.GetDescription();
+        int class_id = form.GetClass();
 
         // get layers mask
         SpellMap::Layers lay;
@@ -1390,7 +1402,7 @@ void MainFrame::OnCreateNewObject(wxCommandEvent& event)
     }
     
     // destroy form
-    delete form;    
+    //delete form;    
 }
 
 // add new unit
@@ -2490,6 +2502,8 @@ FormGamma::FormGamma(wxFrame* parent,SpellMap* map,wxWindowID id) :wxDialog(pare
     this->SetAutoLayout(true); 
     this->Center();
     this->Bind(wxEVT_CHAR_HOOK,&FormGamma::OnExit,this);
+    SetMinSize(wxSize(300,-1));
+    this->Fit();
     
     Bind(wxEVT_COMMAND_SLIDER_UPDATED,&FormGamma::OnChangeGamma, this);
     Bind(wxEVT_CLOSE_WINDOW,&FormGamma::OnClose,this,id);
@@ -2513,4 +2527,63 @@ void FormGamma::OnExit(wxKeyEvent& event)
         this->Close();
     else
         event.Skip();
+}
+
+
+//--------------------------------------------------------------------------------------------------------------------
+// Select terrain Dialog
+//--------------------------------------------------------------------------------------------------------------------
+FormTerrain::FormTerrain(wxFrame* parent,SpellData* data,wxWindowID id) :wxDialog(parent,wxID_ANY,"Terrain selection",wxDefaultPosition,wxSize(300,150),wxDEFAULT_FRAME_STYLE|wxSTAY_ON_TOP)
+{
+    // store local reference to initial map and data
+    m_spell_data = data;
+
+    // make slider
+    wxStaticText *txt = new wxStaticText(this, wxID_ANY, "Select terrain type:");    
+    terr_choice = new wxChoice(this, wxID_TERR_CHB);
+    btn_ok = new wxButton(this, wxID_OK_BTN,"OK");
+    wxBoxSizer* sizer = new wxBoxSizer(wxVERTICAL);
+    sizer->Add(txt,0,wxEXPAND|wxTOP|wxLEFT|wxRIGHT,5);
+    sizer->Add(terr_choice,0,wxEXPAND|wxBOTTOM|wxLEFT|wxRIGHT,5);
+    sizer->Add(btn_ok,0,wxEXPAND|wxALL,5);
+    this->SetSizer(sizer);
+    this->SetAutoLayout(true);
+    this->Center();
+    SetMinSize(wxSize(300,-1));
+    this->Fit();
+
+    // assign button shortcuts
+    std::vector<wxAcceleratorEntry> entries;
+    entries.emplace_back(wxACCEL_NORMAL,WXK_RETURN,wxID_OK_BTN);
+    entries.emplace_back(wxACCEL_NORMAL,WXK_NUMPAD_ENTER,wxID_OK_BTN);
+    wxAcceleratorTable accel(entries.size(),entries.data());
+    this->SetAcceleratorTable(accel);
+
+    this->Bind(wxEVT_CHAR_HOOK,&FormTerrain::OnExit,this);
+
+    Bind(wxEVT_CLOSE_WINDOW,&FormTerrain::OnClose,this,id);
+    Bind(wxEVT_COMMAND_BUTTON_CLICKED,&FormTerrain::OnOK,this,wxID_OK_BTN);
+
+    for(int k = 0; k < m_spell_data->GetTerrainCount(); k++)
+        terr_choice->Append(m_spell_data->GetTerrain(k)->name);
+    terr_choice->Select(0);
+}
+
+void FormTerrain::OnClose(wxCloseEvent& ev)
+{
+}
+void FormTerrain::OnOK(wxCommandEvent& ev)
+{
+    EndModal(wxID_OK);
+}
+std::string FormTerrain::GetTerrain()
+{
+    return(terr_choice->GetStringSelection().ToStdString());
+}
+void FormTerrain::OnExit(wxKeyEvent& event)
+{
+    if(event.GetKeyCode()==WXK_RETURN)
+        EndModal(wxID_OK);
+    else if(event.GetKeyCode()==WXK_ESCAPE)
+        EndModal(wxID_CANCEL);
 }

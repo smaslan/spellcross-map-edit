@@ -11,7 +11,7 @@
 
 FormNewObject::FormNewObject(wxWindow* parent,Terrain* terrain,wxWindowID id,const wxString& title,const wxPoint& pos,const wxSize& size,long style) : wxDialog(parent,id,title,pos,size,style)
 {
-	this->SetSizeHints(wxSize(400,190),wxDefaultSize);
+	this->SetSizeHints(wxSize(400,-1),wxDefaultSize);
 
 	wxBoxSizer* szrNewObj;
 	szrNewObj = new wxBoxSizer(wxVERTICAL);
@@ -30,16 +30,22 @@ FormNewObject::FormNewObject(wxWindow* parent,Terrain* terrain,wxWindowID id,con
 	wxArrayString chbClassChoices;
 	chbClass = new wxChoice(this,wxID_CHB_CLASS,wxDefaultPosition,wxDefaultSize,chbClassChoices,0);
 	chbClass->SetSelection(0);
-	szrNewObj->Add(chbClass,0,wxEXPAND|wxLEFT|wxRIGHT,5);
-
-
-	szrNewObj->Add(0,0,1,wxEXPAND,5);
+	szrNewObj->Add(chbClass,0,wxEXPAND|wxBOTTOM|wxRIGHT|wxLEFT,5);
 
 	m_staticline4 = new wxStaticLine(this,wxID_ANY,wxDefaultPosition,wxDefaultSize,wxLI_HORIZONTAL);
 	szrNewObj->Add(m_staticline4,0,wxEXPAND | wxALL,5);
 
+	wxBoxSizer* bSizer92;
+	bSizer92 = new wxBoxSizer(wxHORIZONTAL);
+
 	btnOk = new wxButton(this,wxID_BTN_OK,wxT("OK"),wxDefaultPosition,wxDefaultSize,0);
-	szrNewObj->Add(btnOk,0,wxALL|wxEXPAND,5);
+	bSizer92->Add(btnOk,1,wxALL|wxEXPAND,5);
+
+	btnCancel = new wxButton(this,wxID_BTN_CANCEL,wxT("CANCEL"),wxDefaultPosition,wxDefaultSize,0);
+	bSizer92->Add(btnCancel,1,wxALL|wxEXPAND,5);
+
+
+	szrNewObj->Add(bSizer92,1,wxEXPAND,5);
 
 
 	this->SetSizer(szrNewObj);
@@ -48,6 +54,7 @@ FormNewObject::FormNewObject(wxWindow* parent,Terrain* terrain,wxWindowID id,con
 	this->Centre(wxBOTH);
 
 	// === END OF AUTO GENERATED STUFF ===
+	Fit();
 
 	// set icon
 	wxIcon appIcon;
@@ -67,7 +74,15 @@ FormNewObject::FormNewObject(wxWindow* parent,Terrain* terrain,wxWindowID id,con
 	chbClass->Thaw();
 	chbClass->Select(0);
 
+	// assign button shortcuts
+	std::vector<wxAcceleratorEntry> entries;
+	entries.emplace_back(wxACCEL_NORMAL,WXK_RETURN,wxID_BTN_OK);
+	entries.emplace_back(wxACCEL_NORMAL,WXK_ESCAPE,wxID_BTN_CANCEL);
+	wxAcceleratorTable accel(entries.size(),entries.data());
+	this->SetAcceleratorTable(accel);
+
 	Bind(wxEVT_COMMAND_BUTTON_CLICKED,&FormNewObject::OnClose,this,wxID_BTN_OK);
+	Bind(wxEVT_COMMAND_BUTTON_CLICKED,&FormNewObject::OnCancel,this,wxID_BTN_CANCEL);
 }
 
 FormNewObject::~FormNewObject()
@@ -78,6 +93,12 @@ FormNewObject::~FormNewObject()
 void FormNewObject::OnClose(wxCommandEvent& event)
 {
 	EndModal(wxID_OK);
+}
+
+// on cancel form
+void FormNewObject::OnCancel(wxCommandEvent& event)
+{
+	EndModal(wxID_CANCEL);
 }
 
 // return stuff

@@ -37,12 +37,16 @@ class FormNewObject : public wxDialog
 {
 	private:
 
+		void OnClose(wxCommandEvent& event);
+		void OnCancel(wxCommandEvent& event);
+
 	protected:
 		enum
 		{
 			wxID_TXT_DESC = 5999,
 			wxID_CHB_CLASS,
 			wxID_BTN_OK,
+			wxID_BTN_CANCEL,
 		};
 
 		wxStaticText* m_staticText11;
@@ -51,6 +55,7 @@ class FormNewObject : public wxDialog
 		wxChoice* chbClass;
 		wxStaticLine* m_staticline4;
 		wxButton* btnOk;
+		wxButton* btnCancel;
 
 
 	public:
@@ -60,9 +65,7 @@ class FormNewObject : public wxDialog
 		//FormObjects( wxWindow* parent,SpellData* spell_data, wxWindowID id = wxID_ANY, const wxString& title = wxEmptyString, const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 500,300 ), long style = wxDEFAULT_FRAME_STYLE|wxTAB_TRAVERSAL );
 
 		~FormNewObject();
-
-		void OnClose(wxCommandEvent& event);
-
+		
 		std::string GetDescription();
 		int GetClass();
 };

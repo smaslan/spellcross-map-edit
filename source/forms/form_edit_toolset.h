@@ -68,7 +68,7 @@ protected:
 
 public:
 
-	FormEditToolset(wxWindow* parent,Terrain *terr,int toolset_id, wxWindowID id = wxID_ANY,const wxString& title = wxT("Edit Toolset Parameters"),const wxPoint& pos = wxDefaultPosition,const wxSize& size = wxSize(400,261),long style = wxDEFAULT_DIALOG_STYLE);
+	FormEditToolset(wxWindow* parent,Terrain *terr,int toolset_id, wxWindowID id = wxID_ANY,const wxString& title = wxT("Edit Toolset Parameters"),const wxPoint& pos = wxDefaultPosition,const wxSize& size = wxSize(400,100),long style = wxDEFAULT_DIALOG_STYLE);
 
 	~FormEditToolset();
 

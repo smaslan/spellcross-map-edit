@@ -233,10 +233,11 @@ void FormObjects::OnNewClass(wxCommandEvent& evt)
 	auto toolset_id = terr->GetToolSetID(name);
 
 	auto root_id = treeCtrlClasses->GetRootItem();
-	auto new_id = treeCtrlClasses->AppendItem(root_id,GetToolsetTitle(toolset_id),Icons::FOLDER,Icons::FOLDER_OPEN,(wxTreeItemData*)new TreeNode(toolset_id));
+	auto new_id = treeCtrlClasses->AppendItem(root_id,GetToolsetTitle(toolset_id),Icons::FOLDER,Icons::FOLDER_OPEN,(wxTreeItemData*)new TreeNode(toolset_id+1));
 	treeCtrlClasses->SelectItem(new_id);
 	if(!treeCtrlClasses->IsVisible(new_id))
 		treeCtrlClasses->EnsureVisible(new_id);
+	treeCtrlClasses->EditLabel(new_id);
 }
 
 // new tool within class

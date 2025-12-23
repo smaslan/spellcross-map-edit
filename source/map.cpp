@@ -11623,26 +11623,22 @@ int SpellMap::BuildHouseObjects()
 				continue;
 			// found some house object
 			
-			// make list of object sprites
-			std::vector<Sprite*> L1_list;
-			std::vector<Sprite*> L2_list;
-			std::vector<uint8_t> flag_list;
-			std::vector<MapLayer4> pnm_list;
-			for(auto &pos: xylist)
-			{
-				int pxy = ConvXY(pos);
-				auto tile = tiles[pxy];
-				L1_list.push_back(tile.L1);
-				L2_list.push_back(NULL);
-				flag_list.push_back(tile.flags);
-			}
 			
+
+			// make list of object sprites
+			auto L1_list = GetL1sprites(xylist);
+			auto L2_list = GetL2sprites(xylist);
+			auto flag_list = GetFlags(xylist);
+			auto pnm_list = GetPNMs(xylist);
+						
 			// make object
 			std::string name = string_format("House #%02d",house_id);
+			if(!pnm_list.empty())
+				name += " + PNM";
 			SpellObject *obj = new SpellObject(xylist,L1_list,L2_list,flag_list,pnm_list,(uint8_t*)terrain->pal,name);
 
 			// check duplicates
-			if(terrain->CheckObjectDuplicates(obj))
+			if(terrain->CheckObjectDuplicates(obj,false))
 			{
 				delete obj;
 				continue;

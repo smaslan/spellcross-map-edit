@@ -3050,7 +3050,7 @@ SpellObject::~SpellObject()
 }
 
 // compare this object with target object
-bool SpellObject::Compare(SpellObject* obj)
+bool SpellObject::Compare(SpellObject* obj,bool exact_pnm)
 {	
 	if(!obj)
 		return(false);
@@ -3059,6 +3059,8 @@ bool SpellObject::Compare(SpellObject* obj)
 		return(true); // apparently, it is the same object
 
 	if(sprite_pos.size() != obj->sprite_pos.size())
+		return(false); // fast check
+	if(L4_list.size() != obj->L4_list.size())
 		return(false); // fast check
 
 	// align tile positions to min xy
@@ -3076,7 +3078,6 @@ bool SpellObject::Compare(SpellObject* obj)
 	for(auto& pos: obj->sprite_pos)
 		obj_pos.push_back(pos - min_pos);
 
-	//std::vector<int> comp(ref_pos.size(),0);
 	// compare content
 	for(int k = 0; k < ref_pos.size(); k++)	
 	{
@@ -3089,8 +3090,23 @@ bool SpellObject::Compare(SpellObject* obj)
 		if(L1_sprites[k] != obj->L1_sprites[pos_id])
 			return(false);
 		if(L2_sprites[k] != obj->L2_sprites[pos_id])
+			return(false);		
+	}
+
+	// check PNM list match (exact or just count and PNM type)
+	for(int k = 0; k < L4_list.size(); k++)
+	{
+		bool found = false;
+		for(int m = 0; m < obj->L4_list.size(); m++)
+			if((exact_pnm && L4_list[k].Compare(&obj->L4_list[m])) || (!exact_pnm && L4_list[k].anim == obj->L4_list[m].anim))
+			{
+				found = true;
+				break;
+			}
+		if(!found)
 			return(false);
 	}
+
 	
 	return(true);
 }
@@ -3619,11 +3635,11 @@ SpellObject* Terrain::AddObject(SpellObject* obj)
 
 	return(obj);
 }
-// check if object exists somewhere in the list
-bool Terrain::CheckObjectDuplicates(SpellObject* obj)
+// check if object exists somewhere in the list (
+bool Terrain::CheckObjectDuplicates(SpellObject* obj,bool exact_pnm)
 {
 	for(auto ref_obj: objects)
-		if(obj->Compare(ref_obj))
+		if(obj->Compare(ref_obj,exact_pnm))
 			return(true);
 	return(false);
 }

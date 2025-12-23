@@ -1119,6 +1119,7 @@ int MapUnit::MorphUnit(SpellUnitRec* target, int health)
 	}
 
 	// change unit type
+	//type_id
 	unit = target;
 
 	radar_up = false;

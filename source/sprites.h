@@ -393,7 +393,7 @@ public:
 	std::string GetDescription();
 	void SetDescription(std::string name);
 	int GetObjectData(std::vector<MapXY> *pos, std::vector<MapSprite> *tiles, std::vector<MapLayer4> *pnm_list);
-	bool Compare(SpellObject *obj);
+	bool Compare(SpellObject *obj,bool exact_pnm=true);
 
 	void SetToolClass(int id);
 	void SetToolClassGroup(int id);
@@ -522,7 +522,7 @@ public:
 		
 	SpellObject* AddObject(std::vector<MapXY> xy,std::vector<Sprite*> L1_list,std::vector<Sprite*> L2_list,std::vector<uint8_t> flag_list,std::vector<MapLayer4> pnm_list,uint8_t* palette,std::string desc);
 	SpellObject* AddObject(SpellObject* obj);
-	bool CheckObjectDuplicates(SpellObject* obj);
+	bool CheckObjectDuplicates(SpellObject* obj,bool exact_pnm=true);
 	int RemoveObject(int id);
 	int MoveObject(int posa, int posb);
 	int RenameObject(int id, string name);

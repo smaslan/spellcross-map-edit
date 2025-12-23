@@ -73,6 +73,30 @@ private:
     wxSlider* slider;
 };
 
+// terrain selection form
+class FormTerrain : public wxDialog
+{
+public:
+    FormTerrain(wxFrame* parent,SpellData* data,wxWindowID id);
+    std::string GetTerrain();
+private:
+    void OnClose(wxCloseEvent& ev);
+    void OnExit(wxKeyEvent& event);
+    void OnOK(wxCommandEvent& ev);
+    
+    SpellData* m_spell_data;
+
+    wxChoice *terr_choice;
+    wxButton *btn_ok;
+    
+    enum objs{
+        wxID_TERR_CHB = 5999,
+        wxID_OK_BTN
+    };
+
+};
+
+
 
 // Main application frame
 class MainFrame : public wxFrame
@@ -231,6 +255,7 @@ private:
     {
         ID_MAIN_WIN = 2000,
         ID_GAMMA_WIN,
+        ID_TARRAIN_WIN,
         ID_OBJECTS_WIN,
         ID_SPRITES_WIN,
         ID_ANM_WIN,
