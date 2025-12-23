@@ -562,11 +562,18 @@ void FormObjects::SetMap(SpellMap* map)
 	spell_map = map;
 	for(int k = 0; k < spell_data->GetTerrainCount(); k++)
 	{
-		Terrain* terr = spell_data->GetTerrain(k);
+		if(map && spell_data->GetTerrain(k) == map->terrain)
+		{
+			// found selection
+			GetMenuBar()->FindItem(TERR_ID0 + k)->Check(true);
+			break;
+		}
+		
+		/*Terrain* terr = spell_data->GetTerrain(k);
 		wxString lab = terr->name;		
 		if(map && map->terrain && map->terrain->name.compare(spell_data->GetTerrain(k)->name) == 0)
 			lab = lab + " (active)";
-		mnuTerr->SetLabel(TERR_ID0 + k,lab);
+		mnuTerr->SetLabel(TERR_ID0 + k,lab);*/
 	}
 
 	SelectTerrain();

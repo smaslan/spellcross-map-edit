@@ -1058,10 +1058,6 @@ void FormSprite::FillToolsTree()
 }
 
 
-
-
-
-
 // set initial sprite
 void FormSprite::SetSprite(Terrain *terr, Sprite *spr)
 {

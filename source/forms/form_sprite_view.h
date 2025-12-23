@@ -330,7 +330,7 @@ class FormSprite : public wxFrame
 		FormSprite( wxWindow* parent, SpellData *spell_data, wxWindowID id = wxID_ANY, const wxString& title = wxT("Sprite viewer"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 1250,700 ), long style = wxDEFAULT_FRAME_STYLE|wxTAB_TRAVERSAL|wxFRAME_FLOAT_ON_PARENT);
 		~FormSprite();
 		
-		void SetSprite(Terrain* terr,Sprite* spr);
+		void SetSprite(Terrain* terr,Sprite* spr=NULL);
 		Terrain *GetSelectedTerrain();
 		Sprite *GetSelectedSprite();
 		bool wasSet();

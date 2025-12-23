@@ -1058,6 +1058,8 @@ void MainFrame::OnViewSprites(wxCommandEvent& event)
     if(!FindWindowById(ID_SPRITES_WIN))
     {
         form_sprites = new FormSprite(this, spell_data, ID_SPRITES_WIN);
+        if(spell_map)
+            form_sprites->SetSprite(spell_map->terrain);
         form_sprites->Show();
     }
 }
