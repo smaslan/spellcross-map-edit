@@ -603,7 +603,7 @@ void SpellMap::Close()
 
 
 // create blank map
-int SpellMap::Create(SpellData* spelldata, const char *terr_name, int x, int y)
+int SpellMap::Create(SpellData* spelldata, const char *terr_name, int x, int y, int elev)
 {
 	// loose old map data
 	Close();
@@ -634,7 +634,7 @@ int SpellMap::Create(SpellData* spelldata, const char *terr_name, int x, int y)
 	// generate plain map
 	for(int k = 0; k < (x_size * y_size); k++)
 	{		
-		tiles[k].SetL1(terrain->GetSpriteWild("PLA00_??",Terrain::RANDOM),2);
+		tiles[k].SetL1(terrain->GetSpriteWild("PLA00_??",Terrain::RANDOM),elev);
 		tiles[k].SetL2(NULL,0);
 	}
 	
@@ -11749,8 +11749,8 @@ int SpellMap::EditClass(vector<MapXY>& selection, SpellTool *tool, std::function
 	if(!IsLoaded())
 		return(1);
 
-
-	
+	if(!EditWall(selection, tool, status_cb))
+		return(0);
 
 	// update map L1 flags
 	SyncL1flags();
@@ -11965,3 +11965,143 @@ int SpellMap::EditClass(vector<MapXY>& selection, SpellTool *tool, std::function
 
 
 
+int SpellMap::EditWallCheckNeig(MapXY &pos,int skip_edge,int type_id,EditWallPar *par)
+{
+	par->pos = pos;
+	par->match_num = 0;
+	par->tot_num = 0;
+	par->exact_num = 0;
+	for(int qid = 0; qid < 4; qid++)
+	{
+		par->edges[qid] = -1;
+		if(skip_edge == qid)
+			continue;
+		if(!pos.IsSelected())
+			continue;
+		auto tile = GetTile(&pos);
+		if(tile && tile->L2)
+			par->par = &tile->L2->wall_params;
+		auto npos = GetNeighborTile(pos,qid);
+		auto ntile = GetTile(&npos);
+		if(!ntile || !ntile->L2)
+			continue;
+		auto nspr = ntile->L2;
+		if(nspr->wall_params.type_id != type_id)
+			continue;
+		par->edges[qid] = nspr->wall_params.q[(qid + 2) % 4];
+		if(par->par && par->edges[qid] && par->par->q[qid])
+		{
+			par->edges[qid]++;
+			par->exact_num++;
+		}
+		if(par->edges[qid])
+			par->match_num++;
+		par->tot_num++;
+	}
+	return(par->tot_num);
+}
+
+
+// edit wall segments using auto tile mapping
+int SpellMap::EditWall(vector<MapXY>& selection,SpellTool* tool,std::function<void(std::string)> status_cb)
+{
+	if(!tool->isActive())
+		return(1);
+	if(!tool->isTool())
+		return(1);
+	
+	auto tool_sprites = terrain->GetToolSprites(*tool);
+	if(tool_sprites.empty())
+		return(1);
+	auto wall_par = &tool_sprites[0]->wall_params;
+	auto wall_type = wall_par->type_id;
+
+	for(auto &sel: selection)
+	{
+		if(!sel.IsSelected())
+			continue;
+		auto tile = GetTile(&sel);
+
+		EditWallPar par;
+		EditWallCheckNeig(sel,-1,wall_type,&par);
+		if(par.tot_num == 0)
+		{
+			// no walls around, place any
+			if(tile->L2 && tile->L2->wall_params.type_id == wall_type)
+				continue; // same wall type already there, do nothing
+			
+			auto sprite = tool_sprites[0];
+			if(copy_buf.pos.size() == 1 && copy_buf.tiles[0].L2)
+				sprite = copy_buf.tiles[0].L2;
+			tile->SetL2(sprite,sprite->GetMapFlags());
+			if(copy_buf.pos.size() == 1)
+				SetBuffer(sprite);
+			continue;
+		}
+		if(par.exact_num == 2)
+		{
+			// some walls around, try match
+			auto list = terrain->FindWallSprites(wall_type,par.edges,wall_par->damage,2,true);
+			if(!list.empty())
+			{
+				tile->SetL2(list[0],list[0]->GetMapFlags());
+				if(copy_buf.pos.size() == 1)
+					SetBuffer(list[0]);
+				continue;
+			}
+		}
+		if(par.tot_num > 0)
+		{
+			// wall on two sides, can we modify those to match?
+			for(int qid = 0; qid < 4; qid++)
+			{
+				if(par.edges[qid] < 0)
+					continue;
+				par.edges[qid] = 1;
+				auto npos = GetNeighborTile(sel,qid);
+				if(!npos.IsSelected())
+					continue;
+				EditWallPar npar;
+				EditWallCheckNeig(npos,(qid + 2) % 4,wall_type,&npar);
+				if(npar.tot_num == npar.match_num && npar.tot_num == 2)
+				{
+					par.edges[qid] = -1;
+					continue;
+				}
+				npar.edges[(qid + 2) % 4] = 1;
+				for(int e = 0; e < 4; e++)
+					if(npar.edges[e] == 0)
+					{
+						npar.edges[e] = -1;
+						npar.tot_num--;
+					}
+				if(npar.tot_num == 0)
+					npar.edges[qid] = 1;
+
+				auto list = terrain->FindWallSprites(npar.par->type_id,npar.edges,npar.par->damage,1,true);
+				if(list.empty())
+				{
+					par.edges[qid] = -1;
+					continue;
+				}
+				auto ntile = GetTile(&npos);
+				if(!ntile)
+					continue;
+				ntile->SetL2(list[0],list[0]->GetMapFlags());
+			}
+			if(std::count_if(std::begin(par.edges),std::end(par.edges),[](int k){return(k > 0);}) == 1)
+			{
+				auto nid = std::find(std::begin(par.edges),std::end(par.edges),1) - std::begin(par.edges);
+				par.edges[(nid + 2) % 4] = 1;
+			}
+			auto list = terrain->FindWallSprites(wall_type,par.edges,wall_par->damage,1,true);
+			if(list.empty())
+				continue;
+			tile->SetL2(list[0],list[0]->GetMapFlags());
+			if(copy_buf.pos.size() == 1)
+				SetBuffer(list[0]);
+		}
+	}
+
+	return(0);
+}

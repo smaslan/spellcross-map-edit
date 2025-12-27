@@ -164,7 +164,7 @@ class Sprite
 		void RemoveContext(int quadrant,int tile,vector<int> &list);
 		void RemoveContext(int quadrant,vector<int>& list);
 		int CheckContext(int quadrant,Sprite *sprite);
-		int ClearContext(int quadrant);
+		int ClearContext(int quadrant=-1);
 		int RandomizeContext();
 		int ShuffleContext();
 		uint32_t SetFlags(uint32_t new_flags);
@@ -277,8 +277,18 @@ class Sprite
 		// tile projection angle (degrees)
 		static constexpr double PROJECTION_ANGLE = 37.0;
 
+		class WallParams{
+		public:
+			int class_id = -1; // matches MURY.DEF numbers
+			int type_id = -1; // unique type id per wall type
+			bool damage = false; // is damaged?
+			bool q[4] = {false,false,false,false}; // continues to quadrants?
+		};
+		WallParams wall_params;
+
 	private:
 		int MaskHasTransp(uint8_t* mask);
+		void InitWallParams();
 		
 		
 
@@ -512,6 +522,8 @@ public:
 	int InitSpriteContextShading();
 	int FixSpriteLandTypes();
 	int InitSpriteMapTileFlags();
+	int GenWallNeighbors();
+	std::vector<Sprite*> FindWallSprites(int type_id,int* edges,bool damage,int min_match=1,bool rand=false);
 	int UpdateTileGlyphs();
 	Sprite *GetTileGlyph(Sprite *sprite,uint32_t flags = 0);
 

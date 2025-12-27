@@ -669,7 +669,7 @@ class SpellMap
 		int SetGameMode(int new_mode);
 		int isGameMode();
 		void Close();
-		int Create(SpellData* spelldata,const char* terr_name,int x,int y);
+		int Create(SpellData* spelldata,const char* terr_name,int x,int y,int elev=2);
 		int Load(wstring &path, SpellData* spelldata);
 		int SaveDTA(std::wstring path);
 		int SaveDEF(std::wstring path);
@@ -844,6 +844,19 @@ class SpellMap
 		void SyncL1flags();
 
 		int EditClass(vector<MapXY>& selection,SpellTool* tool,std::function<void(std::string)> status_cb=NULL);
+		int EditWall(vector<MapXY>& selection,SpellTool* tool,std::function<void(std::string)> status_cb=NULL);
+		
+		class EditWallPar {
+		public:
+			MapXY pos;
+			Sprite::WallParams *par = NULL;
+			int edges[4] = {-1,-1,-1,-1};
+			int tot_num = 0;
+			int match_num = 0;
+			int exact_num = 0;
+		};
+		int EditWallCheckNeig(MapXY& pos,int skip_edge,int type_id,EditWallPar* par);
+
 
 		MapXY GetNeighborTile(int x,int y,int quad);
 		MapXY GetNeighborTile(MapXY xy,int quad);

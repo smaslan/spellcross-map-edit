@@ -84,6 +84,7 @@ class FormSprite : public wxFrame
 		void OnEdgeShadeChange(wxCommandEvent& event);
 		//void OnSpecClassChange(wxCommandEvent& event);
 
+		void OnGenerateWallContext(wxCommandEvent& event);
 		void OnAssignKnowns(wxCommandEvent& event);
 		void OnClearAllContext(wxCommandEvent& event);
 		void OnClearContext(wxCommandEvent& event);		
@@ -141,6 +142,7 @@ class FormSprite : public wxFrame
 			wxID_BTN_NEXT,
 			wxID_BTN_PREV,
 			wxID_BTN_SET_KNOWS,
+			wxID_BTN_GEN_WALL_CONT,
 			wxID_BTN_CLR_CONTEXT,
 			wxID_BTN_CLR_ALL_CONTEXT,
 			wxID_EDIT_TILE_CONTEXT_AUTO,

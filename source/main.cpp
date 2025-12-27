@@ -225,7 +225,7 @@ MainFrame::MainFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY
     menuEdit->Append(ID_ClearBuf,"Clear buffer\tESC","",wxITEM_NORMAL);
     menuEdit->Append(wxID_ANY,"","",wxITEM_SEPARATOR);
     menuEdit->Append(ID_InvalidateSel,"Invalidate selection\tCtrl+I","",wxITEM_NORMAL);
-    menuEdit->Append(ID_DeleteSel,"Delete stuff\tCtrl+Delete","",wxITEM_NORMAL);
+    menuEdit->Append(ID_DeleteSel,"Delete stuff\tShift+Delete","",wxITEM_NORMAL);
     menuEdit->Append(wxID_ANY,"","",wxITEM_SEPARATOR);
     menuEdit->Append(ID_ElevUp,"Elevate terrain\tCtrl+PageUp","",wxITEM_NORMAL);
     menuEdit->Append(ID_ElevDown,"Lower terrain\tCtrl+PageDown","",wxITEM_NORMAL);
@@ -1035,8 +1035,14 @@ void MainFrame::OnSaveDEF(wxCommandEvent& event)
 // create new map
 void MainFrame::OnNewMap(wxCommandEvent& event)
 {
-    // create some map (###todo: set parameters by some menu)
-    spell_map->Create(spell_data, "T11", 20,50);
+    FormNewMap form(this, spell_data,ID_NEW_MAP);
+    if(form.ShowModal() != wxID_OK)
+        return;
+    
+    // create some map
+    auto [xx,yy] = form.GetSize();
+    auto ee = form.GetElev();
+    spell_map->Create(spell_data, form.GetTerrain().c_str(), xx,yy, ee);
     // reset layers visibility
     spell_map->SetGamma(1.30);
     OnViewLayer(event);
@@ -1952,7 +1958,12 @@ void MainFrame::OnCanvasLMouseDown(wxMouseEvent& event)
     {
         // LEFT DOWN event:
 
-        if(spell_map->isCopyBufferFull())
+        if(event.ShiftDown() && spell_tool.isActive() && xy_list.size() && xy_list[0].IsSelected())
+        {
+            // auto tile mapping
+            spell_map->EditClass(xy_list,&spell_tool,bind(&MainFrame::StatusStringCallback,this,placeholders::_1));
+        }
+        else if(spell_map->isCopyBufferFull())
         {
             // something in copy buffer
             auto pos = spell_map->GetSelection();

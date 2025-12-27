@@ -219,6 +219,9 @@ int Sprite::Decode(uint8_t* src, const char* name)
 	this->name = name;
 	//strcpy_s(this->name, sizeof(this->name), name);
 
+	// try init wall sprite parameters
+	InitWallParams();
+
 	// return bytes consumed from the source
 	return(src - source_start);
 }
@@ -1035,13 +1038,18 @@ int Sprite::ReserveContext(int quadrant, int tile, int size)
 	quad[quadrant][tile-'A'].reserve(size);
 	return(0);
 }
-// clear context list for given quadrant
+// clear context list for given quadrant (default: all quadrants)
 int Sprite::ClearContext(int quadrant)
 {
-	if(quadrant < 0 || quadrant >= 4)
+	if(quadrant >= 4)
 		return(1);
-	for(char tile = 'A'; tile <= 'M'; tile++)
-		quad[quadrant][tile-'A'].clear();
+	for(int qq = 0; qq < 4; qq++)
+	{
+		if(quadrant > 0 && qq != quadrant)
+			continue;
+		for(char tile = 'A'; tile <= 'M'; tile++)
+			quad[qq][tile-'A'].clear();
+	}
 	return(0);
 }
 // add tile to context
@@ -2719,6 +2727,92 @@ int Terrain::InitSpriteMapTileFlags()
 	return(0);
 }
 
+
+// generates sprite wall type parameters of known wall sprite name (call once when name of sprite i known)
+void Sprite::InitWallParams()
+{
+	if(!wildcmp("MRA??_??",name.c_str()))
+		return;
+	// is wall
+	wall_params.class_id = hex2num(name.at(3)) & 7;
+	wall_params.type_id = wall_params.class_id;
+	wall_params.damage = !!(hex2num(name.at(3)) & 8);
+	int flags = hex2num(name.at(4));
+	if(wall_params.class_id == 2 && hex2num(name.at(7)) == 1)
+		wall_params.type_id = 4; // stone wall is subclass of concrete wall
+	if(wall_params.class_id == 1 && wall_params.damage &&
+		(((flags == 0x05 || flags == 0x0A) && hex2num(name.at(7)) == 2) ||
+			(flags != 0x05 && flags != 0x0A && hex2num(name.at(7)) == 1)))
+	{
+		wall_params.type_id = 5; // wooden fence is subclass of fence
+		wall_params.damage = false; // and has no damaged/undamaged version
+	}
+	wall_params.q[0] = !!(flags & 2);
+	wall_params.q[1] = !!(flags & 4);
+	wall_params.q[2] = !!(flags & 8);
+	wall_params.q[3] = !!(flags & 1);
+}
+
+// generate neighbor lists for known wall sprites (based on sprite names)
+int Terrain::GenWallNeighbors()
+{
+	for(auto &spr: sprites)
+	{
+		auto par = &spr->wall_params;
+		if(par->type_id < 0)
+			continue;
+		spr->ClearContext();
+		for(int dam = 0; dam < 2; dam++)
+		{
+			for(auto &nspr: sprites)
+			{
+				auto npar = &nspr->wall_params;
+				if(npar->type_id < 0)
+					continue;
+				if(par->type_id != npar->type_id)
+					continue;
+				if(!dam && par->damage != npar->damage)
+					continue;
+				if(dam && par->damage == npar->damage)
+					continue;
+				for(int q = 0; q < 4; q++)
+				{
+					if(!par->q[q])
+						continue;
+					if(!npar->q[(q + 2) % 4])
+						continue;
+					spr->AddContext(q,nspr);
+				}
+			}
+		}
+	}
+	return(0);
+}
+
+// get list of viable sprites matching wall type, 4 edge continuation flags (-1: don't care, 1/0 - continues or not) and damage state
+std::vector<Sprite*> Terrain::FindWallSprites(int type_id, int *edges, bool damage,int min_match, bool rand)
+{
+	std::vector<Sprite*> list;
+	for(auto &spr: sprites)
+	{
+		auto wall = &spr->wall_params;
+		if(wall->type_id != type_id)
+			continue;
+		if(wall->damage != damage)
+			continue;
+		bool match = true;
+		for(int eid = 0; eid < 4; eid++)
+			if(edges[eid] >= 0 && (edges[eid] >= min_match) != wall->q[eid])
+				match = false;
+		if(!match)
+			continue;
+		list.push_back(spr);
+	}
+	if(rand && !list.empty())
+		list = {list[std::rand() % list.size()]};
+	return(list);
+}
+
 // make list of tile glyphs from tile class flags (call before first map rendering)
 int Terrain::UpdateTileGlyphs()
 {
@@ -2779,42 +2873,40 @@ int Terrain::RenderSpritePreview(wxBitmap& bmp, std::vector<Sprite*> &tiles, int
 	// allocate render buffer for indexed image
 	int surf_x = bmp.GetWidth();
 	int surf_y = bmp.GetHeight();
-	uint8_t *buf = new uint8_t[surf_x*surf_y];
-	uint8_t *buf_end = &buf[surf_x*surf_y];
-
-	// clear background
-	std::memset((void*)buf, 230, surf_x*surf_y);
+	std::vector<uint8_t> buf(surf_x*surf_y,230);
+	uint8_t *buf_end = buf.data() + buf.size();
 
 	// multiple tiles mode origins (cener, then ccw from Q1 to Q4)
 	const int org_x[5] = {0,+40,-40,-40,+40};
 	const int org_y[5] = {0,-24,-24,+24,+24};
+	const int order[5] = {1,2,0,3,4};
 
-	if(!tiles.empty())
+	if(!tiles.empty() && tiles[0])
 	{
-		int xs, ys;
-		Sprite* spr_ref = NULL;
-		for(int tid = 0;tid < tiles.size();tid++)
+		Sprite* spr = tiles[0];
+		int xs = spr->x_size;
+		int ys = spr->y_size + spr->y_ofs;
+		Sprite *spr_ref = spr;
+
+		for(int tid = 0;tid < 5;tid++)
 		{
-			Sprite *spr = tiles[tid];
+			auto tile_id = order[tid];
+			if(tile_id >= tiles.size())
+				continue;
+			Sprite *spr = tiles[tile_id];
 			if(!spr)
 				continue;
 			
 			// center
 			int elev = 0;
-			if(tid == 0)
-			{				
-				xs = spr->x_size;
-				ys = spr->y_size + spr->y_ofs;
-				spr_ref = spr;
-			}
-			else if(spr_ref)
+			if(tile_id != 0 && spr_ref)
 			{
 				// get reference tile edge
 				TFxyz vref[2];
-				spr_ref->GetTileEdge(tid-1, vref);
+				spr_ref->GetTileEdge(tile_id-1, vref);
 				
 				// get neighbor edge				
-				int edge_x = tid - 1 + 2;
+				int edge_x = tile_id - 1 + 2;
 				if(edge_x > 3)
 					edge_x -= 4;
 				TFxyz nref[2];
@@ -2827,11 +2919,11 @@ int Terrain::RenderSpritePreview(wxBitmap& bmp, std::vector<Sprite*> &tiles, int
 					elev++;
 			}						
 
-			int ref_x = (surf_x/zoom - xs)/2 + org_x[tid];
-			int ref_y = (surf_y/zoom - ys)/2 + org_y[tid] - elev*18;
+			int ref_x = (surf_x/zoom - xs)/2 + org_x[tile_id];
+			int ref_y = (surf_y/zoom - ys)/2 + org_y[tile_id] - elev*18;
 
 			// render tile
-			spr->Render(buf, buf_end, ref_x, ref_y,surf_x);
+			spr->Render(buf.data(), buf_end, ref_x, ref_y,surf_x);
 		}
 	}
 
@@ -2866,9 +2958,6 @@ int Terrain::RenderSpritePreview(wxBitmap& bmp, std::vector<Sprite*> &tiles, int
 		}
 		p.OffsetY(data,1);
 	}
-
-	// loose local buffer
-	delete[] buf;
 
 	return(0);
 }
@@ -2882,11 +2971,8 @@ int Terrain::RenderPNMpreview(wxBitmap& bmp,Sprite *spr,int flags,double gamma)
 	// allocate render buffer for indexed image
 	int surf_x = bmp.GetWidth();
 	int surf_y = bmp.GetHeight();
-	uint8_t* buf = new uint8_t[surf_x*surf_y];
-	uint8_t* buf_end = &buf[surf_x*surf_y];
-
-	// clear background
-	std::memset((void*)buf,230,surf_x*surf_y);
+	std::vector<uint8_t> buf(surf_x*surf_y,230);
+	uint8_t* buf_end = buf.data() + buf.size();
 
 	// center
 	int elev = 0;	
@@ -2894,7 +2980,7 @@ int Terrain::RenderPNMpreview(wxBitmap& bmp,Sprite *spr,int flags,double gamma)
 	int ref_y = (surf_y/zoom - 80)/2 - elev*18;
 
 	// render tile
-	spr->Render(buf,buf_end,ref_x,ref_y,surf_x);
+	spr->Render(buf.data(),buf_end,ref_x,ref_y,surf_x);
 
 	// apply gamma correction to palette:
 	if(gamma != last_gamma)
@@ -2927,9 +3013,6 @@ int Terrain::RenderPNMpreview(wxBitmap& bmp,Sprite *spr,int flags,double gamma)
 		}
 		p.OffsetY(data,1);
 	}
-
-	// loose local buffer
-	delete[] buf;
 
 	return(0);
 }

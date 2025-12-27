@@ -162,6 +162,9 @@
     <ClCompile Include="forms\form_edit_toolset.cpp">
       <Filter>Source Files\forms</Filter>
     </ClCompile>
+    <ClCompile Include="forms\form_new_map.cpp">
+      <Filter>Source Files\forms</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="fs_archive.h">
@@ -363,6 +366,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="forms\form_edit_toolset.h">
+      <Filter>Header Files\forms</Filter>
+    </ClInclude>
+    <ClInclude Include="forms\form_new_map.h">
       <Filter>Header Files\forms</Filter>
     </ClInclude>
   </ItemGroup>

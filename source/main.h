@@ -38,6 +38,7 @@
 #include "forms/form_about.h"
 #include "forms/form_sound.h"
 #include "forms/form_flags.h"
+#include "forms/form_new_map.h"
 
 #include <wx/ribbon/buttonbar.h>
 #include <wx/ribbon/panel.h>
@@ -272,7 +273,8 @@ private:
         ID_MAP_OPT_WIN,
         ID_VIDEO_WIN,
         ID_MIDI_WIN,
-        ID_MAP_UNITS_WIN
+        ID_MAP_UNITS_WIN,
+        ID_NEW_MAP
     };
     static constexpr int ID_HUD_BASE = 3000;
     static constexpr int ID_TOOL_BASE = 10000;

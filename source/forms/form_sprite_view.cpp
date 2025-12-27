@@ -84,6 +84,10 @@ FormSprite::FormSprite( wxWindow* parent,SpellData* spell_data,wxWindowID id, co
 	btnSetKnownParams = new wxMenuItem(mnuEdit,wxID_BTN_SET_KNOWS,wxString(wxT("Set parameters of known sprites")),wxEmptyString,wxITEM_NORMAL);
 	mnuEdit->Append(btnSetKnownParams);
 
+	wxMenuItem* btnGenWallCont;
+	btnGenWallCont = new wxMenuItem(mnuEdit,wxID_BTN_GEN_WALL_CONT,wxString(wxT("Generate wall neighbors")),wxEmptyString,wxITEM_NORMAL);
+	mnuEdit->Append(btnGenWallCont);
+
 	wxMenuItem* btnClearContext;
 	btnClearContext = new wxMenuItem(mnuEdit,wxID_BTN_CLR_CONTEXT,wxString(wxT("Clear tile context")),wxEmptyString,wxITEM_NORMAL);
 	mnuEdit->Append(btnClearContext);
@@ -490,6 +494,7 @@ FormSprite::FormSprite( wxWindow* parent,SpellData* spell_data,wxWindowID id, co
 	Bind(wxEVT_MENU,&FormSprite::OnSelectClick,this,wxID_BTN_SELECT);
 	Bind(wxEVT_MENU,&FormSprite::OnSelectSpriteBtn,this,wxID_BTN_NEXT);
 	Bind(wxEVT_MENU,&FormSprite::OnSelectSpriteBtn,this,wxID_BTN_PREV);
+	Bind(wxEVT_MENU,&FormSprite::OnGenerateWallContext,this,wxID_BTN_GEN_WALL_CONT);
 	Bind(wxEVT_MENU,&FormSprite::OnAssignKnowns,this,wxID_BTN_SET_KNOWS);
 	Bind(wxEVT_MENU,&FormSprite::OnClearContext,this,wxID_BTN_CLR_CONTEXT);
 	Bind(wxEVT_MENU,&FormSprite::OnClearAllContext,this,wxID_BTN_CLR_ALL_CONTEXT);
@@ -1166,6 +1171,22 @@ void FormSprite::OnAssignKnowns(wxCommandEvent& event)
 	
 	OnSelectSpriteAlt(event);
 }
+
+// regenerate neighbors for walls
+void FormSprite::OnGenerateWallContext(wxCommandEvent& event)
+{
+	wxMessageDialog dial(NULL,"Generate wall tiles valid neighbors? These are used in auto tile mapping.","Generate wall neighbors...",wxYES_NO);
+	if(dial.ShowModal() != wxID_YES)
+		return;
+
+	// get this terrain
+	Terrain* terr = FindTerrain();
+	// init map tile flags
+	terr->GenWallNeighbors();
+
+	OnSelectSpriteAlt(event);
+}
+
 // clear tiles context
 void FormSprite::OnClearAllContext(wxCommandEvent& event)
 {
