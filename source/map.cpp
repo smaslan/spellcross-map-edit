@@ -62,6 +62,7 @@ void TScroll::Reset()
 	dy = 0;
 	// selection size
 	size = 1;
+	is_drag_select = false;
 	// scroll state
 	state = 0;
 	// no change
@@ -177,8 +178,30 @@ int TScroll::ResizeSelection(int delta)
 		size = MAX_SEL_SIZE;
 	// something changed
 	modified = 1;
+	is_drag_select = false;
 	// return new size
 	return(size);
+}
+// set drag selection range
+int TScroll::SetDragSelectRange(MapXY start, MapXY end)
+{
+	size = 1;
+	is_drag_select = true;
+	modified = 1;
+	std::tie(drag_dx,drag_dy) = start.DistanceIso(end);
+	return(0);
+}
+//get drag seletion range
+std::tuple<int,int> TScroll::GetDragSelectionSize()
+{
+	if(is_drag_select)
+		return(std::tuple(drag_dx,drag_dy));
+	return(std::tuple(0,0));
+}
+// is drag selection mode?
+bool TScroll::isDragSelect()
+{
+	return(is_drag_select);
 }
 
 
@@ -2766,7 +2789,7 @@ void SpellMap::ClearBuffer()
 }
 
 // paste from copy buffer
-void SpellMap::PasteBuffer(std::vector<MapSprite>& tiles, std::vector<MapLayer3>& anms, std::vector<MapLayer4>& pnms,std::vector<MapXY>& start,std::vector<MapXY>& escape,std::vector<MapXY>& target, MapXY &posxy)
+void SpellMap::PasteBuffer(std::vector<MapSprite>& tiles, std::vector<MapLayer3>& anms, std::vector<MapLayer4>& pnms,std::vector<MapXY>& start,std::vector<MapXY>& escape,std::vector<MapXY>& target, MapXY &posxy,bool center)
 {
 	if(copy_buf.pos.empty() || !posxy.IsSelected())
 		return;
@@ -2788,7 +2811,8 @@ void SpellMap::PasteBuffer(std::vector<MapSprite>& tiles, std::vector<MapLayer3>
 	//ref_y = (ref_y/2)*2;
 	ref_x += ((ref_y&1)&&(sel.y&1))?1:0;
 
-	sel = sel - MapXY(ref_x,ref_y);
+	if(center)
+		sel = sel - MapXY(ref_x,ref_y);
 
 	for(int k = 0; k < copy_buf.pos.size(); k++)
 	{
@@ -2994,7 +3018,7 @@ vector<MapXY> SpellMap::GetPersistSelections()
 
 
 // analyze map selection
-vector<MapXY> &SpellMap::GetSelections(TScroll *scroll)
+vector<MapXY> &SpellMap::GetSelections(TScroll *scroll,bool single)
 {
 	int m,n,i,j;
 
@@ -3100,16 +3124,32 @@ vector<MapXY> &SpellMap::GetSelections(TScroll *scroll)
 			msel.clear();
 			msel.push_back(selxy);
 
+			if(single)
+				return(msel);
+
 			// find multiselect tiles:
 			if(selxy.IsSelected())
 			{		
 				// selection size
-				int size = scroll->GetSize();
-				int minref = -(size - 1)/2;
-
-				for(j = 0; j < size; j++)
+				int x_sel_size = scroll->GetSize();
+				int y_sel_size = scroll->GetSize();
+				int x_step = 1;
+				int y_step = 1;
+				int minref = -(x_sel_size - 1)/2;
+				if(scroll->isDragSelect())
 				{
-					for(i = 0; i < size; i++)
+					// drag select mode
+					auto [drag_dx,drag_dy] = scroll->GetDragSelectionSize();
+					x_sel_size = abs(drag_dx)+1;
+					y_sel_size = abs(drag_dy)+1;
+					x_step = (drag_dx < 0)?-1:+1;
+					y_step = (drag_dy < 0)?-1:+1;
+					minref = 0;
+				}
+
+				for(j = 0; abs(j) < y_sel_size; j+=y_step)
+				{
+					for(i = 0; abs(i) < x_sel_size; i+=x_step)
 					{
 						// this point
 						MapXY pxy;
@@ -3125,6 +3165,7 @@ vector<MapXY> &SpellMap::GetSelections(TScroll *scroll)
 							msel.push_back(pxy);
 					}
 				}
+				
 			}
 
 		}
@@ -3145,11 +3186,25 @@ std::vector<MapXY> SpellMap::GetRelSelection(TScroll* scroll)
 	list.push_back(selxy - selxy);
 
 	// selection size
-	int size = scroll->GetSize();
-	int minref = -(size - 1)/2;
-	for(int j = 0; j < size; j++)
+	int x_sel_size = scroll->GetSize();
+	int y_sel_size = scroll->GetSize();
+	int x_step = 1;
+	int y_step = 1;
+	int minref = -(x_sel_size - 1)/2;
+	if(scroll->isDragSelect())
 	{
-		for(int i = 0; i < size; i++)
+		// drag select mode
+		auto [drag_dx,drag_dy] = scroll->GetDragSelectionSize();
+		x_sel_size = abs(drag_dx)+1;
+		y_sel_size = abs(drag_dy)+1;
+		x_step = (drag_dx < 0)?-1:+1;
+		y_step = (drag_dy < 0)?-1:+1;
+		minref = 0;
+	}
+
+	for(int j = 0; abs(j) < y_sel_size; j+=y_step)
+	{
+		for(int i = 0; abs(i) < x_sel_size; i+=x_step)
 		{
 			// this point
 			MapXY pxy;
@@ -3179,7 +3234,7 @@ MapXY SpellMap::GetSelection(TScroll* scroll)
 	if(!scroll)
 		scroll = &scroller;
 
-	vector<MapXY>& sel = GetSelections(scroll);
+	vector<MapXY>& sel = GetSelections(scroll,false);
 	if(sel.size())
 		return(sel[0]);
 	else
@@ -11752,6 +11807,9 @@ int SpellMap::EditClass(vector<MapXY>& selection, SpellTool *tool, std::function
 	if(!EditWall(selection, tool, status_cb))
 		return(0);
 
+	// ###note: other than walls not implemented!!!
+	return(1);
+
 	// update map L1 flags
 	SyncL1flags();
 
@@ -11964,7 +12022,7 @@ int SpellMap::EditClass(vector<MapXY>& selection, SpellTool *tool, std::function
 }
 
 
-
+// part of EditWall(), checks matching wall neighbors
 int SpellMap::EditWallCheckNeig(MapXY &pos,int skip_edge,int type_id,EditWallPar *par)
 {
 	par->pos = pos;
@@ -12014,6 +12072,8 @@ int SpellMap::EditWall(vector<MapXY>& selection,SpellTool* tool,std::function<vo
 	if(tool_sprites.empty())
 		return(1);
 	auto wall_par = &tool_sprites[0]->wall_params;
+	if(wall_par->class_id < 0)
+		return(1); // no wall
 	auto wall_type = wall_par->type_id;
 
 	for(auto &sel: selection)
@@ -12089,11 +12149,27 @@ int SpellMap::EditWall(vector<MapXY>& selection,SpellTool* tool,std::function<vo
 					continue;
 				ntile->SetL2(list[0],list[0]->GetMapFlags());
 			}
+			// pick second side if only one side connected?
 			if(std::count_if(std::begin(par.edges),std::end(par.edges),[](int k){return(k > 0);}) == 1)
 			{
 				auto nid = std::find(std::begin(par.edges),std::end(par.edges),1) - std::begin(par.edges);
 				par.edges[(nid + 2) % 4] = 1;
 			}
+			// if more than two sides connected, remove one
+			if(std::count_if(std::begin(par.edges),std::end(par.edges),[](int k) {return(k > 0);}) > 2)
+			{
+				if(par.edges[0] && par.edges[2])
+				{
+					par.edges[1] = -1;
+					par.edges[3] = -1;
+				}
+				else if(par.edges[1] && par.edges[3])
+				{
+					par.edges[0] = -1;
+					par.edges[2] = -1;
+				}
+			}
+			// try pick matching wall segment
 			auto list = terrain->FindWallSprites(wall_type,par.edges,wall_par->damage,1,true);
 			if(list.empty())
 				continue;

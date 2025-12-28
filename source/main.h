@@ -175,8 +175,11 @@ private:
     void OnCanvasMouseWheel(wxMouseEvent& event);
     void OnCanvasKeyDown(wxKeyEvent& event);
     void OnCanvasLMouseDown(wxMouseEvent& event);
+    void OnCanvasLMouseUp(wxMouseEvent& event);
     void OnCanvasPopupSelect(wxCommandEvent& event);
     void OnUnitClick_cb(int action);
+
+    MapXY m_drag_sel_start;
     
     // map render buffer
     wxBitmap m_buffer;

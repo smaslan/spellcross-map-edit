@@ -192,6 +192,10 @@ private:
 	int state;
 	// selection size
 	int size;
+	// selection is drag select?
+	bool is_drag_select;
+	int drag_dx;
+	int drag_dy;
 	// modified?
 	int modified;
 	// moved?
@@ -217,6 +221,9 @@ public:
 	tuple<int,int> GetScroll();
 	tuple<int,int> GetCursor();
 	int GetSize();
+	int SetDragSelectRange(MapXY start,MapXY end);
+	bool isDragSelect();
+	std::tuple<int,int> GetDragSelectionSize();
 };
 
 
@@ -680,7 +687,7 @@ class SpellMap
 		
 		
 		MapXY GetSelection(TScroll* scroll=NULL);
-		vector<MapXY> &GetSelections(TScroll* scroll=NULL);
+		vector<MapXY> &GetSelections(TScroll* scroll=NULL,bool single=false);
 		std::vector<MapXY> GetRelSelection(TScroll* scroll=NULL);
 		void ClearSelections();
 		vector<Sprite*> GetL1sprites(vector<MapXY> &selection);
@@ -902,7 +909,7 @@ class SpellMap
 		int SetBuffer(SpellTool& tool,int cycle=0);
 		void CutBuffer(std::vector<MapXY>& posxy,Layers layers);
 		void CopyBuffer(std::vector<MapXY> &posxy,Layers layers);
-		void PasteBuffer(std::vector<MapSprite>& tiles,std::vector<MapLayer3>& anms,std::vector<MapLayer4>& pnms,std::vector<MapXY>& start,std::vector<MapXY>& escape,std::vector<MapXY>& target,MapXY &posxy);
+		void PasteBuffer(std::vector<MapSprite>& tiles,std::vector<MapLayer3>& anms,std::vector<MapLayer4>& pnms,std::vector<MapXY>& start,std::vector<MapXY>& escape,std::vector<MapXY>& target,MapXY &posxy,bool center=true);
 		bool isCopyBufferFull();
 		int PasteRandSprites(std::vector<MapSprite>& tiles,std::vector<MapXY>& posxy,std::vector<Sprite*>& sprites,bool force_rand);
 		int DeleteSelObjects(std::vector<MapXY>& posxy,SpellMap::Layers layers);

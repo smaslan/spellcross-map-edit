@@ -321,6 +321,8 @@ MainFrame::MainFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY
     canvas->Bind(wxEVT_MOUSEWHEEL,&MainFrame::OnCanvasMouseWheel,this);
     canvas->Bind(wxEVT_KEY_DOWN,&MainFrame::OnCanvasKeyDown,this);
     canvas->Bind(wxEVT_LEFT_DOWN,&MainFrame::OnCanvasLMouseDown,this);
+    canvas->Bind(wxEVT_LEFT_UP,&MainFrame::OnCanvasLMouseUp,this);
+
     //canvas->Bind(wxEVT_LEFT_DCLICK,&MainFrame::OnCanvasLMouseDown,this);
     canvas->Bind(wxEVT_THREAD,&MainFrame::OnThreadCanvas,this);
     
@@ -1953,6 +1955,9 @@ void MainFrame::OnCanvasLMouseDown(wxMouseEvent& event)
        
     // get selection
     auto xy_list = spell_map->GetSelections();
+
+    // store drag selection start
+    m_drag_sel_start = spell_map->GetSelection();
     
     if(event.LeftDown())
     {
@@ -1972,11 +1977,6 @@ void MainFrame::OnCanvasLMouseDown(wxMouseEvent& event)
             if(event.ControlDown() && spell_tool.isTool())
                 spell_map->SetBuffer(spell_tool,+1);
             Refresh();
-        }
-        else if(spell_tool.isActive() && xy_list.size() && xy_list[0].IsSelected())
-        {
-            // some tool selected: edit map class
-            spell_map->EditClass(xy_list, &spell_tool, bind(&MainFrame::StatusStringCallback,this,placeholders::_1));
         }
         else
         {
@@ -2102,6 +2102,37 @@ void MainFrame::OnCanvasLMouseDown(wxMouseEvent& event)
 
     canvas->Refresh();
 }
+void MainFrame::OnCanvasLMouseUp(wxMouseEvent& event)
+{
+    auto m_drag_sel_end = spell_map->GetSelection();
+    spell_map->scroller.SetDragSelectRange(m_drag_sel_start,m_drag_sel_end);
+
+    auto xy_list = spell_map->GetSelections();
+    if(spell_tool.isActive() && spell_tool.isTool() && xy_list.size() > 1 && xy_list[0].IsSelected() && spell_map->scroller.isDragSelect())
+    {
+        if(event.ShiftDown())
+        {
+            // auto tile mapping
+            spell_map->EditClass(xy_list,&spell_tool,bind(&MainFrame::StatusStringCallback,this,placeholders::_1));
+            Refresh();
+        }
+        else if(spell_map->isCopyBufferFull())
+        {
+            // something in copy buffer
+            spell_map->SetBuffer(spell_tool);
+            auto pos = spell_map->GetSelection();
+            spell_map->PasteBuffer(spell_map->tiles,spell_map->L3,spell_map->L4,spell_map->start,spell_map->escape,spell_map->target,pos,false);
+            // optional cycling of tool items
+            if(event.ControlDown() && spell_tool.isTool())
+                spell_map->SetBuffer(spell_tool,+1);
+            spell_map->scroller.ResizeSelection(0);
+            spell_map->SetBuffer(spell_tool);
+            Refresh();
+        }
+    }
+    m_drag_sel_start.Clear();
+    spell_map->scroller.ResizeSelection(0);
+}
 
 // on canvas mouse enter
 void MainFrame::OnCanvasMouseEnter(wxMouseEvent& event)
@@ -2121,6 +2152,9 @@ void MainFrame::OnCanvasMouseLeave(wxMouseEvent& event)
     if(inUnitOptions())
         return;
 
+    m_drag_sel_start.Clear();
+    spell_map->scroller.ResizeSelection(0);
+
     spell_map->SetUnitRangeViewMode(SpellMap::UNIT_RANGE_NONE);
     spell_map->scroller.Idle();
 }
@@ -2131,6 +2165,8 @@ void MainFrame::OnCanvasMouseMove(wxMouseEvent& event)
         return;
     if(inUnitOptions())
         return;
+
+    
 
     static int last_in_hud = false;
 
@@ -2146,6 +2182,7 @@ void MainFrame::OnCanvasMouseMove(wxMouseEvent& event)
 
         // invalidate cursor
         spell_map->ClearSelections();
+        m_drag_sel_start.Clear();
 
         // default game cursor
         SetCursor(*spell_data->gres.cur_pointer);
@@ -2227,6 +2264,17 @@ void MainFrame::OnCanvasMouseMove(wxMouseEvent& event)
         if(unit->was_moved)
             spell_map->unit_view->AddUnitView(unit,
                 spell_map->isUnitsViewDebugMode()?(SpellMap::ViewRange::ClearMode::HIDE):(SpellMap::ViewRange::ClearMode::NONE));
+    }
+
+
+    if(event.LeftIsDown())
+    {
+        if(/*spell_map->scroller.GetSize() == 1 && */m_drag_sel_start.IsSelected())
+        {
+            spell_map->scroller.SetDragSelectRange(m_drag_sel_start,mxy);
+            //auto [da,db] = spell_map->scroller.GetDragSelectionSize();
+            //SetStatusText(wxString::Format(wxT("da=%d db=%d"),da,db),7);
+        }
     }
 
     canvas->Refresh();

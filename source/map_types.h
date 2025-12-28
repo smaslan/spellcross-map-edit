@@ -55,7 +55,15 @@ public:
 			return(0);
 		return atan2(yy2 - yy1, xx1 - xx2)*180.0/M_PI;
 	};
-	
+	// distance in isometric coordinates (45deg of visual plane)
+	std::tuple<int,int> DistanceIso(MapXY mxy)
+	{
+		double angle = mxy.Angle(MapXY(x,y));
+		double dist = mxy.Distance(MapXY(x,y));
+		int da = round(dist*cos((angle + 45.0)/180.0*M_PI));
+		int db = round(dist*sin((angle + 45.0)/180.0*M_PI));
+		return(std::tuple(db,da));
+	}
 	MapXY operator + (MapXY par)
 	{
 		MapXY res(x,y);
