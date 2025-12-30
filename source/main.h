@@ -341,6 +341,7 @@ enum
     ID_ViewPnm,
     ID_ViewUnt,
     ID_ViewStTa,
+    ID_ShowDebug,
     ID_ViewHUD,
     ID_ViewSounds,
     ID_ViewSoundLoops,

@@ -1546,7 +1546,7 @@ DestructibleRec SpellL2classes::GetClass(const char* sprite_name)
 	}
 
 	// is bridge?
-	if(wildcmp("MTA??_??",sprite_name) || wildcmp("MTA??_??",sprite_name))
+	if(wildcmp("MTA??_??",sprite_name)/* || wildcmp("MTA??_??",sprite_name)*/)
 	{
 		int class_id = (sprite_name[4] - 'A') & 0x03;
 		int type_id = hex2num(sprite_name[3]) & 0x01;
@@ -2007,8 +2007,12 @@ int Terrain::InitSpriteContext(wstring &path)
 		for(int quid = 0; quid < 4; quid++)
 		{
 			// read class
-			uint8_t edge_class;
-			fr.read((char*)&edge_class,sizeof(uint8_t));
+			uint8_t edge_class = fr.read_u8();
+			//fr.read((char*)&edge_class,sizeof(uint8_t));
+			/*if(edge_class == Sprite::CLASS_BLOOD)
+				edge_class = Sprite::CLASS_ASH;
+			else if(edge_class == Sprite::CLASS_ASH)
+				edge_class = Sprite::CLASS_BLOOD;*/
 			sprites[list[k]]->SetEdgeClass(quid, edge_class);
 		}
 

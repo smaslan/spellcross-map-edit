@@ -231,6 +231,12 @@ std::string fix_no_duplicate_string(std::string str, std::vector<std::string> &l
     return(str);
 }
 
+// count bits in varible
+uint32_t popcount(uint32_t v) {
+    v = v - ((v >> 1) & 0x55555555);                // put count of each 2 bits into those 2 bits
+    v = (v & 0x33333333) + ((v >> 2) & 0x33333333); // put count of each 4 bits into those 4 bits  
+    return ((v + (v >> 4) & 0xF0F0F0F) * 0x1010101) >> 24;
+}
 
 // write string with string size prefix (16bit)
 /*int ostream_write_string(std::ofstream& fw,std::string &str)

@@ -203,7 +203,7 @@ class Sprite
 		static constexpr uint32_t IS_DGRASS =       0x00000002;
 		static constexpr uint32_t IS_BLOOD =        0x00000004;
 		static constexpr uint32_t IS_MUD =          0x00000008;
-		static constexpr uint32_t IS_SWAPM =        0x00000010;
+		static constexpr uint32_t IS_SWAMP =        0x00000010;
 		static constexpr uint32_t IS_ASH =          0x00000020;
 		static constexpr uint32_t IS_HIGHLAND =     0x00000040;
 		static constexpr uint32_t IS_ROAD =         0x00000080;

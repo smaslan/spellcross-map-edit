@@ -18,6 +18,7 @@
 #include <fstream>
 #include <string>
 #include <vector>
+#include <map>
 #include <stdexcept>
 #include <regex>
 #include <tuple>
@@ -443,6 +444,11 @@ SpellMap::SpellMap()
 	wL4 = true;
 	wSTCI = true;
 	wUnits = true;
+	wHighlight_obj = false;
+	wSound = false;
+	wSoundLoop = false;
+	wEvents = false;
+	wDebug = false;
 
 	map_path = L"";
 	def_path = L"";	
@@ -564,6 +570,7 @@ void SpellMap::Close()
 	// loose start/ciel
 	start.clear();
 	escape.clear();
+	target.clear();
 	// loose units layer
 	Lunit.clear();
 	// loose units list
@@ -1958,9 +1965,9 @@ int SpellMap::SaveDEF(std::wstring path)
 			// for each event:
 			for(auto evt: events->GetEvents())
 			{
-				if(evt->evt_type != evt_type || evt->is_objective == o)
+				if(evt->evt_type != evt_type)
 					continue;
-				auto [head_chunk, data_chunk] = evt->FormatDEFrecord(&event_id);
+				auto [head_chunk, data_chunk] = evt->FormatDEFrecord(&event_id, !o, o);
 				mission_data += head_chunk;
 				event_data += data_chunk;
 			}
@@ -2015,7 +2022,7 @@ int SpellMap::SaveDEF(std::wstring path)
 			num = 0;
 		}
 		if(!num)
-			mission_data += "    AddEscapeSquare(";
+			mission_data += "    AddTargetSquare(";
 		else
 			mission_data += ",";
 		mission_data += string_format("%d",ConvXY(pos));
@@ -3846,7 +3853,7 @@ int SpellMap::GetRender(uint8_t* buf, int x_size, int y_size, int x_pos, int y_p
 }
 
 // configure map elements visibility
-void SpellMap::SetRender(bool wL1,bool wL2,bool wL3,bool wL4,bool wSTCI,bool wUnits,bool wSound,bool wSoundLoop,bool wEvents,bool highlight_obj)
+void SpellMap::SetRender(bool wL1,bool wL2,bool wL3,bool wL4,bool wSTCI,bool wUnits,bool wSound,bool wSoundLoop,bool wEvents,bool highlight_obj,bool wDebug)
 {
 	this->wL1 = wL1;
 	this->wL2 = wL2;
@@ -3858,6 +3865,7 @@ void SpellMap::SetRender(bool wL1,bool wL2,bool wL3,bool wL4,bool wSTCI,bool wUn
 	this->wSoundLoop = wSoundLoop;
 	this->wEvents = wEvents;
 	this->wHighlight_obj = highlight_obj;
+	this->wDebug = wDebug;
 }
 
 // set gamma correction for rendering
@@ -4385,7 +4393,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 	}*/
 
 
-	// --- Redner Layer 7+8 sound marks ---
+	// --- Render Layer 7+8 sound marks ---
 	terrain->font->SetFilter(terrain->filter.darker);
 	for(auto& sound: sounds->sounds)
 	{
@@ -4562,10 +4570,12 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 			terrain->font7->Render(pic,pic_end,pic_x_size,mxx,myy+y_ofs,80,spr->y_size,label,252,254,SpellFont::SOLID);
 		}
 
-
-
-
-		/*for(m = 0; m < ys_size; m++)
+	}
+	
+		
+	if(wDebug)
+	{
+		for(m = 0; m < ys_size; m++)
 		{
 			if(m + ys_ofs * 2 >= y_size)
 				break;
@@ -4577,91 +4587,21 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 				int y_pos = m + ys_ofs*2;
 				int mxy = ConvXY(x_pos,y_pos);
 
+				// get view height map elevation
+				string hstr = string_format("0x%06X",L1_flags[mxy]);
+
 				// get tile
 				Sprite* spr = tiles[mxy].L1;
 				int sof = tiles[mxy].elev;
+
+				// render sprite
 				int mxx = n * 80 + (((m & 1) != 0) ? 0 : 40);
-				int myy = m * 24 - sof * 18 + MSYOFS + 50 + spr->y_ofs;
+				int myy = m * 24 - sof * 18 + MSYOFS + 50;
 
-				if(events->CheckEvent(mxy))
-				{	
-					vector<string> labels;
-					auto list = events->GetEvents(mxy);
-					int is_selected = false;
-					for(auto & evt : list)
-					{										
-						labels.push_back("\x1C" + evt->type_name);
-						if(evt->probability != 100)
-							labels.back() += string_format("(%d%%)",evt->probability);
-						if(!evt->units.empty())
-							labels.back() += "\x1A";
-						if(!evt->texts.empty())
-							labels.back() += "\x1B";
-						is_selected |= (GetSelectEvent() == evt && !evt->in_placement);
-					}
-
-					int color = (is_selected && sel_blink_state)?214:252;
-					terrain->font->Render(pic,pic_end,pic_x_size,mxx,myy,80,spr->y_size,labels,color,254,SpellFont::SOLID);
-				}
-				else
-				{
-					// show events associated to units (MissionStart and SeeUnit):
-
-					auto unit = Lunit[mxy];
-					while(unit)
-					{
-						if(unit->map_event && unit->map_event->isMissionStart())
-						{
-							// found matching MissionStart() event:
-							auto evt = unit->map_event;
-							int is_selected = (evt == GetSelectEvent());
-
-							// make label on top of unit
-							string label = "?" + evt->type_name;
-							if(evt->probability != 100)
-								label += string_format("(%d%%)",evt->probability);
-							//label += "\x1A";											
-
-							// plot it
-							int y_ofs = (unit->unit->isAir())?(-SpellUnitRec::AIR_UNIT_FLY_HEIGHT):0;
-							int color = (is_selected && sel_blink_state)?214:252;
-							terrain->font7->Render(pic,pic_end,pic_x_size,mxx,myy + y_ofs,80,spr->y_size,label,color,254,SpellFont::SOLID);
-						}
-						else if(unit->trig_event && unit->trig_event->isSeeUnit())
-						{
-							// SeeUnit() event:
-							auto evt = unit->trig_event;
-							int is_selected = (evt == GetSelectEvent());
-
-							// make label on top of unit
-							string label = "\x1C" + evt->type_name;
-							if(evt->probability != 100)
-								label += string_format("(%d%%)",evt->probability);
-							if(!evt->units.empty())
-								label += "\x1A";
-							if(!evt->texts.empty())
-								label += "\x1B";
-
-							// plot it
-							int y_ofs = (unit->unit->isAir())?(-SpellUnitRec::AIR_UNIT_FLY_HEIGHT):0;
-							int color = (is_selected && sel_blink_state)?214:252;
-							terrain->font->Render(pic,pic_end,pic_x_size,mxx,myy + y_ofs,80,spr->y_size,label,color,254,SpellFont::SOLID);
-						}
-
-						unit = unit->next;
-					}
-				}
-
-
-				
+				terrain->font7->Render(pic,pic_end,pic_x_size,mxx,myy + spr->y_ofs,80,spr->y_size,hstr,252,254,SpellFont::DIAG);
 			}
-		}*/
+		}
 	}
-	
-		
-	
-
-
 
 	// DEBUG: render mean elevations (for units view range)
 	/*for(m = 0; m < ys_size; m++)
@@ -11797,6 +11737,109 @@ int SpellMap::PlaceStartEscape(vector<MapXY>& posxy,std::vector<MapXY>& start,st
 	return(0);
 }
 
+
+
+
+int SpellMap::EditClassTile(MapXY pos,std::vector<int> &modz,uint32_t target_flags,uint32_t blend_flags,uint32_t land_type_mask,int mod_level)
+{
+	if(!pos.IsSelected())
+		return(1);
+	auto pxy = ConvXY(pos);
+	auto& flags = L1_flags[pxy];
+	auto last_flags = flags;
+
+	// remove all classes not compatible
+	//flags &= (blend_flags | target_flags | ~land_type_mask);
+	
+
+	// look around for target class tiles
+	int same_0d = 0;
+	int same_45d = 0;
+	for(int nid = 0; nid<4; nid++)
+	{
+		auto npos = GetNeighborTile8D(pos,nid*2 + 1);
+		auto nxy = ConvXY(npos);
+		if(!npos.IsSelected())
+			continue;
+		if(L1_flags[nxy] & target_flags)
+			same_45d++;
+		npos = GetNeighborTile8D(pos,nid*2 + 0);
+		nxy = ConvXY(npos);
+		if(!npos.IsSelected())
+			continue;
+		if(L1_flags[nxy] & target_flags)
+			same_0d++;
+	}
+	bool must_set_full = same_45d > 3 && same_0d != 3;
+	
+	//if(flags & land_type_mask & ~blend_flags & ~target_flags)
+		
+
+	if(must_set_full || (mod_level > 1 && flags & target_flags))
+	{
+		// tile to full target class
+		flags &= ~blend_flags;
+		flags |= target_flags;
+	}
+	else if(mod_level)
+	{
+		flags &= (blend_flags | target_flags | ~land_type_mask);
+
+		// tile to shared target class
+		if(popcount(flags & blend_flags) > 1)
+		{
+			// more than one blend classes in this tile - have to pick just one which is most used around
+			std::vector<int> counts(32,0);
+			int rmax = 0;
+			int blend_flag = 0;
+			for(int nid = 0; nid<8; nid++)
+			{
+				auto npos = GetNeighborTile8D(pos,nid);
+				auto nxy = ConvXY(npos);
+				if(!npos.IsSelected())
+					continue;
+				auto flags = L1_flags[nxy] & blend_flags;
+				for(int k = 0; k < 32; k++,flags >>= 1)
+					if(flags & 1)
+					{
+						counts[k]++;
+						if(counts[k] > rmax)
+						{
+							rmax = counts[k];
+							blend_flag = 1<<k;
+						}
+					}
+			}
+			flags &= blend_flag;
+		}
+		flags |= target_flags;
+	}
+	if(flags != last_flags)
+		modz[pxy] = 2;
+
+	
+	for(int nid = 0; nid<8; nid++)
+	{
+		int n_angle = (nid&3)*2 + !(nid>>2);
+		auto npos = GetNeighborTile8D(pos,n_angle);
+		auto nxy = ConvXY(npos);
+		if(!npos.IsSelected())
+			continue;
+		if(modz[nxy] > 1)
+			continue;
+		modz[nxy] = 1;
+			
+		bool new_mod_level = flags & target_flags && !(flags & blend_flags);
+		if(flags != last_flags || mod_level > 1)
+		{
+			EditClassTile(npos,modz,target_flags,blend_flags,land_type_mask,new_mod_level);
+		}
+	}
+	
+
+	return(0);
+}
+
 // Edit map class
 int SpellMap::EditClass(vector<MapXY>& selection, SpellTool *tool, std::function<void(std::string)> status_cb)
 {
@@ -11808,38 +11851,13 @@ int SpellMap::EditClass(vector<MapXY>& selection, SpellTool *tool, std::function
 		return(0);
 
 	// ###note: other than walls not implemented!!!
-	return(1);
+	//return(1);
 
 	// update map L1 flags
 	SyncL1flags();
 
 	if(tool->isObject())
 		return(1);
-
-	// get tool sprites
-	/*auto tool_sprites = terrain->GetToolSprites(*tool);
-	if(!tool_sprites.empty() && tool_sprites[0]->land_type == 0)
-	{
-		if(tool_sprites[0] == start_sprite)
-		{
-			PlaceStartEscape(selection, SpellMap::SPEC_TILE_START);
-			return(0);
-		}
-		if(tool_sprites[0] == escape_sprite)
-		{
-			PlaceStartEscape(selection,SpellMap::SPEC_TILE_ESCAPE);
-			return(0);
-		}
-		if(tool_sprites[0] == target_sprite)
-		{
-			PlaceStartEscape(selection,SpellMap::SPEC_TILE_TARGET);
-			return(0);
-		}
-		
-		// is objects layer tool
-		PasteRandSprites(tiles, selection, tool_sprites, true);				
-		return(0);
-	}*/
 
 
 	if(status_cb)
@@ -11863,8 +11881,103 @@ int SpellMap::EditClass(vector<MapXY>& selection, SpellTool *tool, std::function
 
 	if(!tspr)
 		return(1);
+
+	uint32_t land_type_mask = Sprite::IS_GRASS | Sprite::IS_DGRASS | Sprite::IS_BLOOD | Sprite::IS_MUD | Sprite::IS_SWAMP | Sprite::IS_ASH | Sprite::IS_SAND | Sprite::IS_HIGHLAND | Sprite::IS_WATER;
+	std::vector<uint32_t> land_classes = {Sprite::IS_GRASS,Sprite::IS_DGRASS,Sprite::IS_BLOOD,Sprite::IS_MUD,Sprite::IS_SWAMP,Sprite::IS_ASH,Sprite::IS_SAND,Sprite::IS_HIGHLAND,Sprite::IS_WATER};
+	std::map<uint32_t,uint32_t> blend_rules;
+	for(auto land_class: land_classes)
+	{
+		uint32_t flags = 0;
+		for(auto spr: terrain->sprites)
+		{
+			if(spr->GetFlags() & land_class)
+				flags |= spr->GetFlags();
+		}
+		flags &= ~land_class & land_type_mask;
+		blend_rules.insert(std::make_pair(land_class,flags));
+	}
+
+	// target terrain flags
+	auto target_flags = tspr->GetFlags();
+	// allowed terrain transitions flags 
+	if(blend_rules.find(target_flags) == blend_rules.end())
+		return(1);
+	auto blend_flags = blend_rules[target_flags];
+
+	std::vector<int> modz(x_size*y_size,0);
+
+	for(auto &pos: selection)
+	{
+		EditClassTile(pos,modz,target_flags,blend_flags,land_type_mask,2);
+	}
+
+
+	for(int y = 0; y < y_size; y++)
+	{
+		for(int x = 0; x < x_size; x++)
+		{
+			auto pos = MapXY(x,y);
+			auto pxy = ConvXY(pos);
+			if(!modz[pxy])
+				continue;
+			
+			unsigned edge[4] = {0xFFFFFFFFu,0xFFFFFFFFu,0xFFFFFFFFu,0xFFFFFFFFu};
+			for(int nid = 0; nid < 4; nid++)
+			{
+				auto npos = GetNeighborTile(pos,nid);
+				if(!npos.IsSelected())
+					continue;
+				auto nxy = ConvXY(npos);
+				edge[nid] &= L1_flags[nxy];
+				edge[(nid + 1) % 4] &= L1_flags[nxy];
+				edge[nid] &= L1_flags[pxy];
+			}
+			int edge_class[4];
+			for(int nid = 0; nid < 4; nid++)
+			{
+				if(edge[nid] == edge[(nid + 1) % 4])
+				{
+					if(edge[nid] & Sprite::IS_GRASS)
+						edge_class[nid] = Sprite::CLASS_GRASS;
+					else if(edge[nid] & Sprite::IS_DGRASS)
+						edge_class[nid] = Sprite::CLASS_DARK_GRASS;
+					else if(edge[nid] & Sprite::IS_BLOOD)
+						edge_class[nid] = Sprite::CLASS_BLOOD;
+					else if(edge[nid] & Sprite::IS_MUD)
+						edge_class[nid] = Sprite::CLASS_MUD;
+					else if(edge[nid] & Sprite::IS_SAND)
+						edge_class[nid] = Sprite::CLASS_SAND;
+					else if(edge[nid] & Sprite::IS_ASH)
+						edge_class[nid] = Sprite::CLASS_ASH;
+					else if(edge[nid] & Sprite::IS_SWAMP)
+						edge_class[nid] = Sprite::CLASS_SWAMP;
+					else
+						edge_class[nid] = Sprite::CLASS_GENERIC;
+				}
+				else
+					edge_class[nid] = Sprite::CLASS_GENERIC;
+			}
+			for(auto &spr: terrain->sprites)
+			{
+				if(spr->GetFlags() != L1_flags[pxy])
+					continue;
+				if(spr->land_type != tiles[pxy].L1->land_type)
+					continue;
+				bool match = true;
+				for(int eid = 0; eid < 4; eid++)
+					match &= (spr->GetEdgeClass(eid) == edge_class[eid]);
+				if(!match)
+					continue;
+				tiles[pxy].L1 = spr;
+			}
+		}
+	}
 	
 	
+	return(0);
+	
+	
+	/*
 	// make modified flags array
 	uint8_t *modz = new uint8_t[x_size*y_size];
 	std::memset((void*)modz, 0,x_size*y_size);
@@ -12017,6 +12130,7 @@ int SpellMap::EditClass(vector<MapXY>& selection, SpellTool *tool, std::function
 	ReTexture(modz, status_cb);
 
 	delete[] modz;
+	*/
 
 	return(0);
 }

@@ -99,7 +99,7 @@ public:
     SpellMapEventRec(SpellMap *parent_map);
     SpellMapEventRec(SpellMapEventRec* rec);
     ~SpellMapEventRec();
-    std::tuple<std::string,std::string> FormatDEFrecord(int *initial_id);
+    std::tuple<std::string,std::string> FormatDEFrecord(int *initial_id,bool save_event=true,bool save_obj=true);
     MapXY GetPosition();
 
     int CheckUnitInPos(bool clear=false);

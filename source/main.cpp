@@ -194,6 +194,8 @@ MainFrame::MainFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY
     menuView->FindItem(ID_ViewEvents)->Check(false);    
     menuView->Append(ID_HighlighObj,"Highlight objects\tF10","",wxITEM_CHECK);
     menuView->FindItem(ID_HighlighObj)->Check(false);
+    menuView->Append(ID_ShowDebug,"Show debug\tF11","",wxITEM_CHECK);
+    menuView->FindItem(ID_ShowDebug)->Check(false);
     menuView->Append(ID_ViewHUD,"Show mission HUD panel\tCtrl+H","",wxITEM_CHECK);
     menuView->FindItem(ID_ViewHUD)->Check(spell_map->GetHUDstate());
     menuView->Append(ID_UnitViewDbg,"Enable unit view debug mode\tCtrl+D","",wxITEM_CHECK);    
@@ -356,6 +358,7 @@ MainFrame::MainFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY
     Bind(wxEVT_MENU,&MainFrame::OnViewLayer,this,ID_ViewSoundLoops);
     Bind(wxEVT_MENU,&MainFrame::OnViewLayer,this,ID_ViewEvents);
     Bind(wxEVT_MENU,&MainFrame::OnViewLayer,this,ID_HighlighObj);
+    Bind(wxEVT_MENU,&MainFrame::OnViewLayer,this,ID_ShowDebug);
 
     Bind(wxEVT_MENU,&MainFrame::OnSetGamma,this,ID_SetGamma);
     Bind(wxEVT_MENU,&MainFrame::OnViewSprites,this,ID_ViewSprites);
@@ -935,7 +938,8 @@ void MainFrame::OnViewLayer(wxCommandEvent& event)
     bool wSoundLoop = GetMenuBar()->FindItem(ID_ViewSoundLoops)->IsChecked();
     bool wEvents = GetMenuBar()->FindItem(ID_ViewEvents)->IsChecked();
     bool wHobj = GetMenuBar()->FindItem(ID_HighlighObj)->IsChecked();
-    spell_map->SetRender(wL1,wL2,wL3,wL4,wSS,wL5,wSound,wSoundLoop,wEvents,wHobj);
+    bool wDebug = GetMenuBar()->FindItem(ID_ShowDebug)->IsChecked();
+    spell_map->SetRender(wL1,wL2,wL3,wL4,wSS,wL5,wSound,wSoundLoop,wEvents,wHobj,wDebug);
     bool hud = GetMenuBar()->FindItem(ID_ViewHUD)->IsChecked();
     spell_map->SetHUDstate(hud);
     Refresh();
@@ -2102,6 +2106,8 @@ void MainFrame::OnCanvasLMouseDown(wxMouseEvent& event)
 
     canvas->Refresh();
 }
+
+// canvas left up (end of drag selection)
 void MainFrame::OnCanvasLMouseUp(wxMouseEvent& event)
 {
     auto m_drag_sel_end = spell_map->GetSelection();

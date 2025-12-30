@@ -26,6 +26,8 @@ int hex2num(char hex);
 char num2hex(int num);
 std::string fix_no_duplicate_string(std::string str,std::vector<std::string>& list);
 
+uint32_t popcount(uint32_t v);
+
 //int ostream_write_string(ofstream& fw,std::string &str);
 //int ostream_write_string(std::ofstream& fw,std::string str);
 //int ostream_write_string(std::ofstream& fw,const char* str);

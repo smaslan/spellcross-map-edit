@@ -833,12 +833,12 @@ int SpellMapEvents::AddSpecialEvent(SpellData *data, SpellDEF* def, SpellDefCmd*
 }
 
 // generate event DEF data <header, event_data>
-std::tuple<std::string, std::string> SpellMapEventRec::FormatDEFrecord(int *initial_id)
+std::tuple<std::string, std::string> SpellMapEventRec::FormatDEFrecord(int *initial_id,bool save_event,bool save_obj)
 {
 	std::string head = "";
 	std::string data = "";
 
-	if(is_objective)
+	if(is_objective && save_obj)
 	{
 		// --- AddMissionObjective():
 
@@ -867,7 +867,8 @@ std::tuple<std::string, std::string> SpellMapEventRec::FormatDEFrecord(int *init
 		}
 
 	}
-	else
+
+	if(save_event)
 	{
 		// --- AddSpecialEvent():
 
@@ -875,7 +876,7 @@ std::tuple<std::string, std::string> SpellMapEventRec::FormatDEFrecord(int *init
 		int evt_count = texts.size() + units.size() + !video.empty();
 
 		// duplicate event header for each data (spellcross cannot aggregate more data for one event...)
-		bool used = true;
+		bool used = evt_count > 0;
 		for(int k = *initial_id; k < *initial_id + evt_count; k++)
 		{
 			switch(evt_type)

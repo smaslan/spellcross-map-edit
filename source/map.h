@@ -328,6 +328,7 @@ class SpellMap
 		bool wL1, wL2, wL3, wL4, wSTCI, wUnits;
 		bool wSound, wSoundLoop, wEvents;
 		bool wHighlight_obj;
+		bool wDebug;
 		int w_unit_hud;
 
 		// last gamma
@@ -830,7 +831,7 @@ class SpellMap
 		
 		
 
-		void SetRender(bool wL1, bool wL2, bool wL3, bool wL4, bool wSECI, bool wUnits, bool wSound, bool wSoundLoop, bool wEvents,bool highlight_obj);
+		void SetRender(bool wL1, bool wL2, bool wL3, bool wL4, bool wSECI, bool wUnits, bool wSound, bool wSoundLoop, bool wEvents,bool highlight_obj,bool wDebug=false);
 		void SetGamma(double gamma);
 		double GetGamma();
 		int Tick();
@@ -850,6 +851,7 @@ class SpellMap
 		int ReTexture(uint8_t* modz,std::function<void(std::string)> status_cb=NULL);
 		void SyncL1flags();
 
+		int EditClassTile(MapXY pos,std::vector<int>& modz,uint32_t target_flags,uint32_t blend_flags,uint32_t land_type_mask,int mod_level);
 		int EditClass(vector<MapXY>& selection,SpellTool* tool,std::function<void(std::string)> status_cb=NULL);
 		int EditWall(vector<MapXY>& selection,SpellTool* tool,std::function<void(std::string)> status_cb=NULL);
 		
