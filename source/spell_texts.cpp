@@ -9,8 +9,9 @@
 //using namespace std;
 
 // basic text loader
-SpellTextRec::SpellTextRec(std::string str, SpellLang lang, const char* name,SpellSample* audio)
+SpellTextRec::SpellTextRec(std::string str, SpellLang lang, const char* name,SpellSample* audio,bool is_placeholder)
 {    
+    this->is_placeholder = is_placeholder;
     if(name)
         this->name = name;
     this->lang = lang;    
@@ -142,9 +143,46 @@ SpellTexts::SpellTexts(FSarchive* fs, SpellLang lang,SpellSounds* sounds)
 
         // try load
         std::string str(src->data.begin(), src->data.end());
-        auto txt = new SpellTextRec(str,lang,src->name.c_str(),narration);
-        list.push_back(txt);
+        AddText(src->name,str,lang,narration);
     }
+}
+
+// add text resource to the list
+SpellTextRec* SpellTexts::AddText(std::string name,std::string raw_text,SpellLang lang,SpellSample* narration,bool is_placeholder)
+{
+    if(name.empty())
+        return(NULL);
+
+    // check duplicates
+    for(auto item: list)
+        if(iequals(item->name,name))
+            return(NULL);
+
+    // make text
+    auto txt = new SpellTextRec(raw_text,lang,name.c_str(),narration,is_placeholder);
+    if(txt)
+        list.push_back(txt);
+
+    return(txt);
+}
+
+// remove placeholder resources
+int SpellTexts::RemovePlaceholders()
+{
+    int count = 0;
+    vector<SpellTextRec*> temp_list;
+    for(auto &txt: list)
+    {
+        if(txt->is_placeholder)
+        {
+            delete txt;
+            count++;
+        }
+        else
+            temp_list.push_back(txt);
+    }
+    list = temp_list;
+    return(count);
 }
 
 // cleanup string table

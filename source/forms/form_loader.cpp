@@ -11,6 +11,7 @@
 #include <filesystem>
 
 #include "other.h"
+#include "wx_other.h"
 #include "simpleini.h"
 
 
@@ -105,10 +106,7 @@ void FormLoader::Loader(std::wstring config_path,SpellData* &spell_data)
 	}
 
 	// get exec path
-	std::wstring exe_path = ::wxStandardPaths::Get().GetExecutablePath().ToStdWstring();	
-	#ifdef __WXMSW__
-		exe_path = std::filesystem::path(exe_path).parent_path();
-	#endif
+	std::wstring exe_path = GetExecutableDir();
 
 	// spellcross data root path
 	wstring spelldata_path = char2wstring(ini.GetValue("SPELCROS","spell_path",""));
@@ -149,7 +147,7 @@ void FormLoader::Loader(std::wstring config_path,SpellData* &spell_data)
 		string sec_name = "TERRAIN::" + terr->name;
 
 		// try to load context
-		wstring cont_path = char2wstring(ini.GetValue(sec_name.c_str(),"context_path",""));
+		wstring cont_path = std::filesystem::path(exe_path) / std::filesystem::path(char2wstring(ini.GetValue(sec_name.c_str(),"context_path","")));
 		if(terr->InitSpriteContext(cont_path))
 		{
 			UpdateList(string_format("   - context ''%ls'' not found...",cont_path.c_str()));

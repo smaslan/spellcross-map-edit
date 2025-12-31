@@ -1,6 +1,7 @@
 #pragma once
 
 #include <wx/listctrl.h>
+#include <wx/treectrl.h>
 
 class wxListCtrlVirtual : public wxListCtrl {
 private:
@@ -88,6 +89,4 @@ public:
 	}
 };
 
-
-
-
+std::wstring GetExecutableDir();

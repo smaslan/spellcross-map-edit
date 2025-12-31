@@ -165,6 +165,9 @@
     <ClCompile Include="forms\form_new_map.cpp">
       <Filter>Source Files\forms</Filter>
     </ClCompile>
+    <ClCompile Include="wx_other.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="fs_archive.h">

@@ -28,8 +28,9 @@ public:
     std::wstring text;
     SpellLang lang;    
     SpellSample *audio;
+    bool is_placeholder;
 
-    SpellTextRec(std::string str,SpellLang lang,const char* name=NULL,SpellSample *audio=NULL);
+    SpellTextRec(std::string str,SpellLang lang,const char* name=NULL,SpellSample *audio=NULL,bool is_placeholder=false);
     SpellTextChunks WordWrap(SpellFont *font, int x_limit);
 };
 
@@ -45,6 +46,8 @@ public:
     
     SpellTexts(FSarchive *fs,SpellLang lang,SpellSounds *sounds=NULL);
     ~SpellTexts();
+    SpellTextRec* AddText(std::string name,std::string raw_text="",SpellLang lang=SpellLang::CZE,SpellSample * narration=NULL,bool is_placeholder=false);
+    int RemovePlaceholders();
     SpellTextRec* GetText(int index);
     SpellTextRec* GetText(const char* name);
     SpellTextRec *GetText(string &name);

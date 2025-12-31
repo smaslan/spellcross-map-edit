@@ -875,15 +875,22 @@ void FormEvent::OnPlayNarration(wxCommandEvent& event)
 		// start new playback
 
 		// get message item selection
+		SpellSample* msg = NULL;
 		auto sel = chbMsgItem->GetSelection();
-		if(chbMsgItem->IsEmpty() || sel < 0)
+		if(!chbMsgItem->IsEmpty() && sel >= 0)
+			msg = spell_event->texts[sel].text->audio;
+		if(!msg)
+		{
+			// get resource selection
+			int sel_res = lbMsg->GetSelection();
+			if(!lbMsg->IsEmpty() && sel_res >= 0)
+				msg = spell_data->texts->GetText(sel_res)->audio;
+		}
+		if(!msg)
 			return;
-		auto msg = spell_event->texts[sel];
 
 		// play
-		if(!msg.text->audio)
-			return;
-		spell_sound = new SpellSound(spell_data->sounds->channels, msg.text->audio);
+		spell_sound = new SpellSound(spell_data->sounds->channels, msg);
 		spell_sound->Play();
 	}
 }

@@ -70,6 +70,7 @@
     <ClCompile Include="spell_units.cpp" />
     <ClCompile Include="spell_video.cpp" />
     <ClCompile Include="sprites.cpp" />
+    <ClCompile Include="wx_other.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="cxxmidi\converters.hpp" />

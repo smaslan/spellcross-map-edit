@@ -67,6 +67,8 @@ bool MyApp::OnInit()
     spell_map = new SpellMap();
     if(spell_map->Load(map_path,spell_data))
         wxMessageBox(string_format("Loading Spellcross map file failed with error:\n%s",spell_map->GetLastError().c_str()),"Error",wxICON_ERROR);
+    else if(!spell_map->GetLastError().empty())
+        wxMessageBox(string_format("Loading Spellcross map file ended with warning(s):\n%s",spell_map->GetLastError().c_str()),"Warning",wxICON_WARNING);
     spell_map->SetGamma(1.3);
 
     // sound effects/midi volumes
@@ -975,6 +977,9 @@ void MainFrame::OnOpenMap(wxCommandEvent& event)
     // load new one
     if(spell_map->Load(path, spell_data))
         wxMessageBox(string_format("Loading Spellcross map file failed with error:\n%s",spell_map->GetLastError().c_str()),"Error",wxICON_ERROR);
+    else if(!spell_map->GetLastError().empty())
+        wxMessageBox(string_format("Loading Spellcross map file ended with warning(s):\n%s",spell_map->GetLastError().c_str()),"Warning",wxICON_WARNING);
+    
     // reset layers visibility
     spell_map->SetGamma(1.30);
     OnViewLayer(event);
@@ -1133,9 +1138,9 @@ void MainFrame::OnGenDMAobjectsMaps(wxCommandEvent& event)
     // --- confirmed
     auto terr_name = form.GetTerrain();
         
-    // split path to folder and file
-    wstring dir = spell_data->spell_data_root + L"\\DATA\\COMMON\\";
-
+    // default path
+    wstring dir = std::filesystem::path(spell_data->spell_data_root) / std::filesystem::path("data") / std::filesystem::path("common");
+ 
     // show open dialog
     wxDirDialog fd = wxDirDialog(this,_("Select Spellcross COMMON folder"),dir,wxDD_DIR_MUST_EXIST);
     if(fd.ShowModal() == wxID_CANCEL)
@@ -1157,8 +1162,8 @@ void MainFrame::OnUpdateTileContextMaps(wxCommandEvent& event)
     // --- confirmed
     auto terr_name = form.GetTerrain();
 
-    // split path to folder and file
-    wstring dir = spell_data->spell_data_root + L"\\DATA\\COMMON\\";
+    // default path
+    wstring dir = std::filesystem::path(spell_data->spell_data_root) / std::filesystem::path("data") / std::filesystem::path("common");
 
     // show open dialog
     wxDirDialog fd = wxDirDialog(this, _("Select Spellcross COMMON folder"), dir, wxDD_DIR_MUST_EXIST);
@@ -1295,11 +1300,10 @@ void MainFrame::OnViewVoxZ(wxCommandEvent& event)
     else if(event.GetId() == ID_ExportVoxZ)
     {
         // export to file:
-        // 
+
         // split path to folder and file
-        std::filesystem::path last_path = wxStandardPaths::Get().GetExecutablePath().ToStdWstring();
-        wstring dir = last_path.parent_path(); dir += wstring(L"\\");
-        wstring name = last_path.filename();
+        std::wstring dir = std::filesystem::path(GetExecutableDir());
+        wstring name = L"zmap.png";
 
         // show open dialog
         wxFileDialog saveFileDialog(this,_("Save voxel map elevation"),dir,name,"PNG file (*.png)|*.png",wxFD_SAVE);

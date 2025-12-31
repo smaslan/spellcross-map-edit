@@ -1017,7 +1017,7 @@ int Sprite::CompareSpriteContextAlt(Sprite* alt)
 		return(0);
 	if(alt->shading != this->shading)
 		return(0);
-	int is_object = alt->flags & Sprite::IS_OBJECT;
+	int is_object = alt->flags & Sprite::LandFlags::IS_OBJECT;
 	//int is_object = true;
 	if(is_object && alt->tool_class != this->tool_class)
 		return(0);
@@ -1227,7 +1227,7 @@ int Sprite::RandomizeContext()
 						continue;
 					if(alt->shading != spr->shading)
 						continue;
-					int is_object = alt->flags & Sprite::IS_OBJECT;
+					int is_object = alt->flags & Sprite::LandFlags::IS_OBJECT;
 					if(is_object && alt->tool_class != spr->tool_class)
 						continue;
 					if(is_object && alt->tool_class && alt->tool_group != spr->tool_group)
@@ -2369,7 +2369,7 @@ int Terrain::UpdateSpriteContext(std::function<void(std::string)> status_cb)
 				Sprite *neig = ref->GetContext(qid, k);				
 				/*if(strcmp(ref->name,"CGA1_116") == 0 && strcmp(neig->name,"CPM_0003") == 0)
 					k *= 1;*/
-				if(!(ref->GetGlyphFlags() & (Sprite::Q1_NOFILT << qid)) && !(neig->GetGlyphFlags() & (Sprite::Q1_NOFILT << qid180)) && ref->CheckNeighborValid(neig,qid) == Sprite::NEIGHBOR_INVALID)
+				if(!(ref->GetGlyphFlags() & (Sprite::LandFlags::Q1_NOFILT << qid)) && !(neig->GetGlyphFlags() & (Sprite::LandFlags::Q1_NOFILT << qid180)) && ref->CheckNeighborValid(neig,qid) == Sprite::NEIGHBOR_INVALID)
 				{
 					rem.push_back(k);
 					removed++;
@@ -2602,14 +2602,14 @@ int Terrain::InitSpriteContextShading()
 				// for T11/DEVAST the default layer is grass
 				for(int e = 0; e < 4; e++)
 					cont->SetEdgeClass(e,Sprite::CLASS_GRASS);
-				cont->SetFlags(Sprite::IS_GRASS);
+				cont->SetFlags(Sprite::LandFlags::IS_GRASS);
 			}
 			else if(_stricmp(this->name.c_str(),"PUST") == 0)
 			{
 				// for PUST the default layer is sand
 				for(int e = 0; e < 4; e++)
 					cont->SetEdgeClass(e,Sprite::CLASS_SAND);
-				cont->SetFlags(Sprite::IS_SAND);
+				cont->SetFlags(Sprite::LandFlags::IS_SAND);
 			}			
 		}
 	}
@@ -3111,7 +3111,7 @@ SpellObject::SpellObject(vector<MapXY> &xy,vector<Sprite*> &L1_list,vector<Sprit
 
 		// set object flag to all tiles
 		auto sflags = L1->GetFlags();
-		sflags |= Sprite::IS_OBJECT;
+		sflags |= Sprite::LandFlags::IS_OBJECT;
 		L1->SetFlags(sflags);
 
 		// make PNM list
@@ -3619,7 +3619,7 @@ SpellObject::SpellObject(ifstreamext& fr, vector<Sprite*> &sprite_list, vector<A
 
 		// set object flag to all tiles
 		auto sflags = spr->GetFlags();
-		sflags |= Sprite::IS_OBJECT;
+		sflags |= Sprite::LandFlags::IS_OBJECT;
 		spr->SetFlags(sflags);
 
 		// read L2 sprite index
@@ -3847,7 +3847,7 @@ int Terrain::AddSpecialTools()
 			sprite->land_type = 0; // ### fix for CIEL which has wrong land type, may move to sprites loader??
 			sprite->SetToolClass(ts_id + 1);
 			sprite->SetToolClassGroup(tool_id + 1);
-			sprite->SetGlyphFlags(Sprite::IS_TOOL_ITEM_GLYPH);
+			sprite->SetGlyphFlags(Sprite::LandFlags::IS_TOOL_ITEM_GLYPH);
 		}
 	}
 
@@ -4002,7 +4002,7 @@ tuple<int, int> Terrain::GetToolSetItemImageSize(int tool_id, int item_id)
 	{
 		if (sid->GetToolClass() == tool_id + 1 &&
 			sid->GetToolClassGroup() == item_id + 1 &&
-			(sid->GetGlyphFlags() & Sprite::IS_TOOL_ITEM_GLYPH))
+			(sid->GetGlyphFlags() & Sprite::LandFlags::IS_TOOL_ITEM_GLYPH))
 		{
 			// mathing sprite found: render
 			return tuple(sid->x_size, sid->y_size);
@@ -4028,7 +4028,7 @@ wxBitmap* Terrain::RenderToolSetItemImage(int tool_id,int item_id,double gamma, 
 	{
 		if( sid->GetToolClass() == tool_id + 1 &&
 			sid->GetToolClassGroup() == item_id + 1 &&
-			(sid->GetGlyphFlags() & Sprite::IS_TOOL_ITEM_GLYPH))
+			(sid->GetGlyphFlags() & Sprite::LandFlags::IS_TOOL_ITEM_GLYPH))
 		{
 			// mathing sprite found: render
 			return(sid->Render((uint8_t*)pal, gamma, x_size, y_size, no_zoom));
@@ -4177,7 +4177,7 @@ int Terrain::RemoveToolSetItem(int toolset_id, int position)
 		{
 			spr->SetToolClassGroup(0);
 			spr->SetToolClass(0);
-			spr->SetGlyphFlags(spr->GetGlyphFlags() & ~Sprite::IS_TOOL_ITEM_GLYPH);
+			spr->SetGlyphFlags(spr->GetGlyphFlags() & ~Sprite::LandFlags::IS_TOOL_ITEM_GLYPH);
 		}
 		if (tid > position + 1)
 			spr->SetToolClassGroup(tid - 1);

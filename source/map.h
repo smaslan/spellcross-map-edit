@@ -410,7 +410,9 @@ class SpellMap
 		// layers:
 		vector<MapSprite> tiles; // terrain tiles map (L1+L2)
 		vector<MapLayer3> L3; // ANM list
-		vector<MapLayer4> L4; // PNM list				
+		vector<MapLayer4> L4; // PNM list	
+		vector<MapXY> L5;
+		vector<MapXY> L6;
 		vector<MapXY> start; // start tiles list
 		vector<MapXY> escape; // escape tiles list
 		vector<MapXY> target; // target tiles list

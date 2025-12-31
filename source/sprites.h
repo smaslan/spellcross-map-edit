@@ -177,7 +177,7 @@ class Sprite
 		uint32_t GetShadingFlags();
 		uint32_t SetShadingMask(uint32_t mask);
 		uint32_t GetShadingMask();
-		bool isClassGlyph() { return(!!(flags2 & IS_GLYPH));};
+		bool isClassGlyph() { return(!!(flags2 & LandFlags::IS_GLYPH));};
 		bool isSideShaded(int side);
 		bool isSideShadedMask(int side);
 		bool isCornerShaded(int corner);
@@ -199,38 +199,42 @@ class Sprite
 		static constexpr int MODE_ADD = 1;
 		static constexpr int MODE_CLR = 2;
 
-		static constexpr uint32_t IS_GRASS =        0x00000001;
-		static constexpr uint32_t IS_DGRASS =       0x00000002;
-		static constexpr uint32_t IS_BLOOD =        0x00000004;
-		static constexpr uint32_t IS_MUD =          0x00000008;
-		static constexpr uint32_t IS_SWAMP =        0x00000010;
-		static constexpr uint32_t IS_ASH =          0x00000020;
-		static constexpr uint32_t IS_HIGHLAND =     0x00000040;
-		static constexpr uint32_t IS_ROAD =         0x00000080;
-		static constexpr uint32_t IS_BROKEN =       0x00000100;
-		static constexpr uint32_t IS_DIRT_ROAD =    0x00000200;
-		static constexpr uint32_t IS_MUD_PATH =     0x00000400;
-		static constexpr uint32_t IS_CLIFF =        0x00000800;
-		static constexpr uint32_t IS_WATER =        0x00001000;
-		static constexpr uint32_t IS_WOOD_BRIDGE =  0x00002000;
-		static constexpr uint32_t IS_BRIDGE =       0x00004000;
-		static constexpr uint32_t IS_FORD =         0x00008000;
-		static constexpr uint32_t IS_SAND =         0x00010000;
-		static constexpr uint32_t IS_SHADOW =       0x00020000;
-		static constexpr uint32_t IS_RIDGE =        0x00040000;
-		static constexpr uint32_t IS_RIDGE_BRIDGE = 0x00080000;
-		static constexpr uint32_t IS_WALL_BASE =    0x00100000;
-		static constexpr uint32_t IS_OBJECT =       0x00200000;
-		static constexpr uint32_t IS_SCAR =         0x00400000;
-		
-		static constexpr uint32_t IS_GLYPH =           0x80000000; /* use tile as glyph for general tile class display */
-		static constexpr uint32_t IS_TOOL_ITEM_GLYPH = 0x40000000; /* use tile as glyph for tool item */
-		static constexpr uint32_t IS_FAULTY =          0x20000000; /* sprite known to have faulty context in existing maps */
-		static constexpr uint32_t Q1_NOFILT =          0x01000000; /* not filter sprite context in Q1 */
-		static constexpr uint32_t Q2_NOFILT =          0x02000000; /* not filter sprite context in Q2 */
-		static constexpr uint32_t Q3_NOFILT =          0x04000000; /* not filter sprite context in Q3 */
-		static constexpr uint32_t Q4_NOFILT =          0x08000000; /* not filter sprite context in Q4 */
+		class LandFlags
+		{
+		public:
+			static constexpr uint32_t IS_GRASS =        0x00000001;
+			static constexpr uint32_t IS_DGRASS =       0x00000002;
+			static constexpr uint32_t IS_BLOOD =        0x00000004;
+			static constexpr uint32_t IS_MUD =          0x00000008;
+			static constexpr uint32_t IS_SWAMP =        0x00000010;
+			static constexpr uint32_t IS_ASH =          0x00000020;
+			static constexpr uint32_t IS_HIGHLAND =     0x00000040;
+			static constexpr uint32_t IS_ROAD =         0x00000080;
+			static constexpr uint32_t IS_BROKEN =       0x00000100;
+			static constexpr uint32_t IS_DIRT_ROAD =    0x00000200;
+			static constexpr uint32_t IS_MUD_PATH =     0x00000400;
+			static constexpr uint32_t IS_CLIFF =        0x00000800;
+			static constexpr uint32_t IS_WATER =        0x00001000;
+			static constexpr uint32_t IS_WOOD_BRIDGE =  0x00002000;
+			static constexpr uint32_t IS_BRIDGE =       0x00004000;
+			static constexpr uint32_t IS_FORD =         0x00008000;
+			static constexpr uint32_t IS_SAND =         0x00010000;
+			static constexpr uint32_t IS_SHADOW =       0x00020000;
+			static constexpr uint32_t IS_RIDGE =        0x00040000;
+			static constexpr uint32_t IS_RIDGE_BRIDGE = 0x00080000;
+			static constexpr uint32_t IS_WALL_BASE =    0x00100000;
+			static constexpr uint32_t IS_OBJECT =       0x00200000;
+			static constexpr uint32_t IS_SCAR =         0x00400000;
 
+			static constexpr uint32_t IS_GLYPH =           0x80000000; /* use tile as glyph for general tile class display */
+			static constexpr uint32_t IS_TOOL_ITEM_GLYPH = 0x40000000; /* use tile as glyph for tool item */
+			static constexpr uint32_t IS_FAULTY =          0x20000000; /* sprite known to have faulty context in existing maps */
+			static constexpr uint32_t Q1_NOFILT =          0x01000000; /* not filter sprite context in Q1 */
+			static constexpr uint32_t Q2_NOFILT =          0x02000000; /* not filter sprite context in Q2 */
+			static constexpr uint32_t Q3_NOFILT =          0x04000000; /* not filter sprite context in Q3 */
+			static constexpr uint32_t Q4_NOFILT =          0x08000000; /* not filter sprite context in Q4 */
+		};
+		
 		// special tile classes
 		static constexpr uint32_t SPEC_CLASS_NONE = 0;
 		static constexpr uint32_t SPEC_CLASS_GRAVE = 1; /* graves of any kind */
