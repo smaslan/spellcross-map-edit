@@ -1801,6 +1801,7 @@ int SpellMap::SaveDTA(std::wstring path)
 	for(auto pos: L5)
 		fw.write((uint16_t)ConvXY(pos));
 
+
 	// write mystery L6 items
 	fw.write((uint32_t)L6.size());
 	for(auto pos: L6)

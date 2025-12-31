@@ -228,6 +228,12 @@ MainFrame::MainFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY
     menuEdit->Append(ID_PasteBuf,"Paste from buffer\tCtrl+V","",wxITEM_NORMAL);
     menuEdit->Append(ID_ClearBuf,"Clear buffer\tESC","",wxITEM_NORMAL);
     menuEdit->Append(wxID_ANY,"","",wxITEM_SEPARATOR);
+    menuEdit->Append(ID_Dummy,"Paste from tool\tLeft Click","",wxITEM_NORMAL);
+    menuEdit->Append(ID_Dummy,"Paste from tool and randomize\tCtrl+Left Click","",wxITEM_NORMAL);
+    menuEdit->Append(ID_Dummy,"Paste from tool with auto map\tShift+Left Click","",wxITEM_NORMAL);
+    menuEdit->Append(ID_Dummy,"Change tool size\tWheel","",wxITEM_NORMAL);
+    menuEdit->Append(ID_Dummy,"Cycle tool items\tCtrl+Wheel","",wxITEM_NORMAL);
+    menuEdit->Append(wxID_ANY,"","",wxITEM_SEPARATOR);
     menuEdit->Append(ID_InvalidateSel,"Invalidate selection\tCtrl+I","",wxITEM_NORMAL);
     menuEdit->Append(ID_DeleteSel,"Delete stuff\tShift+Delete","",wxITEM_NORMAL);
     menuEdit->Append(wxID_ANY,"","",wxITEM_SEPARATOR);
@@ -2129,14 +2135,16 @@ void MainFrame::OnCanvasLMouseUp(wxMouseEvent& event)
         else if(spell_map->isCopyBufferFull())
         {
             // something in copy buffer
-            spell_map->SetBuffer(spell_tool);
-            auto pos = spell_map->GetSelection();
-            spell_map->PasteBuffer(spell_map->tiles,spell_map->L3,spell_map->L4,spell_map->start,spell_map->escape,spell_map->target,pos,false);
-            // optional cycling of tool items
-            if(event.ControlDown() && spell_tool.isTool())
-                spell_map->SetBuffer(spell_tool,+1);
+            //spell_map->SetBuffer(spell_tool);
+            auto pos_list = spell_map->GetSelections();
             spell_map->scroller.ResizeSelection(0);
-            spell_map->SetBuffer(spell_tool);
+            for(auto pos: pos_list)
+            {
+                if(event.ControlDown())
+                    spell_map->SetBuffer(spell_tool,0);
+                spell_map->PasteBuffer(spell_map->tiles,spell_map->L3,spell_map->L4,spell_map->start,spell_map->escape,spell_map->target,pos,false);
+            }
+            //spell_map->SetBuffer(spell_tool);
             Refresh();
         }
     }

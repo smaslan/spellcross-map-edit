@@ -326,6 +326,7 @@ private:
 enum
 {
     ID_OpenMap = 100,
+    ID_Dummy,
     ID_SaveMap,
     ID_SaveMapAs,
     ID_SaveDTA,
