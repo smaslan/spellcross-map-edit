@@ -62,12 +62,16 @@ bool MyApp::OnInit()
         return(false);
     }
 
+    // hide warnings when loading maps?
+    bool hide_map_load_warnings = ini.GetBoolValue("STATE","hide_map_load_warnings",false);
+
     // --- load some map
     wstring map_path = char2wstring(ini.GetValue("STATE","last_map",""));
     spell_map = new SpellMap();
+    spell_map->hide_map_load_warnings = hide_map_load_warnings;
     if(spell_map->Load(map_path,spell_data))
         wxMessageBox(string_format("Loading Spellcross map file failed with error:\n%s",spell_map->GetLastError().c_str()),"Error",wxICON_ERROR);
-    else if(!spell_map->GetLastError().empty())
+    else if(!hide_map_load_warnings && !spell_map->GetLastError().empty())
         wxMessageBox(string_format("Loading Spellcross map file ended with warning(s):\n%s",spell_map->GetLastError().c_str()),"Warning",wxICON_WARNING);
     spell_map->SetGamma(1.3);
 
@@ -83,6 +87,10 @@ bool MyApp::OnInit()
     int win_x_size = ini.GetLongValue("STATE","win_x_size",1600);
     int win_y_size = ini.GetLongValue("STATE","win_y_size",1000);
     bool win_maximize = ini.GetBoolValue("STATE","win_maximize",false);
+
+    
+
+    
 
     // limit to screen size
     int disp_x_size;
@@ -307,7 +315,7 @@ MainFrame::MainFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY
     LoadToolsetRibbon();
     //sizer->Add(ribbonBar,0,wxALL|wxEXPAND,2);
     
-
+    Bind(wxEVT_RIBBONBUTTONBAR_DROPDOWN_CLICKED,&MainFrame::OnToolBtnDropClick,this);
     Bind(wxEVT_RIBBONBUTTONBAR_CLICKED,&MainFrame::OnToolBtnClick,this);
     Bind(wxEVT_RIBBONBAR_PAGE_CHANGED,&MainFrame::OnToolPageClick,this);
 
@@ -983,7 +991,7 @@ void MainFrame::OnOpenMap(wxCommandEvent& event)
     // load new one
     if(spell_map->Load(path, spell_data))
         wxMessageBox(string_format("Loading Spellcross map file failed with error:\n%s",spell_map->GetLastError().c_str()),"Error",wxICON_ERROR);
-    else if(!spell_map->GetLastError().empty())
+    else if(!spell_map->hide_map_load_warnings && !spell_map->GetLastError().empty())
         wxMessageBox(string_format("Loading Spellcross map file ended with warning(s):\n%s",spell_map->GetLastError().c_str()),"Warning",wxICON_WARNING);
     
     // reset layers visibility
@@ -1762,7 +1770,7 @@ void MainFrame::OnCanvasRMouse(wxMouseEvent& event)
             {
                 if(menu.GetMenuItemCount())
                     menu.AppendSeparator();
-                menu.Append(ID_POP_EDIT_TERR,"Edit terrain sprite");
+                auto item = menu.Append(ID_POP_EDIT_TERR,"Edit terrain sprite");
             }
             if(spell_map->CheckObj() && GetMenuBar()->FindItem(ID_ViewObj)->IsChecked())
             {
@@ -2405,36 +2413,127 @@ void MainFrame::OnToolBtnClick(wxRibbonButtonBarEvent& event)
         // for each button:
         for(int iid = 0; iid < btns->GetButtonCount(); iid++)
         {
-            int btn_id = ID_TOOL_BASE + tid*ID_TOOL_CLASS_STEP + iid;            
-            
-            if(id != btn_id)
-                btns->ToggleButton(btn_id, false);
-            else
+            int btn_id = ID_TOOL_BASE + tid*ID_TOOL_CLASS_STEP + iid;         
+            if(id == btn_id)
             {            
                 // this button (event caller):
-                if(event.IsChecked())
+                
+                // some tool selected: setup tool pointer
+                SpellObject *obj = (SpellObject*)btns->GetItemClientData(btns->GetItemById(btn_id));
+                if(obj)
                 {
-                    // some tool selected: setup tool pointer
-                    SpellObject *obj = (SpellObject*)btns->GetItemClientData(btns->GetItemById(btn_id));
-                    if(obj)
+                    // tool is object
+                    // unset tool (depreceted method)
+                    spell_tool.Set();
+                    // place tool to clipboard (new method)
+                    spell_map->SetBuffer(obj);
+                }
+                else
+                {
+                    spell_tool.Set(tid, iid); // tool is class
+                    if(spell_tool.isTool())
+                        spell_map->SetBuffer(spell_tool,0);
+                }               
+            }
+        }
+    }
+}
+// tool drop down selected
+void MainFrame::OnToolBtnDropClick(wxRibbonButtonBarEvent& event)
+{
+    // get button id
+    int id = event.GetId();
+
+    // no tool selection
+    spell_tool.Set();
+
+    if(!spell_map->IsLoaded())
+        return;
+    if(!ribbonBar)
+        return;
+
+    int tool_id = (id - ID_TOOL_BASE)/ID_TOOL_CLASS_STEP;
+    int item_id = (id - ID_TOOL_BASE)%ID_TOOL_CLASS_STEP;
+
+    // very schmutzig way to deselect all other tool buttons
+    for(int tid = 0; tid < ribbonBar->GetPageCount(); tid++)
+    {
+        // get button bar
+        wxRibbonPage* page = ribbonBar->GetPage(tid);
+        auto wlist = page->GetChildren();
+        if(!wlist.size())
+            continue;
+        wxRibbonPanel* panel = (wxRibbonPanel*)wlist[0];
+        auto clist = panel->GetChildren();
+        if(!clist.size())
+            continue;
+        wxRibbonButtonBar* btns = (wxRibbonButtonBar*)clist[0];
+
+        // for each button:
+        for(int iid = 0; iid < btns->GetButtonCount(); iid++)
+        {
+            int btn_id = ID_TOOL_BASE + tid*ID_TOOL_CLASS_STEP + iid;
+
+            if(id == btn_id)
+            {
+                // this button (event caller):
+                SpellObject* obj = (SpellObject*)btns->GetItemClientData(btns->GetItemById(btn_id));
+                if(obj)
+                {
+                    // tool is object
+
+                }
+                else
+                {
+                    spell_tool.Set(tid,iid); // tool is class
+                    
+                    wxMenu menu;
+                    //menu.SetClientObject(new SpellTool(spell_tool));
+                    auto list = spell_map->terrain->GetToolSprites(spell_tool);
+                    int item_id = 0;
+                    for(auto item: list)
                     {
-                        // tool is object
-                        // unset tool (depreceted method)
-                        spell_tool.Set();
-                        // place tool to clipboard (new method)
-                        spell_map->SetBuffer(obj);
+                        auto mmi = menu.Append(item_id++,item->name);
+                        auto bmp = item->Render((uint8_t*)spell_map->terrain->pal,1.3,64,64,true);
+                        auto img = bmp->ConvertToImage(); // this does something to alpha channel so it is correctly recognized by menu
+                        mmi->SetBitmap(img);
+                        delete bmp;
                     }
-                    else
+                    auto obj_list = spell_map->terrain->GetToolObjects(spell_tool);
+                    for(auto item: obj_list)
                     {
-                        spell_tool.Set(tid, iid); // tool is class
-                        if(spell_tool.isTool())
-                            spell_map->SetBuffer(spell_tool,0);
+                        auto mmi = menu.Append(item_id++,item->GetDescription());
+                        auto bmp = item->RenderPreview(1.3,128,64,true);
+                        auto img = bmp->ConvertToImage(); // this does something to alpha channel so it is correctly recognized by menu
+                        mmi->SetBitmap(img);
+                        delete bmp;
                     }
+
+                    if(menu.GetMenuItemCount())
+                    {
+                        menu.Connect(wxEVT_COMMAND_MENU_SELECTED,wxCommandEventHandler(MainFrame::OnToolItemPopupSelect),NULL,this);
+                        PopupMenu(&menu);
+                    }
+                    
                 }
             }
         }
     }
 }
+// on tool item pupup selection
+void MainFrame::OnToolItemPopupSelect(wxCommandEvent& event)
+{
+    if(!spell_map->IsLoaded())
+        return;
+
+    auto menu_id = event.GetId();
+    auto menu = (wxMenu*)event.GetEventObject();
+    if(!spell_tool.isActive() || !spell_tool.isTool())
+        return;
+
+    spell_map->SetBuffer(spell_tool,0,menu_id);
+}
+
 // tool page selected
 void MainFrame::OnToolPageClick(wxRibbonBarEvent& event)
 {
@@ -2493,13 +2592,15 @@ void MainFrame::LoadToolsetRibbon(Terrain *terr)
             vector<int> index;
             vector<std::tuple<int, int>> size;
             vector<SpellObject*> objects;
+            vector<bool> multi;
             int item_id = 0;
             for (; item_id < terr->GetToolSetItemsCount(tool_id); item_id++)
             {
                 SpellTool spell_tool;
                 spell_tool.Set(tool_id,item_id);
                 int has_multi = terr->GetToolSprites(spell_tool).size() + terr->GetToolObjects(spell_tool).size();
-                titles.push_back(terr->GetToolSetItem(tool_id, item_id) + ((has_multi > 1)?" [+]":""));
+                titles.push_back(terr->GetToolSetItem(tool_id, item_id)/* + ((has_multi > 1)?" [+]":"")*/);
+                multi.push_back(has_multi > 1);
                 index.push_back(ID_TOOL_BASE + tool_id * ID_TOOL_CLASS_STEP + item_id);
                 size.push_back(terr->GetToolSetItemImageSize(tool_id, item_id));
                 objects.push_back(NULL);
@@ -2511,6 +2612,7 @@ void MainFrame::LoadToolsetRibbon(Terrain *terr)
                 if (obj->GetToolClassGroup() != 0)
                     continue;
                 titles.push_back(obj->GetDescription());
+                multi.push_back(false);
                 index.push_back(ID_TOOL_BASE + tool_id * ID_TOOL_CLASS_STEP + item_id);
                 size.push_back(obj->GetGlyphSize());
                 objects.push_back(obj);
@@ -2556,7 +2658,8 @@ void MainFrame::LoadToolsetRibbon(Terrain *terr)
                 else
                     bmp = terr->RenderToolSetItemImage(tool_id, k, 1.30, x_size, y_size);
                 // make button
-                auto btn = ribBtns->AddButton(index[k], titles[k], *bmp, wxEmptyString, wxRIBBON_BUTTON_TOGGLE);
+                //auto btn = ribBtns->AddButton(index[k], titles[k], *bmp, wxEmptyString, wxRIBBON_BUTTON_TOGGLE);
+                auto btn = ribBtns->AddButton(index[k],titles[k],*bmp,wxEmptyString,multi[k]?wxRIBBON_BUTTON_HYBRID:wxRIBBON_BUTTON_NORMAL);
                 // include object pointer if it's object
                 ribBtns->SetItemClientData(btn,objects[k]);
                 delete bmp;

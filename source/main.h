@@ -161,6 +161,8 @@ private:
     void OnEditMissionParams(wxCommandEvent& event);
 
     void OnToolBtnClick(wxRibbonButtonBarEvent& event);
+    void OnToolBtnDropClick(wxRibbonButtonBarEvent& event);
+    void OnToolItemPopupSelect(wxCommandEvent& event);
     void OnToolPageClick(wxRibbonBarEvent& event);
     SpellTool GetToolSelection();
     void LoadToolsetRibbon(Terrain* terr = NULL);

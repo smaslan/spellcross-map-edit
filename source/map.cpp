@@ -431,6 +431,7 @@ bool MapLayer4::Compare(MapLayer4* pnm)
 SpellMap::SpellMap()
 {
 	is_valid = false;
+	hide_map_load_warnings = false;
 
 	game_mode = false;
 	
@@ -2609,7 +2610,7 @@ int SpellMap::SetBuffer(AnimPNM* pnm,int x_ofs,int y_ofs)
 }
 
 // set buffer with tool, eventually cycle objects of the tool (or randomize for multi-tile selection)
-int SpellMap::SetBuffer(SpellTool &tool,int cycle)
+int SpellMap::SetBuffer(SpellTool &tool,int cycle,int init)
 {
 	ClearBuffer();
 	
@@ -2634,12 +2635,14 @@ int SpellMap::SetBuffer(SpellTool &tool,int cycle)
 
 	// cycle tool items
 	static int tool_item_id = 0;
-	tool_item_id += cycle;
+	tool_item_id += cycle;	
 	if(cycle > 0 && tool_item_id >= tool_items_count)
 		tool_item_id = 0;
 	if(cycle < 0 && tool_item_id < 0)
 		tool_item_id = tool_items_count - 1;
-	if(cycle == 0)
+	if(init >= 0)
+		tool_item_id = max(min(init,tool_items_count-1),0);
+	else if(cycle == 0)
 		tool_item_id = rand() % tool_items_count;
 
 	// no sprites, use objects?

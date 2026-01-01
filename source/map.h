@@ -376,6 +376,9 @@ class SpellMap
 		static constexpr int SELECT_CLEAR = 2;
 		static constexpr int SELECT_XOR = 3;
 
+		// hide warnings when loading maps?
+		bool hide_map_load_warnings;
+
 		std::string GetLastError() {return last_error;};
 
 		// message box stuff
@@ -910,7 +913,7 @@ class SpellMap
 		int SetBuffer(Sprite* spr);
 		int SetBuffer(AnimL1* anm);
 		int SetBuffer(AnimPNM* pnm,int x_ofs=0,int y_ofs=0);
-		int SetBuffer(SpellTool& tool,int cycle=0);
+		int SetBuffer(SpellTool& tool,int cycle=0,int init=-1);
 		void CutBuffer(std::vector<MapXY>& posxy,Layers layers);
 		void CopyBuffer(std::vector<MapXY> &posxy,Layers layers);
 		void PasteBuffer(std::vector<MapSprite>& tiles,std::vector<MapLayer3>& anms,std::vector<MapLayer4>& pnms,std::vector<MapXY>& start,std::vector<MapXY>& escape,std::vector<MapXY>& target,MapXY &posxy,bool center=true);
