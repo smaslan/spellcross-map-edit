@@ -2129,6 +2129,9 @@ void MainFrame::OnCanvasLMouseDown(wxMouseEvent& event)
 void MainFrame::OnCanvasLMouseUp(wxMouseEvent& event)
 {
     auto m_drag_sel_end = spell_map->GetSelection();
+    if(m_drag_sel_start == m_drag_sel_end)
+        return;
+
     spell_map->scroller.SetDragSelectRange(m_drag_sel_start,m_drag_sel_end);
 
     auto xy_list = spell_map->GetSelections();
@@ -2295,7 +2298,7 @@ void MainFrame::OnCanvasMouseMove(wxMouseEvent& event)
 
     if(event.LeftIsDown())
     {
-        if(/*spell_map->scroller.GetSize() == 1 && */m_drag_sel_start.IsSelected())
+        if(/*spell_map->scroller.GetSize() == 1 && */m_drag_sel_start.IsSelected() && m_drag_sel_start != mxy)
         {
             spell_map->scroller.SetDragSelectRange(m_drag_sel_start,mxy);
             //auto [da,db] = spell_map->scroller.GetDragSelectionSize();
