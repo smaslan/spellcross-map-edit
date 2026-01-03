@@ -226,6 +226,11 @@ class Sprite
 			static constexpr uint32_t IS_OBJECT =       0x00200000;
 			static constexpr uint32_t IS_SCAR =         0x00400000;
 
+			static constexpr uint32_t IS_DARKER_SAND =  0x00000002; // PUST darker sand
+			static constexpr uint32_t IS_DARK_SAND   =  0x00000010; // PUST darkest sand
+			static constexpr uint32_t IS_OIL_SAND    =  0x00000008; // PUST oily sand
+			static constexpr uint32_t IS_SAND_PATH   =  0x00000400; // PUST sand path
+
 			static constexpr uint32_t IS_GLYPH =           0x80000000; /* use tile as glyph for general tile class display */
 			static constexpr uint32_t IS_TOOL_ITEM_GLYPH = 0x40000000; /* use tile as glyph for tool item */
 			static constexpr uint32_t IS_FAULTY =          0x20000000; /* sprite known to have faulty context in existing maps */
@@ -247,18 +252,26 @@ class Sprite
 		static constexpr uint32_t SPEC_CLASS_OBJECT = 8; /* like buildings, etc. */		
 		static constexpr uint32_t SPEC_CLASS_MAX = SPEC_CLASS_OBJECT; /* highest class index */
 
-		static constexpr uint32_t CLASS_GENERIC = 0;
-		static constexpr uint32_t CLASS_GRASS = 1;
-		static constexpr uint32_t CLASS_DARK_GRASS = 2;
-		static constexpr uint32_t CLASS_MUD = 3;
-		static constexpr uint32_t CLASS_SWAMP = 4;
-		static constexpr uint32_t CLASS_ASH = 5;
-		static constexpr uint32_t CLASS_BLOOD = 6;
-		static constexpr uint32_t CLASS_HIGH_LAND = 7;
-		static constexpr uint32_t CLASS_SAND = 8;
-		static constexpr uint32_t CLASS_ROAD = 9;
-		static constexpr uint32_t CLASS_DIRT_ROAD = 10;
-		static constexpr uint32_t CLASS_MUD_PATH = 11;
+		class LandClass
+		{
+		public:
+			static constexpr uint32_t GENERIC = 0;
+			static constexpr uint32_t GRASS = 1;
+			static constexpr uint32_t DARK_GRASS = 2;
+			static constexpr uint32_t MUD = 3;
+			static constexpr uint32_t SWAMP = 4;
+			static constexpr uint32_t ASH = 5;
+			static constexpr uint32_t BLOOD = 6;
+			static constexpr uint32_t HIGH_LAND = 7;
+			static constexpr uint32_t SAND = 8;
+			static constexpr uint32_t ROAD = 9;
+			static constexpr uint32_t DIRT_ROAD = 10;
+			static constexpr uint32_t MUD_PATH = 11;
+			static constexpr uint32_t SAND_PATH = 12;
+			static constexpr uint32_t DARKER_SAND = 13;
+			static constexpr uint32_t DARK_SAND = 14;
+			static constexpr uint32_t OILY_SAND = 15;
+		};
 
 		static constexpr uint32_t SHADING_SIDE_Q1 = 0x01;
 		static constexpr uint32_t SHADING_SIDE_Q2 = 0x02;
@@ -515,6 +528,13 @@ public:
 	AnimL1* GetANM(const char* name);
 	AnimPNM* GetPNM(const char* name);
 	AnimPNM* GetPNM(std::string name);
+
+	class SpriteFlag{
+	public:
+		uint32_t flag;
+		std::string name;
+	};
+	std::vector<SpriteFlag> GetSpriteFlagList();
 		
 	int InitSpriteContext(wstring& path);
 	int SaveSpriteContext(wstring& path);	

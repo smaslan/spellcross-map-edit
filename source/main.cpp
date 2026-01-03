@@ -740,6 +740,8 @@ void MainFrame::OnSelectUnitView(wxCommandEvent& event)
 // map animation periodic refresh tick
 void MainFrame::OnTimer(wxTimerEvent& event)
 {
+    if(!spell_map || !canvas)
+        return;
     if(!spell_map->IsLoaded())
         return;
     if(spell_map->Tick())

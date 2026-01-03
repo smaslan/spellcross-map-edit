@@ -112,18 +112,22 @@ class FormSprite : public wxFrame
 			int cls;
 			const char* name;
 		} class_list[] = {
-			{Sprite::CLASS_GENERIC, "Generic"},
-			{Sprite::CLASS_GRASS, "Grass"},
-			{Sprite::CLASS_DARK_GRASS, "Dark grass"},
-			{Sprite::CLASS_MUD, "Mud"},
-			{Sprite::CLASS_SWAMP, "Swamp"},
-			{Sprite::CLASS_ASH, "Ash"},
-			{Sprite::CLASS_BLOOD, "Blood"},
-			{Sprite::CLASS_HIGH_LAND, "High land"},
-			{Sprite::CLASS_SAND, "Sand"},
-			{Sprite::CLASS_ROAD, "Road"},
-			{Sprite::CLASS_DIRT_ROAD, "Dirt road"},
-			{Sprite::CLASS_MUD_PATH, "Mud path"},
+			{Sprite::LandClass::GENERIC, "Generic"},
+			{Sprite::LandClass::GRASS, "Grass"},
+			{Sprite::LandClass::DARK_GRASS, "Dark grass"},
+			{Sprite::LandClass::MUD, "Mud"},
+			{Sprite::LandClass::SWAMP, "Swamp"},
+			{Sprite::LandClass::ASH, "Ash"},
+			{Sprite::LandClass::BLOOD, "Blood"},
+			{Sprite::LandClass::HIGH_LAND, "High land"},
+			{Sprite::LandClass::SAND, "Sand"},
+			{Sprite::LandClass::ROAD, "Road"},
+			{Sprite::LandClass::DIRT_ROAD, "Dirt road"},
+			{Sprite::LandClass::MUD_PATH, "Mud path"},
+			{Sprite::LandClass::SAND_PATH, "Sand path"},
+			{Sprite::LandClass::DARKER_SAND, "Darker sand"},
+			{Sprite::LandClass::DARK_SAND, "Darkest sand"},
+			{Sprite::LandClass::OILY_SAND, "Oily sand"},
 			{0,NULL}
 		};
 
@@ -152,35 +156,13 @@ class FormSprite : public wxFrame
 			wxID_MM_NEW_TOOL,
 			wxID_MM_REMOVE_TOOL,
 			wxID_MM_EDIT_TOOLSET,
+			wxID_LBOX_SPRITES,
 			wxID_TXT_ALT,
 			wxID_LBOX_ALT,
 			wxID_SLIDE_GAMMA,
 			wxID_CB_ZOOM,
 			wxID_LBOX_NEIGHBOR,
 			wxID_CH_SIDE,
-			wxID_CB_IS_GRASS,
-			wxID_CB_IS_DGRASS,
-			wxID_CB_IS_SAND,
-			wxID_CB_IS_MUD,
-			wxID_CB_IS_ASH,
-			wxID_CB_IS_SWAMP,
-			wxID_CB_IS_BLOOD,
-			wxID_CB_IS_HIGH_LAND,
-			wxID_CB_IS_WATER,
-			wxID_CB_IS_RIDGE,
-			wxID_CB_IS_CLIFF,
-			wxID_CB_IS_ASH_ROAD,
-			wxID_CB_IS_DIRT_ROAD,
-			wxID_CB_IS_MUD_PATH,
-			wxID_CB_IS_WALL_BASE,
-			wxID_CB_IS_WBRIDGE,
-			wxID_CB_IS_BRIDGE,
-			wxID_CB_IS_FORD,
-			wxID_CB_IS_RIDGE_BRIDGE,
-			wxID_CB_IS_BROKEN,
-			wxID_CB_IS_SHADOW,
-			wxID_CB_IS_SCAR,
-			wxID_CB_IS_OBJECT,
 			wxID_CB_USE_AS_GLYPH,
 			wxID_CB_FAULTY,
 			wxID_CHB_Q1_CLASS,
@@ -202,8 +184,6 @@ class FormSprite : public wxFrame
 			wxID_EDIT_MAP_TILE_FLAGS,
 			wxID_CB_TOOL_GLYPH,
 			wxID_TREE_OBJECTS,
-
-			wxID_LBOX_SPRITES
 		};
 
 		wxMenuBar* mMenu;
@@ -212,6 +192,7 @@ class FormSprite : public wxFrame
 		wxMenu* mnuEdit;
 		wxMenu* mnuTools;
 		wxStaticText* txtSpriteList;
+		wxListCtrlVirtual* lboxSprites;
 		wxStaticText* txtAltList;
 		wxListBox* lboxAlt;
 		wxPanel* canvas;
@@ -222,32 +203,12 @@ class FormSprite : public wxFrame
 		wxListBox* lboxNeighbor;
 		wxStaticText* m_staticText3;
 		wxChoice* chbSide;
-		wxCheckBox* cbIsGrass;
-		wxCheckBox* cbIsDarkGrass;
-		wxCheckBox* cbIsSand;
-		wxCheckBox* cbIsMud;
-		wxCheckBox* cbIsAsh;
-		wxCheckBox* cbIsSwamp;
-		wxCheckBox* cbIsBlood;
-		wxCheckBox* cbIsHigh;
-		wxCheckBox* cbIsWater;
-		wxCheckBox* cbIsRidge;
-		wxCheckBox* cbIsCliff;
-		wxCheckBox* cbIsRoad;
-		wxCheckBox* cbIsDirtRoad;
-		wxCheckBox* cbIsMudPath;
-		wxCheckBox* cbIsWallBase;
-		wxCheckBox* cbIsWBridge;
-		wxCheckBox* cbIsBridge;
-		wxCheckBox* cbIsFord;
-		wxCheckBox* cbIsRidgeBridge;
-		wxCheckBox* cbIsBroken;
-		wxCheckBox* cbIsShadow;
-		wxCheckBox* cbIsScar;
-		wxCheckBox* cbIsObject;
-		wxStaticLine* m_staticline2;
+		wxStaticBoxSizer* sizerFlags;
 		wxCheckBox* cbUseAsGlyph;
 		wxCheckBox* cbFaultCont;
+		wxStaticLine* m_staticline2;
+		wxBoxSizer* sizerTerrFlags;
+		wxCheckBox* m_checkBox49;
 		wxStaticText* m_staticText5;
 		wxChoice* chbQ1class;
 		wxCheckBox* cbQ1nofilt;
@@ -274,8 +235,6 @@ class FormSprite : public wxFrame
 		wxCheckBox* cbToolGlyph;
 		wxTreeCtrl* treeCtrlObjects;
 		wxStatusBar* statBar;
-
-		wxListCtrlVirtual* lboxSprites;
 
 		wxTreeItemId m_drag_item;
 		class TreeNode : wxTreeItemData {

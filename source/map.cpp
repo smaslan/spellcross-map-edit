@@ -2024,7 +2024,7 @@ int SpellMap::SaveDEF(std::wstring path)
 			mission_data += string_format("%d",ConvXY(pos));
 			num++;
 		}
-		if(!start.empty())
+		if(!square.first.empty())
 			mission_data += ")\n";
 	}
 	
@@ -11972,24 +11972,24 @@ int SpellMap::EditClass(vector<MapXY>& selection, SpellTool *tool, std::function
 				if(edge[nid] == edge[(nid + 1) % 4])
 				{
 					if(edge[nid] & Sprite::LandFlags::IS_GRASS)
-						edge_class[nid] = Sprite::CLASS_GRASS;
+						edge_class[nid] = Sprite::LandClass::GRASS;
 					else if(edge[nid] & Sprite::LandFlags::IS_DGRASS)
-						edge_class[nid] = Sprite::CLASS_DARK_GRASS;
+						edge_class[nid] = Sprite::LandClass::DARK_GRASS;
 					else if(edge[nid] & Sprite::LandFlags::IS_BLOOD)
-						edge_class[nid] = Sprite::CLASS_BLOOD;
+						edge_class[nid] = Sprite::LandClass::BLOOD;
 					else if(edge[nid] & Sprite::LandFlags::IS_MUD)
-						edge_class[nid] = Sprite::CLASS_MUD;
+						edge_class[nid] = Sprite::LandClass::MUD;
 					else if(edge[nid] & Sprite::LandFlags::IS_SAND)
-						edge_class[nid] = Sprite::CLASS_SAND;
+						edge_class[nid] = Sprite::LandClass::SAND;
 					else if(edge[nid] & Sprite::LandFlags::IS_ASH)
-						edge_class[nid] = Sprite::CLASS_ASH;
+						edge_class[nid] = Sprite::LandClass::ASH;
 					else if(edge[nid] & Sprite::LandFlags::IS_SWAMP)
-						edge_class[nid] = Sprite::CLASS_SWAMP;
+						edge_class[nid] = Sprite::LandClass::SWAMP;
 					else
-						edge_class[nid] = Sprite::CLASS_GENERIC;
+						edge_class[nid] = Sprite::LandClass::GENERIC;
 				}
 				else
-					edge_class[nid] = Sprite::CLASS_GENERIC;
+					edge_class[nid] = Sprite::LandClass::GENERIC;
 			}
 			for(auto &spr: terrain->sprites)
 			{

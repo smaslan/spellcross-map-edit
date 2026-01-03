@@ -141,6 +141,9 @@ FormSprite::FormSprite( wxWindow* parent,SpellData* spell_data,wxWindowID id, co
 	txtSpriteList->Wrap(-1);
 	sizerSpriteList->Add(txtSpriteList,0,wxLEFT|wxTOP,5);
 
+	lboxSprites = new wxListCtrlVirtual(this,wxID_LBOX_SPRITES,wxDefaultPosition,wxSize(120,-1),wxLC_NO_HEADER|wxLC_REPORT|wxLC_SINGLE_SEL|wxLC_VIRTUAL|wxALWAYS_SHOW_SB|wxVSCROLL);
+	sizerSpriteList->Add(lboxSprites,1,wxEXPAND|wxBOTTOM|wxLEFT,5);
+
 
 	bSizer1->Add(sizerSpriteList,0,wxEXPAND|wxRIGHT,5);
 
@@ -208,89 +211,27 @@ FormSprite::FormSprite( wxWindow* parent,SpellData* spell_data,wxWindowID id, co
 
 	bSizer1->Add(bSizer3,0,wxEXPAND,5);
 
-	wxStaticBoxSizer* sbSizer2;
-	sbSizer2 = new wxStaticBoxSizer(new wxStaticBox(this,wxID_ANY,wxT(" Tile properties:")),wxVERTICAL);
+	sizerFlags = new wxStaticBoxSizer(new wxStaticBox(this,wxID_ANY,wxT(" Tile properties:")),wxVERTICAL);
 
-	cbIsGrass = new wxCheckBox(sbSizer2->GetStaticBox(),wxID_CB_IS_GRASS,wxT("Normal grass"),wxDefaultPosition,wxDefaultSize,0);
-	sbSizer2->Add(cbIsGrass,0,wxLEFT|wxRIGHT|wxTOP,5);
+	cbUseAsGlyph = new wxCheckBox(sizerFlags->GetStaticBox(),wxID_CB_USE_AS_GLYPH,wxT("Use as class glyph"),wxDefaultPosition,wxDefaultSize,0);
+	sizerFlags->Add(cbUseAsGlyph,0,wxTOP|wxRIGHT|wxLEFT,5);
 
-	cbIsDarkGrass = new wxCheckBox(sbSizer2->GetStaticBox(),wxID_CB_IS_DGRASS,wxT("Dark grass"),wxDefaultPosition,wxDefaultSize,0);
-	sbSizer2->Add(cbIsDarkGrass,0,wxLEFT|wxRIGHT|wxTOP,5);
+	cbFaultCont = new wxCheckBox(sizerFlags->GetStaticBox(),wxID_CB_FAULTY,wxT("Faulty context"),wxDefaultPosition,wxDefaultSize,0);
+	sizerFlags->Add(cbFaultCont,0,wxLEFT|wxRIGHT|wxTOP,5);
 
-	cbIsSand = new wxCheckBox(sbSizer2->GetStaticBox(),wxID_CB_IS_SAND,wxT("Sand"),wxDefaultPosition,wxDefaultSize,0);
-	sbSizer2->Add(cbIsSand,0,wxLEFT|wxRIGHT|wxTOP,5);
+	m_staticline2 = new wxStaticLine(sizerFlags->GetStaticBox(),wxID_ANY,wxDefaultPosition,wxDefaultSize,wxLI_HORIZONTAL);
+	sizerFlags->Add(m_staticline2,0,wxEXPAND | wxALL,5);
 
-	cbIsMud = new wxCheckBox(sbSizer2->GetStaticBox(),wxID_CB_IS_MUD,wxT("Mud"),wxDefaultPosition,wxDefaultSize,0);
-	sbSizer2->Add(cbIsMud,0,wxLEFT|wxRIGHT|wxTOP,5);
+	sizerTerrFlags = new wxBoxSizer(wxVERTICAL);
 
-	cbIsAsh = new wxCheckBox(sbSizer2->GetStaticBox(),wxID_CB_IS_ASH,wxT("Ash"),wxDefaultPosition,wxDefaultSize,0);
-	sbSizer2->Add(cbIsAsh,0,wxLEFT|wxRIGHT|wxTOP,5);
-
-	cbIsSwamp = new wxCheckBox(sbSizer2->GetStaticBox(),wxID_CB_IS_SWAMP,wxT("Swamp"),wxDefaultPosition,wxDefaultSize,0);
-	sbSizer2->Add(cbIsSwamp,0,wxLEFT|wxRIGHT|wxTOP,5);
-
-	cbIsBlood = new wxCheckBox(sbSizer2->GetStaticBox(),wxID_CB_IS_BLOOD,wxT("Blood"),wxDefaultPosition,wxDefaultSize,0);
-	sbSizer2->Add(cbIsBlood,0,wxLEFT|wxRIGHT|wxTOP,5);
-
-	cbIsHigh = new wxCheckBox(sbSizer2->GetStaticBox(),wxID_CB_IS_HIGH_LAND,wxT("High land"),wxDefaultPosition,wxDefaultSize,0);
-	sbSizer2->Add(cbIsHigh,0,wxLEFT|wxRIGHT|wxTOP,5);
-
-	cbIsWater = new wxCheckBox(sbSizer2->GetStaticBox(),wxID_CB_IS_WATER,wxT("Water"),wxDefaultPosition,wxDefaultSize,0);
-	sbSizer2->Add(cbIsWater,0,wxLEFT|wxRIGHT|wxTOP,5);
-
-	cbIsRidge = new wxCheckBox(sbSizer2->GetStaticBox(),wxID_CB_IS_RIDGE,wxT("Ridge"),wxDefaultPosition,wxDefaultSize,0);
-	sbSizer2->Add(cbIsRidge,0,wxLEFT|wxRIGHT|wxTOP,5);
-
-	cbIsCliff = new wxCheckBox(sbSizer2->GetStaticBox(),wxID_CB_IS_CLIFF,wxT("Cliff"),wxDefaultPosition,wxDefaultSize,0);
-	sbSizer2->Add(cbIsCliff,0,wxLEFT|wxRIGHT|wxTOP,5);
-
-	cbIsRoad = new wxCheckBox(sbSizer2->GetStaticBox(),wxID_CB_IS_ASH_ROAD,wxT("Asphalt road"),wxDefaultPosition,wxDefaultSize,0);
-	sbSizer2->Add(cbIsRoad,0,wxLEFT|wxRIGHT|wxTOP,5);
-
-	cbIsDirtRoad = new wxCheckBox(sbSizer2->GetStaticBox(),wxID_CB_IS_DIRT_ROAD,wxT("Dirt road"),wxDefaultPosition,wxDefaultSize,0);
-	sbSizer2->Add(cbIsDirtRoad,0,wxLEFT|wxRIGHT|wxTOP,5);
-
-	cbIsMudPath = new wxCheckBox(sbSizer2->GetStaticBox(),wxID_CB_IS_MUD_PATH,wxT("Mud path"),wxDefaultPosition,wxDefaultSize,0);
-	sbSizer2->Add(cbIsMudPath,0,wxLEFT|wxRIGHT|wxTOP,5);
-
-	cbIsWallBase = new wxCheckBox(sbSizer2->GetStaticBox(),wxID_CB_IS_WALL_BASE,wxT("Wall base"),wxDefaultPosition,wxDefaultSize,0);
-	sbSizer2->Add(cbIsWallBase,0,wxLEFT|wxRIGHT|wxTOP,5);
-
-	cbIsWBridge = new wxCheckBox(sbSizer2->GetStaticBox(),wxID_CB_IS_WBRIDGE,wxT("Wooden bridge"),wxDefaultPosition,wxDefaultSize,0);
-	sbSizer2->Add(cbIsWBridge,0,wxLEFT|wxRIGHT|wxTOP,5);
-
-	cbIsBridge = new wxCheckBox(sbSizer2->GetStaticBox(),wxID_CB_IS_BRIDGE,wxT("Bridge"),wxDefaultPosition,wxDefaultSize,0);
-	sbSizer2->Add(cbIsBridge,0,wxLEFT|wxRIGHT|wxTOP,5);
-
-	cbIsFord = new wxCheckBox(sbSizer2->GetStaticBox(),wxID_CB_IS_FORD,wxT("Ford"),wxDefaultPosition,wxDefaultSize,0);
-	sbSizer2->Add(cbIsFord,0,wxLEFT|wxRIGHT|wxTOP,5);
-
-	cbIsRidgeBridge = new wxCheckBox(sbSizer2->GetStaticBox(),wxID_CB_IS_RIDGE_BRIDGE,wxT("Ridge bridge"),wxDefaultPosition,wxDefaultSize,0);
-	sbSizer2->Add(cbIsRidgeBridge,0,wxLEFT|wxRIGHT|wxTOP,5);
-
-	cbIsBroken = new wxCheckBox(sbSizer2->GetStaticBox(),wxID_CB_IS_BROKEN,wxT("Broken/damaged"),wxDefaultPosition,wxDefaultSize,0);
-	sbSizer2->Add(cbIsBroken,0,wxLEFT|wxRIGHT|wxTOP,5);
-
-	cbIsShadow = new wxCheckBox(sbSizer2->GetStaticBox(),wxID_CB_IS_SHADOW,wxT("Shadow"),wxDefaultPosition,wxDefaultSize,0);
-	sbSizer2->Add(cbIsShadow,0,wxLEFT|wxRIGHT|wxTOP,5);
-
-	cbIsScar = new wxCheckBox(sbSizer2->GetStaticBox(),wxID_CB_IS_SCAR,wxT("Terrain scar"),wxDefaultPosition,wxDefaultSize,0);
-	sbSizer2->Add(cbIsScar,0,wxLEFT|wxRIGHT|wxTOP,5);
-
-	cbIsObject = new wxCheckBox(sbSizer2->GetStaticBox(),wxID_CB_IS_OBJECT,wxT("Object"),wxDefaultPosition,wxDefaultSize,0);
-	sbSizer2->Add(cbIsObject,0,wxLEFT|wxRIGHT|wxTOP,5);
-
-	m_staticline2 = new wxStaticLine(sbSizer2->GetStaticBox(),wxID_ANY,wxDefaultPosition,wxDefaultSize,wxLI_HORIZONTAL);
-	sbSizer2->Add(m_staticline2,0,wxEXPAND | wxALL,5);
-
-	cbUseAsGlyph = new wxCheckBox(sbSizer2->GetStaticBox(),wxID_CB_USE_AS_GLYPH,wxT("Use as class glyph"),wxDefaultPosition,wxDefaultSize,0);
-	sbSizer2->Add(cbUseAsGlyph,0,wxLEFT|wxRIGHT,5);
-
-	cbFaultCont = new wxCheckBox(sbSizer2->GetStaticBox(),wxID_CB_FAULTY,wxT("Faulty context"),wxDefaultPosition,wxDefaultSize,0);
-	sbSizer2->Add(cbFaultCont,0,wxLEFT|wxRIGHT|wxTOP,5);
+	m_checkBox49 = new wxCheckBox(sizerFlags->GetStaticBox(),wxID_ANY,wxT("Check Me!"),wxDefaultPosition,wxDefaultSize,0);
+	sizerTerrFlags->Add(m_checkBox49,0,wxALL,5);
 
 
-	bSizer1->Add(sbSizer2,0,wxEXPAND|wxLEFT|wxTOP,5);
+	sizerFlags->Add(sizerTerrFlags,1,wxEXPAND,0);
+
+
+	bSizer1->Add(sizerFlags,0,wxEXPAND|wxLEFT|wxTOP,5);
 
 	wxBoxSizer* bSizer10;
 	bSizer10 = new wxBoxSizer(wxVERTICAL);
@@ -440,8 +381,8 @@ FormSprite::FormSprite( wxWindow* parent,SpellData* spell_data,wxWindowID id, co
 
 	// === AUTO GENERATED STUFF ENDS HERE ===
 
-	lboxSprites = new wxListCtrlVirtual(this,wxID_LBOX_SPRITES,wxDefaultPosition,wxSize(120,-1),wxLC_NO_HEADER|wxLC_REPORT|wxLC_SINGLE_SEL|wxLC_VIRTUAL|wxALWAYS_SHOW_SB|wxVSCROLL);
-	sizerSpriteList->Add(lboxSprites,1,wxBOTTOM|wxEXPAND|wxLEFT,5);
+	/*lboxSprites = new wxListCtrlVirtual(this,wxID_LBOX_SPRITES,wxDefaultPosition,wxSize(120,-1),wxLC_NO_HEADER|wxLC_REPORT|wxLC_SINGLE_SEL|wxLC_VIRTUAL|wxALWAYS_SHOW_SB|wxVSCROLL);
+	sizerSpriteList->Add(lboxSprites,1,wxBOTTOM|wxEXPAND|wxLEFT,5);*/
 	lboxSprites->SetGetItemTextCb(bind(&FormSprite::OnGetItemText,this,placeholders::_1));
 	lboxSprites->SetGetItemImageCb(bind(&FormSprite::OnGetItemImage,this,placeholders::_1));
 		
@@ -515,30 +456,7 @@ FormSprite::FormSprite( wxWindow* parent,SpellData* spell_data,wxWindowID id, co
 	Bind(wxEVT_COMMAND_CHOICE_SELECTED, &FormSprite::OnQchange,this,wxID_CH_SIDE);
 	canvas->Bind(wxEVT_PAINT,&FormSprite::OnCanvasRepaint,this);
 
-	// bind flags events
-	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormSprite::OnFlagsChange,this,wxID_CB_IS_GRASS);
-	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormSprite::OnFlagsChange,this,wxID_CB_IS_DGRASS);
-	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormSprite::OnFlagsChange,this,wxID_CB_IS_BLOOD);
-	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormSprite::OnFlagsChange,this,wxID_CB_IS_MUD);
-	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormSprite::OnFlagsChange,this,wxID_CB_IS_SWAMP);
-	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormSprite::OnFlagsChange,this,wxID_CB_IS_ASH);
-	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormSprite::OnFlagsChange,this,wxID_CB_IS_HIGH_LAND);
-	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormSprite::OnFlagsChange,this,wxID_CB_IS_ASH_ROAD);
-	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormSprite::OnFlagsChange,this,wxID_CB_IS_BROKEN);
-	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormSprite::OnFlagsChange,this,wxID_CB_IS_DIRT_ROAD);
-	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormSprite::OnFlagsChange,this,wxID_CB_IS_MUD_PATH);
-	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormSprite::OnFlagsChange,this,wxID_CB_IS_CLIFF);
-	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormSprite::OnFlagsChange,this,wxID_CB_IS_WATER);
-	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormSprite::OnFlagsChange,this,wxID_CB_IS_WBRIDGE);
-	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormSprite::OnFlagsChange,this,wxID_CB_IS_BRIDGE);
-	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormSprite::OnFlagsChange,this,wxID_CB_IS_FORD);
-	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormSprite::OnFlagsChange,this,wxID_CB_IS_SAND);
-	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormSprite::OnFlagsChange,this,wxID_CB_IS_SHADOW);
-	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormSprite::OnFlagsChange,this,wxID_CB_IS_RIDGE);
-	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormSprite::OnFlagsChange,this,wxID_CB_IS_RIDGE_BRIDGE);
-	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormSprite::OnFlagsChange,this,wxID_CB_IS_WALL_BASE);
-	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormSprite::OnFlagsChange,this,wxID_CB_IS_OBJECT);
-	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormSprite::OnFlagsChange,this,wxID_CB_IS_SCAR);
+
 	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormSprite::OnFlagsChange,this,wxID_CB_TOOL_GLYPH);
 	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormSprite::OnFlagsChange,this,wxID_CB_USE_AS_GLYPH);
 	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormSprite::OnFlagsChange,this,wxID_CB_FAULTY);
@@ -1262,11 +1180,11 @@ void FormSprite::OnSaveTileContext(wxCommandEvent& event)
 	
 	// split path to folder and file
 	std::filesystem::path last_path = terrain->GetSpriteContextPath();
-	wstring dir = last_path.parent_path(); dir += wstring(L"\\");
+	wstring dir = last_path.parent_path(); //dir += wstring(L"\\");
 	wstring name = last_path.filename();
 
 	// show save dialog
-	wxFileDialog saveFileDialog(this,_("Save Spellcross terrain context file"),dir,name,"Context file (*.con)|*.con",wxFD_SAVE);
+	wxFileDialog saveFileDialog(this,_("Save Spellcross terrain context file"),dir,name,"Context file (*.con)|*.con",wxFD_SAVE|wxFD_OVERWRITE_PROMPT);
 	if(saveFileDialog.ShowModal() == wxID_CANCEL)
 		return;
 	wstring path = wstring(saveFileDialog.GetPath().ToStdWstring());
@@ -1382,33 +1300,7 @@ void FormSprite::OnFlagsChange(wxCommandEvent& event)
 {
 	int cbid = event.GetId();
 	bool check = event.IsChecked();
-
-	const uint32_t list[][2] = {
-		{wxID_CB_IS_GRASS, Sprite::LandFlags::IS_GRASS},
-		{wxID_CB_IS_DGRASS, Sprite::LandFlags::IS_DGRASS},
-		{wxID_CB_IS_BLOOD, Sprite::LandFlags::IS_BLOOD},
-		{wxID_CB_IS_MUD, Sprite::LandFlags::IS_MUD},
-		{wxID_CB_IS_SWAMP, Sprite::LandFlags::IS_SWAMP},
-		{wxID_CB_IS_ASH, Sprite::LandFlags::IS_ASH},
-		{wxID_CB_IS_HIGH_LAND, Sprite::LandFlags::IS_HIGHLAND},
-		{wxID_CB_IS_ASH_ROAD, Sprite::LandFlags::IS_ROAD},
-		{wxID_CB_IS_BROKEN, Sprite::LandFlags::IS_BROKEN},
-		{wxID_CB_IS_DIRT_ROAD, Sprite::LandFlags::IS_DIRT_ROAD},
-		{wxID_CB_IS_MUD_PATH, Sprite::LandFlags::IS_MUD_PATH},
-		{wxID_CB_IS_CLIFF, Sprite::LandFlags::IS_CLIFF},
-		{wxID_CB_IS_WATER, Sprite::LandFlags::IS_WATER},
-		{wxID_CB_IS_WBRIDGE, Sprite::LandFlags::IS_WOOD_BRIDGE},
-		{wxID_CB_IS_BRIDGE, Sprite::LandFlags::IS_BRIDGE},
-		{wxID_CB_IS_FORD, Sprite::LandFlags::IS_FORD},
-		{wxID_CB_IS_SAND, Sprite::LandFlags::IS_SAND},
-		{wxID_CB_IS_SHADOW, Sprite::LandFlags::IS_SHADOW},
-		{wxID_CB_IS_RIDGE, Sprite::LandFlags::IS_RIDGE},
-		{wxID_CB_IS_RIDGE_BRIDGE, Sprite::LandFlags::IS_RIDGE_BRIDGE},
-		{wxID_CB_IS_WALL_BASE, Sprite::LandFlags::IS_WALL_BASE},
-		{wxID_CB_IS_OBJECT, Sprite::LandFlags::IS_OBJECT},
-		{wxID_CB_IS_SCAR, Sprite::LandFlags::IS_SCAR},
-		{0,0}
-	};
+	
 	const uint32_t list2[][2] ={
 		{wxID_CB_USE_AS_GLYPH, Sprite::LandFlags::IS_GLYPH},
 		{wxID_CB_TOOL_GLYPH, Sprite::LandFlags::IS_TOOL_ITEM_GLYPH},
@@ -1424,23 +1316,26 @@ void FormSprite::OnFlagsChange(wxCommandEvent& event)
 	{
 		// get this terrain
 		Terrain* terr = FindTerrain();
-	
-		// build flags from checkbox states
+
+		// set sprite flags
 		uint32_t flags = terr->sprites[sprite_id]->GetFlags();
-		int flag_id = 0;
-		while(list[flag_id][0])
+		auto terr_flag_list = terr->GetSpriteFlagList();
+		auto& flag_list = sizerTerrFlags->GetChildren();
+		for(int k = 0; k < min(flag_list.size(),terr_flag_list.size()); k++)
 		{
-			if(cbid == list[flag_id][0] && check)
-				flags |= list[flag_id][1];
-			else if(cbid == list[flag_id][0] && !check)
-				flags &= ~list[flag_id][1];
-			flag_id++;
+			auto cb = (wxCheckBox*)flag_list[k]->GetWindow();
+			auto flag = terr_flag_list[k];
+			if(cb->GetValue())
+				flags |= flag.flag;
+			else
+				flags &= ~flag.flag;
 		}
 		terr->sprites[sprite_id]->SetFlags(flags);
 
+
 		// build special flags from checkbox states
 		flags = terr->sprites[sprite_id]->GetGlyphFlags();
-		flag_id = 0;
+		int flag_id = 0;
 		while(list2[flag_id][0])
 		{
 			if(cbid == list2[flag_id][0] && check)
@@ -1461,35 +1356,7 @@ void FormSprite::OnFlagsChange(wxCommandEvent& event)
 // show tile flags
 void FormSprite::SetFlags()
 {
-	const struct {
-		wxCheckBox *cb;
-		uint32_t flag;
-	} list[] = {
-		{cbIsGrass, Sprite::LandFlags::IS_GRASS},
-		{cbIsDarkGrass, Sprite::LandFlags::IS_DGRASS},
-		{cbIsBlood, Sprite::LandFlags::IS_BLOOD},
-		{cbIsMud, Sprite::LandFlags::IS_MUD},
-		{cbIsSwamp, Sprite::LandFlags::IS_SWAMP},
-		{cbIsAsh, Sprite::LandFlags::IS_ASH},
-		{cbIsHigh, Sprite::LandFlags::IS_HIGHLAND},
-		{cbIsRoad, Sprite::LandFlags::IS_ROAD},
-		{cbIsBroken, Sprite::LandFlags::IS_BROKEN},
-		{cbIsDirtRoad, Sprite::LandFlags::IS_DIRT_ROAD},
-		{cbIsMudPath, Sprite::LandFlags::IS_MUD_PATH},
-		{cbIsCliff, Sprite::LandFlags::IS_CLIFF},
-		{cbIsWater, Sprite::LandFlags::IS_WATER},
-		{cbIsWBridge, Sprite::LandFlags::IS_WOOD_BRIDGE},
-		{cbIsBridge, Sprite::LandFlags::IS_BRIDGE},
-		{cbIsFord, Sprite::LandFlags::IS_FORD},
-		{cbIsSand, Sprite::LandFlags::IS_SAND},
-		{cbIsShadow, Sprite::LandFlags::IS_SHADOW},
-		{cbIsRidge, Sprite::LandFlags::IS_RIDGE},
-		{cbIsRidgeBridge, Sprite::LandFlags::IS_RIDGE_BRIDGE},
-		{cbIsWallBase, Sprite::LandFlags::IS_WALL_BASE},
-		{cbIsObject, Sprite::LandFlags::IS_OBJECT},
-		{cbIsScar, Sprite::LandFlags::IS_SCAR},
-		{NULL,0}
-	};
+
 	const struct {
 		wxCheckBox* cb;
 		uint32_t flag;
@@ -1511,18 +1378,20 @@ void FormSprite::SetFlags()
 		Terrain* terr = FindTerrain();
 		auto *sprite = terr->sprites[sprite_id];
 
-		// set particular checkboxes
+		// set sprite flags
 		flags = sprite->GetFlags();
-		int flag_id = 0;
-		while(list[flag_id].cb)
+		auto terr_flag_list = terr->GetSpriteFlagList();
+		auto &flag_list = sizerTerrFlags->GetChildren();
+		for(int k = 0; k < min(flag_list.size(),terr_flag_list.size()); k++)
 		{
-			list[flag_id].cb->SetValue(flags & list[flag_id].flag);
-			flag_id++;
+			auto cb = (wxCheckBox*)flag_list[k]->GetWindow();
+			auto flag = terr_flag_list[k];
+			cb->SetValue(flags & flag.flag);
 		}
 
 		// set special flags
 		flags = sprite->GetGlyphFlags();
-		flag_id = 0;
+		int flag_id = 0;
 		while(list2[flag_id].cb)
 		{
 			list2[flag_id].cb->SetValue(flags & list2[flag_id].flag);
@@ -1542,7 +1411,6 @@ void FormSprite::SetFlags()
 			typestr = "Land Type: Object";
 		statBar->SetStatusText(typestr,1);
 	}
-
 
 
 }
@@ -1665,6 +1533,7 @@ void FormSprite::OnSelectSpriteBtn(wxCommandEvent& event)
 	else if(event.GetId() == wxID_BTN_PREV)
 		id = max(id - 1,0);
 	lboxSprites->SetItemState(id,wxLIST_STATE_SELECTED,wxLIST_STATE_SELECTED);
+	lboxSprites->EnsureVisible(id);
 	OnSelectSpriteAlt(event);
 }
 
@@ -1691,13 +1560,25 @@ Terrain *FormSprite::FindTerrain()
 }
 void FormSprite::SelectTerrain()
 {
-	// loose old sprites list
-	lboxSprites->ClearAll();
-	
 	// found selection
 	Terrain* terr = FindTerrain();
 	if(!terr)
 		return;
+
+	sizerTerrFlags->Clear(true);	
+	for(auto& flag: terr->GetSpriteFlagList())
+	{
+		auto cb = new wxCheckBox(sizerFlags->GetStaticBox(),::wxNewId(),flag.name,wxDefaultPosition,wxDefaultSize,0);
+		sizerTerrFlags->Add(cb,0,wxRIGHT|wxLEFT|wxBOTTOM,5);
+		cb->Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormSprite::OnFlagsChange,this,cb->GetId());
+	}
+	sizerTerrFlags->Layout();
+	sizerFlags->Layout();
+	
+	// loose old sprites list
+	lboxSprites->ClearAll();
+	
+	
 	lboxSprites->SetClientData(terr);
 
 	// update title

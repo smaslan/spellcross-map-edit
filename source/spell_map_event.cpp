@@ -932,7 +932,7 @@ std::tuple<std::string, std::string> SpellMapEventRec::FormatDEFrecord(int *init
 				else if(unit.unit->spec_type == MapUnitType::Values::SpecUnit && unit.unit->id == 49)
 					spec_type_str = "SpecUnit2";
 				data += string_format("EventData(%d) {\n",(*initial_id)++);
-				data += string_format("    AddSpecialUnit(%s,%d,%d,%02d,%d,%s)\n}\n\n",spec_type_str.c_str(),unit.unit->unit->type_id,map->ConvXY(unit.unit->coor),unit.unit->experience_init,unit.unit->man,wstring2stringCP895(string2wstring(name)).c_str());
+				data += string_format("    AddSpecialUnit(%s,%d,%d,%02d,%d,%s)\n}\n\n",spec_type_str.c_str(),unit.unit->unit->type_id,map->ConvXY(unit.unit->coor),unit.unit->experience_init,unit.unit->man,name.c_str());
 			}
 		}
 	}

@@ -55,7 +55,7 @@ Sprite::Sprite()
 
 	flags = 0;
 	for(int k = 0; k < 4; k++)
-		edge_class[k] = Sprite::CLASS_GENERIC;
+		edge_class[k] = Sprite::LandClass::GENERIC;
 	shading = 0;
 	spec_class = Sprite::SPEC_CLASS_NONE;
 
@@ -1023,7 +1023,7 @@ int Sprite::CompareSpriteContextAlt(Sprite* alt)
 		return(0);
 	if(is_object && alt->tool_class && alt->tool_group != this->tool_group)
 		return(0);
-	if(any_of(&alt->edge_class[0],&alt->edge_class[4],[](auto i) {return(i == CLASS_GENERIC);}))
+	if(any_of(&alt->edge_class[0],&alt->edge_class[4],[](auto i) {return(i == LandClass::GENERIC);}))
 		return(0);
 	if(!equal(&alt->edge_class[0],&alt->edge_class[4],&this->edge_class[0]))
 		return(0);
@@ -1232,7 +1232,7 @@ int Sprite::RandomizeContext()
 						continue;
 					if(is_object && alt->tool_class && alt->tool_group != spr->tool_group)
 						continue;
-					if(any_of(&alt->edge_class[0],&alt->edge_class[4], [](auto i) {return(i == CLASS_GENERIC);}))
+					if(any_of(&alt->edge_class[0],&alt->edge_class[4], [](auto i) {return(i == LandClass::GENERIC);}))
 						continue;
 					if(!equal(&alt->edge_class[0],&alt->edge_class[4],&spr->edge_class[0]))
 						continue;
@@ -1346,7 +1346,7 @@ void Sprite::SetEdgeClass(int edge, uint32_t new_class)
 uint32_t Sprite::GetEdgeClass(int edge)
 {
 	if(edge < 0 || edge > 3)
-		return(Sprite::CLASS_GENERIC);
+		return(Sprite::LandClass::GENERIC);
 	return(edge_class[edge]);
 }
 // get special tile classes count
@@ -1882,6 +1882,67 @@ Sprite* Terrain::GetSpriteWild(const char* wild, WildMode mode)
 	return(NULL);
 }
 
+// get list of sprite flags and their names for this terrain
+std::vector<Terrain::SpriteFlag> Terrain::GetSpriteFlagList()
+{
+	std::vector<Terrain::SpriteFlag> list;
+	if(iequals(name,"T11"))
+	{
+		list = {
+			{Sprite::LandFlags::IS_GRASS, "Grass"},
+			{Sprite::LandFlags::IS_DGRASS, "Darg grass"},
+			{Sprite::LandFlags::IS_BLOOD, "Blood"},
+			{Sprite::LandFlags::IS_MUD, "Mud"},
+			{Sprite::LandFlags::IS_SWAMP, "Swamp"},
+			{Sprite::LandFlags::IS_SAND, "Sand"},
+			{Sprite::LandFlags::IS_ASH, "Ash"},
+			{Sprite::LandFlags::IS_HIGHLAND, "Highland"},
+			{Sprite::LandFlags::IS_ROAD, "Asphalt road"},
+			{Sprite::LandFlags::IS_DIRT_ROAD, "Dirt road"},
+			{Sprite::LandFlags::IS_MUD_PATH, "Mud path"},
+			{Sprite::LandFlags::IS_WALL_BASE, "Wall base"},
+			{Sprite::LandFlags::IS_CLIFF, "Cliff"},
+			{Sprite::LandFlags::IS_WATER, "Water"},
+			{Sprite::LandFlags::IS_WOOD_BRIDGE, "Wooden bridge"},
+			{Sprite::LandFlags::IS_BRIDGE, "Bridge"},
+			{Sprite::LandFlags::IS_FORD, "Ford"},
+			{Sprite::LandFlags::IS_RIDGE, "Ridge"},
+			{Sprite::LandFlags::IS_RIDGE_BRIDGE, "Ridg bridge"},
+			{Sprite::LandFlags::IS_SHADOW, "Shadow"},			
+			{Sprite::LandFlags::IS_BROKEN, "Broken"},
+			{Sprite::LandFlags::IS_OBJECT, "Object"},
+			{Sprite::LandFlags::IS_SCAR, "Terrain scar"},
+		};
+	}
+	else if(iequals(name,"PUST"))
+	{
+		list ={
+			{Sprite::LandFlags::IS_SAND, "Sand"},
+			{Sprite::LandFlags::IS_DARKER_SAND, "Darker sand"},
+			{Sprite::LandFlags::IS_DARK_SAND, "Darkest sand"},
+			{Sprite::LandFlags::IS_OIL_SAND, "Oily sand"},
+			{Sprite::LandFlags::IS_GRASS, "Grass"},
+			{Sprite::LandFlags::IS_BLOOD, "Blood"},			
+			{Sprite::LandFlags::IS_ROAD, "Asphalt road"},
+			{Sprite::LandFlags::IS_DIRT_ROAD, "Dirt road"},
+			{Sprite::LandFlags::IS_SAND_PATH, "Sand path"},
+			{Sprite::LandFlags::IS_CLIFF, "Cliff"},
+			{Sprite::LandFlags::IS_WATER, "Water"},
+			{Sprite::LandFlags::IS_WOOD_BRIDGE, "Wooden bridge"},
+			{Sprite::LandFlags::IS_BRIDGE, "Bridge"},
+			{Sprite::LandFlags::IS_FORD, "Ford"},
+			{Sprite::LandFlags::IS_RIDGE, "Ridge"},
+			{Sprite::LandFlags::IS_RIDGE_BRIDGE, "Ridg bridge"},
+			{Sprite::LandFlags::IS_SHADOW, "Shadow"},
+			{Sprite::LandFlags::IS_BROKEN, "Broken"},
+			{Sprite::LandFlags::IS_OBJECT, "Object"},
+			{Sprite::LandFlags::IS_SCAR, "Terrain scar"},
+		};
+	}
+	return(list);
+}
+
+
 // initialize sprite tiles context from file (optional)
 int Terrain::InitSpriteContext(wstring &path)
 {
@@ -2399,7 +2460,7 @@ int Sprite::CheckNeighborValid(Sprite *neig, int eid)
 		return(Sprite::NEIGHBOR_INVALID); // definitely invalid
 
 	// may or may not be valid
-	bool undecided = this->GetEdgeClass(eid) == Sprite::CLASS_GENERIC && neig->GetEdgeClass(eid2) == Sprite::CLASS_GENERIC;
+	bool undecided = this->GetEdgeClass(eid) == Sprite::LandClass::GENERIC && neig->GetEdgeClass(eid2) == Sprite::LandClass::GENERIC;
 
 	// check slope and shading compatibility
 	if(this->CheckShadingValid(neig, eid))
@@ -2601,14 +2662,14 @@ int Terrain::InitSpriteContextShading()
 			{
 				// for T11/DEVAST the default layer is grass
 				for(int e = 0; e < 4; e++)
-					cont->SetEdgeClass(e,Sprite::CLASS_GRASS);
+					cont->SetEdgeClass(e,Sprite::LandClass::GRASS);
 				cont->SetFlags(Sprite::LandFlags::IS_GRASS);
 			}
 			else if(_stricmp(this->name.c_str(),"PUST") == 0)
 			{
 				// for PUST the default layer is sand
 				for(int e = 0; e < 4; e++)
-					cont->SetEdgeClass(e,Sprite::CLASS_SAND);
+					cont->SetEdgeClass(e,Sprite::LandClass::SAND);
 				cont->SetFlags(Sprite::LandFlags::IS_SAND);
 			}			
 		}
@@ -3868,7 +3929,7 @@ std::vector<std::string> Terrain::GetToolSetNames()
 		list.push_back(toolset->name);
 	return(list);
 }
-// add new tool (name can be modified if duplicate)
+// add new tool (name will be modified if duplicate)
 int Terrain::AddToolSet(string& name,string title)
 {
 	int position = -1;
@@ -3881,6 +3942,8 @@ int Terrain::AddToolSet(string &name, string title, int &position)
 	toolset->name = fix_no_duplicate_string(name,names_list); // fix name to not be duplicate
 	name = toolset->name;
 	toolset->title = title;
+	toolset->glyph_x = 80;
+	toolset->glyph_y = 80;
 	
 	if (position < 0)
 	{
@@ -4100,6 +4163,8 @@ int Terrain::SetToolSetGlyphScaling(int id, int x, int y)
 {
 	if (id < 0 || id >= tools.size())
 		return(1);
+	if(x < 1 || y < 1)
+		return(1);
 	tools[id]->glyph_x = x;
 	tools[id]->glyph_y = y;
 	return(0);
@@ -4127,7 +4192,7 @@ int Terrain::AddToolSetItem(int toolset_id, string &item, int &position)
 		position = tools[toolset_id]->items.size();
 		tools[toolset_id]->items.push_back(item);		
 	}
-	else if(position >= 0 && position < tools[toolset_id]->items.size())
+	else if(position >= 0 && position <= tools[toolset_id]->items.size())
 		tools[toolset_id]->items.insert(tools[toolset_id]->items.begin() + position, item);
 	else
 		return(1);
