@@ -191,19 +191,21 @@ MainFrame::MainFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY
     menuView->Append(ID_ViewAnm,"Layer 3: Tile animations\tF3","",wxITEM_CHECK);
     menuView->FindItem(ID_ViewAnm)->Check(true);
     menuView->Append(ID_ViewPnm,"Layer 4: Sprite animations\tF4","",wxITEM_CHECK);
-    menuView->FindItem(ID_ViewPnm)->Check(true);
-    menuView->Append(ID_ViewUnt,"Layer 5: Units\tF5","",wxITEM_CHECK);
-    menuView->FindItem(ID_ViewUnt)->Check(true);
-    menuView->Append(ID_ViewStTa,"Layer 6: Start/Target\tF6","",wxITEM_CHECK);
-    menuView->FindItem(ID_ViewStTa)->Check(true);
+    menuView->FindItem(ID_ViewPnm)->Check(true);    
+    menuView->Append(ID_ViewStartCounterAttack,"Layer 5+6: Counter attack positions\tF6","",wxITEM_CHECK);
+    menuView->FindItem(ID_ViewStartCounterAttack)->Check(false);
     menuView->Append(ID_ViewSoundLoops,"Layer 7: Sound loops\tF7","",wxITEM_CHECK);
     menuView->FindItem(ID_ViewSoundLoops)->Check(false);
     menuView->Append(ID_ViewSounds,"Layer 8: Sounds\tF8","",wxITEM_CHECK);
     menuView->FindItem(ID_ViewSounds)->Check(false);
+    menuView->Append(ID_ViewUnt,"Units","",wxITEM_CHECK);
+    menuView->FindItem(ID_ViewUnt)->Check(true);
+    menuView->Append(ID_ViewStTa,"Start/Escape/Target\tF5","",wxITEM_CHECK);
+    menuView->FindItem(ID_ViewStTa)->Check(true);
     menuView->Append(ID_ViewEvents,"Show events\tF9","",wxITEM_CHECK);
     menuView->FindItem(ID_ViewEvents)->Check(false);    
     menuView->Append(ID_HighlighObj,"Highlight objects\tF10","",wxITEM_CHECK);
-    menuView->FindItem(ID_HighlighObj)->Check(false);
+    menuView->FindItem(ID_HighlighObj)->Check(false);    
     menuView->Append(ID_ShowDebug,"Show debug\tF11","",wxITEM_CHECK);
     menuView->FindItem(ID_ShowDebug)->Check(false);
     menuView->Append(ID_ViewHUD,"Show mission HUD panel\tCtrl+H","",wxITEM_CHECK);
@@ -369,6 +371,7 @@ MainFrame::MainFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY
     Bind(wxEVT_MENU,&MainFrame::OnViewLayer,this,ID_ViewPnm);
     Bind(wxEVT_MENU,&MainFrame::OnViewLayer,this,ID_ViewUnt);
     Bind(wxEVT_MENU,&MainFrame::OnViewLayer,this,ID_ViewStTa);
+    Bind(wxEVT_MENU,&MainFrame::OnViewLayer,this,ID_ViewStartCounterAttack);
     Bind(wxEVT_MENU,&MainFrame::OnViewLayer,this,ID_ViewHUD);
     Bind(wxEVT_MENU,&MainFrame::OnViewLayer,this,ID_ViewSounds);
     Bind(wxEVT_MENU,&MainFrame::OnViewLayer,this,ID_ViewSoundLoops);
@@ -946,18 +949,26 @@ void MainFrame::OnHUDbuttonsClick(wxMouseEvent& event)
 // on change of map layer view
 void MainFrame::OnViewLayer(wxCommandEvent& event)
 {
+    
     bool wL1 = GetMenuBar()->FindItem(ID_ViewTer)->IsChecked();
     bool wL2 = GetMenuBar()->FindItem(ID_ViewObj)->IsChecked();
     bool wL3 = GetMenuBar()->FindItem(ID_ViewAnm)->IsChecked();
     bool wL4 = GetMenuBar()->FindItem(ID_ViewPnm)->IsChecked();
     bool wL5 = GetMenuBar()->FindItem(ID_ViewUnt)->IsChecked();
     bool wSS = GetMenuBar()->FindItem(ID_ViewStTa)->IsChecked();
+    bool wCounterStart = GetMenuBar()->FindItem(ID_ViewStartCounterAttack)->IsChecked();
+    if(event.GetId() == ID_ViewStTa && wSS)
+        wCounterStart = false;
+    if(event.GetId() == ID_ViewStartCounterAttack && wCounterStart)
+        wSS = false;
+    GetMenuBar()->FindItem(ID_ViewStTa)->Check(wSS);
+    GetMenuBar()->FindItem(ID_ViewStartCounterAttack)->Check(wCounterStart);
     bool wSound = GetMenuBar()->FindItem(ID_ViewSounds)->IsChecked();
     bool wSoundLoop = GetMenuBar()->FindItem(ID_ViewSoundLoops)->IsChecked();
     bool wEvents = GetMenuBar()->FindItem(ID_ViewEvents)->IsChecked();
     bool wHobj = GetMenuBar()->FindItem(ID_HighlighObj)->IsChecked();
     bool wDebug = GetMenuBar()->FindItem(ID_ShowDebug)->IsChecked();
-    spell_map->SetRender(wL1,wL2,wL3,wL4,wSS,wL5,wSound,wSoundLoop,wEvents,wHobj,wDebug);
+    spell_map->SetRender(wL1,wL2,wL3,wL4,wSS,wCounterStart,wL5,wSound,wSoundLoop,wEvents,wHobj,wDebug);
     bool hud = GetMenuBar()->FindItem(ID_ViewHUD)->IsChecked();
     spell_map->SetHUDstate(hud);
     Refresh();
@@ -1073,6 +1084,8 @@ void MainFrame::OnNewMap(wxCommandEvent& event)
     // reset layers visibility
     spell_map->SetGamma(1.30);
     OnViewLayer(event);
+    // reload toolset ribbon
+    LoadToolsetRibbon();
 }
 
 // set gamma correction
@@ -1890,7 +1903,7 @@ void MainFrame::OnPasteBuf(wxCommandEvent& event)
         return;
 
     auto pos = spell_map->GetSelection();
-    spell_map->PasteBuffer(spell_map->tiles,spell_map->L3,spell_map->L4,spell_map->start,spell_map->escape,spell_map->target,pos);
+    spell_map->PasteBuffer(spell_map->tiles,spell_map->L3,spell_map->L4,spell_map->start,spell_map->escape,spell_map->target,spell_map->L6,spell_map->L5,pos);
 
     // optional cycling of tool items
     /*if(spell_tool.isTool())
@@ -1996,7 +2009,7 @@ void MainFrame::OnCanvasLMouseDown(wxMouseEvent& event)
         {
             // something in copy buffer
             auto pos = spell_map->GetSelection();
-            spell_map->PasteBuffer(spell_map->tiles,spell_map->L3,spell_map->L4,spell_map->start,spell_map->escape,spell_map->target,pos);
+            spell_map->PasteBuffer(spell_map->tiles,spell_map->L3,spell_map->L4,spell_map->start,spell_map->escape,spell_map->target,spell_map->L6,spell_map->L5,pos);
             // optional cycling of tool items
             if(event.ControlDown() && spell_tool.isTool())
                 spell_map->SetBuffer(spell_tool,+1);
@@ -2155,7 +2168,7 @@ void MainFrame::OnCanvasLMouseUp(wxMouseEvent& event)
             {
                 if(event.ControlDown())
                     spell_map->SetBuffer(spell_tool,0);
-                spell_map->PasteBuffer(spell_map->tiles,spell_map->L3,spell_map->L4,spell_map->start,spell_map->escape,spell_map->target,pos,false);
+                spell_map->PasteBuffer(spell_map->tiles,spell_map->L3,spell_map->L4,spell_map->start,spell_map->escape,spell_map->target,spell_map->L6,spell_map->L5,pos,false);
             }
             //spell_map->SetBuffer(spell_tool);
             Refresh();

@@ -684,7 +684,9 @@ int SpellMap::Create(SpellData* spelldata, const char *terr_name, int x, int y, 
 	// prefetch pointers to common stuff needed fast when rendering
 	start_sprite = terrain->GetSprite("START");
 	escape_sprite = terrain->GetSprite("CIEL");
-	target_sprite = terrain->GetSprite("TARGET"); //### to be sourced from aux data (not in all terrains!)
+	target_sprite = terrain->GetSprite("c_target");
+	ca_start_aliance_sprite = terrain->GetSprite("cas_alia");
+	ca_start_os_sprite = terrain->GetSprite("cas_os");
 
 	// reset scroller
 	scroller.Reset();
@@ -1549,7 +1551,9 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 	// prefetch pointers to common stuff needed fast when rendering
 	start_sprite = terrain->GetSprite("START");
 	escape_sprite = terrain->GetSprite("CIEL");
-	target_sprite = terrain->GetSprite("TARGET");
+	target_sprite = terrain->GetSprite("c_target");
+	ca_start_aliance_sprite = terrain->GetSprite("cas_alia");
+	ca_start_os_sprite = terrain->GetSprite("cas_os");
 
 	// map should be valid from this point
 	is_valid = true;
@@ -2796,7 +2800,9 @@ void SpellMap::ClearBuffer()
 }
 
 // paste from copy buffer
-void SpellMap::PasteBuffer(std::vector<MapSprite>& tiles, std::vector<MapLayer3>& anms, std::vector<MapLayer4>& pnms,std::vector<MapXY>& start,std::vector<MapXY>& escape,std::vector<MapXY>& target, MapXY &posxy,bool center)
+void SpellMap::PasteBuffer(std::vector<MapSprite>& tiles, std::vector<MapLayer3>& anms, std::vector<MapLayer4>& pnms,
+	std::vector<MapXY>& start,std::vector<MapXY>& escape,std::vector<MapXY>& target,std::vector<MapXY>& ca_aliance,std::vector<MapXY>& ca_os,
+	MapXY &posxy,bool center)
 {
 	if(copy_buf.pos.empty() || !posxy.IsSelected())
 		return;
@@ -2830,21 +2836,17 @@ void SpellMap::PasteBuffer(std::vector<MapSprite>& tiles, std::vector<MapLayer3>
 		if(x >= 0 && y >= 0 && x < x_size && y < y_size)
 		{
 			auto &tile = copy_buf.tiles[k];				
+			std::vector<MapXY> sspos ={MapXY(x,y)};
 			if(tile.L2 == start_sprite)
-			{
-				std::vector<MapXY> sspos = {MapXY(x,y)};
-				PlaceStartEscape(sspos,start,escape,target,SpellMap::SPEC_TILE_START);
-			}
+				PlaceStartEscape(sspos,start,escape,target,ca_aliance,ca_os,SpellMap::SPEC_TILE_START);
 			else if(tile.L2 == escape_sprite)
-			{
-				std::vector<MapXY> sspos ={MapXY(x,y)};
-				PlaceStartEscape(sspos,start,escape,target,SpellMap::SPEC_TILE_ESCAPE);
-			}
+				PlaceStartEscape(sspos,start,escape,target,ca_aliance,ca_os,SpellMap::SPEC_TILE_ESCAPE);
 			else if(tile.L2 == target_sprite)
-			{
-				std::vector<MapXY> sspos ={MapXY(x,y)};
-				PlaceStartEscape(sspos,start,escape,target,SpellMap::SPEC_TILE_TARGET);
-			}
+				PlaceStartEscape(sspos,start,escape,target,ca_aliance,ca_os,SpellMap::SPEC_TILE_TARGET);
+			else if(tile.L2 == ca_start_aliance_sprite)
+				PlaceStartEscape(sspos,start,escape,target,ca_aliance,ca_os,SpellMap::SPEC_TILE_CA_ALIANCE);
+			else if(tile.L2 == ca_start_os_sprite)
+				PlaceStartEscape(sspos,start,escape,target,ca_aliance,ca_os,SpellMap::SPEC_TILE_CA_OS);
 			else
 			{
 				// terrain and objects layers
@@ -3853,13 +3855,14 @@ int SpellMap::GetRender(uint8_t* buf, int x_size, int y_size, int x_pos, int y_p
 }
 
 // configure map elements visibility
-void SpellMap::SetRender(bool wL1,bool wL2,bool wL3,bool wL4,bool wSTCI,bool wUnits,bool wSound,bool wSoundLoop,bool wEvents,bool highlight_obj,bool wDebug)
+void SpellMap::SetRender(bool wL1,bool wL2,bool wL3,bool wL4,bool wSTCI,bool wCounterStart,bool wUnits,bool wSound,bool wSoundLoop,bool wEvents,bool highlight_obj,bool wDebug)
 {
 	this->wL1 = wL1;
 	this->wL2 = wL2;
 	this->wL3 = wL3;
 	this->wL4 = wL4;
 	this->wSTCI = wSTCI;
+	this->wCounterStart = wCounterStart;
 	this->wUnits = wUnits;
 	this->wSound = wSound;
 	this->wSoundLoop = wSoundLoop;
@@ -3930,7 +3933,8 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 	std::vector<MapXY> start = this->start;
 	std::vector<MapXY> escape = this->escape;
 	std::vector<MapXY> targets = this->target;
-
+	std::vector<MapXY> counter_attack_start_os = this->L5;
+	std::vector<MapXY> counter_attack_start_alinace = this->L6;
 	
 
 	// edit tool pre-processing:
@@ -3952,7 +3956,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 	if(msel.size())
 	{
 		// override layers by clipboard buffer
-		PasteBuffer(tiles,L3,L4,start,escape,targets,msel[0]);
+		PasteBuffer(tiles,L3,L4,start,escape,targets,counter_attack_start_alinace,counter_attack_start_os,msel[0]);
 	}
 
 	int use_view_mask = game_mode || units_view_debug_mode;
@@ -4068,12 +4072,23 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 	}
 
 	// --- Render special tiles - START/ESCAPE/TARGET---
-	if (wSTCI)
+	if(wSTCI || wCounterStart)
 	{
 		// for each special sprite type
-		vector<MapXY> *spec[] = { &start, &escape, &targets};
-		Sprite* spec_sprite[] = { start_sprite, escape_sprite, target_sprite };
-		for (int sid = 0; sid < 3; sid++)
+		std::vector<vector<MapXY>*> spec;
+		std::vector<Sprite*> spec_sprite;
+		if(wSTCI)
+		{
+			spec = { &start, &escape, &targets};
+			spec_sprite = { start_sprite, escape_sprite, target_sprite };
+		}
+		if(wCounterStart)
+		{
+			spec ={&counter_attack_start_os, &counter_attack_start_alinace};
+			spec_sprite ={ca_start_os_sprite, ca_start_aliance_sprite};
+		}
+
+		for (int sid = 0; sid < spec.size(); sid++)
 		{
 			if(!spec_sprite[sid])
 				continue;
@@ -4108,9 +4123,9 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 
 
 	/*auto mark = terrain->GetSprite("DMA0_268");
-	for(i = 0; i < L6.size(); i++)
+	for(i = 0; i < L5.size(); i++)
 	{
-		auto pos = L6[i];
+		auto pos = L5[i];
 
 		// skip if not in visible area
 		if(pos.x < xs_ofs || pos.x >= (xs_ofs + xs_size) || pos.y < ys_ofs * 2 || pos.y >= (ys_ofs * 2 + ys_size))
@@ -11713,7 +11728,7 @@ int SpellMap::BuildHouseObjectsScan(std::vector<int> &used,std::vector<MapXY> &l
 
 
 // place/remove start/escape tiles to map data
-int SpellMap::PlaceStartEscape(vector<MapXY>& posxy,std::vector<MapXY>& start,std::vector<MapXY>& escape,std::vector<MapXY>& target,int spec_tile_type)
+int SpellMap::PlaceStartEscape(vector<MapXY>& posxy,std::vector<MapXY>& start,std::vector<MapXY>& escape,std::vector<MapXY>& target,std::vector<MapXY>& ca_alinace,std::vector<MapXY>& ca_os,int spec_tile_type)
 {
 	if(posxy.empty())
 		return(1);
@@ -11734,6 +11749,16 @@ int SpellMap::PlaceStartEscape(vector<MapXY>& posxy,std::vector<MapXY>& start,st
 	{
 		list = &target;
 		other_lists ={&start, &escape};
+	}
+	else if(spec_tile_type == SpellMap::SPEC_TILE_CA_ALIANCE)
+	{
+		list = &ca_alinace;
+		other_lists ={&ca_os};
+	}
+	else if(spec_tile_type == SpellMap::SPEC_TILE_CA_OS)
+	{
+		list = &ca_os;
+		other_lists ={&ca_alinace};
 	}
 	else
 		return(1);
@@ -11940,9 +11965,124 @@ int SpellMap::EditClass(vector<MapXY>& selection, SpellTool *tool, std::function
 
 	std::vector<int> modz(x_size*y_size,0);
 
-	for(auto &pos: selection)
+	for(auto &sel: selection)
 	{
-		EditClassTile(pos,modz,target_flags,blend_flags,land_type_mask,2);
+		// initial tile to alter
+		std::vector<MapXY> list = {sel};
+		int mod_level = 2;
+		bool cleanup = false;
+
+		// repeat till
+		std::vector<MapXY> mod_list_all;
+		do
+		{
+			std::vector<MapXY> mod_list;			
+			while(!list.empty())
+			{
+				auto pos = list.back(); 
+				list.pop_back();
+				auto pxy = ConvXY(pos);
+				auto& flags = L1_flags[pxy];
+				auto& mod = modz[pxy];
+				//mod = max(mod,1);
+
+				if(mod_level >= 2 && flags & target_flags && flags & blend_flags)
+				{
+					// to full
+					flags &= ~blend_flags;
+					flags |= target_flags;
+					mod = 2;
+				}
+				if(mod_level >= 2 && flags & target_flags)
+				{
+					// already set
+				}
+				else if(mod_level >= 1 && !(flags & target_flags))
+				{
+					flags &= blend_flags;
+
+					// to partial
+					if(popcount(flags & blend_flags) > 1)
+					{
+						// more than one blend classes in this tile - have to pick just one which is most used around
+						std::vector<int> counts(32,0);
+						int rmax = 0;
+						int blend_flag = 0;
+						for(int nid = 0; nid<8; nid++)
+						{
+							auto npos = GetNeighborTile8D(pos,nid);
+							auto nxy = ConvXY(npos);
+							if(!npos.IsSelected())
+								continue;
+							auto flags = L1_flags[nxy] & blend_flags;
+							for(int k = 0; k < 32; k++,flags >>= 1)
+								if(flags & 1)
+								{
+									counts[k]++;
+									if(counts[k] > rmax)
+									{
+										rmax = counts[k];
+										blend_flag = 1<<k;
+									}
+								}
+						}
+						flags &= blend_flag;
+					}
+					flags |= target_flags;
+					mod = 2;
+				}			
+				if(mod < 2)
+					continue;			
+				// mark as modified
+				mod_list.push_back(pos);
+				mod_list_all.push_back(pos);
+			}
+
+			mod_level = 1;
+
+
+			if(mod_list.empty() && !cleanup)
+			{
+				// area grown enough, now switch mode to subtract neighbors
+				cleanup = true;
+
+				// target to previous target blend flags
+				target_flags = blend_flags;
+				if(blend_rules.find(target_flags) == blend_rules.end())
+					return(1);
+				blend_flags = blend_rules[target_flags];
+
+				// all modified flags to process
+				mod_list = mod_list_all;
+			}
+
+
+			// make list of neighbors to all modified tiles
+			list.clear();
+			for(auto mpos: mod_list)
+			{
+				auto pxy = ConvXY(mpos);
+				auto& flags = L1_flags[pxy];
+
+				// for each neighbor
+				for(int nid = 0; nid<8; nid++)
+				{
+					int n_angle = (nid&3)*2 + !(nid>>2);
+					auto npos = GetNeighborTile8D(mpos,n_angle);
+					auto nxy = ConvXY(npos);
+					if(!npos.IsSelected())
+						continue;
+					if(modz[nxy])
+						continue;
+					modz[nxy] = 1;
+					auto &nflags = L1_flags[nxy];
+					if(flags & target_flags && !(flags & blend_flags) && !(nflags & target_flags))
+						list.push_back(npos);
+				}
+			}
+
+		}while(!list.empty()); // repeat until no more modified tiles
+
 	}
 
 
@@ -11955,35 +12095,51 @@ int SpellMap::EditClass(vector<MapXY>& selection, SpellTool *tool, std::function
 			if(!modz[pxy])
 				continue;
 			
-			unsigned edge[4] = {0xFFFFFFFFu,0xFFFFFFFFu,0xFFFFFFFFu,0xFFFFFFFFu};
+			uint32_t edge[4] = {0xFFFFFFFFu,0xFFFFFFFFu,0xFFFFFFFFu,0xFFFFFFFFu};
+			uint32_t com = 0xFFFFFFFFu;
 			for(int nid = 0; nid < 4; nid++)
 			{
 				auto npos = GetNeighborTile(pos,nid);
 				if(!npos.IsSelected())
 					continue;
 				auto nxy = ConvXY(npos);
+				com &= L1_flags[nxy];
 				edge[nid] &= L1_flags[nxy];
 				edge[(nid + 1) % 4] &= L1_flags[nxy];
 				edge[nid] &= L1_flags[pxy];
+			}
+			for(int nid = 0; nid < 4; nid++)
+			{
+				auto npos = GetNeighborTile8D(pos,nid*2);
+				if(!npos.IsSelected())
+					continue;
+				auto nxy = ConvXY(npos);
+				com &= L1_flags[nxy];
+				edge[nid] &= L1_flags[nxy];
+				//edge[nid] &= L1_flags[pxy];
 			}
 			int edge_class[4];
 			for(int nid = 0; nid < 4; nid++)
 			{
 				if(edge[nid] == edge[(nid + 1) % 4])
 				{
-					if(edge[nid] & Sprite::LandFlags::IS_GRASS)
+					auto flag = edge[nid];
+					if(popcount(flag) > 1)
+						flag &= ~com;
+
+					if(flag & Sprite::LandFlags::IS_GRASS)
 						edge_class[nid] = Sprite::LandClass::GRASS;
-					else if(edge[nid] & Sprite::LandFlags::IS_DGRASS)
+					else if(flag & Sprite::LandFlags::IS_DGRASS)
 						edge_class[nid] = Sprite::LandClass::DARK_GRASS;
-					else if(edge[nid] & Sprite::LandFlags::IS_BLOOD)
+					else if(flag & Sprite::LandFlags::IS_BLOOD)
 						edge_class[nid] = Sprite::LandClass::BLOOD;
-					else if(edge[nid] & Sprite::LandFlags::IS_MUD)
+					else if(flag & Sprite::LandFlags::IS_MUD)
 						edge_class[nid] = Sprite::LandClass::MUD;
-					else if(edge[nid] & Sprite::LandFlags::IS_SAND)
+					else if(flag & Sprite::LandFlags::IS_SAND)
 						edge_class[nid] = Sprite::LandClass::SAND;
-					else if(edge[nid] & Sprite::LandFlags::IS_ASH)
+					else if(flag & Sprite::LandFlags::IS_ASH)
 						edge_class[nid] = Sprite::LandClass::ASH;
-					else if(edge[nid] & Sprite::LandFlags::IS_SWAMP)
+					else if(flag & Sprite::LandFlags::IS_SWAMP)
 						edge_class[nid] = Sprite::LandClass::SWAMP;
 					else
 						edge_class[nid] = Sprite::LandClass::GENERIC;

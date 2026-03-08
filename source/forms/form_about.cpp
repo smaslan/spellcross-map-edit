@@ -94,7 +94,7 @@ FormAbout::FormAbout( wxWindow* parent, wxWindowID id, const wxString& title, co
 
 	bSizer76->Add( txtURL, 0, wxBOTTOM|wxEXPAND|wxTOP, 5 );
 
-	txtLicense = new wxTextCtrl( this, wxID_TXT_LICENSE, L"MIT License, (c) 2025, Stanislav Mašláò", wxDefaultPosition, wxDefaultSize, wxTE_RICH|wxBORDER_NONE );
+	txtLicense = new wxTextCtrl( this, wxID_TXT_LICENSE, L"MIT License, (c) 2025 - 2026, Stanislav Mašláò", wxDefaultPosition, wxDefaultSize, wxTE_RICH|wxBORDER_NONE );
 	txtLicense->SetFont( wxFont( 12, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL, false, wxEmptyString ) );
 	txtLicense->SetBackgroundColour( wxSystemSettings::GetColour( wxSYS_COLOUR_BTNFACE ) );
 

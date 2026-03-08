@@ -2028,7 +2028,10 @@ int Terrain::InitSpriteContext(wstring &path)
 		// try to find its index in terrain list
 		Sprite *spr = GetSprite(tile_name);
 		spr_list.push_back(spr);
-		list.push_back(spr->GetIndex());
+		int id = -1;
+		if(spr)
+			id = spr->GetIndex();
+		list.push_back(id);
 	}
 
 	// for each tile in the list:
@@ -3891,8 +3894,8 @@ int Terrain::AddSpecialTools()
 	ts_id = GetToolSetID("Special");
 
 	// get/create start/escape tiles
-	std::vector<std::string> sprite_names = {"TARGET","CIEL","START"};
-	std::vector<std::string> tool_names = {"Target tile","Escape tile","Start tile"};
+	std::vector<std::string> sprite_names = {"c_target","CIEL","START","cas_alia","cas_os"};
+	std::vector<std::string> tool_names = {"Target tile","Escape tile","Start tile","Counter attack Aliance","Counter attack OS"};
 	for(int k = 0; k < sprite_names.size(); k++)
 	{
 		auto tool_id = GetToolSetItem(ts_id,tool_names[k]);
