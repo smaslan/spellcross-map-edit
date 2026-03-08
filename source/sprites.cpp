@@ -2035,12 +2035,15 @@ int Terrain::InitSpriteContext(wstring &path)
 	}
 
 	// for each tile in the list:
+	Sprite dummy_sprite;
 	for(int k = 0; k < count; k++)
 	{
-		// get reference tile		
-		if(list[k] < 0)
-			continue;
+		// select target sprite
+		Sprite *spr = &dummy_sprite;
+		if(list[k] >= 0)
+			spr = sprites[list[k]];
 
+		// get reference tile		
 		for(int quid = 0; quid < 4; quid++)
 		{
 			// L1 context count
@@ -2054,16 +2057,15 @@ int Terrain::InitSpriteContext(wstring &path)
 			for(int sid = 0; sid < cont_count; sid++)
 			{
 				// get context tile index				
-				uint16_t tile_id;
-				fr.read((char*)&tile_id,sizeof(uint16_t));
-				
+				uint16_t tile_id = fr.read_u16();
+
 				// reindex to terrain indices
 				int terr_id = list[tile_id];
 				if(terr_id < 0)
 					continue;
 											
 				// add to context list (not check duplicates)
-				sprites[list[k]]->AddContext(quid, sprites[terr_id], true);
+				spr->AddContext(quid, sprites[terr_id], true);
 			}
 		}
 
@@ -2077,29 +2079,29 @@ int Terrain::InitSpriteContext(wstring &path)
 				edge_class = Sprite::CLASS_ASH;
 			else if(edge_class == Sprite::CLASS_ASH)
 				edge_class = Sprite::CLASS_BLOOD;*/
-			sprites[list[k]]->SetEdgeClass(quid, edge_class);
+			spr->SetEdgeClass(quid, edge_class);
 		}
 
 		// load flags
-		sprites[list[k]]->SetFlags(fr.read_u32());
+		spr->SetFlags(fr.read_u32());
 		
 		// load special flags
-		sprites[list[k]]->SetGlyphFlags(fr.read_u32());
+		spr->SetGlyphFlags(fr.read_u32());
 
 		// load special tile class
-		sprites[list[k]]->SetSpecClass(fr.read_u32());
+		spr->SetSpecClass(fr.read_u32());
 
 		// load map tile flags
-		sprites[list[k]]->SetMapFlags(fr.read_u32());
+		spr->SetMapFlags(fr.read_u32());
 
 		// load shading flags		
 		uint32_t flags = fr.read_u32();
-		sprites[list[k]]->SetShadingFlags(flags & 0x00FF);
-		sprites[list[k]]->SetShadingMask((flags >> 8) & 0x00FF);
+		spr->SetShadingFlags(flags & 0x00FF);
+		spr->SetShadingMask((flags >> 8) & 0x00FF);
 
 		// load tools classes ids
-		sprites[list[k]]->SetToolClass(fr.read_u32());
-		sprites[list[k]]->SetToolClassGroup(fr.read_u32());
+		spr->SetToolClass(fr.read_u32());
+		spr->SetToolClassGroup(fr.read_u32());
 	}
 
 
