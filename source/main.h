@@ -23,6 +23,7 @@
 #include "forms/form_anm.h"
 #include "forms/form_pal_view.h"
 #include "forms/form_gr_view.h"
+#include "forms/form_gr_encode.h"
 #include "forms/form_units.h"
 #include "forms/form_events.h"
 #include "forms/form_new_object.h"
@@ -135,6 +136,7 @@ private:
     void OnViewObjects(wxCommandEvent& event);
     void OnViewPal(wxCommandEvent& event);
     void OnViewGrRes(wxCommandEvent& event);
+    void OnEncodeGrRes(wxCommandEvent& event);
     void OnEditUnit(wxCommandEvent& event);
     void OnEditEvent(wxCommandEvent& event);
     void OnViewVideo(wxCommandEvent& event);
@@ -213,6 +215,7 @@ private:
         form_objects != NULL ||
         form_pal != NULL ||
         form_gres != NULL ||
+        form_gres_encoder != NULL ||
         form_units != NULL ||
         form_events != NULL ||
         form_videos != NULL ||
@@ -237,6 +240,7 @@ private:
     FormObjects* form_objects = NULL;
     FormPalView* form_pal = NULL;
     FormGResView* form_gres = NULL;
+    FormGResEncoder* form_gres_encoder = NULL;
     FormUnits* form_units = NULL;
     FormEvent* form_events = NULL;
     FormVideo* form_videos = NULL;
@@ -269,6 +273,7 @@ private:
         ID_TOOLS_WIN,
         ID_PAL_WIN,
         ID_GRES_WIN,
+        ID_GRES_ENCODE_WIN,
         ID_UNITS_WIN,
         ID_EVENT_WIN,
         ID_MINIMAP_WIN,
@@ -361,6 +366,7 @@ enum
     ID_SoundsViewer,
     ID_ViewPal,
     ID_ViewGRes,
+    ID_EncodeGRes,
     ID_UnitViewDbg,
     ID_EditMissionParams,
     ID_EditUnit,

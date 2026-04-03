@@ -65,6 +65,9 @@ bool MyApp::OnInit()
     // hide warnings when loading maps?
     bool hide_map_load_warnings = ini.GetBoolValue("STATE","hide_map_load_warnings",false);
 
+    // last export path
+    spell_data->export_path = char2wstring(ini.GetValue("STATE","export_path",""));
+
     // --- load some map
     wstring map_path = char2wstring(ini.GetValue("STATE","last_map",""));
     spell_map = new SpellMap();
@@ -121,6 +124,9 @@ int MyApp::OnExit()
 {
     // store last path
     ini.SetValue("STATE","last_map",wstring2string(spell_map->GetTopPath()).c_str());
+
+    // last export path
+    ini.SetValue("STATE","export_path",wstring2string(spell_data->export_path).c_str());
 
     // store sound/midi volumes
     ini.SetLongValue("STATE", "sound_volume", 100.0*spell_data->sounds->channels->GetVolume());
@@ -264,6 +270,7 @@ MainFrame::MainFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY
     menuTools->Append(ID_SoundsViewer,"Sounds viewer","",wxITEM_NORMAL);
     menuTools->Append(ID_ViewPal,"Palette viewer","",wxITEM_NORMAL);
     menuTools->Append(ID_ViewGRes,"Graphics viewer","",wxITEM_NORMAL);
+    menuTools->Append(ID_EncodeGRes,"Graphics endoder","",wxITEM_NORMAL);
     menuTools->Append(ID_EditUnit,"Units viewer/editor\tCtrl+U","",wxITEM_NORMAL);
     menuTools->Append(ID_EditEvent,"Event viewer/editor\tCtrl+E","",wxITEM_NORMAL);
     menuTools->Append(ID_ViewVideo,"Video viewer","",wxITEM_NORMAL);
@@ -387,6 +394,7 @@ MainFrame::MainFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY
     Bind(wxEVT_MENU,&MainFrame::OnViewObjects,this,ID_ViewObjects);
     Bind(wxEVT_MENU,&MainFrame::OnViewPal,this,ID_ViewPal);
     Bind(wxEVT_MENU,&MainFrame::OnViewGrRes,this,ID_ViewGRes);
+    Bind(wxEVT_MENU,&MainFrame::OnEncodeGrRes,this,ID_EncodeGRes);
     Bind(wxEVT_MENU,&MainFrame::OnEditUnit,this,ID_EditUnit);
     Bind(wxEVT_MENU,&MainFrame::OnEditEvent,this,ID_EditEvent);
     Bind(wxEVT_MENU,&MainFrame::OnViewVideo,this,ID_ViewVideo);
@@ -574,6 +582,10 @@ void MainFrame::OnClose(wxCloseEvent& ev)
     else if(ev.GetId() == ID_GRES_WIN)
     {
         form_gres->Destroy();
+    }
+    else if(ev.GetId() == ID_GRES_ENCODE_WIN)
+    {
+        form_gres_encoder->Destroy();
     }
     else if(ev.GetId() == ID_MINIMAP_WIN)
     {
@@ -1037,7 +1049,7 @@ void MainFrame::OnSaveDTA(wxCommandEvent& event)
     wstring dir = last_path.parent_path(); dir += wstring(L"\\");
     wstring name = last_path.filename();
 
-    // show open dialog
+    // show save dialog
     wxFileDialog saveFileDialog(this,_("Save Spellcross Map DTA file"),dir,name,"Map data file (*.dta)|*.dta",
         wxFD_SAVE|wxFD_OVERWRITE_PROMPT);
     if(saveFileDialog.ShowModal() == wxID_CANCEL)
@@ -1235,6 +1247,16 @@ void MainFrame::OnViewGrRes(wxCommandEvent& event)
     {
         form_gres = new FormGResView(this,spell_data,ID_GRES_WIN);
         form_gres->Show();
+    }
+}
+
+// open graphics encoder
+void MainFrame::OnEncodeGrRes(wxCommandEvent& event)
+{
+    if(!FindWindowById(ID_GRES_ENCODE_WIN))
+    {
+        form_gres_encoder = new FormGResEncoder(this,spell_data,ID_GRES_ENCODE_WIN);
+        form_gres_encoder->Show();
     }
 }
 

@@ -107,7 +107,35 @@ public:
 };
 
 
+// palette record
+class SpellPalette
+{
+public:
+	std::string m_name;
+	std::vector<uint8_t> m_pal;
+	std::vector<uint8_t> m_used;
 
+	class Chunk{
+	public:
+		std::string name;
+		int offset;
+		int size;
+	};
+	std::vector<Chunk> m_chunks;
+
+	SpellPalette();
+	SpellPalette(std::string name);
+	void Clear();
+	int Insert(std::vector<uint8_t> &data,std::string name="",int offset=0);
+	int Insert(std::wstring path,int offset=0,std::string used="");
+	std::tuple<int,int> GetRange(int start=0);
+	std::string GetRangeString();
+	int Save(std::wstring path);
+	int SaveChunks(std::wstring directory_path);
+	int LoadInfo(std::wstring path);
+	int SaveInfo(std::wstring path);
+	int Render(wxBitmap& bmp);
+};
 
 class SpellData
 {
@@ -122,7 +150,9 @@ public:
 	// data paths
 	std::wstring data_path;
 	std::wstring cd_data_path;
+	std::wstring export_path;
 
+	
 	// terrains data array
 	vector<Terrain*> terrain;
 	// special tile graphics
@@ -136,7 +166,7 @@ public:
 	// units
 	SpellUnits* units;
 	// palettes
-	uint8_t map_pal[256][3]; /* map environment common pal (index: 128 - 255) */
+	uint8_t (*map_pal)[3]; /* map environment common pal (index: 128 - 255) */
 	// fonts
 	SpellFont* font;
 	SpellFont* font7;
@@ -160,6 +190,14 @@ public:
 	SpellVideoResources *videos;
 
 
+	// palettes
+	std::vector<SpellPalette*> pal_list;
+	SpellPalette *AddPalette(std::string name);
+	SpellPalette *GetPalette(std::string name);
+	uint8_t* GetPaletteData(std::string name);
+	int LoadPalettes(FSarchive* fs);
+
+
 	SpellData(wstring& data_path,wstring& cd_data_path,wstring& spec_path,std::function<void(std::string)> status_list=NULL,std::function<void(std::string)> status_item=NULL);
 	~SpellData();	
 	Terrain* GetTerrain(const char* name);
@@ -168,6 +206,8 @@ public:
 	int BuildSpriteContextOfMaps(wstring folder,string terrain_name,std::function<void(std::string)> status_cb);	
 	int BuildHouseObjectsOfMaps(wstring folder,string terrain_name,std::function<void(std::string)> status_cb);
 };
+
+
 
 
 

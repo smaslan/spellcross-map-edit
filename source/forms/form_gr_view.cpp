@@ -11,8 +11,12 @@
 #include "LZ_spell.h"
 
 #include <wx/rawbmp.h>
+#include <wx/filedlg.h>
+#include <wx/dirdlg.h>
+#include <wx/msgdlg.h>
 
 #include <filesystem>
+#include <string>
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -28,8 +32,16 @@ FormGResView::FormGResView(wxWindow* parent,SpellData* spell_data,wxWindowID id,
 	m_menubar5 = new wxMenuBar(0);
 	mmFile = new wxMenu();
 	wxMenuItem* mmClose;
-	mmClose = new wxMenuItem(mmFile,wxID_MM_CLOSE,wxString(wxT("Close")),wxEmptyString,wxITEM_NORMAL);
+	mmClose = new wxMenuItem(mmFile,wxID_MM_CLOSE,wxString(wxT("Close")) + wxT('\t') + wxT("ESC"),wxEmptyString,wxITEM_NORMAL);
 	mmFile->Append(mmClose);
+
+	wxMenuItem* mmExport;
+	mmExport = new wxMenuItem(mmFile,wxID_MM_EXPORT,wxString(wxT("Export")) + wxT('\t') + wxT("Ctrl+S"),wxEmptyString,wxITEM_NORMAL);
+	mmFile->Append(mmExport);
+
+	wxMenuItem* mmExportAll;
+	mmExportAll = new wxMenuItem(mmFile,wxID_MM_EXPORT_ALL,wxString(wxT("Export all")),wxEmptyString,wxITEM_NORMAL);
+	mmFile->Append(mmExportAll);
 
 	m_menubar5->Append(mmFile,wxT("File"));
 
@@ -42,12 +54,19 @@ FormGResView::FormGResView(wxWindow* parent,SpellData* spell_data,wxWindowID id,
 	wxBoxSizer* bSizer27;
 	bSizer27 = new wxBoxSizer(wxVERTICAL);
 
+	m_staticText97 = new wxStaticText(this,wxID_ANY,wxT("Filter (wildcard: *?):"),wxDefaultPosition,wxDefaultSize,0);
+	m_staticText97->Wrap(-1);
+	bSizer27->Add(m_staticText97,0,wxLEFT|wxTOP,5);
+
+	txtFilter = new wxTextCtrl(this,wxID_TXT_FILTER,wxEmptyString,wxDefaultPosition,wxDefaultSize,0);
+	bSizer27->Add(txtFilter,0,wxEXPAND|wxLEFT|wxRIGHT,5);
+
 	m_staticText31 = new wxStaticText(this,wxID_ANY,wxT("Files:"),wxDefaultPosition,wxDefaultSize,0);
 	m_staticText31->Wrap(-1);
 	bSizer27->Add(m_staticText31,0,wxTOP|wxRIGHT|wxLEFT,5);
 
-	lboxFiles = new wxListBox(this,wxID_LB_FILES,wxDefaultPosition,wxSize(150,-1),0,NULL,0|wxALWAYS_SHOW_SB|wxVSCROLL);
-	bSizer27->Add(lboxFiles,1,wxBOTTOM|wxRIGHT|wxLEFT,5);
+	lboxFiles = new wxListBox(this,wxID_LB_FILES,wxDefaultPosition,wxSize(180,-1),0,NULL,0|wxALWAYS_SHOW_SB|wxVSCROLL);
+	bSizer27->Add(lboxFiles,1,wxLEFT|wxRIGHT,5);
 
 	m_staticText32 = new wxStaticText(this,wxID_ANY,wxT("Width:"),wxDefaultPosition,wxDefaultSize,0);
 	m_staticText32->Wrap(-1);
@@ -56,14 +75,35 @@ FormGResView::FormGResView(wxWindow* parent,SpellData* spell_data,wxWindowID id,
 	spinWidth = new wxSpinCtrl(this,wxID_SPIN_W,wxEmptyString,wxDefaultPosition,wxDefaultSize,wxSP_ARROW_KEYS,0,10,0);
 	bSizer27->Add(spinWidth,0,wxEXPAND|wxBOTTOM|wxRIGHT|wxLEFT,5);
 
+	cbTransparent = new wxCheckBox(this,wxID_CB_TRANSPARENT,wxT("Is transparent?"),wxDefaultPosition,wxDefaultSize,0);
+	bSizer27->Add(cbTransparent,0,wxALL,5);
+
 
 	bSizer26->Add(bSizer27,0,wxEXPAND,5);
 
 	m_staticline8 = new wxStaticLine(this,wxID_ANY,wxDefaultPosition,wxDefaultSize,wxLI_VERTICAL);
 	bSizer26->Add(m_staticline8,0,wxEXPAND|wxTOP|wxBOTTOM,5);
 
+	wxBoxSizer* bSizer97;
+	bSizer97 = new wxBoxSizer(wxVERTICAL);
+
 	canvas = new wxPanel(this,wxID_CANVAS,wxDefaultPosition,wxDefaultSize,wxFULL_REPAINT_ON_RESIZE|wxTAB_TRAVERSAL);
-	bSizer26->Add(canvas,1,wxALL|wxEXPAND,5);
+	bSizer97->Add(canvas,1,wxALL|wxEXPAND,5);
+
+	m_staticline32 = new wxStaticLine(this,wxID_ANY,wxDefaultPosition,wxDefaultSize,wxLI_HORIZONTAL);
+	bSizer97->Add(m_staticline32,0,wxEXPAND | wxALL,5);
+
+	m_staticText98 = new wxStaticText(this,wxID_ANY,wxT("Palette:"),wxDefaultPosition,wxDefaultSize,0);
+	m_staticText98->Wrap(-1);
+	bSizer97->Add(m_staticText98,0,wxLEFT|wxRIGHT,5);
+
+	palette = new wxPanel(this,wxID_PALETTE,wxDefaultPosition,wxDefaultSize,wxFULL_REPAINT_ON_RESIZE|wxTAB_TRAVERSAL);
+	palette->SetMaxSize(wxSize(-1,50));
+
+	bSizer97->Add(palette,1,wxBOTTOM|wxEXPAND|wxLEFT|wxRIGHT,5);
+
+
+	bSizer26->Add(bSizer97,1,wxEXPAND,5);
 
 
 	this->SetSizer(bSizer26);
@@ -72,29 +112,47 @@ FormGResView::FormGResView(wxWindow* parent,SpellData* spell_data,wxWindowID id,
 	this->Centre(wxBOTH);
 
 	// === AUTO GENERATED END ===
+
+		// set icon
+	wxIcon appIcon;
+	appIcon.LoadFile("IDI_ICON2",wxBITMAP_TYPE_ICO_RESOURCE);
+	if(appIcon.IsOk())
+		SetIcon(appIcon);
 	
 	// close
 	Bind(wxEVT_CLOSE_WINDOW, &FormGResView::OnClose, this, this->m_windowId);
 	Bind(wxEVT_MENU,&FormGResView::OnCloseClick,this,wxID_MM_CLOSE);
+	Bind(wxEVT_MENU,&FormGResView::OnExportClick,this,wxID_MM_EXPORT);
+	Bind(wxEVT_MENU,&FormGResView::OnExportAllClick,this,wxID_MM_EXPORT_ALL);
 	
-	// canvas stuff:
+	// canvas stuff:	
 	canvas->SetDoubleBuffered(true);
-	canvas->Bind(wxEVT_PAINT,&FormGResView::OnPaintCanvas,this);
+	canvas->Bind(wxEVT_PAINT,&FormGResView::OnPaintCanvas,this,wxID_CANVAS);
+	palette->SetDoubleBuffered(true);
+	palette->Bind(wxEVT_PAINT,&FormGResView::OnPaintPalette,this,wxID_PALETTE);
+	
 
 	Bind(wxEVT_COMMAND_LISTBOX_SELECTED,&FormGResView::OnSelectFile,this,wxID_LB_FILES);
 	Bind(wxEVT_SPINCTRL,&FormGResView::OnWidthChange,this,wxID_SPIN_W);
 
-	// try to load common.fs
-	wstring common_path = spell_data->spell_data_root + L"\\common.fs";
-	common = new FSarchive(common_path);
+	Bind(wxEVT_COMMAND_TEXT_UPDATED,&FormGResView::OnChangeFilter,this,wxID_TXT_FILTER);
+
+
+
+	const int ss_w[] = {120,120,120,80,290,-1};
+	sbar->SetFieldsCount(6,ss_w);
 
 	// fill list
 	//LoadFileList();
+	txtFilter->SetValue("*");
 	LoadGrpList();
 
+	// default width
 	spinWidth->SetMin(1);
 	spinWidth->SetMax(1024);
 	spinWidth->SetValue(16);
+	m_width_dir = 0;
+	m_width_old = 16;
 }
 
 FormGResView::~FormGResView()
@@ -103,7 +161,6 @@ FormGResView::~FormGResView()
 
 void FormGResView::OnClose(wxCloseEvent& ev)
 {
-	delete common;
 	wxPostEvent(GetParent(), ev);
 	ev.Skip();
 	Destroy();
@@ -115,26 +172,124 @@ void FormGResView::OnCloseClick(wxCommandEvent& event)
 	Close();
 }
 
-// fill common file list
-void FormGResView::LoadFileList()
-{	
-	lboxFiles->Freeze();
-	lboxFiles->Clear();
-	for(int k = 0; k < common->Count(); k++)
-	{
-		std::filesystem::path name = string(common->GetFileName(k));		
-
-		if( name.extension().compare(".LZ") == 0 ||
-			name.extension().compare(".LZ0") == 0 ||
-			name.extension().compare(".ICO") == 0 ||
-			name.extension().compare(".BTN") == 0 || 
-			wildcmp("RAM*.DTA",name.string().c_str()))
-		{
-			lboxFiles->Append(name.string());
-		}
-	}
-	lboxFiles->Thaw();
+// change wildcard filter
+void FormGResView::OnChangeFilter(wxCommandEvent& event)
+{
+	LoadGrpList();
 }
+
+
+// export glyph
+void FormGResView::OnExportClick(wxCommandEvent& event)
+{	
+	// select resource
+	if(lboxFiles->GetSelection() < 0 || lboxFiles->IsEmpty())
+		return;
+	std::string name = lboxFiles->GetString(lboxFiles->GetSelection()).ToStdString();
+
+	auto grpi = spell_data->gres.GetResource(name.c_str());
+	if(!grpi)
+		return;
+
+	/*if(!grpi->x_size)
+	{
+		wxMessageDialog wxMessageDialog(NULL,"Cannot export glyph of undefined size!","Export glyph",wxOK| wxICON_EXCLAMATION);
+		wxMessageDialog.ShowModal();
+		return;
+	}*/
+
+	
+	// remove extension
+	auto wname = std::filesystem::path(name).stem().concat(".png").wstring();
+
+	// split path to folder and file    	
+	//std::filesystem::path last_path = spell_data->export_path;
+	//wstring dir = last_path.parent_path(); dir += wstring(L"\\");
+
+	// show save dialog
+	wxFileDialog saveFileDialog(this,_("Export glyph image"),spell_data->export_path,wname,"PNG image file (*.png)|*.png",
+		wxFD_SAVE|wxFD_OVERWRITE_PROMPT);
+	if(saveFileDialog.ShowModal() == wxID_CANCEL)
+		return;
+	wstring path = wstring(saveFileDialog.GetPath().ToStdWstring());
+	spell_data->export_path = saveFileDialog.GetDirectory().ToStdWstring();
+
+
+	
+	// render glyph
+	auto bmp = Render(name,true);
+	if(!bmp)
+		return;
+	bmp->SaveFile(path,wxBITMAP_TYPE_PNG);
+	delete bmp;		
+
+	// save palette file
+	//auto pal_path = std::filesystem::path(path).parent_path().append(grpi->palette->m_name).wstring();	
+	//grpi->palette->Save(pal_path);
+		
+	// save palette file
+	auto pal_info_path = std::filesystem::path(path).parent_path().append(std::filesystem::path(grpi->palette->m_name).stem().string()).concat(".palinfo").wstring();
+	grpi->palette->SaveInfo(pal_info_path);
+
+	// save info file
+	auto info_path = std::filesystem::path(path).parent_path().append(wname).concat(".info").wstring();
+	grpi->ExportInfo(info_path,std::filesystem::path(path).filename().wstring());
+}
+
+
+// export all listed glyph
+void FormGResView::OnExportAllClick(wxCommandEvent& event)
+{	
+	// show save dialog
+	wxDirDialog saveDirDialog(this,"Export multiple glyphs",spell_data->export_path,wxDD_DIR_MUST_EXIST);
+	if(saveDirDialog.ShowModal() == wxID_CANCEL)
+		return;
+	wstring dir = wstring(saveDirDialog.GetPath().ToStdWstring());
+	spell_data->export_path = dir;
+
+	// rather ask for permission
+	wxMessageDialog wxMessageDialog(NULL,"Files in the selected folder might be overwritten! Continue?","Export glyphs", wxYES_NO | wxNO_DEFAULT | wxICON_QUESTION);
+	if(wxMessageDialog.ShowModal() != wxID_YES)
+		return;
+	
+	
+	for(auto &item: lboxFiles->GetStrings())
+	{			
+		// remove extension
+		//auto name = std::filesystem::path(item.ToStdString()).stem().string();
+		auto name = item.ToStdString();
+
+		auto grpi = spell_data->gres.GetResource(name.c_str());
+		if(!grpi)
+			return;
+		
+		// skip undefined glyphs
+		if(!grpi->x_size)
+			continue;
+
+		// render glyph
+		auto bmp = Render(item.ToStdString(),true);
+		if(!bmp)
+			return;
+		auto image_path = std::filesystem::path(dir).append(name).concat(".png");
+		bmp->SaveFile(image_path.wstring(),wxBITMAP_TYPE_PNG);
+		delete bmp;
+		
+		// save palette file
+		/*auto pal_path = std::filesystem::path(dir).append(grpi->palette->m_name).wstring();
+		grpi->palette->Save(pal_path);*/
+		auto pal_info_path = std::filesystem::path(dir).append(std::filesystem::path(grpi->palette->m_name).stem().string()).concat(".palinfo").wstring();
+		grpi->palette->SaveInfo(pal_info_path);
+
+		// save info file
+		auto info_path = std::filesystem::path(dir).append(name).concat(".info").wstring();
+		grpi->ExportInfo(info_path,image_path.filename().wstring());
+
+	}
+}
+
+
+
 
 // fill list of loaded graphics
 void FormGResView::LoadGrpList()
@@ -144,7 +299,11 @@ void FormGResView::LoadGrpList()
 	for(int k = 0; k < spell_data->gres.Count(); k++)
 	{
 		auto *res = spell_data->gres.GetResource(k);
-		lboxFiles->Append(res->name);
+
+		if(!txtFilter->GetValue().IsEmpty() && !wildcmp(txtFilter->GetValue(),res->full_name.c_str()))
+			continue;
+
+		lboxFiles->Append(res->full_name);
 	}
 	lboxFiles->Thaw();
 }
@@ -153,124 +312,142 @@ void FormGResView::LoadGrpList()
 void FormGResView::OnSelectFile(wxCommandEvent& event)
 {
 	canvas->Refresh();
+	palette->Refresh();
 }
 
 // change width
 void FormGResView::OnWidthChange(wxSpinEvent& event)
-{
+{	
+	int width = spinWidth->GetValue();
+	m_width_dir = min(max(width - m_width_old,-1),+1);
+	m_width_old = width;
 	canvas->Refresh();
 }
 
+// render glyph
+wxBitmap *FormGResView::Render(std::string name, bool for_export)
+{
+	auto grpi = spell_data->gres.GetResource(name.c_str());
+	if(!grpi)
+		return(NULL);
+
+	SetStatusText(name,0);
+	
+	bool known_size = false;
+	int len = grpi->pixels.size();
+
+	SetStatusText(string_format("size = %d",len),1);
+	SetStatusText(string_format("palette = %s (colors = %s)",grpi->palette->m_name.c_str(),grpi->palette->GetRangeString().c_str()),4);
+	SetStatusText(string_format("used colors = %s",grpi->GetColorRangeString().c_str()),5);
+
+	if(grpi->x_size)
+	{
+		// known exact size
+		m_width_old = grpi->x_size;
+		spinWidth->SetValue(grpi->x_size);
+		known_size = true;
+
+		SetStatusText(string_format("w = %d",grpi->x_size),2);
+		SetStatusText(string_format("h = %d",grpi->y_size),3);
+	}
+	else
+	{
+		// unknown size
+		int w = spinWidth->GetValue();
+		while(len % w)
+		{
+			if(m_width_dir > 0)
+				w++;
+			else
+				w--;
+			if(w >= len || w <= 1)
+				break;
+		}
+		m_width_old = w;
+		spinWidth->SetValue(w);
+
+		SetStatusText(string_format("w = %d (manual)",w),2);
+		SetStatusText(string_format("h = %d",len/w),3);
+	}
+
+	spinWidth->Enable(!known_size);
+	cbTransparent->SetValue(grpi->is_transparent);
+			
+		
+	// input data dimensions
+	int x_size = spinWidth->GetValue();
+	int y_size = len/x_size + ((len%x_size)?1:0);
+		
+	// canvas size
+	int surf_x = canvas->GetClientSize().GetWidth();
+	int surf_y = canvas->GetClientSize().GetHeight();
+	if(for_export)
+	{
+		surf_x = x_size;
+		surf_y = y_size;			
+	}
+
+	if(!known_size)
+	{
+		// fake size for render
+		grpi->x_size = x_size;
+		grpi->y_size = y_size;
+	}
+
+	// render
+	auto bmp = grpi->Render(surf_x,surf_y,for_export);
+
+	if(!known_size)
+	{
+		// restore size
+		grpi->x_size = 0;
+		grpi->y_size = 0;
+	}
+		
+	return(bmp);
+
+}
 
 // render preview
 void FormGResView::OnPaintCanvas(wxPaintEvent& event)
 {	
-	// make render buffer
-	wxBitmap bmp(canvas->GetClientSize(),24);
-	int surf_x = bmp.GetWidth();
-	int surf_y = bmp.GetHeight();	
-
-	// select file
-	if(lboxFiles->GetSelection() >= 0 && lboxFiles->GetCount())
-	{
-		std::filesystem::path name = lboxFiles->GetString(lboxFiles->GetSelection()).ToStdString();
-
-		// load file data
-		uint8_t *data;
-		int len;
-		int is_lzw = false;
-		SpellGraphicItem *grpi;
-		if((grpi = spell_data->gres.GetResource(name.string().c_str())) != NULL)
-		{
-			// loaded resource:
-			data = grpi->GetPixels();
-			len = grpi->x_size*grpi->y_size;
-			spinWidth->SetValue(grpi->x_size);
-		}
-		else if(name.extension().compare(".LZ") == 0 || name.extension().compare(".LZ0") == 0)
-		{						
-			// compressed: try decompress
-			is_lzw = true;
-
-			// get lz file data
-			uint8_t *lzdata;
-			int lzlen;
-			common->GetFile(name.string().c_str(), &lzdata, &lzlen);
-
-			LZWexpand lzw = LZWexpand(1048576);
-			lzw.Decode(lzdata, &lzdata[lzlen], &data, &len);
-		}
-		else
-		{
-			// raw data: load as is
-			common->GetFile(name.string().c_str(),&data,&len);
-		}
-		uint8_t *end = &data[len];
-
-		// load palette
-		auto terr = spell_data->GetTerrain(0);
-		uint8_t pal[256][3];
-		memcpy((void*)pal, (void*)terr->pal, 256*3);
-
-		// try to fetch specific palette
-		uint8_t *pdata;
-		int plen;
-		if(!common->GetFile(name.stem().concat(".PAL").string().c_str(), &pdata, &plen) && plen == 768)
-		{
-			memcpy((void*)pal,(void*)pdata,256*3);
-		}
-
-		// input data dimensions
-		int x_size = spinWidth->GetValue();
-		int y_size = len/x_size + ((len%x_size)?1:0);
-
-		if(x_size <= surf_x && y_size <= surf_y)
-		{
-			// image should fit to surface
-			int x_ofs = (surf_x - x_size)/2;
-			int y_ofs = (surf_y - y_size)/2;
-
-			// render 24bit RGB data to raw bmp buffer
-			uint8_t *buf = data;
-			wxNativePixelData pdata(bmp);
-			wxNativePixelData::Iterator p(pdata);
-			for(int y = 0; y < surf_y; y++)
-			{
-				uint8_t* scan = p.m_ptr;
-				for(int x = 0; x < surf_x; x++)
-				{
-					int is_visible = y >= y_ofs && y < y_ofs+y_size && x >= x_ofs && x < x_ofs+x_size && data < end;
-					if(is_visible && *buf)
-					{
-						*scan++ = pal[*buf][2];
-						*scan++ = pal[*buf][1];
-						*scan++ = pal[*buf][0];
-						buf++;
-					}
-					else
-					{
-						uint8_t checkers = (!(x&32) == !(y&32))?0x88:0xAA;
-						*scan++ = checkers;
-						*scan++ = checkers;
-						*scan++ = checkers;
-						if(is_visible)
-							buf++;
-					}
-				}
-				p.OffsetY(pdata,1);
-			}
-		}
-
-		// loose LZW decompressed data
-		if(is_lzw)
-			delete[] data;
-	}
+	// select resource
+	if(lboxFiles->GetSelection() < 0 || lboxFiles->IsEmpty())
+		return;
+	std::string name = lboxFiles->GetString(lboxFiles->GetSelection()).ToStdString();
+	
+	// render glyph
+	auto bmp = Render(name);
+	if(!bmp)
+		return;
 	
 	// blit to screen
 	wxPaintDC pdc(canvas);
-	pdc.DrawBitmap(bmp,wxPoint(0,0));
+	pdc.DrawBitmap(*bmp,wxPoint(0,0));
+	delete bmp;
 
+}
+
+// render palette preview
+void FormGResView::OnPaintPalette(wxPaintEvent& event)
+{
+	// select resource
+	if(lboxFiles->GetSelection() < 0 || lboxFiles->IsEmpty())
+		return;
+	std::string name = lboxFiles->GetString(lboxFiles->GetSelection()).ToStdString();
+
+	// get resource
+	auto grpi = spell_data->gres.GetResource(name.c_str());
+	if(!grpi)
+		return;
+
+	// render palette
+	wxBitmap bmp(palette->GetClientSize(),24);
+	grpi->palette->Render(bmp);
 	
+	// blit to screen
+	wxPaintDC pdc(palette);
+	pdc.DrawBitmap(bmp,wxPoint(0,0));
 }
 
 

@@ -26,6 +26,15 @@ int hex2num(char hex);
 char num2hex(int num);
 std::string fix_no_duplicate_string(std::string str,std::vector<std::string>& list);
 
+std::string info_get_string(std::string info,std::string key,std::string default_value="");
+int info_get_int(std::string info,std::string key,int default_value=0);
+std::string info_make_text_vector(std::string key,std::vector<std::string> list,std::string comment="");
+std::string info_make_section(std::string section_name,std::string data,std::string comment="");
+std::vector<std::string> info_get_text_vector(std::string info,std::string key);
+std::string info_get_section(std::string info,std::string section);
+
+std::vector<std::string> regexp_get(std::string str,std::string regkey);
+
 uint32_t popcount(uint32_t v);
 
 //int ostream_write_string(ofstream& fw,std::string &str);
@@ -171,6 +180,15 @@ public:
         std::ifstream::read((char*)&val,sizeof(int8_t));
         return(val);
     };
+
+    std::vector<uint8_t> read_vector() {
+        seekg(0,SEEK_END);
+        auto flen = tellg();
+        seekg(0);
+        std::vector<uint8_t> data(flen);
+        read((char*)data.data(),flen);
+        return(data);
+    }
   
     // read string item with size prefix (16bit)
     std::string read_str_p16()
@@ -179,6 +197,17 @@ public:
         std::string str(len,'\0');
         std::ifstream::read(str.data(),len);
         str.resize(len-1);
+        return(str);
+    }
+
+    // read entire file to string
+    std::string read_str()
+    {
+        seekg(0,SEEK_END);
+        auto flen = tellg();
+        seekg(0);
+        std::string str(flen,'\0');
+        read(str.data(),flen);        
         return(str);
     }
 

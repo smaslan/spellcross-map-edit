@@ -400,32 +400,14 @@ SpellData::SpellData(wstring &data_path,wstring& cd_data_path,wstring& spec_path
 	// load UNITS.PAL palette chunk for maps
 	if(status_list)
 		status_list("Loading palette files...");
-	if(common_fs->GetFile("UNITS.PAL",&data,&size) || size != 96*3)
+	if(LoadPalettes(common_fs))
 	{
 		this->~SpellData();
 		if(status_list)
-			status_list(" - missing UNITS.PAL!");
-		throw runtime_error("UNITS.PAL not found in COMMON.FS!");
+			status_list(" - missing palette file(s)!");
+		throw runtime_error("missing palette file(s) in COMMON.FS!");
 	}
-	std::memcpy(&map_pal[128][0],data,size);
-	// load SYSTEM.PAL palette chunk for maps
-	if(common_fs->GetFile("SYSTEM.PAL",&data,&size) || size != 32*3)
-	{
-		this->~SpellData();
-		if(status_list)
-			status_list(" - missing SYSTEM.PAL!");
-		throw runtime_error("SYSTEM.PAL not found in COMMON.FS!");
-	}
-	std::memcpy(&map_pal[224][0],data,size);
-	// load CURSOR.PAL palette chunk for maps - ###todo: not sure where to place this
-	/*if(common_fs->GetFile("CURSOR.PAL",&data,&size) || size != 6*3)
-	{
-		this->~SpellData();
-		if(status_list)
-			status_list(" - missing CURSOR.PAL!");
-		throw runtime_error("CURSOR.PAL not found in COMMON.FS!");
-	}
-	std::memcpy(&map_pal[218][0],data,size);*/
+		
 	
 	// load generic graphic resources
 	if(status_list)
@@ -685,6 +667,9 @@ SpellData::~SpellData()
 	if(videos)
 		delete videos;
 	videos = NULL;
+	for(auto &pal: pal_list)
+		delete pal;
+	pal_list.clear();
 }
 
 // auto build sprite context from all available spellcross maps
@@ -776,11 +761,78 @@ int SpellData::BuildHouseObjectsOfMaps(wstring folder,string terrain_name,std::f
 
 
 
+// load palette resources from COMMON.FS
+int SpellData::LoadPalettes(FSarchive* fs)
+{
+	std::vector<uint8_t> chunk;
+	SpellPalette *pal;
+
+	// make empty map palette (bottom 128 colors are from terrains)
+	pal = AddPalette("MAP");
+	
+	// UNITS.PAL chunk	
+	if(fs->GetFile("UNITS.PAL",chunk) || chunk.size() != 96*3)
+		return(1);
+	pal->Insert(chunk,"UNITS.PAL",128);
+		
+	// load SYSTEM.PAL palette chunk for maps
+	if(fs->GetFile("SYSTEM.PAL",chunk) || chunk.size() != 32*3)
+		return(1);
+	pal->Insert(chunk,"SYSTEM.PAL",224);
+
+	// load CURSOR.PAL palette chunk for maps - ###todo: not sure where to place this
+	/*if(common_fs->GetFile("CURSOR.PAL",&data,&size) || size != 6*3)
+	{
+		this->~SpellData();
+		if(status_list)
+			status_list(" - missing CURSOR.PAL!");
+		throw runtime_error("CURSOR.PAL not found in COMMON.FS!");
+	}
+	std::memcpy(&map_pal[218][0],data,size);*/
+
+	// make shortcut to map palette
+	map_pal = (uint8_t(*)[3])pal->m_pal.data();
+
+
+	
+	// make empty big map palette
+	pal = AddPalette("BIG_MAP.PAL");
+
+	// BIG_MAP.PAL chunk	
+	if(fs->GetFile("BIG_MAP.PAL",chunk) || chunk.size() != 64*3)
+		return(1);
+	pal->Insert(chunk,"BIG_MAP.PAL",192);
+	// _SHARED1.PAL chunk
+	if(fs->GetFile("_SHARED1.PAL",chunk) || chunk.size() != 128*3)
+		return(1);
+	pal->Insert(chunk,"_SHARED1.PAL",0);
+
+
+	// make empty main menu palette
+	pal = AddPalette("MAINMENU.PAL");
+
+	// MAINMENU.PAL chunk	
+	if(fs->GetFile("MAINMENU.PAL",chunk) || chunk.size() != 256*3)
+		return(1);
+	pal->Insert(chunk,"MAINMENU.PAL");
+
+	// make empty main menu palette
+	pal = AddPalette("STRATEGY.PAL");
+
+	// MAINMENU.PAL chunk	
+	if(fs->GetFile("STRATEGY.PAL",chunk) || chunk.size() != 256*3)
+		return(1);
+	pal->Insert(chunk,"STRATEGY.PAL");
+					
+
+	return(0);
+}
+
 // load generic graphics resources
 int SpellData::LoadAuxGraphics(FSarchive *fs,std::function<void(std::string)> status_item)
 {
-	// init LZW decoder
-	LZWexpand lzw(1000000);
+	// default map palette
+	auto *map_pal = GetPalette("MAP");
 
 	// for each file:
 	for(auto & file : fs->GetFiles())
@@ -791,10 +843,79 @@ int SpellData::LoadAuxGraphics(FSarchive *fs,std::function<void(std::string)> st
 		uint8_t *data = file->data.data();
 		uint8_t* data_end = &data[flen];
 
+		// try load specific palette of matching name if not there yet
+		auto pal_name = std::filesystem::path(name).stem().string() + ".PAL";		
+		std::vector<uint8_t> pal_data;
+		if(!fs->GetFile(pal_name.c_str(),pal_data))
+		{
+			if(pal_data.size() == 3*256 && !GetPalette(pal_name))
+			{
+				auto pal = AddPalette(pal_name);
+				pal->Insert(pal_data);
+			}
+		}
+
+
 		if(wildcmp("I_*.LZ", name))
 		{
 			// units icons, fized width 60
 			gres.AddRaw(data, flen, 60,flen/60, name, map_pal);
+		}
+		else if(wildcmp("LEVEL_??.LZ",name))
+		{
+			// big map territory images
+			
+			// make new palette
+			std::string pal_name = name;
+			pal_name.resize(8);
+			pal_name += ".PAL";
+			auto pal = GetPalette(pal_name);
+			if(!pal)
+			{
+				pal = AddPalette(pal_name);
+				std::vector<uint8_t> chunk;
+				if(fs->GetFile(pal_name.c_str(),chunk))
+					return(1);
+				pal->Insert(chunk,pal_name,128);
+			}
+			
+			int w = 379;
+			gres.AddRaw(data,flen,w,flen/w,name,pal,false);
+		}
+		else if(wildcmp("HMLA__??.LZ",name))
+		{
+			// big map territory images (background)
+			std::string pal_name = "LEVEL_??.PAL";
+			pal_name[6] = name[6];
+			pal_name[7] = name[7];
+			auto pal = GetPalette(pal_name);
+			if(!pal)
+			{
+				pal = AddPalette(pal_name);
+				std::vector<uint8_t> chunk;
+				if(fs->GetFile(pal_name.c_str(),chunk))
+					return(1);
+				pal->Insert(chunk,pal_name,128);
+			}
+
+			int w = 379;
+			gres.AddRaw(data,flen,w,flen/w,name,pal,true);
+		}
+		else if(strcmp(name,"BIG_MAP.LZ") == 0)
+		{
+			// big map main
+			auto pal = GetPalette("BIG_MAP.PAL");
+			if(!pal)
+				return(1);
+			gres.AddRaw(data,flen,640,flen/640,name,pal);
+		}
+		else if(strcmp(name,"BM_LSTA.LZ") == 0)
+		{
+			// big map chunk
+			auto pal = GetPalette("BIG_MAP.PAL");
+			if(!pal)
+				return(1);
+			gres.AddRaw(data,flen,65,flen/65,name,pal);
 		}
 		else if(strcmp(name, "LISTA_0.LZ") == 0 || strcmp(name,"LISTA_1.LZ") == 0)
 		{
@@ -826,15 +947,297 @@ int SpellData::LoadAuxGraphics(FSarchive *fs,std::function<void(std::string)> st
 			// war map end title
 			gres.AddRaw(data,flen,340,flen/340,name,map_pal);
 		}
+		else if(wildcmp("MAINMENU.LZ",name))
+		{
+			// main menu
+			auto pal = GetPalette("MAINMENU.PAL");
+			if(!pal)
+				return(1);
+			gres.AddRaw(data,flen,640,flen/640,name,pal,true);
+		}
+		else if(wildcmp("MAINM_*.LZ",name))
+		{
+			// main menu element highlighted
+			auto pal = GetPalette("MAINMENU.PAL");
+			if(!pal)
+				return(1);
+			gres.AddRaw(data,flen,255,flen/255,name,pal,true);
+		}
+		else if(wildcmp("MAINMD*.LZ",name))
+		{
+			// main menu element dark
+			auto pal = GetPalette("MAINMENU.PAL");
+			if(!pal)
+				return(1);
+			gres.AddRaw(data,flen,255,flen/255,name,pal,true);
+		}
+		else if(wildcmp("MM_LOAD.LZ",name))
+		{
+			// loader frame
+			auto pal = GetPalette("MAINMENU.PAL");
+			if(!pal)
+				return(1);
+			gres.AddRaw(data,flen,402,flen/402,name,pal);
+		}
+		else if(wildcmp("DIFFIC.LZ",name))
+		{
+			// difficulty frame
+			auto pal = GetPalette("MAINMENU.PAL");
+			if(!pal)
+				return(1);
+			gres.AddRaw(data,flen,249,flen/249,name,pal);
+		}
+		else if(wildcmp("DIFF??.LZ",name))
+		{
+			// difficulty ptions
+			auto pal = GetPalette("MAINMENU.PAL");
+			if(!pal)
+				return(1);
+			gres.AddRaw(data,flen,200,flen/200,name,pal);
+		}
+		else if(wildcmp("LOGO0001.LZ",name))
+		{
+			// logo
+			auto pal = GetPalette("LOGO0001.PAL");
+			if(!pal)
+				return(1);
+			gres.AddRaw(data,flen,640,flen/640,name,pal,true);
+		}
+		else if(wildcmp("NO_CD.LZ",name))
+		{
+			// no CD
+			auto pal = GetPalette("NO_CD.PAL");
+			if(!pal)
+				return(1);
+			gres.AddRaw(data,flen,640,flen/640,name,pal,true);
+		}
+		else if(wildcmp("JRC_LOGO.LZ",name))
+		{
+			// jrc logo
+			auto pal = GetPalette("JRC_LOGO.PAL");
+			if(!pal)
+				return(1);
+			gres.AddRaw(data,flen,640,flen/640,name,pal,true);
+		}
+		else if(wildcmp("CAULDRON.LZ",name))
+		{
+			// jrc logo
+			auto pal = GetPalette("CAULDRON.PAL");
+			if(!pal)
+				return(1);
+			gres.AddRaw(data,flen,640,flen/640,name,pal,true);
+		}
+		else if(wildcmp("PICTURE.LZ",name))
+		{
+			// picture
+			auto pal = GetPalette("PICTURE.PAL");
+			if(!pal)
+				return(1);
+			gres.AddRaw(data,flen,640,flen/640,name,pal,true);
+		}
+		else if(wildcmp("SKUSKA.LZ",name))
+		{
+			// picture
+			auto pal = GetPalette("SKUSKA.PAL");
+			if(!pal)
+				return(1);
+			gres.AddRaw(data,flen,640,flen/640,name,pal,true);
+		}
 		else if(strcmp(name,"OPT_BAR.LZ") == 0)
 		{
 			// window frame
+			auto pal = GetPalette("BIG_MAP.PAL");
+			if(!pal)
+				return(1);
 			gres.AddRaw(data,flen,10,flen/10,name,map_pal);
+		}
+		else if(strcmp(name,"OPTIONS.LZ") == 0)
+		{
+			// big map game options frame
+			auto pal = GetPalette("BIG_MAP.PAL");
+			if(!pal)
+				return(1);
+			gres.AddRaw(data,flen,569,flen/569,name,pal,true);
+		}
+		else if(strcmp(name,"BUY.LZ") == 0)
+		{
+			// buy panel
+			auto pal = GetPalette("BIG_MAP.PAL");
+			if(!pal)
+				return(1);
+			gres.AddRaw(data,flen,406,flen/406,name,pal,true);
+		}
+		else if(strcmp(name,"RSRCH_BG.LZ") == 0)
+		{
+			// buy panel
+			auto pal = GetPalette("BIG_MAP.PAL");
+			if(!pal)
+				return(1);
+			gres.AddRaw(data,flen,406,flen/406,name,pal,true);
+		}
+		else if(strcmp(name,"RES_BAR.LZ") == 0)
+		{
+			// ?
+			gres.AddRaw(data,flen,416,flen/416,name,map_pal,true);
+		}
+		else if(strcmp(name,"STATS.LZ") == 0)
+		{
+			// big map stats panel
+			auto pal = GetPalette("BIG_MAP.PAL");
+			if(!pal)
+				return(1);
+			gres.AddRaw(data,flen,569,flen/569,name,pal,true);
+		}
+		else if(strcmp(name,"FACTORY.LZ") == 0)
+		{
+			// factory panel
+			auto pal = GetPalette("BIG_MAP.PAL");
+			if(!pal)
+				return(1);
+			gres.AddRaw(data,flen,569,flen/569,name,pal,true);
+		}
+		else if(strcmp(name,"HIERARCH.LZ") == 0)
+		{
+			// hierarchy panel
+			auto pal = GetPalette("BIG_MAP.PAL");
+			if(!pal)
+				return(1);
+			gres.AddRaw(data,flen,406,flen/406,name,pal,true);
+		}
+		else if(strcmp(name,"UNITS.LZ") == 0)
+		{
+			// hierarchy panel
+			auto pal = GetPalette("BIG_MAP.PAL");
+			if(!pal)
+				return(1);
+			gres.AddRaw(data,flen,406,flen/406,name,pal,true);
+		}
+		else if(strcmp(name,"INFO.LZ") == 0)
+		{
+			// big map info panel
+			auto pal = GetPalette("BIG_MAP.PAL");
+			if(!pal)
+				return(1);
+			gres.AddRaw(data,flen,412,flen/412,name,pal,true);
+		}
+		else if(wildcmp("VM?_FULL.LZ",name))
+		{
+			// big map panel chunks (outer frame)
+			auto pal = GetPalette("BIG_MAP.PAL");
+			if(!pal)
+				return(1);
+			gres.AddRaw(data,flen,575,flen/575,name,pal,true);
+		}
+		else if(wildcmp("VMB_LST1.LZ",name))
+		{
+			// big map panel chunks
+			auto pal = GetPalette("BIG_MAP.PAL");
+			if(!pal)
+				return(1);
+			gres.AddRaw(data,flen,163,flen/163,name,pal,true);
+		}
+		else if(wildcmp("VMB_LST2.LZ",name))
+		{
+			// big map panel chunks
+			auto pal = GetPalette("BIG_MAP.PAL");
+			if(!pal)
+				return(1);
+			gres.AddRaw(data,flen,241,flen/241,name,pal,true);
+		}
+		else if(wildcmp("VMM_LST1.LZ",name))
+		{
+			// big map panel chunks
+			auto pal = GetPalette("BIG_MAP.PAL");
+			if(!pal)
+				return(1);
+			gres.AddRaw(data,flen,163,flen/163,name,pal,true);
+		}
+		else if(wildcmp("VMM_LST2.LZ",name))
+		{
+			// big map panel chunks
+			auto pal = GetPalette("BIG_MAP.PAL");
+			if(!pal)
+				return(1);
+			gres.AddRaw(data,flen,406,flen/406,name,pal,true);
+		}
+		else if(wildcmp("VMR_LST1.LZ",name))
+		{
+			// big map panel chunks
+			auto pal = GetPalette("BIG_MAP.PAL");
+			if(!pal)
+				return(1);
+			gres.AddRaw(data,flen,120,flen/120,name,pal,true);
+		}
+		else if(wildcmp("VMU_LST1.LZ",name))
+		{
+			// big map panel chunks
+			auto pal = GetPalette("BIG_MAP.PAL");
+			if(!pal)
+				return(1);
+			gres.AddRaw(data,flen,154,flen/154,name,pal,true);
+		}
+		else if(wildcmp("VMU_LST2.LZ",name))
+		{
+			// big map panel chunks
+			auto pal = GetPalette("BIG_MAP.PAL");
+			if(!pal)
+				return(1);
+			gres.AddRaw(data,flen,241,flen/241,name,pal,true);
+		}
+		else if(wildcmp("VMU_SLCT.LZ",name))
+		{
+			// big map panel chunks
+			auto pal = GetPalette("BIG_MAP.PAL");
+			if(!pal)
+				return(1);
+			gres.AddRaw(data,flen,73,flen/73,name,pal,true);
+		}
+		else if(wildcmp("VM?_*.LZ",name))
+		{
+			// big map panel chunks (outer frame)
+			auto pal = GetPalette("BIG_MAP.PAL");
+			if(!pal)
+				return(1);
+			gres.AddRaw(data,flen,0,0,name,pal,true);
+		}
+		else if(wildcmp("SB_BAR*.LZ",name))
+		{
+			// big map panel chunks (vertical scroll bar)
+			auto pal = GetPalette("BIG_MAP.PAL");
+			if(!pal)
+				return(1);
+			gres.AddRaw(data,flen,16,flen/16,name,pal,true);
+		}
+		else if(wildcmp("SB_BG*.LZ",name))
+		{
+			// big map panel chunks (list boxes)
+			auto pal = GetPalette("BIG_MAP.PAL");
+			if(!pal)
+				return(1);
+			gres.AddRaw(data,flen,163,flen/163,name,pal,true);
+		}
+		else if(wildcmp("SB_*.LZ",name))
+		{
+			// big map panel chunks (up/down buttons)
+			auto pal = GetPalette("BIG_MAP.PAL");
+			if(!pal)
+				return(1);
+			gres.AddRaw(data,flen,22,flen/22,name,pal,true);
+		}
+		else if(strcmp(name,"GOTOLSTA.LZ") == 0)
+		{
+			// map center panel
+			gres.AddRaw(data,flen,176,flen/176,name,map_pal);
 		}
 		else if(strcmp(name,"MAP_OPT.LZ") == 0)
 		{
 			// window frame
 			gres.AddRaw(data,flen,436,flen/436,name,map_pal);
+		}
+		else if(strcmp(name,"WM_STAT.LZ") == 0)
+		{
+			// was map stats
+			gres.AddRaw(data,flen,408,flen/408,name,map_pal);
 		}
 		else if(wildcmp("*.ICO",name) || wildcmp("*.BTN",name))
 		{
@@ -849,32 +1252,43 @@ int SpellData::LoadAuxGraphics(FSarchive *fs,std::function<void(std::string)> st
 		else if(wildcmp("*.GFK",name))
 		{
 			// GFK projection files: fixed 21x21 pixel with transparencies
-			gres.AddRaw(data,flen,21,21,name,map_pal,true);
+			gres.AddRaw(data,flen,21,21,name,map_pal);
 		}
 		else if(strcmp(name,"I_ATTACK") == 0 || strcmp(name,"I_LOWER") == 0 || strcmp(name,"I_MOVE") == 0 || strcmp(name,"I_UPPER") == 0 || strcmp(name,"I_SELECT") == 0)
 		{
 			// raw icon files
-			gres.AddRaw(data,flen,20,20,name,map_pal,false,true);
+			gres.AddRaw(data,flen,20,20,name,map_pal,true);
 		}
 		else if(strcmp(name,"I_TAB") == 0)
 		{
 			// raw icon files
-			gres.AddRaw(data,flen,60,45,name,map_pal,false,true);
+			gres.AddRaw(data,flen,60,45,name,map_pal,true);
 		}
 		else if(wildcmp("RAM?HORZ.DTA",name))
 		{
 			// frame part
-			gres.AddRaw(data,flen,76,flen/76,name,map_pal,true);
+			gres.AddRaw(data,flen,76,flen/76,name,map_pal);
 		}
 		else if(wildcmp("RAM*.DTA",name))
 		{
 			// frame part
-			gres.AddRaw(data,flen,10,flen/10,name,map_pal,true);
+			gres.AddRaw(data,flen,10,flen/10,name,map_pal);
 		}
 		else if(wildcmp("*.PNM",name))
 		{
 			// PNM animations:
 			gres.AddPNM(data,flen,name);
+		}
+		else if(wildcmp("*.LZ",name))
+		{
+			// unknown *.LZ stuff
+
+			// try fetch palette of matching name or use default map palette
+			auto spec_pal = GetPalette(pal_name);
+			if(!spec_pal)
+				spec_pal = map_pal;
+
+			gres.AddRaw(data,flen,0,0,name,spec_pal);
 		}
 		else
 			continue;
@@ -1092,4 +1506,378 @@ Terrain* SpellData::GetTerrain(int index)
 	if(index >= terrain.size())
 		return(NULL);
 	return(terrain[index]);
+}
+
+
+
+//=============================================================================
+// Spellcross palette
+//=============================================================================
+
+// make palette record
+SpellPalette::SpellPalette()
+{
+	m_name = "empty";
+	m_pal.assign(3*256,0);
+	m_used.assign(256,0);
+}
+
+// make palette record
+SpellPalette::SpellPalette(std::string name)
+{
+	m_name = name;
+	m_pal.assign(3*256,0);
+	m_used.assign(256,0);
+}
+
+// clear palette colors
+void SpellPalette::Clear()
+{
+	m_pal.assign(3*256,0);
+	m_used.assign(256,0);
+	m_name = "";
+	m_chunks.clear();
+}
+
+// place chunk of data to palette with offset (0 - 255)
+int SpellPalette::Insert(std::vector<uint8_t>& data,std::string name,int offset)
+{
+	if(data.size() % 3 || data.size()/3 + offset > 256)
+		return(1);
+	memcpy(m_pal.data() + offset*3,data.data(),data.size());
+	memset(m_used.data() + offset,1,data.size()/3);
+	
+	// add chunk record
+	SpellPalette::Chunk chunk;
+	chunk.name = name;
+	chunk.offset = offset;
+	chunk.size = data.size()/3;
+	m_chunks.push_back(chunk);
+		
+	return(0);
+}
+
+// place chunk of data to palette from file with offset (0 - 255)
+int SpellPalette::Insert(std::wstring path,int offset,std::string used)
+{
+	ifstreamext fr(path.c_str(),ios::in);
+	if(!fr.is_open())
+		return(1);
+	auto chunk = fr.read_vector();
+	fr.close();
+	auto name = std::filesystem::path(path).filename().string();
+	if(Insert(chunk,name,offset))
+		return(1);
+	
+	// try assign mask of used colors from string style: 0, 128-191, ...
+	if(used.empty())
+		return(1);
+	m_used.assign(256,0);
+
+	// parse used string
+	std::regex regexz(",");
+	auto chunks = vector<std::string>(std::sregex_token_iterator(used.begin(),used.end(),regexz,-1),std::sregex_token_iterator());
+	for(auto &chunk: chunks)
+	{
+		auto list = regexp_get(chunk,"\\s*([\\d]+)\\s*-*\\s*([\\d]+)*");
+		if(list.size() < 1)
+			return(1);
+		int from = std::atoi(list[0].c_str());
+		int to = -1;
+		if(list.size() >= 2 && !list[1].empty())
+			to = std::atoi(list[1].c_str());
+		if(from > 255 || to > 255)
+			return(1);		
+		m_used[from] = 1;
+		if(to > 0)
+			std::fill(m_used.begin() + from, m_used.begin() + to, 1);
+	}
+	return(0);
+}
+
+// get assigned range
+std::tuple<int,int> SpellPalette::GetRange(int start)
+{
+	auto beg = std::find(m_used.begin() + start, m_used.end(), 1);
+	if(beg == m_used.end())
+		return std::tuple(-1,-1);
+	auto end = std::find(beg,m_used.end(),0);
+	if(end == m_used.end())
+		end = m_used.end();	
+	return std::tuple(beg - m_used.begin(),end - m_used.begin() - 1);
+}
+
+// get assigned range string
+std::string SpellPalette::GetRangeString()
+{
+	int offset = 0;
+	bool was0 = false;
+	std::string palstr = "";
+	while(true)
+	{
+		auto [p1,p2] = GetRange(offset);
+		if(p1 < 0 || p2 < 0)
+			break;
+		if(p1 == 0)
+			was0 = true;
+		if(offset)
+			palstr += ", ";
+		palstr += string_format("%d-%d",p1,p2);
+		offset = p2 + 1;
+	}
+	if(!was0)
+	palstr = "0, " + palstr;
+	return(palstr);
+}
+
+// save palette to file
+int SpellPalette::Save(std::wstring path)
+{
+	// try open file
+	ofstreamext fw(path,ios::out | ios::binary | ios::trunc);
+	if(!fw.is_open())
+		return(1);
+
+	fw.write((const char*)m_pal.data(),m_pal.size());
+	fw.close();
+
+	return(0);
+}
+
+// save palette chunks to file
+int SpellPalette::SaveChunks(std::wstring directory_path)
+{
+	// for each palette chunk:
+	for(auto &chunk: m_chunks)
+	{
+		if(chunk.offset + chunk.size > m_pal.size()/3)
+			return(1);
+
+		// try make file
+		auto path = std::filesystem::path(directory_path).append(chunk.name).wstring();
+		ofstreamext fw(path,ios::out | ios::binary | ios::trunc);
+		if(!fw.is_open())
+			return(1);
+				
+		// store chunk
+		fw.write((const char*)m_pal.data() + chunk.offset*3,chunk.size*3);
+		fw.close();
+	}
+
+	return(0);
+}
+
+
+
+// save palette as info file
+int SpellPalette::SaveInfo(std::wstring path)
+{
+	std::string info = "";
+
+	info += string_format("// Spellcross palette meta file (autogenerated by Spellcross Map Editor)\n");
+	info += string_format("name:: %s\n",m_name.c_str());
+	info += string_format("size:: %d\n",m_pal.size()/3);
+	info += string_format("assigned:: %s\n",GetRangeString().c_str());
+
+	std::vector<std::string> list;
+	for(int k = 0; k < m_pal.size() - 2; k += 3)
+		list.push_back(string_format("%3u, %3u, %3u",m_pal[k + 0],m_pal[k + 1],m_pal[k + 2]));
+	info += string_format("\n");
+	info += info_make_text_vector("colors",list,"// format: R, G, B");
+
+	std::vector<std::string> chunk_names;
+	for(auto &chunk: m_chunks)
+		chunk_names.push_back(chunk.name);	
+	info += string_format("\n");
+	info += info_make_text_vector("chunks list",chunk_names);
+			
+	for(auto& chunk: m_chunks)
+	{
+		std::string cinf = "";
+		
+		cinf += string_format("offset:: %d\n",chunk.offset);
+		cinf += string_format("size:: %d\n\n",chunk.size);
+		
+		std::vector<std::string> list;
+		for(int k = chunk.offset; k < chunk.offset + chunk.size; k += 3)
+			list.push_back(string_format("%3u, %3u, %3u",m_pal[k + 0],m_pal[k + 1],m_pal[k + 2]));
+		cinf += info_make_text_vector("colors",list,"// format: R, G, B");
+
+		info += string_format("\n");
+		info += info_make_section(chunk.name,cinf);
+	}
+	
+	// try open file
+	ofstreamext fw(path,ios::out | ios::binary | ios::trunc);
+	if(!fw.is_open())
+		return(1);
+	fw.write((const char*)info.data(),info.size());
+	fw.close();
+}
+
+// load palette from info file
+int SpellPalette::LoadInfo(std::wstring path)
+{
+	Clear();
+
+	// load source info
+	ifstreamext fr(path.c_str(),ios::in);
+	if(!fr.is_open())
+		return(1);
+	auto info = fr.read_str();
+	fr.close();
+
+	m_name = info_get_string(info, "name");
+	if(m_name.empty())
+		return(1);
+	
+	// read common colors list
+	auto colors_list = info_get_text_vector(info,"colors");
+	int cid = 0;
+	for(auto &color: colors_list)
+	{
+		int r,g,b;
+		if(cid >= 3*256 || std::sscanf(color.c_str(),"%d,%d,%d",&r,&g,&b) != 3)
+		{
+			Clear();
+			return(1);
+		}
+		m_pal[cid + 0] = r;
+		m_pal[cid + 1] = g;
+		m_pal[cid + 2] = b;
+		cid += 3;		
+	}
+
+	// parse assigned string
+	auto assigned = info_get_string(info,"assigned");
+	if(assigned.empty())
+	{
+		Clear();
+		return(1);
+	}
+	std::regex regexz(",");
+	auto chunks = vector<std::string>(std::sregex_token_iterator(assigned.begin(),assigned.end(),regexz,-1),std::sregex_token_iterator());
+	for(auto& chunk: chunks)
+	{
+		auto list = regexp_get(chunk,"\\s*([\\d]+)\\s*-*\\s*([\\d]+)*");
+		if(list.size() < 1)
+		{
+			Clear();
+			return(1);
+		}
+		int from = std::atoi(list[0].c_str());
+		int to = -1;
+		if(list.size() >= 2 && !list[1].empty())
+			to = std::atoi(list[1].c_str());
+		if(from > 255 || to > 255)
+		{
+			Clear();
+			return(1);
+		}
+		m_used[from] = 1;
+		if(to > 0)
+			std::fill(m_used.begin() + from,m_used.begin() + to,1);
+	}
+
+	// parse chunks
+	auto chunk_list = info_get_text_vector(info, "chunks list");
+	for(auto &chunk_name: chunk_list)
+	{
+		auto cinf = info_get_section(info,chunk_name);
+		Chunk chunk;
+		chunk.name = chunk_name;
+		chunk.offset = info_get_int(cinf,"offset",-1);
+		chunk.size = info_get_int(cinf,"size",-1);
+		if(chunk.size < 0 || chunk.offset < 0 || chunk.offset + chunk.size > 256)
+		{
+			Clear();
+			return(1);
+		}
+		m_chunks.push_back(chunk);
+	}
+
+	return(0);
+}
+
+
+// render palette into bitmap (scale up as much as possible)
+int SpellPalette::Render(wxBitmap& bmp)
+{
+	// canvas size
+	int surf_x = bmp.GetWidth();
+	int surf_y = bmp.GetHeight();
+
+	int x_color_width = surf_x/256;
+	int x_ofs = (surf_x - x_color_width*256)/2;
+	int x_end = x_ofs + x_color_width*256;
+
+	// split vertically
+	int filter_y_limit = surf_y/2;
+
+	// palette
+	uint8_t (*pal)[3] = (uint8_t(*)[3])m_pal.data();
+
+	// render 24bit RGB data to raw bmp buffer
+	wxNativePixelData data(bmp);
+	wxNativePixelData::Iterator p(data);
+	for(int y = 0; y < surf_y; ++y)
+	{
+		uint8_t* scan = p.m_ptr;
+		for(int x = 0; x < surf_x; x++)
+		{
+			if(x < 1 || x >= surf_x-1 || y < 1 || y >= surf_y-1)
+			{
+				*scan++ = 0x00;
+				*scan++ = 0x00;
+				*scan++ = 0x00;
+			}
+			else if(x >= x_ofs && x < x_end)
+			{
+				int color = (x - x_ofs)/x_color_width;
+				*scan++ = pal[color][2];
+				*scan++ = pal[color][1];
+				*scan++ = pal[color][0];
+			}
+			else
+			{
+				uint8_t color = (!(x&32) ^ !(y&32))?0x88:0xAA;
+				*scan++ = color;
+				*scan++ = color;
+				*scan++ = color;
+			}
+		}
+		p.OffsetY(data,1);
+	}
+
+	return(0);
+}
+
+
+
+// make new palette if not there yet, return pointer
+SpellPalette* SpellData::AddPalette(std::string name)
+{
+	auto pal = GetPalette(name);
+	if(!pal)
+		pal = new SpellPalette(name);
+	pal_list.push_back(pal);
+	return(pal);
+}
+
+// get palette by name
+SpellPalette* SpellData::GetPalette(std::string name)
+{
+	for(auto& pal: pal_list)
+		if(!pal->m_name.compare(name))
+			return(pal);
+	return(NULL);
+}
+
+// get palette by name
+uint8_t* SpellData::GetPaletteData(std::string name)
+{
+	auto pal = GetPalette(name);
+	if(!pal)
+		return(NULL);
+	return(pal->m_pal.data());
 }

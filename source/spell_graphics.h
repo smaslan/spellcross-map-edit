@@ -11,6 +11,7 @@ using namespace std;
 // forward refs
 class AnimPNM;
 
+class SpellPalette;
 
 class SpellGraphicItem
 {
@@ -19,16 +20,25 @@ public:
 	int y_size;
 	int x_ofs;
 	int y_ofs;
-	char name[13];
+	bool is_transparent; // color #0 is tranparancy?
+	std::string name; // no extension
+	std::string full_name; // with extension if exists
 	vector<uint8_t> pixels;
+	SpellPalette* palette;
 	uint8_t (*pal)[3];
+	
 
+	void Clear();
 	uint8_t *GetPixels(int y = 0, int x = 0);
 	int Render(uint8_t *buf,uint8_t* buf_end,int buf_x_size,int x_pos,int y_pos,int in_black=false,int* y_buffer=NULL);
 	wxBitmap* Render(int x_size=-1,int y_size=-1,bool transparent=false,bool invert=false);
 	wxBitmap* Render(bool transparent,bool invert=false);
 	wxCursor* RenderCUR(bool is_grayscale=true);
+	int Encode(wxBitmap &bmp,std::string name,SpellPalette *target_pal,int dither_dist);
 	int RenderMask(uint8_t* buf,uint8_t* buf_end);
+	int ExportInfo(wstring path,wstring image_name);
+	int Export(std::wstring path);
+	std::string GetColorRangeString();
 };
 
 class SpellProjectile
@@ -48,14 +58,14 @@ class SpellGraphics
 private:
 	vector<SpellGraphicItem> items;
 	vector<AnimPNM*> pnms;
-	vector<SpellProjectile> projectiles;
+	vector<SpellProjectile> projectiles;	
 public:
 	SpellGraphics();
 	~SpellGraphics();
-	int AddRaw(uint8_t *data, int dlen, int x_size, int y_size, const char *name,uint8_t pal[][3],int with_ext=0,int fix_black=false);
-	int AddICO(uint8_t* data,int dlen,const char* name,uint8_t pal[][3]);
-	int AddCUR(uint8_t* data,int dlen,const char* name,uint8_t pal[][3]);
-	int AddLED(int color,const char* name,uint8_t pal[][3]);
+	int AddRaw(uint8_t *data, int dlen, int x_size, int y_size, const char *name,SpellPalette *pal,int is_solid=false);
+	int AddICO(uint8_t* data,int dlen,const char* name,SpellPalette* pal);
+	int AddCUR(uint8_t* data,int dlen,const char* name,SpellPalette* pal);
+	int AddLED(int color,const char* name,SpellPalette* pal);
 	int Count();
 	SpellGraphicItem *GetResource(int index);
 	SpellGraphicItem *GetResource(const char *name);
@@ -134,3 +144,4 @@ public:
 	int SortProjectiles();
 	SpellProjectile *GetProjectile(char *name);
 };
+

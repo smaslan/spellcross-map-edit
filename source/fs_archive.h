@@ -46,6 +46,7 @@ class FSarchive
 		int GetFile(int id, uint8_t** data, int* size, const char** name=NULL);		
 		inline std::string GetFile(const char* name);
 		std::string GetFile(std::string& name);
+		int GetFile(const char* name,std::vector<uint8_t> &data);
 		int FreeFileData(const char* name);
 		int FreeFileData(std::string name);
 		int FreeFileData(int id);

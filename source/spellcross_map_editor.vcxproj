@@ -32,6 +32,7 @@
     <ClCompile Include="forms\form_edit_toolset.cpp" />
     <ClCompile Include="forms\form_events.cpp" />
     <ClCompile Include="forms\form_flags.cpp" />
+    <ClCompile Include="forms\form_gr_encode.cpp" />
     <ClCompile Include="forms\form_gr_view.cpp" />
     <ClCompile Include="forms\form_loader.cpp" />
     <ClCompile Include="forms\form_map_options.cpp" />
@@ -99,6 +100,7 @@
     <ClInclude Include="forms\form_edit_toolset.h" />
     <ClInclude Include="forms\form_events.h" />
     <ClInclude Include="forms\form_flags.h" />
+    <ClInclude Include="forms\form_gr_encode.h" />
     <ClInclude Include="forms\form_gr_view.h" />
     <ClInclude Include="forms\form_loader.h" />
     <ClInclude Include="forms\form_map_options.h" />

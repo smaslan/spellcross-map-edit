@@ -258,6 +258,19 @@ string FSarchive::GetFile(const char* name)
 	return(text);
 }
 
+// get file by name
+int FSarchive::GetFile(const char* name,std::vector<uint8_t> &data)
+{
+	data.clear();
+	uint8_t *ptr;
+	int size;
+	if(GetFile(name,&ptr,&size))
+		return(1);
+	data.resize(size);
+	memcpy(data.data(),ptr,size);		
+	return(0);
+}
+
 // get file by order index (zero based)
 int FSarchive::GetFile(int id, uint8_t** data, int* size, const char **name)
 {	

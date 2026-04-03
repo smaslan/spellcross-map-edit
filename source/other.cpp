@@ -5,7 +5,7 @@
 #include <filesystem>
 #include <random>
 #include <regex>
-
+#include <sstream>
 
 std::wstring char2wstring(const char* str)
 {
@@ -229,6 +229,106 @@ std::string fix_no_duplicate_string(std::string str, std::vector<std::string> &l
         str = prefix + num;
     }
     return(str);
+}
+
+// fetch info file key value
+std::string info_get_string(std::string info, std::string key, std::string default_value)
+{
+    // look for entire section
+    std::regex secexp("^\\s*" + key + ":: ([^\\n]+)");
+    std::smatch match;
+    std::regex_search(info,match,secexp);
+    if(match.size() < 2)
+        return(default_value);
+    return(match[1]);
+}
+
+// fetch info file key integer value
+int info_get_int(std::string info,std::string key,int default_value)
+{
+    // look for entire section
+    auto str = info_get_string(info,key,"");
+    if(str.empty())
+        return(default_value);
+    return(std::atoi(str.c_str()));
+}
+
+// make info matrix of vector of strings (vertical)
+std::string info_make_text_vector(std::string key,std::vector<std::string> list,std::string comment)
+{
+    std::string info = comment;
+    if(!comment.empty())
+        info += string_format("\n");
+    info += string_format("#startmatrix:: %s\n",key.c_str());
+    for(auto& item: list)
+        info += string_format("\t%s\n",item.c_str());
+    info += string_format("#endmatrix:: %s\n",key.c_str());
+    return(info);
+}
+
+// make info section and fill with data
+std::string info_make_section(std::string section_name,std::string data,std::string comment)
+{
+    std::string info = comment;
+    if(!comment.empty())
+        info += string_format("\n");
+    info += string_format("#startsection:: %s\n",section_name.c_str());
+    std::istringstream iss(data);
+    std::string line;
+    while(std::getline(iss,line,'\n')) {
+        info += string_format("\t%s\n",line.c_str());
+    };
+    info += string_format("#endsection:: %s\n",section_name.c_str());
+    return(info);
+}
+
+// get strings vector from info file
+std::vector<std::string> info_get_text_vector(std::string info,std::string key)
+{
+    std::vector<std::string> rows;
+
+    // look for entire matrix section
+    auto regstr = string_format(".*?#startmatrix::\\s*%s\\n([\\s\\S]*?)#endmatrix::\\s*%s\\n*",key.c_str(),key.c_str());
+    std::regex secexp(regstr);
+    std::smatch match;
+    std::regex_search(info,match,secexp);
+    if(match.size() < 2)
+        return(rows);
+
+    // split rows
+    std::istringstream iss(match[1]);
+    std::string line;
+    while(std::getline(iss,line,'\n')) {
+        rows.push_back(std::regex_replace(line,std::regex("^\\s+|\\s+$|(\\s)\\s+"),"$1"));
+    };
+    return(rows);
+}
+
+// get section content
+std::string info_get_section(std::string info,std::string section)
+{
+    auto regstr = string_format(".*?#startsection::\\s*%s\\n([\\s\\S]*?)#endsection::\\s*%s\\n*",section.c_str(),section.c_str());
+    std::regex secexp(regstr);
+    std::smatch match;
+    std::regex_search(info,match,secexp);
+    if(match.size() < 2)
+        return("");
+    return(match[1]);
+}
+
+
+
+// get stuff using regex
+std::vector<std::string> regexp_get(std::string str,std::string regkey)
+{
+    // look for entire section
+    std::regex secexp(regkey);
+    std::smatch match;
+    std::regex_search(str,match,secexp);
+    std::vector<std::string> list;
+    for(int k = 1; k < match.size(); k++)
+        list.push_back(match[k]);
+    return(list);
 }
 
 // count bits in varible
