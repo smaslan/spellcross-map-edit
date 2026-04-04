@@ -200,7 +200,7 @@ void FormGResView::OnExportClick(wxCommandEvent& event)
 
 	
 	// remove extension
-	auto wname = std::filesystem::path(name).stem().concat(".png").wstring();
+	auto wname = std::filesystem::path(name).concat(".png").wstring();
 
 	// split path to folder and file    	
 	//std::filesystem::path last_path = spell_data->export_path;
@@ -248,8 +248,8 @@ void FormGResView::OnExportAllClick(wxCommandEvent& event)
 	spell_data->export_path = dir;
 
 	// rather ask for permission
-	wxMessageDialog wxMessageDialog(NULL,"Files in the selected folder might be overwritten! Continue?","Export glyphs", wxYES_NO | wxNO_DEFAULT | wxICON_QUESTION);
-	if(wxMessageDialog.ShowModal() != wxID_YES)
+	wxMessageDialog msg(NULL,"Files in the selected folder might be overwritten! Continue?","Export glyphs", wxYES_NO | wxNO_DEFAULT | wxICON_QUESTION);
+	if(msg.ShowModal() != wxID_YES)
 		return;
 	
 	

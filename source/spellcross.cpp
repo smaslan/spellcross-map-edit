@@ -859,7 +859,7 @@ int SpellData::LoadAuxGraphics(FSarchive *fs,std::function<void(std::string)> st
 		if(wildcmp("I_*.LZ", name))
 		{
 			// units icons, fized width 60
-			gres.AddRaw(data, flen, 60,flen/60, name, map_pal);
+			gres.AddRaw(data, flen, 60,0, name, map_pal);
 		}
 		else if(wildcmp("LEVEL_??.LZ",name))
 		{

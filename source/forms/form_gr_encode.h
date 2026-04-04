@@ -128,7 +128,7 @@ protected:
 
 public:
 
-	FormGResEncoder(wxWindow* parent,SpellData* spell_data,wxWindowID id = wxID_ANY,const wxString& title = wxT("Graphics Resource Encoder"),const wxPoint& pos = wxDefaultPosition,const wxSize& size = wxSize(1350,700),long style = wxDEFAULT_FRAME_STYLE|wxFRAME_FLOAT_ON_PARENT|wxTAB_TRAVERSAL);
+	FormGResEncoder(wxWindow* parent,SpellData* spell_data,wxWindowID id = wxID_ANY,const wxString& title = wxT("Graphics Resource Encoder"),const wxPoint& pos = wxDefaultPosition,const wxSize& size = wxSize(1600,800),long style = wxDEFAULT_FRAME_STYLE|wxFRAME_FLOAT_ON_PARENT|wxTAB_TRAVERSAL);
 	~FormGResEncoder();
 
 };

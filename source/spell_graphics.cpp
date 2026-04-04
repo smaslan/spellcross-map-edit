@@ -42,6 +42,17 @@ SpellGraphics::~SpellGraphics()
 // load raw bitmap of known size
 int SpellGraphics::AddRaw(uint8_t* data,int dlen,int x_size,int y_size,const char *name,SpellPalette *pal,int is_solid)
 {	
+	if(!x_size)
+		return(1);
+
+	// auto y-size?
+	if(!y_size)
+		y_size = dlen/x_size;
+
+	// bad size
+	if(x_size*y_size > dlen)
+		return(1);
+	
 	// make new record
 	items.emplace_back();	
 	auto &grp = items.back();	
@@ -50,9 +61,9 @@ int SpellGraphics::AddRaw(uint8_t* data,int dlen,int x_size,int y_size,const cha
 	grp.full_name = name;
 	grp.name = std::filesystem::path(name).stem().string();
 	
-	// copy pixel data	
-	grp.pixels.resize(dlen);
-	memcpy(&grp.pixels[0],data,dlen);
+	// copy pixel data (crop size to actual dims, because LZ sometimes contains extra byte for whatever reason)
+	grp.pixels.resize(x_size*y_size);
+	memcpy(&grp.pixels[0],data,x_size*y_size);
 	
 	// convert #0 color to solid black?
 	grp.is_transparent = !is_solid;
@@ -293,7 +304,7 @@ int SpellGraphicItem::ExportInfo(wstring path, wstring image_name)
 	return(0);
 }
 
-// epxort resource to file
+// export resource to file
 int SpellGraphicItem::Export(std::wstring path)
 {
 	auto ext = std::filesystem::path(path).extension().string();
