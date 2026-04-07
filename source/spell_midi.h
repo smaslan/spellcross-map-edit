@@ -47,7 +47,7 @@ private:
 
 public:
 
-    SpellMIDI(std::wstring &data_path, std::function<void(std::string)> status_list=NULL, std::function<void(std::string)> status_item=NULL);
+    SpellMIDI(std::wstring &data_path, bool optional=false, std::function<void(std::string)> status_list=NULL, std::function<void(std::string)> status_item=NULL);
     ~SpellMIDI();
     
     int Play(SpellMIDIfile *midi);

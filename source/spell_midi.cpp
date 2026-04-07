@@ -49,7 +49,7 @@ int SpellMIDIfile::SaveAs(std::wstring path)
 
 
 // init MIDI engine
-SpellMIDI::SpellMIDI(std::wstring& data_path, std::function<void(std::string)> status_list, std::function<void(std::string)> status_item)
+SpellMIDI::SpellMIDI(std::wstring& data_path, bool optional, std::function<void(std::string)> status_list, std::function<void(std::string)> status_item)
 {
     // try to get first available midi port and open MIDI player
     if(status_list)
@@ -69,6 +69,8 @@ SpellMIDI::SpellMIDI(std::wstring& data_path, std::function<void(std::string)> s
     }catch(const runtime_error& error) {
         if(status_list)
             status_list("   - failed!");
+        if(optional)
+            return;
         throw runtime_error(string_format("Loading MUSIC.FS archive failed (%s)!",error.what()));
     }
     for(auto& file : music_fs->GetFiles())

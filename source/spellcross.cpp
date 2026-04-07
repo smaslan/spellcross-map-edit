@@ -363,7 +363,7 @@ SpellData::SpellData(wstring &data_path,wstring& cd_data_path,wstring& spec_path
 	if(status_list)
 		status_list("Loading MIDI files...");
 	try {
-		midi = new SpellMIDI(data_path,status_list,status_item);
+		midi = new SpellMIDI(data_path,true,status_list,status_item);
 	}
 	catch(const runtime_error& error) {
 		this->~SpellData();
@@ -828,470 +828,156 @@ int SpellData::LoadPalettes(FSarchive* fs)
 	return(0);
 }
 
+class SpellGrpParams{
+public:
+	enum GrpType{
+		RAW = 0,
+		CUR,
+		PNM,
+		ICO
+	};
+	std::string wild;
+	std::string palette;
+	GrpType type;
+	int width;	
+	bool solid;
+};
+
 // load generic graphics resources
 int SpellData::LoadAuxGraphics(FSarchive *fs,std::function<void(std::string)> status_item)
 {
 	// default map palette
 	auto *map_pal = GetPalette("MAP");
 
+
+	std::vector<SpellGrpParams> grp_list = {
+		{"I_*.LZ", "MAP", SpellGrpParams::GrpType::RAW, 60, true}, // unit icons
+		{"LEVEL_??.LZ", "", SpellGrpParams::GrpType::RAW, 379, false}, // territories
+		{"HMLA__??.LZ", "LEVEL_??.PAL", SpellGrpParams::GrpType::RAW, 379, true}, // territories in fog
+		{"BIG_MAP.LZ", "", SpellGrpParams::GrpType::RAW, 640, true}, // big map main
+		{"BM_LSTA.LZ", "", SpellGrpParams::GrpType::RAW, 65, false}, // big map chunk
+		{"LISTA_?.LZ", "MAP", SpellGrpParams::GrpType::RAW, 640, false}, // war map bottom panel
+		{"LISTA_0B.LZ0", "MAP", SpellGrpParams::GrpType::RAW, 160, false}, // war map right panel overlay
+		{"LISTAPAT.LZ", "MAP", SpellGrpParams::GrpType::RAW, 32, false}, // war map bottom panel side filling
+		{"GU_LISTA.LZ", "MAP", SpellGrpParams::GrpType::RAW, 145, false}, // war map unit selection sub-panel
+		{"LEV_GFK.LZ", "MAP", SpellGrpParams::GrpType::RAW, 9, false}, // experience mark
+		{"M_*.LZ", "MAP", SpellGrpParams::GrpType::RAW, 340, false}, // war map end message
+		{"MAINMENU.LZ", "MAINMENU.PAL", SpellGrpParams::GrpType::RAW, 640, true}, // main menu background
+		{"MAINM_*.LZ", "MAINMENU.PAL", SpellGrpParams::GrpType::RAW, 255, true}, // main menu element highlighted
+		{"MAINMD*.LZ", "MAINMENU.PAL", SpellGrpParams::GrpType::RAW, 255, true}, // main menu element grayed
+		{"MM_LOAD.LZ", "MAINMENU.PAL", SpellGrpParams::GrpType::RAW, 402, false}, // loader frame
+		{"DIFFIC.LZ", "MAINMENU.PAL", SpellGrpParams::GrpType::RAW, 249, false}, // difficulty frame
+		{"DIFF??.LZ", "MAINMENU.PAL", SpellGrpParams::GrpType::RAW, 200, false}, // difficulty options
+		{"LOGO0001.LZ", "", SpellGrpParams::GrpType::RAW, 640, true}, // logo
+		{"NO_CD.LZ", "", SpellGrpParams::GrpType::RAW, 640, true}, // no cd splash
+		{"JRC_LOGO.LZ", "", SpellGrpParams::GrpType::RAW, 640, true}, // JRC logo splash
+		{"CAULDRON.LZ", "", SpellGrpParams::GrpType::RAW, 640, true}, // cauldron logo splash
+		{"PICTURE.LZ", "", SpellGrpParams::GrpType::RAW, 640, true}, // some picture
+		{"SKUSKA.LZ", "", SpellGrpParams::GrpType::RAW, 640, true}, // some picture
+		{"OPT_BAR.LZ", "BIG_MAP.PAL", SpellGrpParams::GrpType::RAW, 10, false}, // big map window frame part
+		{"OPTIONS.LZ", "BIG_MAP.PAL", SpellGrpParams::GrpType::RAW, 569, true}, // big map options panel
+		{"BUY.LZ", "BIG_MAP.PAL", SpellGrpParams::GrpType::RAW, 406, true}, // big map buy panel
+		{"RSRCH_BG.LZ", "BIG_MAP.PAL", SpellGrpParams::GrpType::RAW, 406, true}, // big map research panel
+		{"STATS.LZ", "BIG_MAP.PAL", SpellGrpParams::GrpType::RAW, 569, true}, // big map statistics panel
+		{"FACTORY.LZ", "BIG_MAP.PAL", SpellGrpParams::GrpType::RAW, 569, true}, // big map factory panel
+		{"HIERARCH.LZ", "BIG_MAP.PAL", SpellGrpParams::GrpType::RAW, 406, true}, // big map hierarchy panel
+		{"UNITS.LZ", "BIG_MAP.PAL", SpellGrpParams::GrpType::RAW, 406, true}, // big map hierarchy panel
+		{"INFO.LZ", "BIG_MAP.PAL", SpellGrpParams::GrpType::RAW, 412, true}, // big map info panel
+		{"RES_BAR.LZ", "BIG_MAP.PAL", SpellGrpParams::GrpType::RAW, 416, true}, // big map something for research?
+		{"VM?_FULL.LZ", "BIG_MAP.PAL", SpellGrpParams::GrpType::RAW, 575, true}, // big map panel chunks (outer frame)
+		{"VMB_LST1.LZ", "BIG_MAP.PAL", SpellGrpParams::GrpType::RAW, 163, true}, // big map panel chunks
+		{"VMB_LST2.LZ", "BIG_MAP.PAL", SpellGrpParams::GrpType::RAW, 241, true}, // big map panel chunks
+		{"VMM_LST1.LZ", "BIG_MAP.PAL", SpellGrpParams::GrpType::RAW, 163, true}, // big map panel chunks
+		{"VMM_LST2.LZ", "BIG_MAP.PAL", SpellGrpParams::GrpType::RAW, 406, true}, // big map panel chunks
+		{"VMR_LST1.LZ", "BIG_MAP.PAL", SpellGrpParams::GrpType::RAW, 120, true}, // big map panel chunks
+		{"VMU_LST1.LZ", "BIG_MAP.PAL", SpellGrpParams::GrpType::RAW, 154, true}, // big map panel chunks
+		{"VMU_LST2.LZ", "BIG_MAP.PAL", SpellGrpParams::GrpType::RAW, 241, true}, // big map panel chunks
+		{"VMU_SLCT.LZ", "BIG_MAP.PAL", SpellGrpParams::GrpType::RAW, 73, true}, // big map panel chunks
+		{"VM?_*.LZ", "BIG_MAP.PAL", SpellGrpParams::GrpType::RAW, 0, true}, // big map panel chunks - other
+		{"SB_BAR*.LZ", "BIG_MAP.PAL", SpellGrpParams::GrpType::RAW, 16, true}, // big map panel chunks (vertical scroll bar)
+		{"SB_BG*.LZ", "BIG_MAP.PAL", SpellGrpParams::GrpType::RAW, 163, true}, // big map panel chunks (list boxes)
+		{"SB_*.LZ", "BIG_MAP.PAL", SpellGrpParams::GrpType::RAW, 22, true}, // big map panel chunks (up/down buttons)
+		{"GOTOLSTA.LZ", "MAP", SpellGrpParams::GrpType::RAW, 176, false}, // war map center panel
+		{"MAP_OPT.LZ", "MAP", SpellGrpParams::GrpType::RAW, 436, false}, // war map options panel
+		{"WM_STAT.LZ", "MAP", SpellGrpParams::GrpType::RAW, 408, false}, // war map stats panel
+		{"*.ICO", "MAP", SpellGrpParams::GrpType::ICO, 0, false}, // ICO files (compression like in PNM files)
+		{"*.BTN", "MAP", SpellGrpParams::GrpType::ICO, 0, false}, // BTN files (compression like in PNM files)
+		{"*.CUR", "MAP", SpellGrpParams::GrpType::CUR, 0, false}, // cursors
+		{"*.GFK", "MAP", SpellGrpParams::GrpType::RAW, 21, false}, // projectiles
+		{"I_TAB", "MAP", SpellGrpParams::GrpType::RAW, 45, true}, // raw icon files in war map panel
+		{"I_*", "MAP", SpellGrpParams::GrpType::RAW, 20, true}, // raw icon files in war map panel
+		{"RAM?HORZ.DTA", "MAP", SpellGrpParams::GrpType::RAW, 76, false}, // frame part
+		{"RAM*.DTA", "MAP", SpellGrpParams::GrpType::RAW, 10, false}, // frame part
+		{"*.PNM", "MAP", SpellGrpParams::GrpType::PNM, 0, false}, // PNM animations
+		{"*.LZ", "MAP", SpellGrpParams::GrpType::RAW, 0, false} // other stuff
+	};
+
+
 	// for each file:
-	for(auto & file : fs->GetFiles())
+	for(auto & file: fs->GetFiles())
 	{
 		// get file data
 		const char *name = file->name.c_str();
 		int flen = file->data.size();
 		uint8_t *data = file->data.data();
 		uint8_t* data_end = &data[flen];
-
-		// try load specific palette of matching name if not there yet
-		auto pal_name = std::filesystem::path(name).stem().string() + ".PAL";		
-		std::vector<uint8_t> pal_data;
-		if(!fs->GetFile(pal_name.c_str(),pal_data))
+				
+		// try to identify each graphical resource:
+		for(auto &item: grp_list)
 		{
-			if(pal_data.size() == 3*256 && !GetPalette(pal_name))
+			if(!wildcmp(item.wild.c_str(), file->name.c_str()))
+				continue;
+			// found matching resource
+
+			// select palette
+			SpellPalette* pal = NULL;
+			auto pal_name = item.palette;
+			if(item.palette.find('?') != std::string::npos)
 			{
-				auto pal = AddPalette(pal_name);
-				pal->Insert(pal_data);
+				// replace ? in palette name by file name symbol
+				for(int k = 0; k < min(pal_name.length(), file->name.length()); k++)
+					if(item.wild[k] == '?')
+						pal_name[k] = item.wild[k];
 			}
-		}
-
-
-		if(wildcmp("I_*.LZ", name))
-		{
-			// units icons, fized width 60
-			gres.AddRaw(data, flen, 60,0, name, map_pal);
-		}
-		else if(wildcmp("LEVEL_??.LZ",name))
-		{
-			// big map territory images
-			
-			// make new palette
-			std::string pal_name = name;
-			pal_name.resize(8);
-			pal_name += ".PAL";
-			auto pal = GetPalette(pal_name);
-			if(!pal)
+			if(pal_name.empty())
 			{
-				pal = AddPalette(pal_name);
-				std::vector<uint8_t> chunk;
-				if(fs->GetFile(pal_name.c_str(),chunk))
-					return(1);
-				pal->Insert(chunk,pal_name,128);
+				// no palette, check if dedicated exists?
+				pal_name = std::filesystem::path(file->name).stem().concat(".PAL").string();
+				pal = GetPalette(pal_name);
+				if(!pal)
+				{
+					// not loaded, try load it
+					std::vector<uint8_t> pal_data;
+					fs->GetFile(pal_name.c_str(),pal_data);
+					if(pal_data.size() == 3*256)
+					{
+						// load it
+						pal = AddPalette(pal_name);
+						pal->Insert(pal_data);
+					}
+					else
+						pal_name = "";
+				}
 			}
-			
-			int w = 379;
-			gres.AddRaw(data,flen,w,flen/w,name,pal,false);
-		}
-		else if(wildcmp("HMLA__??.LZ",name))
-		{
-			// big map territory images (background)
-			std::string pal_name = "LEVEL_??.PAL";
-			pal_name[6] = name[6];
-			pal_name[7] = name[7];
-			auto pal = GetPalette(pal_name);
+			if(pal_name.empty())
+				break; // no palette identified - skip item
+			pal = GetPalette(pal_name);
 			if(!pal)
-			{
-				pal = AddPalette(pal_name);
-				std::vector<uint8_t> chunk;
-				if(fs->GetFile(pal_name.c_str(),chunk))
-					return(1);
-				pal->Insert(chunk,pal_name,128);
-			}
+				break; // cannot find palette - skip item
 
-			int w = 379;
-			gres.AddRaw(data,flen,w,flen/w,name,pal,true);
+			// try load resource
+			if(item.type == SpellGrpParams::GrpType::RAW)
+				gres.AddRaw(data, flen, item.width, 0, name, pal, item.solid);
+			else if(item.type == SpellGrpParams::GrpType::CUR)
+				gres.AddCUR(data, flen, name, pal);
+			else if(item.type == SpellGrpParams::GrpType::ICO)
+				gres.AddICO(data, flen, name, pal);
+			else if(item.type == SpellGrpParams::GrpType::PNM)
+				gres.AddPNM(data, flen, name);
+			break;
 		}
-		else if(strcmp(name,"BIG_MAP.LZ") == 0)
-		{
-			// big map main
-			auto pal = GetPalette("BIG_MAP.PAL");
-			if(!pal)
-				return(1);
-			gres.AddRaw(data,flen,640,flen/640,name,pal);
-		}
-		else if(strcmp(name,"BM_LSTA.LZ") == 0)
-		{
-			// big map chunk
-			auto pal = GetPalette("BIG_MAP.PAL");
-			if(!pal)
-				return(1);
-			gres.AddRaw(data,flen,65,flen/65,name,pal);
-		}
-		else if(strcmp(name, "LISTA_0.LZ") == 0 || strcmp(name,"LISTA_1.LZ") == 0)
-		{
-			// war map bottom panel
-			gres.AddRaw(data,flen,640,flen/640,name,map_pal);
-		}
-		else if(strcmp(name,"LISTA_0B.LZ0") == 0)
-		{
-			// war map right panel overlay
-			gres.AddRaw(data,flen,160,flen/160,name,map_pal);
-		}
-		else if(strcmp(name,"LISTAPAT.LZ") == 0)
-		{
-			// war map bottom panel side filling
-			gres.AddRaw(data,flen,32,flen/32,name,map_pal);
-		}
-		else if(strcmp(name,"GU_LISTA.LZ") == 0)
-		{
-			// war map unit selection sub-panel
-			gres.AddRaw(data,flen,145,flen/145,name,map_pal);
-		}
-		else if(strcmp(name,"LEV_GFK.LZ") == 0)
-		{
-			// experience mark
-			gres.AddRaw(data,flen,9,flen/9,name,map_pal);
-		}
-		else if(strcmp(name,"M_ACCOMP.LZ") == 0 || strcmp(name,"M_FAILED.LZ") == 0)
-		{
-			// war map end title
-			gres.AddRaw(data,flen,340,flen/340,name,map_pal);
-		}
-		else if(wildcmp("MAINMENU.LZ",name))
-		{
-			// main menu
-			auto pal = GetPalette("MAINMENU.PAL");
-			if(!pal)
-				return(1);
-			gres.AddRaw(data,flen,640,flen/640,name,pal,true);
-		}
-		else if(wildcmp("MAINM_*.LZ",name))
-		{
-			// main menu element highlighted
-			auto pal = GetPalette("MAINMENU.PAL");
-			if(!pal)
-				return(1);
-			gres.AddRaw(data,flen,255,flen/255,name,pal,true);
-		}
-		else if(wildcmp("MAINMD*.LZ",name))
-		{
-			// main menu element dark
-			auto pal = GetPalette("MAINMENU.PAL");
-			if(!pal)
-				return(1);
-			gres.AddRaw(data,flen,255,flen/255,name,pal,true);
-		}
-		else if(wildcmp("MM_LOAD.LZ",name))
-		{
-			// loader frame
-			auto pal = GetPalette("MAINMENU.PAL");
-			if(!pal)
-				return(1);
-			gres.AddRaw(data,flen,402,flen/402,name,pal);
-		}
-		else if(wildcmp("DIFFIC.LZ",name))
-		{
-			// difficulty frame
-			auto pal = GetPalette("MAINMENU.PAL");
-			if(!pal)
-				return(1);
-			gres.AddRaw(data,flen,249,flen/249,name,pal);
-		}
-		else if(wildcmp("DIFF??.LZ",name))
-		{
-			// difficulty ptions
-			auto pal = GetPalette("MAINMENU.PAL");
-			if(!pal)
-				return(1);
-			gres.AddRaw(data,flen,200,flen/200,name,pal);
-		}
-		else if(wildcmp("LOGO0001.LZ",name))
-		{
-			// logo
-			auto pal = GetPalette("LOGO0001.PAL");
-			if(!pal)
-				return(1);
-			gres.AddRaw(data,flen,640,flen/640,name,pal,true);
-		}
-		else if(wildcmp("NO_CD.LZ",name))
-		{
-			// no CD
-			auto pal = GetPalette("NO_CD.PAL");
-			if(!pal)
-				return(1);
-			gres.AddRaw(data,flen,640,flen/640,name,pal,true);
-		}
-		else if(wildcmp("JRC_LOGO.LZ",name))
-		{
-			// jrc logo
-			auto pal = GetPalette("JRC_LOGO.PAL");
-			if(!pal)
-				return(1);
-			gres.AddRaw(data,flen,640,flen/640,name,pal,true);
-		}
-		else if(wildcmp("CAULDRON.LZ",name))
-		{
-			// jrc logo
-			auto pal = GetPalette("CAULDRON.PAL");
-			if(!pal)
-				return(1);
-			gres.AddRaw(data,flen,640,flen/640,name,pal,true);
-		}
-		else if(wildcmp("PICTURE.LZ",name))
-		{
-			// picture
-			auto pal = GetPalette("PICTURE.PAL");
-			if(!pal)
-				return(1);
-			gres.AddRaw(data,flen,640,flen/640,name,pal,true);
-		}
-		else if(wildcmp("SKUSKA.LZ",name))
-		{
-			// picture
-			auto pal = GetPalette("SKUSKA.PAL");
-			if(!pal)
-				return(1);
-			gres.AddRaw(data,flen,640,flen/640,name,pal,true);
-		}
-		else if(strcmp(name,"OPT_BAR.LZ") == 0)
-		{
-			// window frame
-			auto pal = GetPalette("BIG_MAP.PAL");
-			if(!pal)
-				return(1);
-			gres.AddRaw(data,flen,10,flen/10,name,map_pal);
-		}
-		else if(strcmp(name,"OPTIONS.LZ") == 0)
-		{
-			// big map game options frame
-			auto pal = GetPalette("BIG_MAP.PAL");
-			if(!pal)
-				return(1);
-			gres.AddRaw(data,flen,569,flen/569,name,pal,true);
-		}
-		else if(strcmp(name,"BUY.LZ") == 0)
-		{
-			// buy panel
-			auto pal = GetPalette("BIG_MAP.PAL");
-			if(!pal)
-				return(1);
-			gres.AddRaw(data,flen,406,flen/406,name,pal,true);
-		}
-		else if(strcmp(name,"RSRCH_BG.LZ") == 0)
-		{
-			// buy panel
-			auto pal = GetPalette("BIG_MAP.PAL");
-			if(!pal)
-				return(1);
-			gres.AddRaw(data,flen,406,flen/406,name,pal,true);
-		}
-		else if(strcmp(name,"RES_BAR.LZ") == 0)
-		{
-			// ?
-			gres.AddRaw(data,flen,416,flen/416,name,map_pal,true);
-		}
-		else if(strcmp(name,"STATS.LZ") == 0)
-		{
-			// big map stats panel
-			auto pal = GetPalette("BIG_MAP.PAL");
-			if(!pal)
-				return(1);
-			gres.AddRaw(data,flen,569,flen/569,name,pal,true);
-		}
-		else if(strcmp(name,"FACTORY.LZ") == 0)
-		{
-			// factory panel
-			auto pal = GetPalette("BIG_MAP.PAL");
-			if(!pal)
-				return(1);
-			gres.AddRaw(data,flen,569,flen/569,name,pal,true);
-		}
-		else if(strcmp(name,"HIERARCH.LZ") == 0)
-		{
-			// hierarchy panel
-			auto pal = GetPalette("BIG_MAP.PAL");
-			if(!pal)
-				return(1);
-			gres.AddRaw(data,flen,406,flen/406,name,pal,true);
-		}
-		else if(strcmp(name,"UNITS.LZ") == 0)
-		{
-			// hierarchy panel
-			auto pal = GetPalette("BIG_MAP.PAL");
-			if(!pal)
-				return(1);
-			gres.AddRaw(data,flen,406,flen/406,name,pal,true);
-		}
-		else if(strcmp(name,"INFO.LZ") == 0)
-		{
-			// big map info panel
-			auto pal = GetPalette("BIG_MAP.PAL");
-			if(!pal)
-				return(1);
-			gres.AddRaw(data,flen,412,flen/412,name,pal,true);
-		}
-		else if(wildcmp("VM?_FULL.LZ",name))
-		{
-			// big map panel chunks (outer frame)
-			auto pal = GetPalette("BIG_MAP.PAL");
-			if(!pal)
-				return(1);
-			gres.AddRaw(data,flen,575,flen/575,name,pal,true);
-		}
-		else if(wildcmp("VMB_LST1.LZ",name))
-		{
-			// big map panel chunks
-			auto pal = GetPalette("BIG_MAP.PAL");
-			if(!pal)
-				return(1);
-			gres.AddRaw(data,flen,163,flen/163,name,pal,true);
-		}
-		else if(wildcmp("VMB_LST2.LZ",name))
-		{
-			// big map panel chunks
-			auto pal = GetPalette("BIG_MAP.PAL");
-			if(!pal)
-				return(1);
-			gres.AddRaw(data,flen,241,flen/241,name,pal,true);
-		}
-		else if(wildcmp("VMM_LST1.LZ",name))
-		{
-			// big map panel chunks
-			auto pal = GetPalette("BIG_MAP.PAL");
-			if(!pal)
-				return(1);
-			gres.AddRaw(data,flen,163,flen/163,name,pal,true);
-		}
-		else if(wildcmp("VMM_LST2.LZ",name))
-		{
-			// big map panel chunks
-			auto pal = GetPalette("BIG_MAP.PAL");
-			if(!pal)
-				return(1);
-			gres.AddRaw(data,flen,406,flen/406,name,pal,true);
-		}
-		else if(wildcmp("VMR_LST1.LZ",name))
-		{
-			// big map panel chunks
-			auto pal = GetPalette("BIG_MAP.PAL");
-			if(!pal)
-				return(1);
-			gres.AddRaw(data,flen,120,flen/120,name,pal,true);
-		}
-		else if(wildcmp("VMU_LST1.LZ",name))
-		{
-			// big map panel chunks
-			auto pal = GetPalette("BIG_MAP.PAL");
-			if(!pal)
-				return(1);
-			gres.AddRaw(data,flen,154,flen/154,name,pal,true);
-		}
-		else if(wildcmp("VMU_LST2.LZ",name))
-		{
-			// big map panel chunks
-			auto pal = GetPalette("BIG_MAP.PAL");
-			if(!pal)
-				return(1);
-			gres.AddRaw(data,flen,241,flen/241,name,pal,true);
-		}
-		else if(wildcmp("VMU_SLCT.LZ",name))
-		{
-			// big map panel chunks
-			auto pal = GetPalette("BIG_MAP.PAL");
-			if(!pal)
-				return(1);
-			gres.AddRaw(data,flen,73,flen/73,name,pal,true);
-		}
-		else if(wildcmp("VM?_*.LZ",name))
-		{
-			// big map panel chunks (outer frame)
-			auto pal = GetPalette("BIG_MAP.PAL");
-			if(!pal)
-				return(1);
-			gres.AddRaw(data,flen,0,0,name,pal,true);
-		}
-		else if(wildcmp("SB_BAR*.LZ",name))
-		{
-			// big map panel chunks (vertical scroll bar)
-			auto pal = GetPalette("BIG_MAP.PAL");
-			if(!pal)
-				return(1);
-			gres.AddRaw(data,flen,16,flen/16,name,pal,true);
-		}
-		else if(wildcmp("SB_BG*.LZ",name))
-		{
-			// big map panel chunks (list boxes)
-			auto pal = GetPalette("BIG_MAP.PAL");
-			if(!pal)
-				return(1);
-			gres.AddRaw(data,flen,163,flen/163,name,pal,true);
-		}
-		else if(wildcmp("SB_*.LZ",name))
-		{
-			// big map panel chunks (up/down buttons)
-			auto pal = GetPalette("BIG_MAP.PAL");
-			if(!pal)
-				return(1);
-			gres.AddRaw(data,flen,22,flen/22,name,pal,true);
-		}
-		else if(strcmp(name,"GOTOLSTA.LZ") == 0)
-		{
-			// map center panel
-			gres.AddRaw(data,flen,176,flen/176,name,map_pal);
-		}
-		else if(strcmp(name,"MAP_OPT.LZ") == 0)
-		{
-			// window frame
-			gres.AddRaw(data,flen,436,flen/436,name,map_pal);
-		}
-		else if(strcmp(name,"WM_STAT.LZ") == 0)
-		{
-			// was map stats
-			gres.AddRaw(data,flen,408,flen/408,name,map_pal);
-		}
-		else if(wildcmp("*.ICO",name) || wildcmp("*.BTN",name))
-		{
-			// ICO files (compression like in PNM files)			
-			gres.AddICO(data, flen, name,map_pal);
-		}
-		else if(wildcmp("*.CUR",name))
-		{
-			// CUR files (simple bitmaps with dimensions and transparencies)
-			gres.AddCUR(data,flen,name,map_pal);
-		}
-		else if(wildcmp("*.GFK",name))
-		{
-			// GFK projection files: fixed 21x21 pixel with transparencies
-			gres.AddRaw(data,flen,21,21,name,map_pal);
-		}
-		else if(strcmp(name,"I_ATTACK") == 0 || strcmp(name,"I_LOWER") == 0 || strcmp(name,"I_MOVE") == 0 || strcmp(name,"I_UPPER") == 0 || strcmp(name,"I_SELECT") == 0)
-		{
-			// raw icon files
-			gres.AddRaw(data,flen,20,20,name,map_pal,true);
-		}
-		else if(strcmp(name,"I_TAB") == 0)
-		{
-			// raw icon files
-			gres.AddRaw(data,flen,60,45,name,map_pal,true);
-		}
-		else if(wildcmp("RAM?HORZ.DTA",name))
-		{
-			// frame part
-			gres.AddRaw(data,flen,76,flen/76,name,map_pal);
-		}
-		else if(wildcmp("RAM*.DTA",name))
-		{
-			// frame part
-			gres.AddRaw(data,flen,10,flen/10,name,map_pal);
-		}
-		else if(wildcmp("*.PNM",name))
-		{
-			// PNM animations:
-			gres.AddPNM(data,flen,name);
-		}
-		else if(wildcmp("*.LZ",name))
-		{
-			// unknown *.LZ stuff
-
-			// try fetch palette of matching name or use default map palette
-			auto spec_pal = GetPalette(pal_name);
-			if(!spec_pal)
-				spec_pal = map_pal;
-
-			gres.AddRaw(data,flen,0,0,name,spec_pal);
-		}
-		else
-			continue;
+	
+		
 
 		if(status_item)
 			status_item(name);
@@ -1303,6 +989,8 @@ int SpellData::LoadAuxGraphics(FSarchive *fs,std::function<void(std::string)> st
 	gres.AddLED(229,"YLED_ON",map_pal);
 	
 	// --- DO NOT ADD ANYTHING TO LIST AFTER HERE!!! it would change memory locations!
+
+	// ###todo: make sure none of following is missing!
 
 	// make direct (fast) links to some resoruces
 	gres.red_led_off = gres.GetResource("RLED_OFF");

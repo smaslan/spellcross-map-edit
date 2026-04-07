@@ -28,6 +28,7 @@
 #include <wx/panel.h>
 #include <wx/frame.h>
 #include <wx/textctrl.h>
+#include <wx/choice.h>
 
 #include "spellcross.h"
 #include "fs_archive.h"
@@ -43,7 +44,7 @@ private:
 	SpellData *spell_data;
 	int m_width_dir;
 	int m_width_old;
-	
+
 	void OnClose(wxCloseEvent& ev);
 	void OnCloseClick(wxCommandEvent& event);
 	void OnPaintCanvas(wxPaintEvent& event);
@@ -65,6 +66,7 @@ protected:
 		wxID_MM_EXPORT,
 		wxID_MM_EXPORT_ALL,
 		wxID_SB,
+		wxID_CH_SOURCE,
 		wxID_TXT_FILTER,
 		wxID_LB_FILES,
 		wxID_SPIN_W,
@@ -76,6 +78,8 @@ protected:
 	wxMenuBar* m_menubar5;
 	wxMenu* mmFile;
 	wxStatusBar* sbar;
+	wxStaticText* m_staticText104;
+	wxChoice* chSource;
 	wxStaticText* m_staticText97;
 	wxTextCtrl* txtFilter;
 	wxStaticText* m_staticText31;

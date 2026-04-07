@@ -54,6 +54,15 @@ FormGResView::FormGResView(wxWindow* parent,SpellData* spell_data,wxWindowID id,
 	wxBoxSizer* bSizer27;
 	bSizer27 = new wxBoxSizer(wxVERTICAL);
 
+	m_staticText104 = new wxStaticText(this,wxID_ANY,wxT("Source:"),wxDefaultPosition,wxDefaultSize,0);
+	m_staticText104->Wrap(-1);
+	bSizer27->Add(m_staticText104,0,wxLEFT|wxTOP,5);
+
+	wxArrayString chSourceChoices;
+	chSource = new wxChoice(this,wxID_CH_SOURCE,wxDefaultPosition,wxDefaultSize,chSourceChoices,0);
+	chSource->SetSelection(0);
+	bSizer27->Add(chSource,0,wxEXPAND|wxLEFT|wxRIGHT,5);
+
 	m_staticText97 = new wxStaticText(this,wxID_ANY,wxT("Filter (wildcard: *?):"),wxDefaultPosition,wxDefaultSize,0);
 	m_staticText97->Wrap(-1);
 	bSizer27->Add(m_staticText97,0,wxLEFT|wxTOP,5);
@@ -137,7 +146,13 @@ FormGResView::FormGResView(wxWindow* parent,SpellData* spell_data,wxWindowID id,
 
 	Bind(wxEVT_COMMAND_TEXT_UPDATED,&FormGResView::OnChangeFilter,this,wxID_TXT_FILTER);
 
+	chSource->Clear();
+	chSource->Append("COMMON.FS");
+	chSource->Append("INFO.FS");
+	chSource->Select(0);
 
+
+	//spell_data->info->GetFile(
 
 	const int ss_w[] = {120,120,120,80,290,-1};
 	sbar->SetFieldsCount(6,ss_w);
