@@ -33,6 +33,7 @@ std::string info_make_section(std::string section_name,std::string data,std::str
 std::vector<std::string> info_get_text_vector(std::string info,std::string key);
 std::string info_get_section(std::string info,std::string section);
 
+std::vector<std::string> get_text_lines(std::string string);
 std::vector<std::string> regexp_get(std::string str,std::string regkey);
 
 uint32_t popcount(uint32_t v);

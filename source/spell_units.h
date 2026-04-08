@@ -177,6 +177,11 @@ class SpellUnitRec
 		SpellGraphicItem *icon_glyph;
 		// projectile link
 		SpellProjectile* projectile;
+		// info graphics links
+		std::vector<SpellGraphicItem*> info_imgs;
+		// info text
+		std::string info_text_raw;
+		std::wstring info_text;
 		// PNM shot/hit
 		AnimPNM *pnm_light_hit;
 		AnimPNM *pnm_armored_hit;
@@ -194,8 +199,8 @@ class SpellUnitRec
 		tuple<int,int> Render(uint8_t* buffer, uint8_t* buf_end, int buf_x_pos, int buf_y_pos, int buf_x_size,
 			uint8_t* filter,uint8_t* shadow_filter, Sprite *sprt,int man, int azim,int azim_turret, int frame,FSU_resource* fsu_anim=NULL, int flight_alt=100);
 
-		vector<string> GetArtList(FSarchive* info_fs);
-		int GetArtCount(FSarchive* info_fs);
+		/*vector<string> GetArtList(FSarchive* info_fs);
+		int GetArtCount(FSarchive* info_fs);*/
 		//wxBitmap *RenderArt(FSarchive *info, string &name, int surf_x, int surf_y);
 		
 
@@ -300,7 +305,7 @@ private:
 	vector<SpellUnitRec*> units;
 
 public:	
-	SpellUnits(uint8_t* data, int dlen, FSUarchive *fsu, SpellGraphics *graphics,SpellSounds* sounds,UnitBonuses *bonuses);
+	SpellUnits(uint8_t* data, int dlen, FSUarchive *fsu, FSarchive* fs_info, SpellGraphics *graphics,SpellGraphics* info_graphics,SpellSounds* sounds,UnitBonuses *bonuses);
 	~SpellUnits();
 	int Count();
 	SpellUnitRec* GetUnit(int uid);

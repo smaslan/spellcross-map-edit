@@ -28,6 +28,8 @@ SpellGraphics::SpellGraphics()
 
 SpellGraphics::~SpellGraphics()
 {
+	for(auto &item: items)
+		delete item;
 	items.clear();
 	for(auto & pnm : pnms)
 		delete pnm;
@@ -55,33 +57,34 @@ int SpellGraphics::AddRaw(uint8_t* data,int dlen,int x_size,int y_size,const cha
 		dlen = x_size*y_size;
 	
 	// make new record
-	items.emplace_back();	
-	auto &grp = items.back();	
+	auto grp = new SpellGraphicItem();
+	items.emplace_back(grp);
+	
 	
 	// store name
-	grp.full_name = name;
-	grp.name = std::filesystem::path(name).stem().string();
+	grp->full_name = name;
+	grp->name = std::filesystem::path(name).stem().string();
 	
 	// copy pixel data 
-	grp.pixels.resize(dlen);
-	memcpy(&grp.pixels[0],data,dlen);
+	grp->pixels.resize(dlen);
+	memcpy(&grp->pixels[0],data,dlen);
 	
 	// convert #0 color to solid black?
-	grp.is_transparent = !is_solid;
+	grp->is_transparent = !is_solid;
 	/*if(fix_black)
 		for(auto & pix : grp.pixels)
 			if(pix == 0)
 				pix = 254;*/
 	
 	// link to external palette	
-	grp.palette = pal;
-	grp.pal = (uint8_t(*)[3])pal->m_pal.data();
+	grp->palette = pal;
+	grp->pal = (uint8_t(*)[3])pal->m_pal.data();
 	
 	// store size
-	grp.x_size = x_size;
-	grp.y_size = y_size;
-	grp.x_ofs = 0;
-	grp.y_ofs = 0;
+	grp->x_size = x_size;
+	grp->y_size = y_size;
+	grp->x_ofs = 0;
+	grp->y_ofs = 0;
 	
 
 	return(0);
@@ -91,12 +94,12 @@ int SpellGraphics::AddRaw(uint8_t* data,int dlen,int x_size,int y_size,const cha
 int SpellGraphics::AddICO(uint8_t* data,int dlen,const char* name,SpellPalette *pal)
 {
 	// make new record
-	items.emplace_back();
-	auto& grp = items.back();
+	auto grp = new SpellGraphicItem();
+	items.emplace_back(grp);
 
 	// store name (loose extension)
-	grp.full_name = name;
-	grp.name = std::filesystem::path(name).stem().string();
+	grp->full_name = name;
+	grp->name = std::filesystem::path(name).stem().string();
 	//strcpy_noext(grp.name,name);
 
 	// end of input data
@@ -126,7 +129,7 @@ int SpellGraphics::AddICO(uint8_t* data,int dlen,const char* name,SpellPalette *
 	//x_size -= x_ofs;
 
 	// reserve and clear pixel buffer
-	grp.pixels.assign(x_size*y_size,0);
+	grp->pixels.assign(x_size*y_size,0);
 
 	// for each icon line:
 	for(int y = 0; y < y_size; y++)
@@ -135,7 +138,7 @@ int SpellGraphics::AddICO(uint8_t* data,int dlen,const char* name,SpellPalette *
 		int line_x_ofs = -x_ofs;
 
 		// pixel buffer line start
-		uint8_t *pix = &grp.pixels[y*x_size];
+		uint8_t *pix = &grp->pixels[y*x_size];
 
 		// copy all line chunks:
 		if(data >= data_end)
@@ -165,15 +168,15 @@ int SpellGraphics::AddICO(uint8_t* data,int dlen,const char* name,SpellPalette *
 	}
 
 	// store size
-	grp.x_size = x_size;
-	grp.y_size = y_size;
-	grp.x_ofs = x_ofs;
-	grp.y_ofs = y_ofs;
-	grp.is_transparent = true;
+	grp->x_size = x_size;
+	grp->y_size = y_size;
+	grp->x_ofs = x_ofs;
+	grp->y_ofs = y_ofs;
+	grp->is_transparent = true;
 	
 	// link to external palette	
-	grp.palette = pal;
-	grp.pal = (uint8_t(*)[3])pal->m_pal.data();
+	grp->palette = pal;
+	grp->pal = (uint8_t(*)[3])pal->m_pal.data();
 
 	return(0);
 }
@@ -194,25 +197,25 @@ int SpellGraphics::AddCUR(uint8_t* data,int dlen,const char* name,SpellPalette* 
 		return(1);
 
 	// make new record
-	items.emplace_back();
-	auto& grp = items.back();
-	grp.x_size = x_size;
-	grp.y_size = y_size;
-	grp.x_ofs = 0;
-	grp.y_ofs = 0;
-	grp.is_transparent = true;
+	auto grp = new SpellGraphicItem();
+	items.emplace_back(grp);
+	grp->x_size = x_size;
+	grp->y_size = y_size;
+	grp->x_ofs = 0;
+	grp->y_ofs = 0;
+	grp->is_transparent = true;
 	
 	// link to external palette	
-	grp.palette = pal;
-	grp.pal = (uint8_t(*)[3])pal->m_pal.data();
+	grp->palette = pal;
+	grp->pal = (uint8_t(*)[3])pal->m_pal.data();
 
 	// copy image data
-	grp.pixels.resize(x_size*y_size);
-	memcpy(&grp.pixels[0],data,x_size*y_size);
+	grp->pixels.resize(x_size*y_size);
+	memcpy(&grp->pixels[0],data,x_size*y_size);
 
 	// store name (loose extension)
-	grp.full_name = name;
-	grp.name = std::filesystem::path(name).stem().string();
+	grp->full_name = name;
+	grp->name = std::filesystem::path(name).stem().string();
 
 	return(0);
 }
@@ -221,30 +224,30 @@ int SpellGraphics::AddCUR(uint8_t* data,int dlen,const char* name,SpellPalette* 
 int SpellGraphics::AddLED(int color,const char* name,SpellPalette* pal)
 {
 	// make item
-	items.emplace_back();
-	auto& grp = items.back();
+	auto grp = new SpellGraphicItem();
+	items.emplace_back(grp);
 
 	// store name (loose extension)
-	grp.full_name = name;
-	grp.name = name;
+	grp->full_name = name;
+	grp->name = name;
 
 	// make size
-	grp.x_size = 4;
-	grp.y_size = 4;
-	grp.x_ofs = 0;
-	grp.y_ofs = 0;
-	grp.is_transparent = true;
+	grp->x_size = 4;
+	grp->y_size = 4;
+	grp->x_ofs = 0;
+	grp->y_ofs = 0;
+	grp->is_transparent = true;
 
 	// link to external palette	
-	grp.palette = pal;
-	grp.pal = (uint8_t(*)[3])pal->m_pal.data();
+	grp->palette = pal;
+	grp->pal = (uint8_t(*)[3])pal->m_pal.data();
 
 	// make LED
-	grp.pixels.assign(4*4,0);
-	memset(grp.GetPixels(0,1),color,2);
-	memset(grp.GetPixels(1,0),color,4);
-	memset(grp.GetPixels(2,0),color,4);
-	memset(grp.GetPixels(3,1),color,2);
+	grp->pixels.assign(4*4,0);
+	memset(grp->GetPixels(0,1),color,2);
+	memset(grp->GetPixels(1,0),color,4);
+	memset(grp->GetPixels(2,0),color,4);
+	memset(grp->GetPixels(3,1),color,2);
 
 	return(0);
 }
@@ -254,15 +257,15 @@ int SpellGraphics::AddLED(int color,const char* name,SpellPalette* pal)
 SpellGraphicItem *SpellGraphics::GetResource(int index)
 {	
 	if(index >= 0 && index < items.size())
-		return(&items[index]);
+		return(items[index]);
 	else
 		return(NULL);
 }
 SpellGraphicItem *SpellGraphics::GetResource(const char* name)
 {
 	for(int k = 0; k < items.size(); k++)
-		if(items[k].full_name.compare(name) == 0 || items[k].name.compare(name) == 0)
-			return(&items[k]);
+		if(items[k]->full_name.compare(name) == 0 || items[k]->name.compare(name) == 0)
+			return(items[k]);
 	return(NULL);
 }
 // get items count
@@ -816,10 +819,10 @@ std::string SpellGraphicItem::GetColorRangeString()
 
 
 // initialize projectile
-SpellProjectile::SpellProjectile(SpellGraphicItem& glyph)
+SpellProjectile::SpellProjectile(SpellGraphicItem *glyph)
 {	
 	// identify projectile direction
-	int direction = hex2num(glyph.name[2]);
+	int direction = hex2num(glyph->name[2]);
 	if(direction < 0 || direction > 15)
 		throw std::exception("Invalid name of projection GFK file!");
 
@@ -828,23 +831,23 @@ SpellProjectile::SpellProjectile(SpellGraphicItem& glyph)
 		glyphs[k] = NULL;
 
 	// store glyph
-	glyphs[direction] = &glyph;
+	glyphs[direction] = glyph;
 	
 	// store name converted to "ST0*.GFK"
-	strcpy_s(name,sizeof(name),glyph.full_name.c_str());
+	strcpy_s(name,sizeof(name),glyph->full_name.c_str());
 	name[2] = '0';
 }
 
 // insert projectile glyph to list
-int SpellProjectile::Insert(SpellGraphicItem& glyph)
+int SpellProjectile::Insert(SpellGraphicItem *glyph)
 {
 	// identify projectile direction
-	int direction = hex2num(glyph.name[2]);
+	int direction = hex2num(glyph->name[2]);
 	if(direction < 0 || direction > 15)
 		return(1);
 
 	// store glyph
-	glyphs[direction] = &glyph;
+	glyphs[direction] = glyph;
 	return(0);
 }
 
@@ -872,10 +875,10 @@ int SpellGraphics::SortProjectiles()
 	// group projectiles:
 	for(auto & gfk : items)
 	{		
-		if(wildcmp("ST?*.GFK",gfk.name.c_str()))
+		if(wildcmp("ST?*.GFK",gfk->name.c_str()))
 		{
 			// make base name
-			std::string base_name = gfk.full_name;
+			std::string base_name = gfk->full_name;
 			if(base_name.size() < 2)
 				return(1);
 			base_name[2] = '0';

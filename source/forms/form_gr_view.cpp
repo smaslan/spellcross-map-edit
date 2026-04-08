@@ -145,15 +145,13 @@ FormGResView::FormGResView(wxWindow* parent,SpellData* spell_data,wxWindowID id,
 	Bind(wxEVT_SPINCTRL,&FormGResView::OnWidthChange,this,wxID_SPIN_W);
 
 	Bind(wxEVT_COMMAND_TEXT_UPDATED,&FormGResView::OnChangeFilter,this,wxID_TXT_FILTER);
+	Bind(wxEVT_COMMAND_CHOICE_SELECTED,&FormGResView::OnChangeFilter,this,wxID_CH_SOURCE);
 
 	chSource->Clear();
-	chSource->Append("COMMON.FS");
-	chSource->Append("INFO.FS");
+	chSource->Append("COMMON");
+	chSource->Append("UNITS");
 	chSource->Select(0);
-
-
-	//spell_data->info->GetFile(
-
+	
 	const int ss_w[] = {120,120,120,80,290,-1};
 	sbar->SetFieldsCount(6,ss_w);
 
@@ -308,18 +306,22 @@ void FormGResView::OnExportAllClick(wxCommandEvent& event)
 
 // fill list of loaded graphics
 void FormGResView::LoadGrpList()
-{
-	lboxFiles->Freeze();
-	lboxFiles->Clear();
-	for(int k = 0; k < spell_data->gres.Count(); k++)
-	{
-		auto *res = spell_data->gres.GetResource(k);
+{	
+	auto source = GetSource();
+	if(!source)
+		return;
 
+	lboxFiles->Freeze();
+	lboxFiles->Clear();	
+	for(int k = 0; k < source->Count(); k++)
+	{
+		auto *res = source->GetResource(k);
 		if(!txtFilter->GetValue().IsEmpty() && !wildcmp(txtFilter->GetValue(),res->full_name.c_str()))
 			continue;
-
 		lboxFiles->Append(res->full_name);
 	}
+	
+	
 	lboxFiles->Thaw();
 }
 
@@ -339,10 +341,23 @@ void FormGResView::OnWidthChange(wxSpinEvent& event)
 	canvas->Refresh();
 }
 
+// get graphics source
+SpellGraphics*FormGResView::GetSource()
+{
+	std::vector<SpellGraphics*> sources = {&spell_data->gres, &spell_data->gres_info};
+	if(chSource->GetSelection() < 0)
+		return(NULL);
+	return(sources[chSource->GetSelection()]);
+}
+
+
 // render glyph
 wxBitmap *FormGResView::Render(std::string name, bool for_export)
-{
-	auto grpi = spell_data->gres.GetResource(name.c_str());
+{	
+	auto source = GetSource();
+	if(!source)
+		return(NULL);
+	auto grpi = source->GetResource(name.c_str());
 	if(!grpi)
 		return(NULL);
 
@@ -418,7 +433,7 @@ wxBitmap *FormGResView::Render(std::string name, bool for_export)
 		grpi->x_size = 0;
 		grpi->y_size = 0;
 	}
-		
+
 	return(bmp);
 
 }
@@ -446,19 +461,25 @@ void FormGResView::OnPaintCanvas(wxPaintEvent& event)
 // render palette preview
 void FormGResView::OnPaintPalette(wxPaintEvent& event)
 {
+	auto source = GetSource();
+	if(!source)
+		return;
+
 	// select resource
 	if(lboxFiles->GetSelection() < 0 || lboxFiles->IsEmpty())
 		return;
 	std::string name = lboxFiles->GetString(lboxFiles->GetSelection()).ToStdString();
 
-	// get resource
-	auto grpi = spell_data->gres.GetResource(name.c_str());
+	auto grpi = source->GetResource(name.c_str());
 	if(!grpi)
+		return;
+	auto pal = grpi->palette;
+	if(!pal)
 		return;
 
 	// render palette
 	wxBitmap bmp(palette->GetClientSize(),24);
-	grpi->palette->Render(bmp);
+	pal->Render(bmp);
 	
 	// blit to screen
 	wxPaintDC pdc(palette);

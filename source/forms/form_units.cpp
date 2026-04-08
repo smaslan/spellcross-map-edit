@@ -655,22 +655,21 @@ void FormUnits::SelectUnit(MapUnit *unit)
 	// fill art list
 	lboxArt->Freeze();
 	lboxArt->Clear();
-	for(auto & art : unit_rec->GetArtList(m_spell_data->info))
-		lboxArt->Append(art);
+	for(auto & art: unit_rec->info_imgs)
+		lboxArt->Append(art->name);
 	lboxArt->Thaw();
 	if(lboxArt->GetCount())
 		lboxArt->Select(0);
+
+	// show unit description
+	txtInfo->SetValue(unit_rec->info_text);
 
 	// paint icon
 	icon_canvas->Refresh();
 	
 	// paint art
 	art_canvas->Refresh();
-
-	// show info text
-	WriteInfo();
-
-	
+		
 	// fill unit graphics selector
 	chbGrpType->Freeze();
 	chbGrpType->Clear();
@@ -803,42 +802,6 @@ void FormUnits::EditUnit()
 
 }
 
-
-// show unit info
-void FormUnits::WriteInfo()
-{
-	// get art selection:
-	if(!lboxArt->GetCount() || lboxArt->GetSelection() < 0)
-		return;
-	auto sel = lboxArt->GetSelection();
-	string art_name = lboxArt->GetString(sel).ToStdString();
-
-	vector<string> langs = {"CZ","ENG"};
-	for(auto & lang : langs)
-	{
-		// info text file
-		string art_info_name = art_name + "." + lang;
-		uint8_t* txt_buf;
-		int txt_size;
-		if(m_spell_data->info->GetFile(art_info_name.c_str(),&txt_buf,&txt_size))
-			continue;
-		char *text = new char[txt_size+1];
-		memset(text,'\0',txt_size+1);
-		memcpy(text, txt_buf, txt_size);		
-
-		// convert codepage
-		wstring info;
-		if(lang == "CZ")
-			info = char2wstringCP895(text);
-		else
-			info = char2wstring(text);
-		delete[] text;
-
-		txtInfo->SetValue(info);		
-		break;
-	}
-}
-
 // on paint icon
 void FormUnits::OnPaintIcon(wxPaintEvent& event)
 {
@@ -864,96 +827,29 @@ void FormUnits::OnSelectArt(wxCommandEvent& event)
 // on paint unit art
 void FormUnits::OnPaintArt(wxPaintEvent& event)
 {
+	// get unit selection
+	auto unit_sel = lboxUnits->GetSelection();
+	if(unit_sel < 0 || unit_sel >= m_spell_data->units->Count())
+		return;
+	auto unit = m_spell_data->units->GetUnit(unit_sel);
+	
 	// get art selection:
 	if(!lboxArt->GetCount() || lboxArt->GetSelection() < 0)
 		return;
-	auto sel = lboxArt->GetSelection();
-	string art_name = lboxArt->GetString(sel).ToStdString();
-	
-	// graphics content
-	string art_lz_name = art_name + ".LZ";
-	string art_pal_name = art_name + ".PAL";
-
-	// load LZ graphics file
-	uint8_t *lz_buf;
-	int lz_size;
-	if(m_spell_data->info->GetFile(art_lz_name.c_str(), &lz_buf, &lz_size))
+	auto art_sel = lboxArt->GetSelection();			
+	if(art_sel < 0 || art_sel >= unit->info_imgs.size())
 		return;
+	auto *grpi = unit->info_imgs[art_sel];
 
-	// decode LZ to RAW image
-	uint8_t *data;
-	int len;
-	LZWexpand *lzw = new LZWexpand(1048576);
-	if(lzw->Decode(lz_buf,&lz_buf[lz_size],&data,&len))
-	{
-		delete lzw;
+	auto canvas_rect = art_canvas->GetClientSize();
+	int surf_x = canvas_rect.GetWidth();
+	int surf_y = canvas_rect.GetHeight();
+	auto bmp = grpi->Render(surf_x, surf_y);
+	if(!bmp)
 		return;
-	}
-	delete lzw;
-	uint8_t *end = &data[len];
-
-	// load palette
-	uint8_t *art_pal;
-	int art_pal_size;
-	if(m_spell_data->info->GetFile(art_pal_name.c_str(),&art_pal,&art_pal_size))
-		return;
-	auto terr = m_spell_data->GetTerrain(0);
-	uint8_t pal[256][3];
-	memcpy((void*)pal,(void*)terr->pal,256*3);
-	memcpy((void*)&pal[0][0],(void*)art_pal,art_pal_size);
-
-	
-	// input data dimensions
-	int x_size = 437;
-	int y_size = len/x_size;
-
-	// make redner buffer
-	wxBitmap bmp(art_canvas->GetClientSize(),24);
-	int surf_x = bmp.GetWidth();
-	int surf_y = bmp.GetHeight();
-
-	if(x_size <= surf_x && y_size <= surf_y)
-	{
-		// image should fit to surface
-		int x_ofs = (surf_x - x_size)/2;
-		int y_ofs = (surf_y - y_size)/2;
-
-		// render 24bit RGB data to raw bmp buffer
-		uint8_t* buf = data;
-		wxNativePixelData pdata(bmp);
-		wxNativePixelData::Iterator p(pdata);
-		for(int y = 0; y < surf_y; y++)
-		{
-			uint8_t* scan = p.m_ptr;
-			for(int x = 0; x < surf_x; x++)
-			{
-				int is_visible = y >= y_ofs && y < y_ofs+y_size && x >= x_ofs && x < x_ofs+x_size && data < end;
-				if(is_visible && *buf)
-				{
-					*scan++ = pal[*buf][2];
-					*scan++ = pal[*buf][1];
-					*scan++ = pal[*buf][0];
-					buf++;
-				}
-				else
-				{
-					uint8_t checkers = (!(x&32) == !(y&32))?0x88:0xAA;
-					*scan++ = checkers;
-					*scan++ = checkers;
-					*scan++ = checkers;
-					if(is_visible)
-						buf++;
-				}
-			}
-			p.OffsetY(pdata,1);
-		}		
-	}
-	// loose raw data
-	delete[] data;
-
-	// blit to screen
 	wxPaintDC pdc(art_canvas);
-	pdc.DrawBitmap(bmp,wxPoint(0,0));
+	pdc.DrawBitmap(*bmp,wxPoint(0,0));
+	delete bmp;
 	
 }
 

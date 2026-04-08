@@ -87,7 +87,7 @@ int GetNameStr(char *name, uint8_t* data, int count)
 }
 
 // decode units def file
-SpellUnits::SpellUnits(uint8_t* data, int dlen, FSUarchive *fsu, SpellGraphics *graphics,SpellSounds *sounds,UnitBonuses* bonuses)
+SpellUnits::SpellUnits(uint8_t* data,int dlen,FSUarchive* fsu,FSarchive* fs_info,SpellGraphics* graphics,SpellGraphics* info_graphics,SpellSounds* sounds,UnitBonuses* bonuses)
 {
 	int count;
 	if (dlen % 206 == 0 && dlen % 207 != 0)
@@ -347,9 +347,53 @@ SpellUnits::SpellUnits(uint8_t* data, int dlen, FSUarchive *fsu, SpellGraphics *
 			unit->gr_die = fsu->GetResource(unit->die_anim_name);
 		}
 
+		// load unit info text
+		if(fs_info)
+		{
+			vector<std::string> langs = {"CZ","ENG"};
+			for(auto& lang: langs)
+			{
+				// try load info text file
+				std::string art_info_name = std::string(unit->info) + "." + lang;
+				unit->info_text_raw = fs_info->GetFile(art_info_name);
+				unit->info_text = L"";
+				if(unit->info_text_raw.empty())
+					continue;
+				
+				// try convert codepage
+				if(lang == "CZ")
+					unit->info_text = char2wstringCP895(unit->info_text_raw.c_str());
+				else
+					unit->info_text = char2wstring(unit->info_text_raw.c_str());
+				break;
+			}
+		}
+
+		// assign info graphics
+		if(info_graphics && fs_info)
+		{
+			// try to assign unit image renders
+			//  first look for image directly
+			auto full_name = std::filesystem::path(unit->info).concat(".LZ").string();
+			auto grpi = info_graphics->GetResource(full_name.c_str());
+			if(grpi)
+				unit->info_imgs.push_back(grpi);
+			//  now check if there is list of more images
+			auto lst_name = std::filesystem::path(unit->info).concat(".LST").string();
+			auto lst_file = fs_info->GetFile(lst_name);
+			auto lst_names = get_text_lines(lst_file);
+			for(auto& name: lst_names)
+			{
+				auto full_name = std::filesystem::path(name).concat(".LZ").string();
+				auto grpi = info_graphics->GetResource(full_name.c_str());
+				if(grpi)
+					unit->info_imgs.push_back(grpi);
+			}
+		}
+
 		// --- assign aux graphics
 		if(graphics)
-		{
+		{					
 			// find unit icon
 			unit->icon_glyph = graphics->GetResource(unit->icon);
 
@@ -855,7 +899,7 @@ tuple<int,int> SpellUnitRec::Render(uint8_t* buffer, uint8_t* buf_end, int buf_x
 }
 
 // get art images count
-vector<string> SpellUnitRec::GetArtList(FSarchive* info_fs)
+/*vector<string> SpellUnitRec::GetArtList(FSarchive* info_fs)
 {
 	vector<string> list;
 
@@ -885,14 +929,14 @@ vector<string> SpellUnitRec::GetArtList(FSarchive* info_fs)
 	}
 		
 	return(list);
-}
+}*/
 
 // get count of available arts for unit
-int SpellUnitRec::GetArtCount(FSarchive* info_fs)
+/*int SpellUnitRec::GetArtCount(FSarchive* info_fs)
 {
 	auto list = GetArtList(info_fs);
 	return(list.size());
-}
+}*/
 
 
 

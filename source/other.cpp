@@ -316,6 +316,18 @@ std::string info_get_section(std::string info,std::string section)
     return(match[1]);
 }
 
+// split string by line
+std::vector<std::string> get_text_lines(std::string string)
+{
+    // split rows
+    std::vector<std::string> rows;
+    std::istringstream iss(string);
+    std::string line;
+    while(std::getline(iss,line,'\n')) {
+        rows.push_back(std::regex_replace(line,std::regex("^\\s+|\\s+$|(\\s)\\s+"),"$1"));
+    };
+    return(rows);
+}
 
 
 // get stuff using regex

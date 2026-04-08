@@ -314,7 +314,7 @@ SpellData::SpellData(wstring &data_path,wstring& cd_data_path,wstring& spec_path
 	font7 = NULL;
 	units = NULL;
 	units_fsu = NULL;
-	info = NULL;
+	//info = NULL;
 	sounds = NULL;
 	midi = NULL;
 	texts = NULL;
@@ -481,6 +481,27 @@ SpellData::SpellData(wstring &data_path,wstring& cd_data_path,wstring& spec_path
 		throw runtime_error(string_format("Loading UNITS.FSU units graphics failed (%s)!",error.what()));
 	}	
 
+	// load INFO.FS (units art)
+	if(status_list)
+		status_list("Loading units info/renders (INFO.FS)...");
+	wstring info_path = std::filesystem::path(cd_data_path) / std::filesystem::path("INFO.FS");
+	try {
+		info_fs = new FSarchive(info_path,FSarchive::Options::DELZ_ALL);
+	}
+	catch(const runtime_error& error) {
+		this->~SpellData();
+		if(status_list)
+			status_list(" - failed!");
+		throw runtime_error(string_format("Decoding INFO.FS failed (%s)!",error.what()));
+	}
+	if(LoadInfoGraphics(info_fs,status_item))
+	{
+		this->~SpellData();
+		if(status_list)
+			status_list(" - failed!");
+		throw runtime_error("Loading info graphics resources failed!");
+	}
+
 
 	// load JEDNOTKY.DEF units definition file
 	if(status_list)
@@ -493,7 +514,7 @@ SpellData::SpellData(wstring &data_path,wstring& cd_data_path,wstring& spec_path
 		throw runtime_error("JEDNOTKY.DEF not found in COMMON.FS!");
 	}
 	try{
-		units = new SpellUnits(data, size, units_fsu, &gres, sounds, unit_bonuses);
+		units = new SpellUnits(data, size, units_fsu, info_fs, &gres, &gres_info, sounds, unit_bonuses);
 	}catch(const runtime_error& error) {
 		this->~SpellData();
 		if(status_list)
@@ -541,21 +562,7 @@ SpellData::SpellData(wstring &data_path,wstring& cd_data_path,wstring& spec_path
 		throw runtime_error(string_format("Decoding string tables failed (%s)!",error.what()));
 	}
 	delete texts_fs;
-
-	
-	// load INFO.FS (units art)
-	if(status_list)
-		status_list("Loading units info/renders (INFO.FS)...");
-	wstring info_path = std::filesystem::path(cd_data_path) / std::filesystem::path("INFO.FS");
-	try{
-		info = new FSarchive(info_path);
-	}catch(const runtime_error& error) {
-		this->~SpellData();
-		if(status_list)
-			status_list(" - failed!");
-		throw runtime_error(string_format("Decoding INFO.FS failed (%s)!",error.what()));
-	}
-	
+		
 
 	// load special tiles
 	if(status_list)
@@ -640,9 +647,9 @@ SpellData::~SpellData()
 	if(font7)
 		delete font7;
 	font7 = NULL;
-	if(info)
-		delete info;
-	info = NULL;
+	if(info_fs)
+		delete info_fs;
+	info_fs = NULL;
 	if(sounds)
 		delete sounds;
 	sounds = NULL;
@@ -843,12 +850,81 @@ public:
 	bool solid;
 };
 
+
+// load info graphics resources
+int SpellData::LoadInfoGraphics(FSarchive* fs,std::function<void(std::string)> status_item)
+{
+	
+	// info frame palette
+	auto pal = AddPalette("PALETA.NRM");
+	std::vector<uint8_t> chunk;
+	if(fs->GetFile("PALETA.NRM",chunk) || chunk.size() != 256*3)
+		return(1);
+	pal->Insert(chunk,"PALETA.NRM");
+	
+	// frame chunks
+	std::vector<SpellGrpParams> grp_list ={
+		{"NAMELSTA.LZ", "PALETA.NRM", SpellGrpParams::GrpType::RAW, 200, true}, // 
+		{"INFOLSTA.LZ", "PALETA.NRM", SpellGrpParams::GrpType::RAW, 433, true}, // 
+		{"INFOPAN.LZ", "PALETA.NRM", SpellGrpParams::GrpType::RAW, 640, true}, // 
+		{"IBG_600.LZ", "PALETA.NRM", SpellGrpParams::GrpType::RAW, 800, true}, // 
+		{"IBG_768.LZ", "PALETA.NRM", SpellGrpParams::GrpType::RAW, 1024, true}, //
+		{"*.LZ", "", SpellGrpParams::GrpType::RAW, 437, true}, // general unit images
+	};
+
+	// for each file:
+	for(auto& file: fs->GetFiles())
+	{
+		// get file data
+		const char* name = file->name.c_str();
+		int flen = file->data.size();
+		uint8_t* data = file->data.data();
+		uint8_t* data_end = &data[flen];
+
+		// try to identify each graphical resource:
+		for(auto& item: grp_list)
+		{
+			if(!wildcmp(item.wild.c_str(),file->name.c_str()))
+				continue;
+			// found matching resource
+
+			if(item.palette.empty())
+			{
+				// no palette, check if dedicated exists?
+				auto pal_name = std::filesystem::path(file->name).stem().concat(".PAL").string();
+				std::vector<uint8_t> pal_data;
+				fs->GetFile(pal_name.c_str(),pal_data);
+				if(pal_data.size() != 3*192)
+					break;
+				// load it
+				pal = AddPalette(pal_name);
+				pal->Insert(pal_data);
+			}
+			else
+				pal = GetPalette(item.palette);
+			if(!pal)
+				break;
+			
+			// try load resource
+			if(item.palette.empty() && item.type == SpellGrpParams::GrpType::RAW)
+				gres_info.AddRaw(data,flen,item.width,0,name,pal,item.solid);
+			else if(item.type == SpellGrpParams::GrpType::RAW)
+				gres.AddRaw(data,flen,item.width,0,name,pal,item.solid);
+			break;
+		}
+
+		if(status_item)
+			status_item(name);
+	}
+
+
+	
+	return(0);
+}
+
 // load generic graphics resources
 int SpellData::LoadAuxGraphics(FSarchive *fs,std::function<void(std::string)> status_item)
 {
-	// default map palette
-	auto *map_pal = GetPalette("MAP");
-
 
 	std::vector<SpellGrpParams> grp_list = {
 		{"I_*.LZ", "MAP", SpellGrpParams::GrpType::RAW, 60, true}, // unit icons
@@ -976,19 +1052,16 @@ int SpellData::LoadAuxGraphics(FSarchive *fs,std::function<void(std::string)> st
 				gres.AddPNM(data, flen, name);
 			break;
 		}
-	
-		
 
 		if(status_item)
 			status_item(name);
 	}
 
 	// make round LED indicators for mission HUD
-	gres.AddLED(204,"RLED_OFF",map_pal);
-	gres.AddLED(253,"RLED_ON",map_pal);
-	gres.AddLED(229,"YLED_ON",map_pal);
-	
-	// --- DO NOT ADD ANYTHING TO LIST AFTER HERE!!! it would change memory locations!
+	auto pal = GetPalette("MAP");
+	gres.AddLED(204,"RLED_OFF",pal);
+	gres.AddLED(253,"RLED_ON",pal);
+	gres.AddLED(229,"YLED_ON",pal);		
 
 	// ###todo: make sure none of following is missing!
 
@@ -1062,6 +1135,8 @@ int SpellData::LoadAuxGraphics(FSarchive *fs,std::function<void(std::string)> st
 
 	return(0);
 }
+
+
 
 
 // generate special tiles (solid A-M, grid A-M, selection A-M), call only after at least one terrain loaded!

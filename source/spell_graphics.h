@@ -46,8 +46,8 @@ class SpellProjectile
 public:
 	char name[13];
 	SpellGraphicItem* glyphs[16];
-	SpellProjectile(SpellGraphicItem &glyph);
-	int Insert(SpellGraphicItem &glyph);
+	SpellProjectile(SpellGraphicItem *glyph);
+	int Insert(SpellGraphicItem *glyph);
 	int Check();
 	SpellGraphicItem* GetGlyph(double angle);
 };
@@ -56,7 +56,7 @@ public:
 class SpellGraphics
 {
 private:
-	vector<SpellGraphicItem> items;
+	vector<SpellGraphicItem*> items;
 	vector<AnimPNM*> pnms;
 	vector<SpellProjectile> projectiles;	
 public:

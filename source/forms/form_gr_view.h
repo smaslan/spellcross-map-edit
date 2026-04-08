@@ -44,6 +44,7 @@ private:
 	SpellData *spell_data;
 	int m_width_dir;
 	int m_width_old;
+	SpellPalette m_pal;
 
 	void OnClose(wxCloseEvent& ev);
 	void OnCloseClick(wxCommandEvent& event);
@@ -55,6 +56,7 @@ private:
 	void OnExportClick(wxCommandEvent& event);
 	void OnExportAllClick(wxCommandEvent& event);
 
+	SpellGraphics* GetSource();
 	void LoadGrpList();
 	wxBitmap* Render(std::string name,bool for_export=false);
 

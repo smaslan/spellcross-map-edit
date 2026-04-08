@@ -142,9 +142,11 @@ class SpellData
 private:
 	int GenerateSpecialTiles();
 	int LoadAuxGraphics(FSarchive* fs,std::function<void(std::string)> status_item=NULL);
+	int LoadInfoGraphics(FSarchive* fs,std::function<void(std::string)> status_item=NULL);
 	
 	FSarchive* common_fs;
 	FSarchive* terrain_fs;
+	FSarchive* info_fs;
 
 public:
 	// data paths
@@ -170,12 +172,12 @@ public:
 	// fonts
 	SpellFont* font;
 	SpellFont* font7;
-	// generic graphics
+	// general graphics
 	SpellGraphics gres;
+	// info unit graphics
+	SpellGraphics gres_info;
 	// last path
-	wstring spell_data_root;
-	// info.fs
-	FSarchive* info;
+	wstring spell_data_root;		
 	// sound stuff
 	SpellSounds* sounds;
 	// sound stuff
