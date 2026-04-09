@@ -310,6 +310,7 @@ string &SpellStringTable::GetRaw()
 
 SpellData::SpellData(wstring &data_path,wstring& cd_data_path,wstring& spec_path,std::function<void(std::string)> status_list,std::function<void(std::string)> status_item)
 {
+	last_error = "";
 	font = NULL;
 	font7 = NULL;
 	units = NULL;
@@ -333,7 +334,7 @@ SpellData::SpellData(wstring &data_path,wstring& cd_data_path,wstring& spec_path
 	
 	// store path
 	spell_data_root = data_path;
-
+		
 	// load COMMON.FS
 	if(status_list)
 		status_list("Loading COMMON.FS archive...");	
@@ -345,6 +346,20 @@ SpellData::SpellData(wstring &data_path,wstring& cd_data_path,wstring& spec_path
 		if(status_list)
 			status_list(" - failed!");
 		throw runtime_error(string_format("Loading COMMON.FS archive failed (%s)!",error.what()));
+	}
+
+	// load INFO.FS (units art)
+	if(status_list)
+		status_list("Loading INFO.FS archive...");
+	wstring info_path = std::filesystem::path(cd_data_path) / std::filesystem::path("INFO.FS");
+	try {
+		info_fs = new FSarchive(info_path,FSarchive::Options::DELZ_ALL);
+	}
+	catch(const runtime_error& error) {
+		this->~SpellData();
+		if(status_list)
+			status_list(" - failed!");
+		throw runtime_error(string_format("Decoding INFO.FS failed (%s)!",error.what()));
 	}
 		
 	// load sound stuff
@@ -396,28 +411,41 @@ SpellData::SpellData(wstring &data_path,wstring& cd_data_path,wstring& spec_path
 			status_list(" - failed!");
 		throw runtime_error(string_format("Loading unit bonuses failed (%s)!",error.what()));
 	}
-
-	// load UNITS.PAL palette chunk for maps
+	
+	// load palette chunks
 	if(status_list)
 		status_list("Loading palette files...");
-	if(LoadPalettes(common_fs))
+	if(LoadPalettes(common_fs,info_fs))
 	{
+		auto msg = last_error;
 		this->~SpellData();
 		if(status_list)
-			status_list(" - missing palette file(s)!");
-		throw runtime_error("missing palette file(s) in COMMON.FS!");
+			status_list(string_format(" - failed with message: %s",msg.c_str()));
+		throw runtime_error(string_format("missing palette file(s) in COMMON.FS: %s",msg.c_str()));
 	}
-		
-	
+
 	// load generic graphic resources
 	if(status_list)
 		status_list("Loading common graphics resources...");
 	if(LoadAuxGraphics(common_fs,status_item))
 	{
+		auto msg = last_error;
 		this->~SpellData();
 		if(status_list)
-			status_list(" - failed!");
-		throw runtime_error("Loading common graphics resources failed!");
+			status_list(string_format(" - failed with message: %s",msg.c_str()));
+		throw runtime_error(string_format("Loading common graphics resources failed with message: %s",msg.c_str()));
+	}
+
+	// load info graphics resources
+	if(status_list)
+		status_list("Loading unit info graphics resources...");
+	if(LoadInfoGraphics(info_fs,status_item))
+	{
+		auto msg = last_error;
+		this->~SpellData();
+		if(status_list)
+			status_list(string_format(" - failed with message: %s",msg.c_str()));
+		throw runtime_error(string_format("Loading info graphics resources failed with message: %s",msg.c_str()));
 	}
 	
 	// load terrains
@@ -480,28 +508,7 @@ SpellData::SpellData(wstring &data_path,wstring& cd_data_path,wstring& spec_path
 			status_list(" - failed!");
 		throw runtime_error(string_format("Loading UNITS.FSU units graphics failed (%s)!",error.what()));
 	}	
-
-	// load INFO.FS (units art)
-	if(status_list)
-		status_list("Loading units info/renders (INFO.FS)...");
-	wstring info_path = std::filesystem::path(cd_data_path) / std::filesystem::path("INFO.FS");
-	try {
-		info_fs = new FSarchive(info_path,FSarchive::Options::DELZ_ALL);
-	}
-	catch(const runtime_error& error) {
-		this->~SpellData();
-		if(status_list)
-			status_list(" - failed!");
-		throw runtime_error(string_format("Decoding INFO.FS failed (%s)!",error.what()));
-	}
-	if(LoadInfoGraphics(info_fs,status_item))
-	{
-		this->~SpellData();
-		if(status_list)
-			status_list(" - failed!");
-		throw runtime_error("Loading info graphics resources failed!");
-	}
-
+	
 
 	// load JEDNOTKY.DEF units definition file
 	if(status_list)
@@ -769,8 +776,9 @@ int SpellData::BuildHouseObjectsOfMaps(wstring folder,string terrain_name,std::f
 
 
 // load palette resources from COMMON.FS
-int SpellData::LoadPalettes(FSarchive* fs)
+int SpellData::LoadPalettes(FSarchive* fs_common, FSarchive* fs_info)
 {
+	last_error = "";
 	std::vector<uint8_t> chunk;
 	SpellPalette *pal;
 
@@ -778,13 +786,19 @@ int SpellData::LoadPalettes(FSarchive* fs)
 	pal = AddPalette("MAP");
 	
 	// UNITS.PAL chunk	
-	if(fs->GetFile("UNITS.PAL",chunk) || chunk.size() != 96*3)
-		return(1);
+	if(fs_common->GetFile("UNITS.PAL",chunk) || chunk.size() != 96*3)
+	{
+		last_error = string_format("Missing or corrupted palette: UNITS.PAL!");
+		return(1); // missing item!
+	}	
 	pal->Insert(chunk,"UNITS.PAL",128);
 		
 	// load SYSTEM.PAL palette chunk for maps
-	if(fs->GetFile("SYSTEM.PAL",chunk) || chunk.size() != 32*3)
-		return(1);
+	if(fs_common->GetFile("SYSTEM.PAL",chunk) || chunk.size() != 32*3)
+	{
+		last_error = string_format("Missing or corrupted palette: SYSTEM.PAL!");
+		return(1); // missing item!
+	}
 	pal->Insert(chunk,"SYSTEM.PAL",224);
 
 	// load CURSOR.PAL palette chunk for maps - ###todo: not sure where to place this
@@ -806,12 +820,18 @@ int SpellData::LoadPalettes(FSarchive* fs)
 	pal = AddPalette("BIG_MAP.PAL");
 
 	// BIG_MAP.PAL chunk	
-	if(fs->GetFile("BIG_MAP.PAL",chunk) || chunk.size() != 64*3)
-		return(1);
+	if(fs_common->GetFile("BIG_MAP.PAL",chunk) || chunk.size() != 64*3)
+	{
+		last_error = string_format("Missing or corrupted palette: BIG_MAP.PAL!");
+		return(1); // missing item!
+	}
 	pal->Insert(chunk,"BIG_MAP.PAL",192);
 	// _SHARED1.PAL chunk
-	if(fs->GetFile("_SHARED1.PAL",chunk) || chunk.size() != 128*3)
-		return(1);
+	if(fs_common->GetFile("_SHARED1.PAL",chunk) || chunk.size() != 128*3)
+	{
+		last_error = string_format("Missing or corrupted palette: _SHARED1.PAL!");
+		return(1); // missing item!
+	}
 	pal->Insert(chunk,"_SHARED1.PAL",0);
 
 
@@ -819,17 +839,33 @@ int SpellData::LoadPalettes(FSarchive* fs)
 	pal = AddPalette("MAINMENU.PAL");
 
 	// MAINMENU.PAL chunk	
-	if(fs->GetFile("MAINMENU.PAL",chunk) || chunk.size() != 256*3)
-		return(1);
+	if(fs_common->GetFile("MAINMENU.PAL",chunk) || chunk.size() != 256*3)
+	{
+		last_error = string_format("Missing or corrupted palette: MAINMENU.PAL!");
+		return(1); // missing item!
+	}
 	pal->Insert(chunk,"MAINMENU.PAL");
 
 	// make empty main menu palette
 	pal = AddPalette("STRATEGY.PAL");
 
 	// MAINMENU.PAL chunk	
-	if(fs->GetFile("STRATEGY.PAL",chunk) || chunk.size() != 256*3)
-		return(1);
+	if(fs_common->GetFile("STRATEGY.PAL",chunk) || chunk.size() != 256*3)
+	{
+		last_error = string_format("Missing or corrupted palette: STRATEGY.PAL!");
+		return(1); // missing item!
+	}
 	pal->Insert(chunk,"STRATEGY.PAL");
+
+
+	// info frame palette
+	pal = AddPalette("PALETA.NRM");
+	if(fs_info->GetFile("PALETA.NRM",chunk) || chunk.size() != 256*3)
+	{
+		last_error = string_format("Missing or corrupted palette: PALETA.NRM (INFO.FS)!");
+		return(1); // missing item!
+	}
+	pal->Insert(chunk,"PALETA.NRM");
 					
 
 	return(0);
@@ -854,14 +890,8 @@ public:
 // load info graphics resources
 int SpellData::LoadInfoGraphics(FSarchive* fs,std::function<void(std::string)> status_item)
 {
-	
-	// info frame palette
-	auto pal = AddPalette("PALETA.NRM");
-	std::vector<uint8_t> chunk;
-	if(fs->GetFile("PALETA.NRM",chunk) || chunk.size() != 256*3)
-		return(1);
-	pal->Insert(chunk,"PALETA.NRM");
-	
+	last_error = "";
+
 	// frame chunks
 	std::vector<SpellGrpParams> grp_list ={
 		{"NAMELSTA.LZ", "PALETA.NRM", SpellGrpParams::GrpType::RAW, 200, true}, // 
@@ -888,6 +918,7 @@ int SpellData::LoadInfoGraphics(FSarchive* fs,std::function<void(std::string)> s
 				continue;
 			// found matching resource
 
+			SpellPalette *pal;
 			if(item.palette.empty())
 			{
 				// no palette, check if dedicated exists?
@@ -925,6 +956,7 @@ int SpellData::LoadInfoGraphics(FSarchive* fs,std::function<void(std::string)> s
 // load generic graphics resources
 int SpellData::LoadAuxGraphics(FSarchive *fs,std::function<void(std::string)> status_item)
 {
+	last_error = "";
 
 	std::vector<SpellGrpParams> grp_list = {
 		{"I_*.LZ", "MAP", SpellGrpParams::GrpType::RAW, 60, true}, // unit icons
@@ -959,7 +991,7 @@ int SpellData::LoadAuxGraphics(FSarchive *fs,std::function<void(std::string)> st
 		{"HIERARCH.LZ", "BIG_MAP.PAL", SpellGrpParams::GrpType::RAW, 406, true}, // big map hierarchy panel
 		{"UNITS.LZ", "BIG_MAP.PAL", SpellGrpParams::GrpType::RAW, 406, true}, // big map hierarchy panel
 		{"INFO.LZ", "BIG_MAP.PAL", SpellGrpParams::GrpType::RAW, 412, true}, // big map info panel
-		{"RES_BAR.LZ", "BIG_MAP.PAL", SpellGrpParams::GrpType::RAW, 416, true}, // big map something for research?
+		{"RES_BAR.LZ", "MAP", SpellGrpParams::GrpType::RAW, 0, true}, // something for research, does not match big map palette?
 		{"VM?_FULL.LZ", "BIG_MAP.PAL", SpellGrpParams::GrpType::RAW, 575, true}, // big map panel chunks (outer frame)
 		{"VMB_LST1.LZ", "BIG_MAP.PAL", SpellGrpParams::GrpType::RAW, 163, true}, // big map panel chunks
 		{"VMB_LST2.LZ", "BIG_MAP.PAL", SpellGrpParams::GrpType::RAW, 241, true}, // big map panel chunks
@@ -976,8 +1008,17 @@ int SpellData::LoadAuxGraphics(FSarchive *fs,std::function<void(std::string)> st
 		{"GOTOLSTA.LZ", "MAP", SpellGrpParams::GrpType::RAW, 176, false}, // war map center panel
 		{"MAP_OPT.LZ", "MAP", SpellGrpParams::GrpType::RAW, 436, false}, // war map options panel
 		{"WM_STAT.LZ", "MAP", SpellGrpParams::GrpType::RAW, 408, false}, // war map stats panel
-		{"*.ICO", "MAP", SpellGrpParams::GrpType::ICO, 0, false}, // ICO files (compression like in PNM files)
-		{"*.BTN", "MAP", SpellGrpParams::GrpType::ICO, 0, false}, // BTN files (compression like in PNM files)
+		{"ET_*.LZ", "BIG_MAP.PAL", SpellGrpParams::GrpType::RAW, 41, true}, // big map buttons
+		{"LED_*.LZ", "BIG_MAP.PAL", SpellGrpParams::GrpType::RAW, 9, false}, // some leds (no idea from where?)
+		{"VM*.ICO", "BIG_MAP.PAL", SpellGrpParams::GrpType::ICO, 0, false}, // big map ICO files
+		{"LASTTERT.ICO", "BIG_MAP.PAL", SpellGrpParams::GrpType::ICO, 0, false}, // big map ICO files
+		{"INFO?*.ICO", "BIG_MAP.PAL", SpellGrpParams::GrpType::ICO, 0, false}, // info panel ICO files (###todo: not sure about palette, maybe PALETA.NRM from info.fs?)
+		{"*.ICO", "MAP", SpellGrpParams::GrpType::ICO, 0, false}, // ICO files
+		{"BIGM*.BTN", "BIG_MAP.PAL", SpellGrpParams::GrpType::ICO, 0, true}, // big map BTN files
+		{"BM*.BTN", "BIG_MAP.PAL", SpellGrpParams::GrpType::ICO, 0, true}, // big map BTN files
+		{"VM*.BTN", "BIG_MAP.PAL", SpellGrpParams::GrpType::ICO, 0, true}, // big map BTN files
+		{"I*.BTN", "PALETA.NRM", SpellGrpParams::GrpType::ICO, 0, true}, // info panel BTN files
+		{"*.BTN", "MAP", SpellGrpParams::GrpType::ICO, 0, false}, // BTN files
 		{"*.CUR", "MAP", SpellGrpParams::GrpType::CUR, 0, false}, // cursors
 		{"*.GFK", "MAP", SpellGrpParams::GrpType::RAW, 21, false}, // projectiles
 		{"I_TAB", "MAP", SpellGrpParams::GrpType::RAW, 45, true}, // raw icon files in war map panel
@@ -1047,7 +1088,7 @@ int SpellData::LoadAuxGraphics(FSarchive *fs,std::function<void(std::string)> st
 			else if(item.type == SpellGrpParams::GrpType::CUR)
 				gres.AddCUR(data, flen, name, pal);
 			else if(item.type == SpellGrpParams::GrpType::ICO)
-				gres.AddICO(data, flen, name, pal);
+				gres.AddICO(data, flen, name, pal, item.solid);
 			else if(item.type == SpellGrpParams::GrpType::PNM)
 				gres.AddPNM(data, flen, name);
 			break;
@@ -1064,71 +1105,110 @@ int SpellData::LoadAuxGraphics(FSarchive *fs,std::function<void(std::string)> st
 	gres.AddLED(229,"YLED_ON",pal);		
 
 	// ###todo: make sure none of following is missing!
-
 	// make direct (fast) links to some resoruces
-	gres.red_led_off = gres.GetResource("RLED_OFF");
-	gres.red_led_on = gres.GetResource("RLED_ON");
-	gres.yellow_led_on = gres.GetResource("YLED_ON");
-	gres.wm_hud = gres.GetResource("LISTA_0");
-	gres.wm_hud_enemy = gres.GetResource("LISTA_1");
-	gres.wm_hud_sides = gres.GetResource("LISTAPAT");
-	gres.wm_hud_overlay = gres.GetResource("LISTA_0B");
-	gres.wm_form[0] = gres.GetResource("WM_FORM0");
-	gres.wm_form[1] = gres.GetResource("WM_FORM1");
-	gres.wm_form[2] = gres.GetResource("WM_FORM2");
-	gres.wm_exp_mark = gres.GetResource("LEV_GFK");
-	gres.wm_freeze = gres.GetResource("MRAZIK");
-	gres.wm_paralyze = gres.GetResource("PARALIZ");
-	gres.wm_btn_idle = gres.GetResource("MAINB__D");
-	gres.wm_btn_hover = gres.GetResource("MAINB__A");
-	gres.wm_btn_press = gres.GetResource("MAINB__P");
-	gres.wm_glyph_air = gres.GetResource("AIRUNIT");
-	gres.wm_glyph_center_unit = gres.GetResource("CENTRUNIT");
-	gres.wm_glyph_down = gres.GetResource("DOWN");
-	gres.wm_glyph_up = gres.GetResource("UP");
-	gres.wm_glyph_radar_down = gres.GetResource("RADAROFF");
-	gres.wm_glyph_radar_up = gres.GetResource("RADARON");
-	gres.wm_glyph_end_turn = gres.GetResource("ENDTURN");
-	gres.wm_glyph_goto_unit = gres.GetResource("GOTOUNIT");
-	gres.wm_glyph_ground = gres.GetResource("GRNDUNIT");
-	gres.wm_glyph_map = gres.GetResource("MAP");
-	gres.wm_glyph_heal = gres.GetResource("HEAL");
-	gres.wm_glyph_unit_info = gres.GetResource("INFO");
-	gres.wm_glyph_next = gres.GetResource("NEXT");
-	gres.wm_glyph_options = gres.GetResource("OPTIONS");
-	gres.wm_glyph_next_unused = gres.GetResource("PREVIOUS");
-	gres.wm_glyph_retreat = gres.GetResource("RETREAT");
-	gres.wm_glyph_end_placement = gres.GetResource("UKONCEN");
-	gres.wm_glyph_info = gres.GetResource("UNITINFO");
-	gres.wm_glyph_place_unit = gres.GetResource("UKONCEN");
-	gres.wm_sel_tab = gres.GetResource("I_TAB");
-	gres.wm_sel_attack = gres.GetResource("I_ATTACK");
-	gres.wm_sel_move = gres.GetResource("I_MOVE");
-	gres.wm_sel_upper = gres.GetResource("I_UPPER");
-	gres.wm_sel_lower = gres.GetResource("I_LOWER");
-	gres.wm_sel_select = gres.GetResource("I_SELECT");
-	gres.wm_frame_horz = gres.GetResource("RAM2HORZ.DTA");
-	gres.wm_frame_vert = gres.GetResource("RAM2VERT.DTA");
-	gres.wm_frame_corner = gres.GetResource("RAM2ROH.DTA");
-	gres.wm_map_opt_frame = gres.GetResource("MAP_OPT");
-	gres.wm_map_opt_btn_disabled = gres.GetResource("WMOPT__D");
-	gres.wm_map_opt_btn_idle = gres.GetResource("WMOPT__N");
-	gres.wm_map_opt_btn_hover = gres.GetResource("WMOPT__A");
-	gres.wm_map_opt_btn_down = gres.GetResource("WMOPT__P");
-	gres.wm_map_units_list = gres.GetResource("GU_LISTA");
+	class SpellGrpShortsList{
+	public:
+		SpellGraphicItem** item;
+		std::string name;		
+	};
+	std::vector<SpellGrpShortsList> short_links_list = {
+		{&gres.red_led_off,"RLED_OFF"},
+		{&gres.red_led_on, "RLED_ON"},
+		{&gres.yellow_led_on, "YLED_ON"},
+		{&gres.wm_hud, "LISTA_0"},
+		{&gres.wm_hud_enemy, "LISTA_1"},
+		{&gres.wm_hud_sides, "LISTAPAT"},
+		{&gres.wm_hud_overlay, "LISTA_0B"},
+		{&gres.wm_form[0], "WM_FORM0"},
+		{&gres.wm_form[1], "WM_FORM1"},
+		{&gres.wm_form[2], "WM_FORM2"},
+		{&gres.wm_exp_mark, "LEV_GFK"},
+		{&gres.wm_freeze, "MRAZIK"},
+		{&gres.wm_paralyze, "PARALIZ"},
+		{&gres.wm_btn_idle, "MAINB__D"},
+		{&gres.wm_btn_hover, "MAINB__A"},
+		{&gres.wm_btn_press, "MAINB__P"},
+		{&gres.wm_glyph_air, "AIRUNIT"},
+		{&gres.wm_glyph_center_unit, "CENTRUNT"},
+		{&gres.wm_glyph_down, "DOWN"},
+		{&gres.wm_glyph_up, "UP"},
+		{&gres.wm_glyph_radar_down, "RADAROFF"},
+		{&gres.wm_glyph_radar_up, "RADARON"},
+		{&gres.wm_glyph_end_turn, "ENDTURN"},
+		{&gres.wm_glyph_goto_unit, "GOTOUNIT"},
+		{&gres.wm_glyph_ground, "GRNDUNIT"},
+		{&gres.wm_glyph_map, "MAP"},
+		{&gres.wm_glyph_heal, "HEAL"},
+		{&gres.wm_glyph_unit_info, "INFO"},
+		{&gres.wm_glyph_next, "NEXT"},
+		{&gres.wm_glyph_options, "OPTIONS"},
+		{&gres.wm_glyph_next_unused, "PREVIOUS"},
+		{&gres.wm_glyph_retreat, "RETREAT"},
+		{&gres.wm_glyph_end_placement, "UKONCEN"},
+		{&gres.wm_glyph_info, "UNITINFO"},
+		{&gres.wm_glyph_place_unit, "UKONCEN"},
+		{&gres.wm_sel_tab, "I_TAB"},
+		{&gres.wm_sel_attack, "I_ATTACK"},
+		{&gres.wm_sel_move, "I_MOVE"},
+		{&gres.wm_sel_upper, "I_UPPER"},
+		{&gres.wm_sel_lower, "I_LOWER"},
+		{&gres.wm_sel_select, "I_SELECT"},
+		{&gres.wm_frame_horz, "RAM2HORZ.DTA"},
+		{&gres.wm_frame_vert, "RAM2VERT.DTA"},
+		{&gres.wm_frame_corner, "RAM2ROH.DTA"},
+		{&gres.wm_map_opt_frame, "MAP_OPT"},
+		{&gres.wm_map_opt_btn_disabled, "WMOPT__D"},
+		{&gres.wm_map_opt_btn_idle, "WMOPT__N"},
+		{&gres.wm_map_opt_btn_hover, "WMOPT__A"},
+		{&gres.wm_map_opt_btn_down, "WMOPT__P"},
+		{&gres.wm_map_units_list, "GU_LISTA"}
+	};	
+	for(auto &item: short_links_list)
+	{
+		auto grpi = gres.GetResource(item.name.c_str());
+		if(!grpi)
+		{
+			last_error = string_format("Missing mandatory graphics resource: %s!",item.name.c_str());
+			return(1); // missing item!
+		}
+		*item.item = grpi;
+	}
+	
 
 	// render cursors
-	gres.cur_pointer = gres.RenderCUR("SIPKA.CUR");
-	gres.cur_wait = gres.RenderCUR("WAIT.CUR");
-	gres.cur_select = gres.RenderCUR("SELECT.CUR");
-	gres.cur_question = gres.RenderCUR("OTAZNIK.CUR");
-	gres.cur_move = gres.RenderCUR("DOJAZD.CUR");
-	gres.cur_attack_down = gres.RenderCUR("TARGT_D.CUR");
-	gres.cur_attack_up = gres.RenderCUR("TARGT_U.CUR");
-	gres.cur_attack_up_down = gres.RenderCUR("OTAZNIK.CUR");
+	class SpellCurShortsList {
+	public:
+		wxCursor** item;
+		std::string name;
+	};
+	std::vector<SpellCurShortsList> short_cur_links_list ={
+		{&gres.cur_pointer,"SIPKA.CUR"},
+		{&gres.cur_wait,"WAIT.CUR"},
+		{&gres.cur_select,"SELECT.CUR"},
+		{&gres.cur_question,"OTAZNIK.CUR"},
+		{&gres.cur_move,"DOJAZD.CUR"},
+		{&gres.cur_attack_down,"TARGT_D.CUR"},
+		{&gres.cur_attack_up,"TARGT_U.CUR"},
+		{&gres.cur_attack_up_down,"OTAZNIK.CUR"}
+	};
+	for(auto& item: short_cur_links_list)
+	{
+		auto wcur = gres.RenderCUR(item.name.c_str());
+		if(!wcur)
+		{
+			last_error = string_format("Missing mandatory graphics resource: %s!",item.name.c_str());
+			return(1); // missing item!
+		}
+		*item.item = wcur;
+	}
 
 	// unit cursor
 	gres.pnm_sipka = gres.GetPNM("SIPKA");
+	if(!gres.pnm_sipka)
+	{
+		last_error = string_format("Missing mandatory graphics resource: SIPKA!");
+		return(1); // missing item!
+	}
 	
 	// order projectiles
 	gres.SortProjectiles();

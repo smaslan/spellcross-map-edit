@@ -141,9 +141,11 @@ class SpellData
 {
 private:
 	int GenerateSpecialTiles();
+	int LoadPalettes(FSarchive* fs_common,FSarchive* fs_info);
 	int LoadAuxGraphics(FSarchive* fs,std::function<void(std::string)> status_item=NULL);
 	int LoadInfoGraphics(FSarchive* fs,std::function<void(std::string)> status_item=NULL);
 	
+	std::string last_error;
 	FSarchive* common_fs;
 	FSarchive* terrain_fs;
 	FSarchive* info_fs;
@@ -196,9 +198,8 @@ public:
 	std::vector<SpellPalette*> pal_list;
 	SpellPalette *AddPalette(std::string name);
 	SpellPalette *GetPalette(std::string name);
-	uint8_t* GetPaletteData(std::string name);
-	int LoadPalettes(FSarchive* fs);
-
+	uint8_t* GetPaletteData(std::string name);	
+	
 
 	SpellData(wstring& data_path,wstring& cd_data_path,wstring& spec_path,std::function<void(std::string)> status_list=NULL,std::function<void(std::string)> status_item=NULL);
 	~SpellData();	

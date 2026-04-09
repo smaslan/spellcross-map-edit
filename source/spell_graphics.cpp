@@ -91,7 +91,7 @@ int SpellGraphics::AddRaw(uint8_t* data,int dlen,int x_size,int y_size,const cha
 }
 
 // load ICO/PNM file (same as for PNM animations frames)
-int SpellGraphics::AddICO(uint8_t* data,int dlen,const char* name,SpellPalette *pal)
+int SpellGraphics::AddICO(uint8_t* data,int dlen,const char* name,SpellPalette *pal,bool is_solid)
 {
 	// make new record
 	auto grp = new SpellGraphicItem();
@@ -172,7 +172,7 @@ int SpellGraphics::AddICO(uint8_t* data,int dlen,const char* name,SpellPalette *
 	grp->y_size = y_size;
 	grp->x_ofs = x_ofs;
 	grp->y_ofs = y_ofs;
-	grp->is_transparent = true;
+	grp->is_transparent = !is_solid;
 	
 	// link to external palette	
 	grp->palette = pal;
