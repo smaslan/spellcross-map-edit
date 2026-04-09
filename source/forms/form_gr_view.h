@@ -44,8 +44,7 @@ private:
 	SpellData *spell_data;
 	int m_width_dir;
 	int m_width_old;
-	SpellPalette m_pal;
-
+	
 	void OnClose(wxCloseEvent& ev);
 	void OnCloseClick(wxCommandEvent& event);
 	void OnPaintCanvas(wxPaintEvent& event);

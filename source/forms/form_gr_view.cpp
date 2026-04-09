@@ -200,7 +200,13 @@ void FormGResView::OnExportClick(wxCommandEvent& event)
 		return;
 	std::string name = lboxFiles->GetString(lboxFiles->GetSelection()).ToStdString();
 
-	auto grpi = spell_data->gres.GetResource(name.c_str());
+	// images source
+	auto source = GetSource();
+	if(!source)
+		return;
+
+	// image
+	auto grpi = source->GetResource(name.c_str());
 	if(!grpi)
 		return;
 
@@ -212,12 +218,8 @@ void FormGResView::OnExportClick(wxCommandEvent& event)
 	}*/
 
 	
-	// remove extension
+	// default name
 	auto wname = std::filesystem::path(name).concat(".png").wstring();
-
-	// split path to folder and file    	
-	//std::filesystem::path last_path = spell_data->export_path;
-	//wstring dir = last_path.parent_path(); dir += wstring(L"\\");
 
 	// show save dialog
 	wxFileDialog saveFileDialog(this,_("Export glyph image"),spell_data->export_path,wname,"PNG image file (*.png)|*.png",
@@ -226,9 +228,7 @@ void FormGResView::OnExportClick(wxCommandEvent& event)
 		return;
 	wstring path = wstring(saveFileDialog.GetPath().ToStdWstring());
 	spell_data->export_path = saveFileDialog.GetDirectory().ToStdWstring();
-
-
-	
+		
 	// render glyph
 	auto bmp = Render(name,true);
 	if(!bmp)
@@ -237,15 +237,11 @@ void FormGResView::OnExportClick(wxCommandEvent& event)
 	delete bmp;		
 
 	// save palette file
-	//auto pal_path = std::filesystem::path(path).parent_path().append(grpi->palette->m_name).wstring();	
-	//grpi->palette->Save(pal_path);
-		
-	// save palette file
 	auto pal_info_path = std::filesystem::path(path).parent_path().append(std::filesystem::path(grpi->palette->m_name).stem().string()).concat(".palinfo").wstring();
 	grpi->palette->SaveInfo(pal_info_path);
 
 	// save info file
-	auto info_path = std::filesystem::path(path).parent_path().append(wname).concat(".info").wstring();
+	auto info_path = std::filesystem::path(path).parent_path().append(name).concat(".info").wstring();
 	grpi->ExportInfo(info_path,std::filesystem::path(path).filename().wstring());
 }
 
@@ -264,15 +260,19 @@ void FormGResView::OnExportAllClick(wxCommandEvent& event)
 	wxMessageDialog msg(NULL,"Files in the selected folder might be overwritten! Continue?","Export glyphs", wxYES_NO | wxNO_DEFAULT | wxICON_QUESTION);
 	if(msg.ShowModal() != wxID_YES)
 		return;
-	
-	
+
+	// images source
+	auto source = GetSource();
+	if(!source)
+		return;
+		
 	for(auto &item: lboxFiles->GetStrings())
 	{			
 		// remove extension
 		//auto name = std::filesystem::path(item.ToStdString()).stem().string();
 		auto name = item.ToStdString();
 
-		auto grpi = spell_data->gres.GetResource(name.c_str());
+		auto grpi = source->GetResource(name.c_str());
 		if(!grpi)
 			return;
 		
@@ -289,8 +289,6 @@ void FormGResView::OnExportAllClick(wxCommandEvent& event)
 		delete bmp;
 		
 		// save palette file
-		/*auto pal_path = std::filesystem::path(dir).append(grpi->palette->m_name).wstring();
-		grpi->palette->Save(pal_path);*/
 		auto pal_info_path = std::filesystem::path(dir).append(std::filesystem::path(grpi->palette->m_name).stem().string()).concat(".palinfo").wstring();
 		grpi->palette->SaveInfo(pal_info_path);
 
