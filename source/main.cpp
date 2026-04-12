@@ -271,6 +271,7 @@ MainFrame::MainFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY
     menuTools->Append(ID_ViewPal,"Palette viewer","",wxITEM_NORMAL);
     menuTools->Append(ID_ViewGRes,"Graphics viewer","",wxITEM_NORMAL);
     menuTools->Append(ID_EncodeGRes,"Graphics endoder","",wxITEM_NORMAL);
+    menuTools->Append(ID_TextEdit,"Text view/editor","",wxITEM_NORMAL);
     menuTools->Append(ID_EditUnit,"Units viewer/editor\tCtrl+U","",wxITEM_NORMAL);
     menuTools->Append(ID_EditEvent,"Event viewer/editor\tCtrl+E","",wxITEM_NORMAL);
     menuTools->Append(ID_ViewVideo,"Video viewer","",wxITEM_NORMAL);
@@ -395,6 +396,7 @@ MainFrame::MainFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY
     Bind(wxEVT_MENU,&MainFrame::OnViewPal,this,ID_ViewPal);
     Bind(wxEVT_MENU,&MainFrame::OnViewGrRes,this,ID_ViewGRes);
     Bind(wxEVT_MENU,&MainFrame::OnEncodeGrRes,this,ID_EncodeGRes);
+    Bind(wxEVT_MENU,&MainFrame::OnTextEdit,this,ID_TextEdit);
     Bind(wxEVT_MENU,&MainFrame::OnEditUnit,this,ID_EditUnit);
     Bind(wxEVT_MENU,&MainFrame::OnEditEvent,this,ID_EditEvent);
     Bind(wxEVT_MENU,&MainFrame::OnViewVideo,this,ID_ViewVideo);
@@ -586,6 +588,10 @@ void MainFrame::OnClose(wxCloseEvent& ev)
     else if(ev.GetId() == ID_GRES_ENCODE_WIN)
     {
         form_gres_encoder->Destroy();
+    }
+    else if(ev.GetId() == ID_TEXT_EDIT_WIN)
+    {
+        form_text_edit->Destroy();
     }
     else if(ev.GetId() == ID_MINIMAP_WIN)
     {
@@ -1259,6 +1265,17 @@ void MainFrame::OnEncodeGrRes(wxCommandEvent& event)
         form_gres_encoder->Show();
     }
 }
+
+// open text view/editor
+void MainFrame::OnTextEdit(wxCommandEvent& event)
+{
+    if(!FindWindowById(ID_TEXT_EDIT_WIN))
+    {
+        form_text_edit = new FormText(this,spell_data,ID_TEXT_EDIT_WIN);
+        form_text_edit->Show();
+    }
+}
+
 
 // open units viewer/editor
 void MainFrame::OnEditUnit(wxCommandEvent& event)

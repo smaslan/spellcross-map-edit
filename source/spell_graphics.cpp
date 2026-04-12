@@ -21,9 +21,9 @@
 
 SpellGraphics::SpellGraphics()
 {
-	vector<wxCursor*> curs ={cur_pointer, cur_wait, cur_select, cur_question, cur_move, cur_attack_down, cur_attack_up, cur_attack_up_down};
-	for(auto& cur : curs)
-		cur = NULL;
+	auto curs ={&cur_pointer, &cur_wait, &cur_select, &cur_question, &cur_move, &cur_attack_down, &cur_attack_up, &cur_attack_up_down};
+	for(auto &cur: curs)
+		*cur = NULL;
 }
 
 SpellGraphics::~SpellGraphics()
@@ -35,10 +35,13 @@ SpellGraphics::~SpellGraphics()
 		delete pnm;
 	pnms.clear();
 
-	vector<wxCursor*> curs = {cur_pointer, cur_wait, cur_select, cur_question, cur_move, cur_attack_down, cur_attack_up, cur_attack_up_down};
-	for(auto & cur : curs)
-		if(cur)
-			delete cur;
+	auto curs ={&cur_pointer, &cur_wait, &cur_select, &cur_question, &cur_move, &cur_attack_down, &cur_attack_up, &cur_attack_up_down};
+	for(auto &cur : curs)
+		if(*cur)
+		{
+			delete *cur;
+			*cur = NULL;
+		}
 }
 
 // load raw bitmap of known size

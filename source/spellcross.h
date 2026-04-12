@@ -135,6 +135,7 @@ public:
 	int LoadInfo(std::wstring path);
 	int SaveInfo(std::wstring path);
 	int Render(wxBitmap& bmp);
+	int RenderPaletteColor(wxBitmap& bmp,int x_size,int x_pos,uint8_t* filter=NULL);
 };
 
 class SpellData
@@ -144,6 +145,7 @@ private:
 	int LoadPalettes(FSarchive* fs_common,FSarchive* fs_info);
 	int LoadAuxGraphics(FSarchive* fs,std::function<void(std::string)> status_item=NULL);
 	int LoadInfoGraphics(FSarchive* fs,std::function<void(std::string)> status_item=NULL);
+	int LoadResearch(FSarchive* fs,std::function<void(std::string)> status_item=NULL);
 	
 	std::string last_error;
 	FSarchive* common_fs;
@@ -186,6 +188,8 @@ public:
 	SpellMIDI* midi;
 	// texts.fs
 	SpellTexts* texts;
+	// texts.fs
+	SpellTexts* research_texts;
 	// L2 object class parameters
 	SpellL2classes *L2_classes;
 	// unit bonuses (BONUSES.DEF)

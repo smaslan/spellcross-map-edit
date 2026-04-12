@@ -171,6 +171,9 @@
     <ClCompile Include="forms\form_gr_encode.cpp">
       <Filter>Source Files\forms</Filter>
     </ClCompile>
+    <ClCompile Include="forms\form_text.cpp">
+      <Filter>Source Files\forms</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="fs_archive.h">
@@ -378,6 +381,9 @@
       <Filter>Header Files\forms</Filter>
     </ClInclude>
     <ClInclude Include="forms\form_gr_encode.h">
+      <Filter>Header Files\forms</Filter>
+    </ClInclude>
+    <ClInclude Include="forms\form_text.h">
       <Filter>Header Files\forms</Filter>
     </ClInclude>
   </ItemGroup>

@@ -22,7 +22,7 @@ FormPalView::FormPalView(wxWindow* parent,SpellData* spell_data,wxWindowID id,co
 
 	// === AUTO GENERATED START ===	
 
-	this->SetSizeHints(wxSize(950,300),wxDefaultSize);
+	this->SetSizeHints(wxSize(950,400),wxDefaultSize);
 	this->SetForegroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOWTEXT));
 	this->SetBackgroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_MENU));
 
@@ -45,21 +45,50 @@ FormPalView::FormPalView(wxWindow* parent,SpellData* spell_data,wxWindowID id,co
 	wxBoxSizer* szCanvas;
 	szCanvas = new wxBoxSizer(wxVERTICAL);
 
+	wxBoxSizer* bSizer112;
+	bSizer112 = new wxBoxSizer(wxHORIZONTAL);
+
+	wxBoxSizer* bSizer116;
+	bSizer116 = new wxBoxSizer(wxVERTICAL);
+
+	m_staticText113 = new wxStaticText(this,wxID_ANY,wxT("Filter (wildcard: *?):"),wxDefaultPosition,wxDefaultSize,0);
+	m_staticText113->Wrap(-1);
+	bSizer116->Add(m_staticText113,0,wxTOP|wxRIGHT|wxLEFT,5);
+
+	txtNameFilter = new wxTextCtrl(this,wxID_TXT_FILTER,"*",wxDefaultPosition,wxDefaultSize,0);
+	bSizer116->Add(txtNameFilter,0,wxEXPAND|wxRIGHT|wxLEFT,5);
+
+	m_staticText112 = new wxStaticText(this,wxID_ANY,wxT("Palettes list:"),wxDefaultPosition,wxDefaultSize,0);
+	m_staticText112->Wrap(-1);
+	bSizer116->Add(m_staticText112,0,wxTOP|wxRIGHT|wxLEFT,5);
+
+	listPal = new wxListBox(this,wxID_LIST_PAL,wxDefaultPosition,wxSize(180,-1),0,NULL,0);
+	bSizer116->Add(listPal,1,wxBOTTOM|wxRIGHT|wxLEFT,5);
+
+
+	bSizer112->Add(bSizer116,0,wxEXPAND,5);
+
+	m_staticline41 = new wxStaticLine(this,wxID_ANY,wxDefaultPosition,wxDefaultSize,wxLI_VERTICAL);
+	bSizer112->Add(m_staticline41,0,wxEXPAND|wxTOP|wxBOTTOM,5);
+
+	wxBoxSizer* bSizer114;
+	bSizer114 = new wxBoxSizer(wxVERTICAL);
+
 	m_staticText28 = new wxStaticText(this,wxID_ANY,wxT("Palette:"),wxDefaultPosition,wxDefaultSize,0);
 	m_staticText28->Wrap(-1);
-	szCanvas->Add(m_staticText28,0,wxTOP|wxRIGHT|wxLEFT,5);
+	bSizer114->Add(m_staticText28,0,wxTOP|wxRIGHT|wxLEFT,5);
 
 	canvas = new wxPanel(this,wxID_CANVAS,wxDefaultPosition,wxDefaultSize,wxFULL_REPAINT_ON_RESIZE|wxTAB_TRAVERSAL);
-	szCanvas->Add(canvas,1,wxEXPAND|wxBOTTOM|wxRIGHT|wxLEFT,5);
+	bSizer114->Add(canvas,1,wxEXPAND|wxBOTTOM|wxRIGHT|wxLEFT,5);
 
 	m_staticText29 = new wxStaticText(this,wxID_ANY,wxT("Selected color:"),wxDefaultPosition,wxDefaultSize,0);
 	m_staticText29->Wrap(-1);
-	szCanvas->Add(m_staticText29,0,wxTOP|wxRIGHT|wxLEFT,5);
+	bSizer114->Add(m_staticText29,0,wxTOP|wxRIGHT|wxLEFT,5);
 
 	color = new wxPanel(this,wxID_COLOR,wxDefaultPosition,wxSize(-1,20),wxFULL_REPAINT_ON_RESIZE|wxTAB_TRAVERSAL);
 	color->SetMaxSize(wxSize(-1,20));
 
-	szCanvas->Add(color,1,wxEXPAND|wxBOTTOM|wxRIGHT|wxLEFT,5);
+	bSizer114->Add(color,1,wxEXPAND|wxBOTTOM|wxRIGHT|wxLEFT,5);
 
 	wxBoxSizer* szFilter;
 	szFilter = new wxBoxSizer(wxHORIZONTAL);
@@ -104,13 +133,19 @@ FormPalView::FormPalView(wxWindow* parent,SpellData* spell_data,wxWindowID id,co
 	szFilter->Add(szBlue,1,wxEXPAND,5);
 
 
-	szCanvas->Add(szFilter,0,wxEXPAND,5);
+	bSizer114->Add(szFilter,0,wxEXPAND,5);
+
+
+	bSizer112->Add(bSizer114,1,wxEXPAND,5);
+
+
+	szCanvas->Add(bSizer112,1,wxEXPAND,5);
 
 
 	this->SetSizer(szCanvas);
 	this->Layout();
 	sbar = this->CreateStatusBar(1,wxSTB_SIZEGRIP,wxID_STAT_BAR);
-	timer.SetOwner(this,wxID_TIMER);
+	timer.SetOwner(this,timer.GetId());
 
 	this->Centre(wxBOTH);
 	
@@ -151,11 +186,17 @@ FormPalView::FormPalView(wxWindow* parent,SpellData* spell_data,wxWindowID id,co
 
 	Bind(wxEVT_COMMAND_SLIDER_UPDATED,&FormPalView::OnChangeFilterRGB,this);
 
+	Bind(wxEVT_COMMAND_TEXT_UPDATED,&FormPalView::OnChangePalListFilter,this,wxID_TXT_FILTER);
+	Bind(wxEVT_COMMAND_LISTBOX_SELECTED,&FormPalView::OnSelectPalette,this,wxID_LIST_PAL);
+
 	// defaulf filter
 	filter = NULL;
 
 	// default map
 	SetMap(NULL);
+
+	m_pal = NULL;
+	FillPalettes();
 }
 
 FormPalView::~FormPalView()
@@ -192,6 +233,22 @@ void FormPalView::SetMap(SpellMap* map)
 	canvas->Refresh();
 }
 
+// fill list of palettes
+void FormPalView::FillPalettes()
+{
+	auto wild = txtNameFilter->GetValue().ToStdString();
+	listPal->Freeze();
+	listPal->Clear();
+	for(auto &item: spell_data->pal_list)
+	{
+		if(wildcmp(wild.c_str(), item->m_name.c_str()))
+			listPal->Append(item->m_name);
+	}
+	listPal->Thaw();
+	if(!listPal->IsEmpty())
+		listPal->Select(0);
+}
+
 // find terrain selected
 Terrain* FormPalView::FindTerrain()
 {
@@ -213,8 +270,11 @@ void FormPalView::ListFilters()
 	auto terr = FindTerrain();
 	
 	// loose old list
-	for(int k = mmFilter->GetMenuItemCount(); k-- > 0;)
-		mmFilter->Delete(FILTER_ID0 + k);
+	while(mmFilter->GetMenuItemCount())
+	{
+		auto item = mmFilter->FindItemByPosition(mmFilter->GetMenuItemCount() - 1);
+		mmFilter->Delete(item);
+	}
 	filter = NULL;
 
 	// make list of filters
@@ -230,6 +290,18 @@ void FormPalView::ListFilters()
 	mmFilter->Append(wxID_ANY,wxEmptyString,wxEmptyString,wxITEM_SEPARATOR);
 	mmFilter->Append(FILTER_ID0 + terr->filter.list.size(),wxString("Save New Filter"),wxEmptyString,wxITEM_NORMAL);
 	Bind(wxEVT_MENU,&FormPalView::OnSaveFilterFile,this,FILTER_ID0 + terr->filter.list.size());
+}
+
+// on change palette list filter
+void FormPalView::OnChangePalListFilter(wxCommandEvent& event)
+{
+	FillPalettes();
+}
+
+// on select palette
+void FormPalView::OnSelectPalette(wxCommandEvent& event)
+{
+	canvas->Refresh();
 }
 
 // save current temp filter
@@ -285,17 +357,34 @@ void FormPalView::OnPaintCanvas(wxPaintEvent& event)
 	// make render buffer
 	wxBitmap bmp(canvas->GetClientSize(),24);
 
-	// get this terrain
-	Terrain* terrain = FindTerrain();
-	if(terrain)
-	{		
-		// render palette
-		uint8_t* fil = NULL;
-		if(filter)
-			fil = filter->filter;
-		terrain->RenderPalette(bmp, fil, relative_time);
+	// get palette name
+	std::string pal_name = "MAP";
+	int sel = listPal->GetSelection();
+	if(sel >= 0)
+		pal_name = listPal->GetString(sel);
+	m_pal = spell_data->GetPalette(pal_name);
+
+	if(pal_name == "MAP")
+	{
+		// basic map palette from terrain
+		Terrain* terrain = FindTerrain();
+		if(terrain)
+		{		
+			// render palette
+			uint8_t* fil = NULL;
+			if(filter)
+				fil = filter->filter;
+			terrain->RenderPalette(bmp, fil, relative_time);
+		}
 	}
-	
+	else
+	{
+		// other palette from list
+		if(!m_pal)
+			return;
+		m_pal->Render(bmp);
+	}
+
 	// blit to screen
 	wxPaintDC pdc(canvas);
 	pdc.DrawBitmap(bmp,wxPoint(0,0));
@@ -321,19 +410,34 @@ void FormPalView::OnPaintColor(wxPaintEvent& event)
 
 	wxString state = "";
 
-	// get this terrain
-	Terrain* terrain = FindTerrain();
-	if(terrain)
+	if(!m_pal || m_pal->m_name == "MAP")
 	{
-		// render palette
-		uint8_t* fil = NULL;
-		if(filter)
-			fil = filter->filter;
-		int color = terrain->RenderPaletteColor(bmp, canvas->GetClientSize().GetWidth(),sel_pos_x,fil);
+		// get this terrain
+		Terrain* terrain = FindTerrain();
+		if(terrain)
+		{
+			// render palette
+			uint8_t* fil = NULL;
+			if(filter)
+				fil = filter->filter;
+			int color = terrain->RenderPaletteColor(bmp, canvas->GetClientSize().GetWidth(),sel_pos_x,fil);
+			if(color >= 0)
+				state = string_format("Color = #%d (0x%02X), R = %d, G = %d, B = %d, RGB = 0x%02X%02X%02X", color, color,
+					terrain->pal[color][0],terrain->pal[color][1],terrain->pal[color][2],
+					terrain->pal[color][0],terrain->pal[color][1],terrain->pal[color][2]);
+		}
+	}
+	else
+	{
+		// other palette from list
+		int color = m_pal->RenderPaletteColor(bmp,canvas->GetClientSize().GetWidth(),sel_pos_x);
 		if(color >= 0)
-			state = string_format("Color = #%d (0x%02X), R = %d, G = %d, B = %d, RGB = 0x%02X%02X%02X", color, color,
-				terrain->pal[color][0],terrain->pal[color][1],terrain->pal[color][2],
-				terrain->pal[color][0],terrain->pal[color][1],terrain->pal[color][2]);
+		{
+			uint8_t(*pal)[3] = (uint8_t(*)[3])m_pal->m_pal.data();
+			state = string_format("Color = #%d (0x%02X), R = %d, G = %d, B = %d, RGB = 0x%02X%02X%02X",color,color,
+				pal[color][0],pal[color][1],pal[color][2],
+				pal[color][0],pal[color][1],pal[color][2]);
+		}
 	}
 
 	// blit to screen

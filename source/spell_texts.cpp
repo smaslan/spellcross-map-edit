@@ -41,9 +41,9 @@ SpellTextRec::SpellTextRec(std::string str, SpellLang lang, const char* name,Spe
         if(pstr[0] == '\r' && &pstr[1] < strend && pstr[1] == '\n')
         {
             // line break
-            if(last_sym == '.' || last_sym == '\n') // discard word wrapping
+            if(last_sym == '.' || last_sym == ':' || last_sym == '\n') // discard word wrapping
                 *data++ = '\n';
-            else if(data > buf && data[-1] != ' ')
+            else if(data > buf.data() && data[-1] != ' ')
                 *data++ = ' ';                
             last_sym = '\n';
             pstr += 2;
@@ -71,7 +71,7 @@ SpellTextRec::SpellTextRec(std::string str, SpellLang lang, const char* name,Spe
     }
 }
 
-
+// splits text by lines to fit maximum width
 SpellTextChunks SpellTextRec::WordWrap(SpellFont* font,int x_limit)
 {
     wchar_t *pstr = (wchar_t*)text.c_str();
@@ -91,10 +91,13 @@ SpellTextChunks SpellTextRec::WordWrap(SpellFont* font,int x_limit)
     {
         if(*pstr == '\n')
         {
-            lines.emplace_back(0, pos_y, pos_x, chunk);
+            lines.emplace_back(0, pos_y, pos_x, y_step,x_limit, chunk);
             chunk = L"";
             pos_x = 0;
-            pos_y += y_step;            
+            pos_y += y_step; 
+            last_len = 0;
+            line_pix = 0;
+            w_str = pstr + 1;
         }
         else
         {
@@ -102,27 +105,40 @@ SpellTextChunks SpellTextRec::WordWrap(SpellFont* font,int x_limit)
             {
                 // store word start
                 last_len = chunk.size();
-                w_str = pstr;
                 line_pix = pos_x;
+                w_str = pstr;                
             }                
-            pos_x += font->GetSymbolWidth(*pstr);
+            int sym_x = font->GetSymbolWidth(*pstr);
+            pos_x += sym_x;
             if(pos_x >= x_limit)
             {
                 // word won't fit, step back                
-                chunk.resize(last_len);
-                lines.emplace_back(0, pos_y, line_pix, chunk);
+                if(!last_len)
+                {
+                    // not even one word fits - split word
+                    line_pix = pos_x - sym_x;
+                    if(!line_pix)
+                        break; // not even one symbol fits - leave
+                    w_str = pstr;
+                }
+                else
+                    chunk.resize(last_len);
+                lines.emplace_back(0, pos_y, line_pix,y_step,x_limit, chunk);
                 chunk = L"";
                 pos_x = 0;
                 pos_y += y_step;
-                pstr = w_str;                
-                p_sym == ' ';                
+                pstr = w_str;
+                p_sym = ' ';
+                last_len = 0;
+                line_pix = 0;
+                continue;
             }
             chunk.insert(chunk.end(),*pstr);
         }
         p_sym = *pstr++;
     }
     if(!chunk.empty())
-        lines.emplace_back(0,pos_y,pos_x,chunk);
+        lines.emplace_back(0,pos_y,pos_x,y_step,x_limit, chunk);
 
     return(lines);
 }

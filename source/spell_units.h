@@ -48,7 +48,7 @@ public:
 	UnitBonus* GetBonus(int level);
 };
 
-
+class SpellTextRec;
 
 class SpellUnitRec
 {
@@ -180,8 +180,9 @@ class SpellUnitRec
 		// info graphics links
 		std::vector<SpellGraphicItem*> info_imgs;
 		// info text
-		std::string info_text_raw;
-		std::wstring info_text;
+		SpellTextRec *info_text;
+		/*std::string info_text_raw;
+		std::wstring info_text;*/
 		// PNM shot/hit
 		AnimPNM *pnm_light_hit;
 		AnimPNM *pnm_armored_hit;

@@ -129,6 +129,12 @@ public:
 
 	SpellGraphicItem* wm_map_units_list;
 
+	SpellGraphicItem* inf_panel;
+
+	SpellGraphicItem* bm_info_panel;
+	SpellGraphicItem* bm_research_panel;
+	SpellGraphicItem* bm_mission_info_panel;
+
 	wxCursor* cur_pointer;
 	wxCursor* cur_wait;
 	wxCursor* cur_move;

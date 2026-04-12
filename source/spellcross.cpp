@@ -315,10 +315,10 @@ SpellData::SpellData(wstring &data_path,wstring& cd_data_path,wstring& spec_path
 	font7 = NULL;
 	units = NULL;
 	units_fsu = NULL;
-	//info = NULL;
 	sounds = NULL;
 	midi = NULL;
 	texts = NULL;
+	research_texts = NULL;
 	L2_classes = NULL;
 	unit_bonuses = NULL;		
 	common_fs = NULL;
@@ -569,6 +569,21 @@ SpellData::SpellData(wstring &data_path,wstring& cd_data_path,wstring& spec_path
 		throw runtime_error(string_format("Decoding string tables failed (%s)!",error.what()));
 	}
 	delete texts_fs;
+
+	// load RESEARCH.FS
+	if(status_list)
+		status_list("Loading research...");
+	wstring research_path = std::filesystem::path(data_path) / std::filesystem::path("RESEARCH.FS");
+	FSarchive* rsch_fs = new FSarchive(research_path);
+	if(LoadResearch(rsch_fs,status_item))
+	{
+		delete rsch_fs;
+		this->~SpellData();
+		if(status_list)
+			status_list(" - failed!");
+		throw runtime_error(string_format("Loading research string failed!"));
+	}
+	delete rsch_fs;
 		
 
 	// load special tiles
@@ -666,6 +681,9 @@ SpellData::~SpellData()
 	if(texts)
 		delete texts;
 	texts = NULL;
+	if(research_texts)
+		delete research_texts;
+	research_texts = NULL;
 	if(L2_classes)
 		delete L2_classes;
 	L2_classes = NULL;
@@ -888,6 +906,19 @@ public:
 
 
 // load info graphics resources
+int SpellData::LoadResearch(FSarchive* fs,std::function<void(std::string)> status_item)
+{
+	if(!fs)
+		return(1);
+
+	research_texts = new SpellTexts(fs, SpellLang::CZE, NULL);
+	if(!research_texts)
+		return(1);
+
+	return(0);
+}
+
+// load info graphics resources
 int SpellData::LoadInfoGraphics(FSarchive* fs,std::function<void(std::string)> status_item)
 {
 	last_error = "";
@@ -948,7 +979,12 @@ int SpellData::LoadInfoGraphics(FSarchive* fs,std::function<void(std::string)> s
 			status_item(name);
 	}
 
-
+	gres.inf_panel = gres.GetResource("INFOPAN.LZ");
+	if(!gres.inf_panel)
+	{
+		last_error = string_format("Missing mandatory graphics resource: INFOPAN.LZ from INFO.FS!");
+		return(1); // missing item!
+	}
 	
 	return(0);
 }
@@ -1161,7 +1197,10 @@ int SpellData::LoadAuxGraphics(FSarchive *fs,std::function<void(std::string)> st
 		{&gres.wm_map_opt_btn_idle, "WMOPT__N"},
 		{&gres.wm_map_opt_btn_hover, "WMOPT__A"},
 		{&gres.wm_map_opt_btn_down, "WMOPT__P"},
-		{&gres.wm_map_units_list, "GU_LISTA"}
+		{&gres.wm_map_units_list, "GU_LISTA"},
+		{&gres.bm_info_panel, "INFO.LZ"},
+		{&gres.bm_research_panel, "RSRCH_BG.LZ"},
+		{&gres.bm_mission_info_panel, "VMM_LST2.LZ"}
 	};	
 	for(auto &item: short_links_list)
 	{
@@ -1695,6 +1734,62 @@ int SpellPalette::Render(wxBitmap& bmp)
 	return(0);
 }
 
+// render palette color selection into canvas
+int SpellPalette::RenderPaletteColor(wxBitmap& bmp,int x_size,int x_pos,uint8_t* filter)
+{
+	// canvas size
+	int surf_x = bmp.GetWidth();
+	int surf_y = bmp.GetHeight();
+
+	// palette position and size in canvas
+	int x_color_width = x_size/256;
+	int x_ofs = (x_size - x_color_width*256)/2;
+	int x_end = x_ofs + x_color_width*256;
+
+	int is_selected = x_pos >= x_ofs && x_pos < x_end;
+	int pal_id = (is_selected)?((x_pos - x_ofs)/x_color_width):-1;
+	if(filter)
+		pal_id = filter[pal_id];
+
+	uint8_t(*pal)[3] = (uint8_t(*)[3])m_pal.data();
+
+	// render 24bit RGB data to raw bmp buffer
+	wxNativePixelData data(bmp);
+	wxNativePixelData::Iterator p(data);
+	for(int y = 0; y < surf_y; ++y)
+	{
+		uint8_t* scan = p.m_ptr;
+		for(int x = 0; x < surf_x; x++)
+		{
+			if(x > 0 && x < surf_x-1 && y > 0 && y < surf_y-1)
+			{
+				if(is_selected)
+				{
+					*scan++ = pal[pal_id][2];
+					*scan++ = pal[pal_id][1];
+					*scan++ = pal[pal_id][0];
+				}
+				else
+				{
+					uint8_t color = (!(x&8) ^ !(y&8))?0x88:0xAA;
+					*scan++ = color;
+					*scan++ = color;
+					*scan++ = color;
+				}
+			}
+			else
+			{
+				*scan++ = 0x00;
+				*scan++ = 0x00;
+				*scan++ = 0x00;
+			}
+		}
+		p.OffsetY(data,1);
+	}
+
+	return(pal_id);
+}
+
 
 
 // make new palette if not there yet, return pointer
@@ -1724,3 +1819,4 @@ uint8_t* SpellData::GetPaletteData(std::string name)
 		return(NULL);
 	return(pal->m_pal.data());
 }
+

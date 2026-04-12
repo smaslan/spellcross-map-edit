@@ -4457,7 +4457,7 @@ int Terrain::RenderPalette(wxBitmap& bmp, uint8_t* filter, int relative_time)
 			}
 			else
 			{
-				uint8_t color = (!(x&32) ^ !(y&32))?0x55:0xAA;
+				uint8_t color = (!(x&32) ^ !(y&32))?0x88:0xAA;
 				*scan++ = color;
 				*scan++ = color;
 				*scan++ = color;
@@ -4503,7 +4503,7 @@ int Terrain::RenderPaletteColor(wxBitmap& bmp, int x_size, int x_pos, uint8_t *f
 				}
 				else
 				{
-					uint8_t color = (!(x&8) ^ !(y&8))?0x55:0xAA;
+					uint8_t color = (!(x&8) ^ !(y&8))?0x88:0xAA;
 					*scan++ = color;
 					*scan++ = color;
 					*scan++ = color;

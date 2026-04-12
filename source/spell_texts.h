@@ -14,10 +14,17 @@ public:
     int pos_x;
     int pos_y;
     int size_x;
+    int size_y;
+    int limit_x;
 
-    SpellTextChunk(int xx, int yy, int xs, wstring str) {text = str; pos_x = xx; pos_y = yy; size_x = xs;};
+    SpellTextChunk(int xx, int yy, int xs, int ys, int x_limit, wstring str) {text = str; pos_x = xx; pos_y = yy; size_x = xs; size_y=ys; limit_x = x_limit;};
 };
 
+/*class SpellTextChunks
+{
+public:
+
+}*/
 typedef vector<SpellTextChunk> SpellTextChunks;
 
 class SpellTextRec
@@ -29,7 +36,7 @@ public:
     SpellLang lang;    
     SpellSample *audio;
     bool is_placeholder;
-
+    
     SpellTextRec(std::string str,SpellLang lang,const char* name=NULL,SpellSample *audio=NULL,bool is_placeholder=false);
     SpellTextChunks WordWrap(SpellFont *font, int x_limit);
 };

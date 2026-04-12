@@ -452,6 +452,15 @@ int SpellFont::GetSymbolWidth(wchar_t sym)
 	return(m_symbols[code].GetWidth() + m_symbol_gap_x);
 }
 
+// get width of symbol + space
+int SpellFont::GetSymbolWidth(uint8_t sym)
+{
+	int code = (uint8_t)sym;
+	if(code >= m_symbols.size())
+		return(0);
+	return(m_symbols[code].GetWidth() + m_symbol_gap_x);
+}
+
 
 // get width of text
 int SpellFont::GetTextWidth(string &text)

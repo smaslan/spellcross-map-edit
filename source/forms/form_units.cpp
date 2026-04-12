@@ -662,7 +662,10 @@ void FormUnits::SelectUnit(MapUnit *unit)
 		lboxArt->Select(0);
 
 	// show unit description
-	txtInfo->SetValue(unit_rec->info_text);
+	if(unit_rec->info_text)
+		txtInfo->SetValue(unit_rec->info_text->text);
+	else
+		txtInfo->Clear();
 
 	// paint icon
 	icon_canvas->Refresh();

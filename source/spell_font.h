@@ -69,6 +69,7 @@ public:
     int GetNextY() {return(next_y);};
     int GetHeight();
     int GetSymbolWidth(wchar_t sym);
+    int GetSymbolWidth(uint8_t sym);
     int GetTextWidth(string &text);
 
     

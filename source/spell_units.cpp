@@ -13,6 +13,7 @@
 #include "spell_units.h"
 #include "spellcross.h"
 #include "spell_map_event.h"
+#include "spell_texts.h"
 #include "map.h"
 #include <sstream>
 #include <vector>
@@ -35,6 +36,7 @@ SpellUnitRec::SpellUnitRec()
 	pnm_armored_shot = NULL;
 	pnm_air_shot = NULL;
 	action_button_glyph = NULL;
+	info_text = NULL;
 
 	sound_move = NULL;
 	sound_report = NULL;
@@ -44,6 +46,8 @@ SpellUnitRec::SpellUnitRec()
 	sound_attack_light = NULL;
 	sound_attack_armor = NULL;
 	sound_attack_air = NULL;
+
+	
 
 	type_id = 0;
 }
@@ -68,6 +72,8 @@ SpellUnitRec::~SpellUnitRec()
 		delete sound_attack_air;
 	if(sound_action)
 		delete sound_action;
+	if(info_text)
+		delete info_text;
 }
 
 // copy resource name string ignoring trailing '_'
@@ -350,22 +356,19 @@ SpellUnits::SpellUnits(uint8_t* data,int dlen,FSUarchive* fsu,FSarchive* fs_info
 		// load unit info text
 		if(fs_info)
 		{
-			vector<std::string> langs = {"CZ","ENG"};
+			vector<SpellLang> langs = {SpellLang::CZE,SpellLang::ENG};			
 			for(auto& lang: langs)
 			{
 				// try load info text file
-				std::string art_info_name = std::string(unit->info) + "." + lang;
-				unit->info_text_raw = fs_info->GetFile(art_info_name);
-				unit->info_text = L"";
-				if(unit->info_text_raw.empty())
-					continue;
+				std::string art_info_name = std::string(unit->info) + "." + ((lang == SpellLang::CZE)?"CZ":"EN");
 				
-				// try convert codepage
-				if(lang == "CZ")
-					unit->info_text = char2wstringCP895(unit->info_text_raw.c_str());
-				else
-					unit->info_text = char2wstring(unit->info_text_raw.c_str());
-				break;
+				auto info_text_raw = fs_info->GetFile(art_info_name);
+				if(info_text_raw.empty())
+					continue;
+
+				unit->info_text = new SpellTextRec(info_text_raw, lang, art_info_name.c_str());
+				if(unit->info_text)
+					break;
 			}
 		}
 
