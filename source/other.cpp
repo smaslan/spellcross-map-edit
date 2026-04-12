@@ -108,6 +108,19 @@ std::string wstring2stringCP895(std::wstring str)
     return(result);
 }
 
+// inplace replacement of key occurences to rep
+std::string& strrep(std::string& str,std::string key,std::string rep)
+{
+    size_t index = 0;
+    while(true) {
+        index = str.find(key,index);
+        if(index == std::string::npos)
+            break;
+        str.replace(index,key.size(),rep);
+        index += rep.size();
+    }
+    return(str);
+}
 
 // compare wildcard string to string
 int wildcmp(const char* wild,const char* string)

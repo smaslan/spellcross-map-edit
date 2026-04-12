@@ -24,7 +24,7 @@ private:
     std::function<void(int)> m_sel_cb;
     SpellMsgOptions m_options;
 
-    SpellTextChunks m_chunks;
+    SpellTextLines m_chunks;
     
     SpellSound* m_sound;
 

@@ -20,12 +20,29 @@ public:
     SpellTextChunk(int xx, int yy, int xs, int ys, int x_limit, wstring str) {text = str; pos_x = xx; pos_y = yy; size_x = xs; size_y=ys; limit_x = x_limit;};
 };
 
-/*class SpellTextChunks
+typedef vector<SpellTextChunk> SpellTextChunks;
+
+class SpellTextLine
 {
 public:
+    SpellTextChunks chunks;
+    int pos_y;
+    int size_x;
+    int size_y;
+    bool no_stretch;
+};
 
-}*/
-typedef vector<SpellTextChunk> SpellTextChunks;
+class SpellTextLines
+{
+public:
+    enum class WrapMode { LEFT,CENTER,STRETCH };
+
+    std::vector<SpellTextLine> lines;
+    int limit_x;
+    int line_step;
+    WrapMode mode;
+};
+
 
 class SpellTextRec
 {
@@ -37,8 +54,9 @@ public:
     SpellSample *audio;
     bool is_placeholder;
     
+    SpellTextRec();
     SpellTextRec(std::string str,SpellLang lang,const char* name=NULL,SpellSample *audio=NULL,bool is_placeholder=false);
-    SpellTextChunks WordWrap(SpellFont *font, int x_limit);
+    SpellTextLines WordWrap(SpellFont *font, int x_limit,int y_gap=1,SpellTextLines::WrapMode mode=SpellTextLines::WrapMode::LEFT);
 };
 
 

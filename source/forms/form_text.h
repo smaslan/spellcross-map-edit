@@ -47,6 +47,7 @@ class FormText : public wxFrame
 		void OnChangeFilter(wxCommandEvent& event);
 		void OnChangeSource(wxCommandEvent& event);
 		void OnChangeResource(wxCommandEvent& event);
+		void OnChangeText(wxCommandEvent& event);
 		void OnChangeTargetPanel(wxCommandEvent& event);
 		void OnPaintFont(wxPaintEvent& event);
 		void OnPaintText(wxPaintEvent& event);
@@ -65,9 +66,11 @@ class FormText : public wxFrame
 			int y_org;
 			int x_size;
 			int y_size;
+			int y_gap;
 			int txt_color;
-			int bg_color;
+			int bg_color;			
 			SpellFont::FontShadow shadow;
+			SpellTextLines::WrapMode align;
 			std::string source;
 			std::vector<std::string> wild;
 			int x_panel;
@@ -76,8 +79,9 @@ class FormText : public wxFrame
 		std::vector<SpellWindow> m_windows;
 		SpellWindow *m_window;
 
+		SpellTextRec m_text;
 		SpellFont* m_font;
-		SpellTextChunks m_text_lines;
+		SpellTextLines m_text_lines;
 		//int m_wrap_width;
 		//int m_wrap_height;
 
@@ -85,12 +89,17 @@ class FormText : public wxFrame
 		enum
 		{
 			wxID_MM_EXIT = 5999,
+			wxID_MM_SAVE,
+			wxID_MM_SAVE_ALL,
+			wxID_MM_RESTORE,
+			wxID_MM_APPLY,
 			wxID_SBAR,
 			wxID_CH_SOURCE,
 			wxID_TXT_WILD,
 			wxID_LIST_RESOURCES,
 			wxID_TXT_EDIT,
 			wxID_CH_TARGET,
+			wxID_CH_ALIGN,
 			wxID_CANVAS_TEXT,
 			wxID_SCROLL_TEXT,
 			wxID_CANVAS_FONT,
@@ -98,6 +107,7 @@ class FormText : public wxFrame
 
 		wxMenuBar* m_menubar13;
 		wxMenu* m_menu24;
+		wxMenu* m_menu25;
 		wxStatusBar* sbar;
 		wxStaticText* m_staticText106;
 		wxChoice* chSource;
@@ -110,6 +120,8 @@ class FormText : public wxFrame
 		wxTextCtrl* textEdit;
 		wxStaticText* m_staticText111;
 		wxChoice* chTarget;
+		wxStaticText* m_staticText114;
+		wxChoice* chAlign;
 		wxStaticLine* m_staticline40;
 		wxStaticText* m_staticText110;
 		wxPanel* canvasText;

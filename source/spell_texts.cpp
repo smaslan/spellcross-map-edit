@@ -8,6 +8,16 @@
 
 //using namespace std;
 
+SpellTextRec::SpellTextRec()
+{
+    this->name = "";
+    this->lang = SpellLang::CZE;
+    this->audio = NULL;
+    this->raw_text = "";
+    this->text = L"";
+    this->is_placeholder = false;
+}
+
 // basic text loader
 SpellTextRec::SpellTextRec(std::string str, SpellLang lang, const char* name,SpellSample* audio,bool is_placeholder)
 {    
@@ -16,8 +26,15 @@ SpellTextRec::SpellTextRec(std::string str, SpellLang lang, const char* name,Spe
         this->name = name;
     this->lang = lang;    
     this->audio = audio;
-    raw_text = str;
-        
+    this->raw_text = str;
+    
+    // normalize linebreaks
+    str = strrep(str, "\r\n", "\n");
+    str = strrep(str, "\r", "\n");
+
+    // eat word splits at end of lines
+    str = strrep(str,"-\n","");
+    
     // parse the string (remove control stuff and word wrapping)
     std::string buf(str.size()+1,'\0');
     char last_sym = '\0';
@@ -38,7 +55,7 @@ SpellTextRec::SpellTextRec(std::string str, SpellLang lang, const char* name,Spe
             pstr++;
             continue;
         }        
-        if(pstr[0] == '\r' && &pstr[1] < strend && pstr[1] == '\n')
+        if(pstr[0] == '\n')
         {
             // line break
             if(last_sym == '.' || last_sym == ':' || last_sym == '\n') // discard word wrapping
@@ -46,7 +63,7 @@ SpellTextRec::SpellTextRec(std::string str, SpellLang lang, const char* name,Spe
             else if(data > buf.data() && data[-1] != ' ')
                 *data++ = ' ';                
             last_sym = '\n';
-            pstr += 2;
+            pstr += 1;
             continue;
         }
         if(*pstr != ' ')
@@ -72,13 +89,23 @@ SpellTextRec::SpellTextRec(std::string str, SpellLang lang, const char* name,Spe
 }
 
 // splits text by lines to fit maximum width
-SpellTextChunks SpellTextRec::WordWrap(SpellFont* font,int x_limit)
+SpellTextLines SpellTextRec::WordWrap(SpellFont* font,int x_limit, int y_gap, SpellTextLines::WrapMode mode)
 {
-    wchar_t *pstr = (wchar_t*)text.c_str();
+    std::wstring text = this->text;
+    text.erase(text.find_last_not_of(L"\n\r") + 1);
+    text += L"\n";
+    wchar_t *pstr = (wchar_t*)text.c_str();     
 
-    int y_step = font->GetHeight() + 1;
+    int y_step = font->GetHeight() + y_gap;
 
-    SpellTextChunks lines;
+    SpellTextLines wrap;
+    wrap.limit_x = x_limit;
+    wrap.line_step = y_step;
+    wrap.mode = mode;
+    
+    int w_space = font->GetSymbolWidth(L' ');
+
+    SpellTextLine line;
 
     wstring chunk;
     int last_len = 0;
@@ -91,22 +118,54 @@ SpellTextChunks SpellTextRec::WordWrap(SpellFont* font,int x_limit)
     {
         if(*pstr == '\n')
         {
-            lines.emplace_back(0, pos_y, pos_x, y_step,x_limit, chunk);
+            int len = chunk.length();
+            chunk.erase(chunk.find_last_not_of(L" ") + 1);
+            pos_x -= w_space*(len - chunk.length());
+
+            if(chunk.size())
+            {
+                auto word = chunk.substr(last_len);
+                int len = word.length();
+                word.erase(word.find_last_not_of(L" ") + 1);
+                int ofs_x = pos_x - w_space*(len - word.length());
+                line.chunks.emplace_back(line_pix,pos_y,ofs_x - line_pix,y_step,x_limit,word);
+            }
+            
+            bool is_word_break = chunk.length() >= 2 && chunk[chunk.size()-1] == L'-' && chunk[chunk.size()-2] != L' ' && chunk[chunk.size()-2] != L'\n';            
+            line.pos_y = pos_y;
+            line.size_x = pos_x;
+            line.size_y = y_step;
+            line.no_stretch = !is_word_break;
+            wrap.lines.push_back(line);
+
             chunk = L"";
             pos_x = 0;
-            pos_y += y_step; 
+            pos_y += y_step;
             last_len = 0;
             line_pix = 0;
             w_str = pstr + 1;
+
+            
+
+            line.chunks.clear();
         }
         else
         {
             if(*pstr != ' ' && (p_sym == ' ' || p_sym == '\n'))
             {
                 // store word start
+                
+                if(chunk.size())
+                {                    
+                    auto word = chunk.substr(last_len);
+                    int len = word.length();
+                    word.erase(word.find_last_not_of(L" ") + 1);
+                    int ofs_x = pos_x - w_space*(len - word.length());
+                    line.chunks.emplace_back(line_pix,pos_y,ofs_x - line_pix,y_step,x_limit,word);
+                }                
                 last_len = chunk.size();
                 line_pix = pos_x;
-                w_str = pstr;                
+                w_str = pstr;
             }                
             int sym_x = font->GetSymbolWidth(*pstr);
             pos_x += sym_x;
@@ -116,14 +175,31 @@ SpellTextChunks SpellTextRec::WordWrap(SpellFont* font,int x_limit)
                 if(!last_len)
                 {
                     // not even one word fits - split word
-                    line_pix = pos_x - sym_x;
-                    if(!line_pix)
+                    if(pos_x - sym_x <= 0)
                         break; // not even one symbol fits - leave
+
+                    auto word = chunk;
+                    int len = word.length();
+                    word.erase(word.find_last_not_of(L" ") + 1);
+                    int ofs_x = pos_x - w_space*(len - word.length());
+                    line.chunks.emplace_back(line_pix,pos_y,ofs_x - line_pix,y_step,x_limit,word);
+
+                    line_pix = pos_x - sym_x;
                     w_str = pstr;
                 }
                 else
-                    chunk.resize(last_len);
-                lines.emplace_back(0, pos_y, line_pix,y_step,x_limit, chunk);
+                    chunk.resize(last_len);                            
+                
+                int len = chunk.length();
+                chunk.erase(chunk.find_last_not_of(L" ") + 1);
+                line_pix -= w_space*(len - chunk.length());
+
+                line.pos_y = pos_y;
+                line.size_x = line_pix;
+                line.size_y = y_step;
+                line.no_stretch = false;
+                wrap.lines.push_back(line);
+
                 chunk = L"";
                 pos_x = 0;
                 pos_y += y_step;
@@ -131,16 +207,46 @@ SpellTextChunks SpellTextRec::WordWrap(SpellFont* font,int x_limit)
                 p_sym = ' ';
                 last_len = 0;
                 line_pix = 0;
+
+                line.chunks.clear();
                 continue;
             }
             chunk.insert(chunk.end(),*pstr);
         }
         p_sym = *pstr++;
     }
-    if(!chunk.empty())
-        lines.emplace_back(0,pos_y,pos_x,y_step,x_limit, chunk);
 
-    return(lines);
+    for(auto &line: wrap.lines)
+    {
+        if(mode == SpellTextLines::WrapMode::CENTER)
+        {
+            // center line
+            int ofs_x = (wrap.limit_x - line.size_x)/2;
+            for(auto &word: line.chunks)
+                word.pos_x += ofs_x;
+        }
+        else if(mode == SpellTextLines::WrapMode::STRETCH && !line.no_stretch)
+        {
+            // stretch line
+            if(line.chunks.size() < 2)
+                continue;
+            double step_x = (double)(wrap.limit_x - line.size_x)/(line.chunks.size() - 1);
+            double gap_x = 0.0;
+            int ofs_x = 0;
+            for(int k = 1; k < line.chunks.size(); k++)
+            {
+                auto word = &line.chunks[k];
+                gap_x += step_x;
+                int pix_x = (int)round(gap_x);
+                ofs_x += pix_x;
+                gap_x -= pix_x;
+                word->pos_x += ofs_x;
+            }
+        }
+    }
+
+
+    return(wrap);
 }
 
 

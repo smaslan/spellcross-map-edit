@@ -24,7 +24,7 @@ FormMsgBox::FormMsgBox(wxPanel* parent,wxWindowID win_id,SpellData* spell_data,S
     m_chunks = text->WordWrap(spell_data->font,text_x_size);
     int x_text = 0;
     int y_size = 0;
-    for(auto & line : m_chunks)
+    for(auto & line : m_chunks.lines)
     {
         y_size = max(y_size, line.pos_y); 
         x_text = max(x_text, line.size_x);
@@ -131,8 +131,11 @@ void FormMsgBox::OnPaintTab(wxPaintEvent& event)
 
     // render text chunks
     int text_y_ofs = 2*corn->y_size;
-    for(auto & line : m_chunks)
-        m_spelldata->font->Render(buf, &buf[x_size*y_size], x_size, line.pos_x + 4*corn->x_size/2, line.pos_y + text_y_ofs, line.text, 0xFF);      
+    for(auto & line : m_chunks.lines)
+    {     
+        for(auto &word: line.chunks)
+            m_spelldata->font->Render(buf, &buf[x_size*y_size], x_size, word.pos_x + 4*corn->x_size/2, line.pos_y + text_y_ofs, word.text, 0xFF);
+    }
 
     // render frame
     int pos_x = corn->x_size;

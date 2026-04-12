@@ -24,7 +24,26 @@ FormText::FormText( wxWindow* parent,SpellData* spell_data,wxWindowID id, const 
 	mmExit = new wxMenuItem(m_menu24,wxID_MM_EXIT,wxString(wxT("Exit")),wxEmptyString,wxITEM_NORMAL);
 	m_menu24->Append(mmExit);
 
+	wxMenuItem* mmSave;
+	mmSave = new wxMenuItem(m_menu24,wxID_MM_SAVE,wxString(wxT("Export Resource")) + wxT('\t') + wxT("Ctrl+S"),wxEmptyString,wxITEM_NORMAL);
+	m_menu24->Append(mmSave);
+
+	wxMenuItem* mmSaveAll;
+	mmSaveAll = new wxMenuItem(m_menu24,wxID_MM_SAVE_ALL,wxString(wxT("Export All")),wxEmptyString,wxITEM_NORMAL);
+	m_menu24->Append(mmSaveAll);
+
 	m_menubar13->Append(m_menu24,wxT("File"));
+
+	m_menu25 = new wxMenu();
+	wxMenuItem* mmRestore;
+	mmRestore = new wxMenuItem(m_menu25,wxID_MM_RESTORE,wxString(wxT("Revert chagnes")) + wxT('\t') + wxT("Ctrl+R"),wxEmptyString,wxITEM_NORMAL);
+	m_menu25->Append(mmRestore);
+
+	wxMenuItem* mmApplyChanges;
+	mmApplyChanges = new wxMenuItem(m_menu25,wxID_MM_APPLY,wxString(wxT("Save changes")) + wxT('\t') + wxT("Ctrl+Enter"),wxEmptyString,wxITEM_NORMAL);
+	m_menu25->Append(mmApplyChanges);
+
+	m_menubar13->Append(m_menu25,wxT("Edit"));
 
 	this->SetMenuBar(m_menubar13);
 
@@ -65,7 +84,7 @@ FormText::FormText( wxWindow* parent,SpellData* spell_data,wxWindowID id, const 
 	bSizer106->Add(bSizer107,0,wxEXPAND,5);
 
 	m_staticline39 = new wxStaticLine(this,wxID_ANY,wxDefaultPosition,wxDefaultSize,wxLI_VERTICAL);
-	bSizer106->Add(m_staticline39,0,wxEXPAND|wxTOP|wxBOTTOM,5);
+	bSizer106->Add(m_staticline39,0,wxEXPAND|wxTOP,5);
 
 	wxBoxSizer* bSizer108;
 	bSizer108 = new wxBoxSizer(wxVERTICAL);
@@ -86,11 +105,20 @@ FormText::FormText( wxWindow* parent,SpellData* spell_data,wxWindowID id, const 
 	chTarget->SetSelection(0);
 	bSizer108->Add(chTarget,0,wxBOTTOM|wxRIGHT|wxLEFT|wxEXPAND,5);
 
+	m_staticText114 = new wxStaticText(this,wxID_ANY,wxT("Text align mode:"),wxDefaultPosition,wxDefaultSize,0);
+	m_staticText114->Wrap(-1);
+	bSizer108->Add(m_staticText114,0,wxRIGHT|wxLEFT,5);
+
+	wxArrayString chAlignChoices;
+	chAlign = new wxChoice(this,wxID_CH_ALIGN,wxDefaultPosition,wxDefaultSize,chAlignChoices,0);
+	chAlign->SetSelection(0);
+	bSizer108->Add(chAlign,0,wxBOTTOM|wxRIGHT|wxLEFT|wxEXPAND,5);
+
 
 	bSizer106->Add(bSizer108,0,wxEXPAND,5);
 
 	m_staticline40 = new wxStaticLine(this,wxID_ANY,wxDefaultPosition,wxDefaultSize,wxLI_VERTICAL);
-	bSizer106->Add(m_staticline40,0,wxEXPAND|wxTOP|wxBOTTOM,5);
+	bSizer106->Add(m_staticline40,0,wxEXPAND|wxTOP,5);
 
 	wxBoxSizer* bSizer109;
 	bSizer109 = new wxBoxSizer(wxVERTICAL);
@@ -124,7 +152,7 @@ FormText::FormText( wxWindow* parent,SpellData* spell_data,wxWindowID id, const 
 	m_staticText105->Wrap(-1);
 	bSizer105->Add(m_staticText105,0,wxLEFT,5);
 
-	canvasFont = new wxPanel(this,wxID_CANVAS_FONT,wxDefaultPosition,wxSize(-1,100),wxFULL_REPAINT_ON_RESIZE|wxTAB_TRAVERSAL);
+	canvasFont = new wxPanel(this,wxID_CANVAS_FONT,wxDefaultPosition,wxSize(-1,80),wxFULL_REPAINT_ON_RESIZE|wxTAB_TRAVERSAL);
 	bSizer105->Add(canvasFont,0,wxBOTTOM|wxEXPAND|wxLEFT|wxRIGHT,5);
 
 
@@ -136,10 +164,13 @@ FormText::FormText( wxWindow* parent,SpellData* spell_data,wxWindowID id, const 
 	// === AUTO GENERATED END ===
 
 	Bind(wxEVT_MENU,&FormText::OnCloseClick,this,wxID_MM_EXIT);
+	Bind(wxEVT_MENU,&FormText::OnChangeResource,this,wxID_MM_RESTORE);
 	Bind(wxEVT_COMMAND_TEXT_UPDATED,&FormText::OnChangeFilter,this,wxID_TXT_WILD);
 	Bind(wxEVT_COMMAND_LISTBOX_SELECTED,&FormText::OnChangeResource,this,wxID_LIST_RESOURCES);
 	Bind(wxEVT_COMMAND_CHOICE_SELECTED,&FormText::OnChangeSource,this,wxID_CH_SOURCE);
 	Bind(wxEVT_COMMAND_CHOICE_SELECTED,&FormText::OnChangeTargetPanel,this,wxID_CH_TARGET);
+	Bind(wxEVT_COMMAND_CHOICE_SELECTED,&FormText::OnChangeTargetPanel,this,wxID_CH_ALIGN);
+	Bind(wxEVT_COMMAND_TEXT_UPDATED,&FormText::OnChangeText,this,wxID_TXT_EDIT);
 
 	canvasFont->SetDoubleBuffered(true);
 	canvasFont->Bind(wxEVT_PAINT,&FormText::OnPaintFont,this,wxID_CANVAS_FONT);
@@ -154,6 +185,7 @@ FormText::FormText( wxWindow* parent,SpellData* spell_data,wxWindowID id, const 
 
 	Bind(wxEVT_SIZE,&FormText::OnTextCanvasSize,this,wxID_ANY);
 
+	// source menu
 	chSource->Clear();
 	chSource->Append("TEXTS.FS");
 	chSource->Append("RESEARCH.FS");
@@ -162,21 +194,28 @@ FormText::FormText( wxWindow* parent,SpellData* spell_data,wxWindowID id, const 
 
 	FillResources();
 		
-	m_windows = {
-		{"Generic ingame message", NULL, 10,8, 375,-1, 255,0, SpellFont::FontShadow::DIAG3,"TEXTS.FS",{"U*","MSG*","E*","T*.S","T*.OK","T*.BAD"}},
-		{"Unit info panel", m_spell_data->gres.inf_panel, 45,30, 372,350, 248,0, SpellFont::FontShadow::DIAG3,"INFO.FS",{"*"}},
-		{"Big map research info panel", m_spell_data->gres.bm_info_panel, 20,5, 378,408, 249,0, SpellFont::FontShadow::RIGHT_DOWN,"RESEARCH.FS",{"*.INF"}},
-		{"Big map research panel", m_spell_data->gres.bm_research_panel, 18,65, 352,123, 249,0, SpellFont::FontShadow::RIGHT_DOWN,"RESEARCH.FS",{"*.BRF"}},
-		{"Big map mission info panel", m_spell_data->gres.bm_mission_info_panel, 28,31, 352,120, 127,0, SpellFont::FontShadow::RIGHT_DOWN,"TEXTS.FS",{"T*"}},
-	};
-
 	// fill window layouts list
+	m_windows = {
+		{"Generic in-game message box", NULL, 10,8, 375,-1, 1, 255,0, SpellFont::FontShadow::DIAG3,SpellTextLines::WrapMode::LEFT,"TEXTS.FS",{"U*","MSG*","E*","T*.S","T*.OK","T*.BAD"}},
+		{"Unit info panel", m_spell_data->gres.inf_panel, 45,30, 370,350, 4, 248,0, SpellFont::FontShadow::DIAG3,SpellTextLines::WrapMode::STRETCH,"INFO.FS",{"*"}},
+		{"Big map research info panel", m_spell_data->gres.bm_info_panel, 20,5, 376,416, 4, 249,0, SpellFont::FontShadow::RIGHT_DOWN,SpellTextLines::WrapMode::STRETCH,"RESEARCH.FS",{"*.INF"}},
+		{"Big map research panel", m_spell_data->gres.bm_research_panel, 18,65, 352,123, 0, 249,0, SpellFont::FontShadow::RIGHT_DOWN,SpellTextLines::WrapMode::CENTER,"RESEARCH.FS",{"*.BRF"}},
+		{"Big map mission info panel", m_spell_data->gres.bm_mission_info_panel, 28,29, 352,126, 0, 127,0, SpellFont::FontShadow::RIGHT_DOWN,SpellTextLines::WrapMode::CENTER,"TEXTS.FS",{"T*"}},
+	};
 	chTarget->Freeze();
 	chTarget->Clear();
 	for(auto &item: m_windows)
 		chTarget->Append(item.name);
 	chTarget->Thaw();
 	chTarget->Select(0);
+
+	// make alignment menu	
+	chAlign->Freeze();
+	chAlign->Clear();
+	chAlign->Append("Left",new SpellTextLines::WrapMode(SpellTextLines::WrapMode::LEFT));
+	chAlign->Append("Center",new SpellTextLines::WrapMode(SpellTextLines::WrapMode::CENTER));
+	chAlign->Append("Stretch",new SpellTextLines::WrapMode(SpellTextLines::WrapMode::STRETCH));
+	chAlign->Thaw();
 }
 
 
@@ -256,12 +295,13 @@ void FormText::OnChangeTargetPanel(wxCommandEvent& event)
 
 // change resource
 void FormText::OnChangeResource(wxCommandEvent& event)
-{
+{	
 	auto text = GetText();
 	if(!text)
 		return;
+	m_text = *text;
 
-	textEdit->SetValue(text->text);
+	textEdit->SetValue(m_text.text);
 
 	int src_sel = chSource->GetSelection();
 	if(src_sel < 0)
@@ -279,11 +319,28 @@ void FormText::OnChangeResource(wxCommandEvent& event)
 				if(wildcmp(wild.c_str(), text->name.c_str()))
 				{
 					chTarget->Select(k);
+					// select align mode
+					for(int k = 0; k < chAlign->GetCount(); k++)
+					{
+						auto data = (SpellTextLines::WrapMode*)chAlign->GetClientData(k);
+						if(data && *data == window->align)
+						{
+							chAlign->Select(k);
+							break;
+						}							
+					}
 					return;
 				}
 		}
 	}();
 
+	PrepareText();
+}
+
+// change text
+void FormText::OnChangeText(wxCommandEvent& event)
+{
+	m_text.text = textEdit->GetValue().ToStdWstring();
 	PrepareText();
 }
 
@@ -320,16 +377,18 @@ SpellTextRec *FormText::GetText()
 void FormText::PrepareText()
 {
 	m_font = NULL;
-	m_text_lines.clear();
-	
-	auto text = GetText();
-	if(!text)
-		return;
-	
+	m_text_lines.lines.clear();
+		
+	// select window layout
 	int win_sel = chTarget->GetSelection();
 	if(win_sel < 0)
 		return;
 	m_window = &m_windows[win_sel];
+
+	// select text align mode
+	SpellTextLines::WrapMode align = m_window->align;
+	if(chAlign->GetSelection() >= 0)
+		align = *(SpellTextLines::WrapMode*)chAlign->GetClientData(chAlign->GetSelection());
 	
 	// canvas size
 	auto rect = canvasText->GetClientSize();
@@ -337,25 +396,25 @@ void FormText::PrepareText()
 	int y_surf = rect.GetHeight();
 
 	//int y_size = m_window->y_size;
+	auto corn = m_spell_data->gres.wm_frame_corner;
 	if(!m_window->grp)
 	{
-		m_window->x_panel = m_window->x_size + 2*m_window->x_org;
-		m_window->y_panel = y_surf;
-		m_window->y_size = y_surf - 2*m_window->y_org;
+		m_window->x_panel = m_window->x_size + 4*corn->x_size;
+		m_window->y_size = y_surf - 4*corn->y_size;
+		m_window->x_org = 2*corn->x_size;
+		m_window->y_org = 2*corn->y_size;
 	}
 
 	m_font = m_spell_data->font;	
-	m_text_lines = text->WordWrap(m_font,m_window->x_size);
-	if(m_text_lines.empty())
+	m_text_lines = m_text.WordWrap(m_font,m_window->x_size,m_window->y_gap,align);
+	if(m_text_lines.lines.empty())
 		return;
 
-	int y_line = m_text_lines[0].size_y;
-
-	int lines = m_text_lines.size();
-	
-	
-
+	int y_line = m_text_lines.line_step;
+	int lines = m_text_lines.lines.size();
 	int max_lines = m_window->y_size/y_line;
+
+	m_window->y_panel = min(max_lines,lines)*y_line + 4*corn->y_size;
 	
 	scrollText->SetRange(max(lines - max_lines,0) + 1);
 	scrollText->SetThumbSize(1);
@@ -389,7 +448,7 @@ void FormText::OnPaintText(wxPaintEvent& event)
 	surf_x_last = surf_x;
 	surf_y_last = surf_y;
 		
-	if(m_text_lines.empty())
+	if(m_text_lines.lines.empty())
 		return;
 	if(!m_font)
 		return;
@@ -416,31 +475,58 @@ void FormText::OnPaintText(wxPaintEvent& event)
 	uint8_t (*pal)[3];
 	if(panel)
 	{
+		// known panel
 		panel->Render(buf, buf_end, x_size, 0, 0);
 		pal = panel->pal;
 	}
 	else
 	{
+		// generic message window
 		auto mpal = m_spell_data->GetPalette("MAP");
 		if(!mpal)
 			return;
 		pal = (uint8_t(*)[3])mpal->m_pal.data();
+
+		// frame border graphics
+		auto corn = m_spell_data->gres.wm_frame_corner;
+		auto horz = m_spell_data->gres.wm_frame_horz;
+		auto vert = m_spell_data->gres.wm_frame_vert;
+
+		// render frame
+		int pos_x = corn->x_size;
+		do {
+			horz->Render(buf,buf_end,x_size,pos_x,0);
+			horz->Render(buf,buf_end,x_size,pos_x,y_size - horz->y_size);
+			pos_x += horz->x_size;
+		} while(pos_x < x_size);
+		int pos_y = 10;
+		do {
+			vert->Render(buf,buf_end,x_size,0,pos_y);
+			vert->Render(buf,buf_end,x_size,x_size - corn->x_size,pos_y);
+			pos_y += vert->y_size;
+		} while(pos_y < y_size);
+		corn->Render(buf,buf_end,x_size,0,0);
+		corn->Render(buf,buf_end,x_size,x_size - corn->x_size,0);
+		corn->Render(buf,buf_end,x_size,0,y_size - corn->y_size);
+		corn->Render(buf,buf_end,x_size,x_size - corn->x_size,y_size - corn->y_size);
 	}
 		
+	// render text chunks
 	int line = scrollText->GetThumbPosition();
-	if(line >= m_text_lines.size())
+	if(line >= m_text_lines.lines.size())
 		return;
-	int y_ref = m_text_lines[line].pos_y;
+	int y_ref = m_text_lines.lines[line].pos_y;
 	while(true)
 	{
-		if(line >= m_text_lines.size())
+		if(line >= m_text_lines.lines.size())
 			break;
-		auto chunk = &m_text_lines[line++];
-		int y_pos = chunk->pos_y - y_ref + m_window->y_org;
-		int y_end = y_pos + chunk->size_y;
+		auto words = &m_text_lines.lines[line++];
+		int y_pos = words->pos_y - y_ref + m_window->y_org;
+		int y_end = y_pos + words->size_y;
 		if(y_end > m_window->y_org + m_window->y_size)
 			break;
-		m_font->Render(buf, buf_end, x_size,m_window->x_org, y_pos, chunk->text,m_window->txt_color,m_window->bg_color,m_window->shadow);
+		for(auto &chunk: words->chunks)
+			m_font->Render(buf, buf_end, x_size,m_window->x_org + chunk.pos_x, y_pos, chunk.text,m_window->txt_color,m_window->bg_color,m_window->shadow);
 	}
 
 	// leave if surface not big enough

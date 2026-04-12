@@ -442,8 +442,8 @@ MainFrame::MainFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY
     
     //SetCursor(*spelldata->gres.ico_attack_up_down);
 
-    /*SpellTextRec text("Experimental text message", SpellLang::CZE);
-    ShowMessage(&text,true);*/
+    //SpellTextRec text("Experimental text message", SpellLang::CZE);
+    //ShowMessage(spell_data->texts->GetText("E06_0009"),false);
     
 }
 // on form close
