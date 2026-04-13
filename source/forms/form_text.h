@@ -53,10 +53,11 @@ class FormText : public wxFrame
 		void OnPaintText(wxPaintEvent& event);
 		void OnTextScroll(wxScrollEvent& event);
 		void OnTextCanvasSize(wxSizeEvent& event);
+		void OnChangeApply(wxCommandEvent& event);
+		void OnSave(wxCommandEvent& event);
+		void OnSaveAll(wxCommandEvent& event);
 
-		SpellTextRec *GetText();
-		void FillResources();
-		void PrepareText();
+		
 
 		class SpellWindow {
 		public:
@@ -71,6 +72,7 @@ class FormText : public wxFrame
 			int bg_color;			
 			SpellFont::FontShadow shadow;
 			SpellTextLines::WrapMode align;
+			SpellTextRec::TextPanel panel;
 			std::string source;
 			std::vector<std::string> wild;
 			int x_panel;
@@ -80,10 +82,16 @@ class FormText : public wxFrame
 		SpellWindow *m_window;
 
 		SpellTextRec m_text;
+		SpellTextRec *m_text_org;
 		SpellFont* m_font;
 		SpellTextLines m_text_lines;
 		//int m_wrap_width;
 		//int m_wrap_height;
+
+		SpellWindow* GetTextWindow(SpellTextRec* text);
+		SpellTextRec* GetText(std::string name="");
+		void FillResources();
+		void PrepareText();
 
 	protected:
 		enum

@@ -10,16 +10,25 @@
 
 SpellTextRec::SpellTextRec()
 {
-    this->name = "";
-    this->lang = SpellLang::CZE;
-    this->audio = NULL;
-    this->raw_text = "";
-    this->text = L"";
-    this->is_placeholder = false;
+    name = "";
+    lang = SpellLang::CZE;
+    audio = NULL;
+    raw_text = "";
+    text = L"";
+    is_placeholder = false;
+    text_panel = TextPanel::DEFAULT;
+    modified = false;
 }
 
+// is empty record
+bool SpellTextRec::isEmpty()
+{
+    return(text.empty() && raw_text.empty());
+}
+
+
 // basic text loader
-SpellTextRec::SpellTextRec(std::string str, SpellLang lang, const char* name,SpellSample* audio,bool is_placeholder)
+SpellTextRec::SpellTextRec(std::string str, SpellLang lang, const char* name,SpellTextRec::TextPanel panel,SpellSample* audio,bool is_placeholder)
 {    
     this->is_placeholder = is_placeholder;
     if(name)
@@ -27,6 +36,7 @@ SpellTextRec::SpellTextRec(std::string str, SpellLang lang, const char* name,Spe
     this->lang = lang;    
     this->audio = audio;
     this->raw_text = str;
+    modified = false;
     
     // normalize linebreaks
     str = strrep(str, "\r\n", "\n");
@@ -86,7 +96,86 @@ SpellTextRec::SpellTextRec(std::string str, SpellLang lang, const char* name,Spe
     {
         throw runtime_error("Unknown language requested in text decoder!");
     }
+
+    // try to identify target panel
+    text_panel = panel;
+    if(panel != TextPanel::DEFAULT)
+        text_panel = panel;
+    else if(wildcmp("*.INF",name))
+        text_panel = TextPanel::BM_RESEARCH_INFO;
+    else if(wildcmp("*.BRF",name))
+        text_panel = TextPanel::BM_RESEARCH_PANEL;
+    else if(wildcmp("T*.S",name) || wildcmp("T*.OK",name) || wildcmp("T*.BAD",name) || wildcmp("E*",name) || wildcmp("U*",name) || wildcmp("MSG*",name))
+        text_panel = TextPanel::MESSAGE;
+    else if(wildcmp("T*",name))
+        text_panel = TextPanel::BM_MISSION;
+    if(text_panel == TextPanel::DEFAULT)
+        text_panel = TextPanel::MESSAGE;
+    
+    // default panel sizes
+    /*switch(text_panel)
+    {   
+    case TextPanel::UNIT_INFO:
+        x_size = 370;
+        y_size = 350;
+        break;
+    case TextPanel::BM_MISSION:
+        x_size = 352;
+        y_size = 126;
+        break;
+    case TextPanel::BM_RESEARCH_PANEL:
+        x_size = 352;
+        y_size = 123;
+        break;
+    case TextPanel::BM_RESEARCH_INFO:
+        x_size = 376;
+        y_size = 416;
+        break;
+    case TextPanel::MESSAGE:
+    default:
+        x_size = 375;
+        y_size = -1;
+        break;
+    }*/
 }
+
+// update text using word wrapper and given window layout
+int SpellTextRec::UpdateText(std::wstring text, int x_width, SpellFont* font,SpellTextRec::TextPanel panel)
+{
+    // update unicode source text
+    this->text = text;
+    
+    // format text
+    auto lines = WordWrap(font, x_width);
+
+    // build full text 
+    std::wstring str = L"";
+    for(auto &line: lines.lines)
+    {        
+        for(auto &word: line.chunks)
+        {
+            str += word.text;
+            if(&word != &line.chunks.back())
+                str += L" ";
+        }
+        if(&line != &lines.lines.back())
+            str += L"\r\n";
+    }
+    
+
+    // convert code page
+    if(lang == SpellLang::CZE)
+        this->raw_text = wstring2stringCP895(str);
+    else if(lang == SpellLang::ENG)
+        this->raw_text = wstring2string(str);
+    else
+        return(1);
+
+    // mark as modified
+    this->modified = true;
+
+    return(0);
+ }
 
 // splits text by lines to fit maximum width
 SpellTextLines SpellTextRec::WordWrap(SpellFont* font,int x_limit, int y_gap, SpellTextLines::WrapMode mode)
@@ -251,7 +340,7 @@ SpellTextLines SpellTextRec::WordWrap(SpellFont* font,int x_limit, int y_gap, Sp
 
 
 // load all text files from TEXTS.FS archive
-SpellTexts::SpellTexts(FSarchive* fs, SpellLang lang,SpellSounds* sounds)
+SpellTexts::SpellTexts(FSarchive* fs, SpellLang lang,SpellTextRec::TextPanel panel,SpellSounds* sounds)
 {
     this->lang = lang;
 
@@ -265,12 +354,12 @@ SpellTexts::SpellTexts(FSarchive* fs, SpellLang lang,SpellSounds* sounds)
 
         // try load
         std::string str(src->data.begin(), src->data.end());
-        AddText(src->name,str,lang,narration);
+        AddText(src->name,str,lang,panel,narration);
     }
 }
 
 // add text resource to the list
-SpellTextRec* SpellTexts::AddText(std::string name,std::string raw_text,SpellLang lang,SpellSample* narration,bool is_placeholder)
+SpellTextRec* SpellTexts::AddText(std::string name,std::string raw_text,SpellLang lang,SpellTextRec::TextPanel panel,SpellSample* narration,bool is_placeholder)
 {
     if(name.empty())
         return(NULL);
@@ -281,7 +370,7 @@ SpellTextRec* SpellTexts::AddText(std::string name,std::string raw_text,SpellLan
             return(NULL);
 
     // make text
-    auto txt = new SpellTextRec(raw_text,lang,name.c_str(),narration,is_placeholder);
+    auto txt = new SpellTextRec(raw_text,lang,name.c_str(),panel,narration,is_placeholder);
     if(txt)
         list.push_back(txt);
 

@@ -560,7 +560,7 @@ SpellData::SpellData(wstring &data_path,wstring& cd_data_path,wstring& spec_path
 	wstring texts_path = std::filesystem::path(data_path) / std::filesystem::path("TEXTS.FS");
 	FSarchive* texts_fs = new FSarchive(texts_path);
 	try{
-		texts = new SpellTexts(texts_fs, SpellLang::CZE, sounds); // ###todo: decode language somehow?
+		texts = new SpellTexts(texts_fs, SpellLang::CZE,SpellTextRec::TextPanel::DEFAULT, sounds); // ###todo: decode language somehow?
 	}catch(const runtime_error& error) {
 		delete texts_fs;
 		this->~SpellData();
@@ -911,7 +911,7 @@ int SpellData::LoadResearch(FSarchive* fs,std::function<void(std::string)> statu
 	if(!fs)
 		return(1);
 
-	research_texts = new SpellTexts(fs, SpellLang::CZE, NULL);
+	research_texts = new SpellTexts(fs, SpellLang::CZE,SpellTextRec::TextPanel::DEFAULT, NULL);
 	if(!research_texts)
 		return(1);
 

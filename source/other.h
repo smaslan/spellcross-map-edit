@@ -20,6 +20,7 @@ std::string wstring2stringCP895(std::wstring str);
 std::string string_format(const std::string fmt,...);
 bool iequals(const std::string& a,const std::string& b);
 std::string& strrep(std::string& str,std::string key,std::string rep);
+int savestr(std::wstring path,std::string& str);
 
 int wildcmp(const char* wild,const char* string);
 void strcpy_noext(const char* dest,const char* src);

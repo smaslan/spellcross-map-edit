@@ -47,16 +47,25 @@ public:
 class SpellTextRec
 {
 public:
+    enum class TextPanel { DEFAULT, MESSAGE,UNIT_INFO,BM_RESEARCH_PANEL,BM_RESEARCH_INFO,BM_MISSION };
+
+    bool modified;
     std::string name;
     std::string raw_text;
     std::wstring text;
     SpellLang lang;    
     SpellSample *audio;
     bool is_placeholder;
-    
+    // target panel type
+    TextPanel text_panel;
+    //int x_size;
+    //int y_size;
+        
     SpellTextRec();
-    SpellTextRec(std::string str,SpellLang lang,const char* name=NULL,SpellSample *audio=NULL,bool is_placeholder=false);
+    SpellTextRec(std::string str,SpellLang lang,const char* name=NULL,SpellTextRec::TextPanel panel=SpellTextRec::TextPanel::DEFAULT,SpellSample *audio=NULL,bool is_placeholder=false);
     SpellTextLines WordWrap(SpellFont *font, int x_limit,int y_gap=1,SpellTextLines::WrapMode mode=SpellTextLines::WrapMode::LEFT);
+    int UpdateText(std::wstring text,int x_width,SpellFont* font,SpellTextRec::TextPanel panel=SpellTextRec::TextPanel::DEFAULT);
+    bool isEmpty();
 };
 
 
@@ -69,9 +78,9 @@ private:
 
 public:
     
-    SpellTexts(FSarchive *fs,SpellLang lang,SpellSounds *sounds=NULL);
+    SpellTexts(FSarchive *fs,SpellLang lang,SpellTextRec::TextPanel panel=SpellTextRec::TextPanel::DEFAULT,SpellSounds *sounds=NULL);
     ~SpellTexts();
-    SpellTextRec* AddText(std::string name,std::string raw_text="",SpellLang lang=SpellLang::CZE,SpellSample * narration=NULL,bool is_placeholder=false);
+    SpellTextRec* AddText(std::string name,std::string raw_text="",SpellLang lang=SpellLang::CZE,SpellTextRec::TextPanel panel=SpellTextRec::TextPanel::DEFAULT,SpellSample * narration=NULL,bool is_placeholder=false);
     int RemovePlaceholders();
     SpellTextRec* GetText(int index);
     SpellTextRec* GetText(const char* name);

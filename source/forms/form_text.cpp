@@ -6,6 +6,10 @@
 ///////////////////////////////////////////////////////////////////////////
 
 #include "form_text.h"
+#include <wx/filedlg.h>
+#include <wx/dirdlg.h>
+#include <wx/msgdlg.h>
+#include <filesystem>
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -165,6 +169,9 @@ FormText::FormText( wxWindow* parent,SpellData* spell_data,wxWindowID id, const 
 
 	Bind(wxEVT_MENU,&FormText::OnCloseClick,this,wxID_MM_EXIT);
 	Bind(wxEVT_MENU,&FormText::OnChangeResource,this,wxID_MM_RESTORE);
+	Bind(wxEVT_MENU,&FormText::OnChangeApply,this,wxID_MM_APPLY);
+	Bind(wxEVT_MENU,&FormText::OnSave,this,wxID_MM_SAVE);
+	Bind(wxEVT_MENU,&FormText::OnSaveAll,this,wxID_MM_SAVE_ALL);
 	Bind(wxEVT_COMMAND_TEXT_UPDATED,&FormText::OnChangeFilter,this,wxID_TXT_WILD);
 	Bind(wxEVT_COMMAND_LISTBOX_SELECTED,&FormText::OnChangeResource,this,wxID_LIST_RESOURCES);
 	Bind(wxEVT_COMMAND_CHOICE_SELECTED,&FormText::OnChangeSource,this,wxID_CH_SOURCE);
@@ -196,11 +203,11 @@ FormText::FormText( wxWindow* parent,SpellData* spell_data,wxWindowID id, const 
 		
 	// fill window layouts list
 	m_windows = {
-		{"Generic in-game message box", NULL, 10,8, 375,-1, 1, 255,0, SpellFont::FontShadow::DIAG3,SpellTextLines::WrapMode::LEFT,"TEXTS.FS",{"U*","MSG*","E*","T*.S","T*.OK","T*.BAD"}},
-		{"Unit info panel", m_spell_data->gres.inf_panel, 45,30, 370,350, 4, 248,0, SpellFont::FontShadow::DIAG3,SpellTextLines::WrapMode::STRETCH,"INFO.FS",{"*"}},
-		{"Big map research info panel", m_spell_data->gres.bm_info_panel, 20,5, 376,416, 4, 249,0, SpellFont::FontShadow::RIGHT_DOWN,SpellTextLines::WrapMode::STRETCH,"RESEARCH.FS",{"*.INF"}},
-		{"Big map research panel", m_spell_data->gres.bm_research_panel, 18,65, 352,123, 0, 249,0, SpellFont::FontShadow::RIGHT_DOWN,SpellTextLines::WrapMode::CENTER,"RESEARCH.FS",{"*.BRF"}},
-		{"Big map mission info panel", m_spell_data->gres.bm_mission_info_panel, 28,29, 352,126, 0, 127,0, SpellFont::FontShadow::RIGHT_DOWN,SpellTextLines::WrapMode::CENTER,"TEXTS.FS",{"T*"}},
+		{"Generic in-game message box", NULL, 10,8, 375,-1, 1, 255,0, SpellFont::FontShadow::DIAG3,SpellTextLines::WrapMode::LEFT,SpellTextRec::TextPanel::MESSAGE,"TEXTS.FS",{"U*","MSG*","E*","T*.S","T*.OK","T*.BAD"}},
+		{"Unit info panel", m_spell_data->gres.inf_panel, 45,30, 370,350, 4, 248,0, SpellFont::FontShadow::DIAG3,SpellTextLines::WrapMode::STRETCH,SpellTextRec::TextPanel::UNIT_INFO,"INFO.FS",{"*"}},
+		{"Big map research info panel", m_spell_data->gres.bm_info_panel, 20,5, 376,416, 4, 249,0, SpellFont::FontShadow::RIGHT_DOWN,SpellTextLines::WrapMode::STRETCH,SpellTextRec::TextPanel::BM_RESEARCH_INFO,"RESEARCH.FS",{"*.INF"}},
+		{"Big map research panel", m_spell_data->gres.bm_research_panel, 18,65, 352,123, 0, 249,0, SpellFont::FontShadow::RIGHT_DOWN,SpellTextLines::WrapMode::CENTER,SpellTextRec::TextPanel::BM_RESEARCH_PANEL,"RESEARCH.FS",{"*.BRF"}},
+		{"Big map mission info panel", m_spell_data->gres.bm_mission_info_panel, 28,29, 352,126, 0, 127,0, SpellFont::FontShadow::RIGHT_DOWN,SpellTextLines::WrapMode::CENTER,SpellTextRec::TextPanel::BM_MISSION,"TEXTS.FS",{"T*"}},
 	};
 	chTarget->Freeze();
 	chTarget->Clear();
@@ -237,6 +244,68 @@ void FormText::OnCloseClick(wxCommandEvent& event)
 {
 	Close();
 }
+
+
+// save resource
+void FormText::OnSave(wxCommandEvent& event)
+{
+	// selected resource
+	/*auto name = listResources->GetStringSelection();
+	if(name.empty())
+		return;*/
+	
+	if(m_text.isEmpty())
+		return;
+
+	// apply changes
+	OnChangeApply(event);
+			
+	// show save dialog
+	wxFileDialog saveFileDialog(this,_("Export text resource"),m_spell_data->export_path,m_text.name,"Spellcross text resource file (*.*)|*.*",
+		wxFD_SAVE|wxFD_OVERWRITE_PROMPT);
+	if(saveFileDialog.ShowModal() == wxID_CANCEL)
+		return;
+	wstring path = wstring(saveFileDialog.GetPath().ToStdWstring());
+	m_spell_data->export_path = saveFileDialog.GetDirectory().ToStdWstring();
+
+	// save it
+	savestr(path, m_text.raw_text);
+}
+
+// save all resources
+void FormText::OnSaveAll(wxCommandEvent& event)
+{
+	// show save dialog
+	wxDirDialog saveDirDialog(this,"Export multiple text resources",m_spell_data->export_path,wxDD_DIR_MUST_EXIST);
+	if(saveDirDialog.ShowModal() == wxID_CANCEL)
+		return;
+	wstring dir = wstring(saveDirDialog.GetPath().ToStdWstring());
+	m_spell_data->export_path = dir;
+
+	// rather ask for permission
+	wxMessageDialog msg(NULL,"Files in the selected folder might be overwritten! Continue?","Exporting text resources",wxYES_NO | wxNO_DEFAULT | wxICON_QUESTION);
+	if(msg.ShowModal() != wxID_YES)
+		return;
+
+	// list through all resources
+	for(int k = 0; k < listResources->GetCount(); k++)
+	{
+		// select resource
+		listResources->Select(k);		
+		OnChangeResource(event);
+		if(m_text.isEmpty())
+			continue;
+
+		// apply changes
+		OnChangeApply(event);
+
+		// save it
+		auto path = std::filesystem::path(dir).append(m_text.name).wstring();
+		savestr(path,m_text.raw_text);
+	}
+}
+
+
 
 // change source filter
 void FormText::OnChangeFilter(wxCommandEvent& event)
@@ -293,23 +362,114 @@ void FormText::OnChangeTargetPanel(wxCommandEvent& event)
 	PrepareText();
 }
 
+// apply text changes
+void FormText::OnChangeApply(wxCommandEvent& event)
+{
+	if(m_text.isEmpty())
+		return;
+	if(!m_text_org)
+		return;
+
+	// update local text
+	m_text.text = textEdit->GetValue();	
+	m_text.modified = true;
+	
+	// get window layout
+	auto win = GetTextWindow(m_text_org);
+	if(!win)
+		return;
+
+	// update text
+	if(m_text_org->UpdateText(m_text.text, win->x_size, m_spell_data->font))
+		return;
+	m_text.raw_text = m_text_org->raw_text;
+}
+
+// change text
+void FormText::OnChangeText(wxCommandEvent& event)
+{
+	m_text.text = textEdit->GetValue().ToStdWstring();
+	PrepareText();
+}
+
+// get window setup for this text resource
+FormText::SpellWindow *FormText::GetTextWindow(SpellTextRec *text)
+{
+	if(!text)
+		return(NULL);
+	// try to auto select target panel based on text resource name
+	for(auto &window: m_windows)
+	{
+		if(window.panel != text->text_panel)
+			continue;
+		return(&window);
+	}
+	return(NULL);
+}
+
+
+
 // change resource
 void FormText::OnChangeResource(wxCommandEvent& event)
 {	
+	// clear old one
+	m_text = SpellTextRec();
+	m_text_org = NULL;
+
+	// get new one
 	auto text = GetText();
 	if(!text)
 		return;
+	m_text_org = text;
+	// make local work copy
 	m_text = *text;
 
 	textEdit->SetValue(m_text.text);
 
-	int src_sel = chSource->GetSelection();
-	if(src_sel < 0)
+	auto src_name = chSource->GetStringSelection();
+	if(src_name.empty())
 		return;
-	auto src_name = chSource->GetString(src_sel);
+	
+	auto win = GetTextWindow(&m_text);
+	if(!win)
+		return;
+	auto win_id = win - m_windows.data();
+	chTarget->Select(win_id);
+
+	// select align mode
+	for(int k = 0; k < chAlign->GetCount(); k++)
+	{
+		auto data = (SpellTextLines::WrapMode*)chAlign->GetClientData(k);
+		if(data && *data == win->align)
+		{
+			chAlign->Select(k);
+			break;
+		}
+	}
 
 	// try to auto select target panel based on text resource name
-	[&] {
+	/*for(int k = 0; k < m_windows.size(); k++)
+	{
+		auto window = &m_windows[k];
+		if(window->panel != text->text_panel)
+			continue;		
+		chTarget->Select(k);
+
+		// select align mode
+		for(int k = 0; k < chAlign->GetCount(); k++)
+		{
+			auto data = (SpellTextLines::WrapMode*)chAlign->GetClientData(k);
+			if(data && *data == window->align)
+			{
+				chAlign->Select(k);
+				break;
+			}
+		}
+		break;		
+	}*/
+
+	// try to auto select target panel based on text resource name
+	/*[&] {
 		for(int k = 0; k < m_windows.size(); k++)
 		{
 			auto window = &m_windows[k];
@@ -332,29 +492,20 @@ void FormText::OnChangeResource(wxCommandEvent& event)
 					return;
 				}
 		}
-	}();
+	}();*/
 
 	PrepareText();
 }
 
-// change text
-void FormText::OnChangeText(wxCommandEvent& event)
-{
-	m_text.text = textEdit->GetValue().ToStdWstring();
-	PrepareText();
-}
 
-SpellTextRec *FormText::GetText()
+SpellTextRec *FormText::GetText(std::string name)
 {
-	auto res_sel = listResources->GetSelection();
-	if(res_sel < 0)
+	if(name.empty())
+		name = listResources->GetStringSelection();
+	if(name.empty())
 		return(NULL);
-	auto name = listResources->GetString(res_sel);
 
-	int src_sel = chSource->GetSelection();
-	if(src_sel < 0)
-		return(NULL);
-	auto src_name = chSource->GetString(src_sel);
+	auto src_name = chSource->GetStringSelection();
 	if(src_name == "TEXTS.FS")
 	{
 		return(m_spell_data->texts->GetText(name));

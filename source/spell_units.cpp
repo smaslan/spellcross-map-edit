@@ -366,7 +366,7 @@ SpellUnits::SpellUnits(uint8_t* data,int dlen,FSUarchive* fsu,FSarchive* fs_info
 				if(info_text_raw.empty())
 					continue;
 
-				unit->info_text = new SpellTextRec(info_text_raw, lang, art_info_name.c_str());
+				unit->info_text = new SpellTextRec(info_text_raw, lang, art_info_name.c_str(),SpellTextRec::TextPanel::UNIT_INFO);
 				if(unit->info_text)
 					break;
 			}

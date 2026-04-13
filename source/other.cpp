@@ -342,7 +342,6 @@ std::vector<std::string> get_text_lines(std::string string)
     return(rows);
 }
 
-
 // get stuff using regex
 std::vector<std::string> regexp_get(std::string str,std::string regkey)
 {
@@ -354,6 +353,17 @@ std::vector<std::string> regexp_get(std::string str,std::string regkey)
     for(int k = 1; k < match.size(); k++)
         list.push_back(match[k]);
     return(list);
+}
+
+// save string to a file (save as binary - no alteration of line breaks)
+int savestr(std::wstring path, std::string &str)
+{
+    std::ofstream fw(path,std::ios::out | std::ios::binary | std::ios::trunc);
+    if(!fw.is_open())
+        return(1);
+    fw.write(str.c_str(),str.size());
+    fw.close();
+    return(0);
 }
 
 // count bits in varible
