@@ -40,6 +40,7 @@ LZWdct::LZWdct()
 	data_used = 0;
 	idict_len = 0;
 	cdict_len = 0;
+	max_dict_len = 0;
 	data = new uint8_t[DMLEN * DMLEN];
 }
 
@@ -85,7 +86,8 @@ int LZWdct::LZWreinitDict()
 	// copy initial to current dictionary
 	std::memcpy((void*)cdict, (void*)idict, idict_len*sizeof(LZWdictElem));
 	cdict_len = idict_len;
-	data_used = idict_len;
+	data_used = idict_len;	
+	max_dict_len = std::max(max_dict_len,cdict_len);
 
 	// set current bitstream width
 	cbw = ibw;
@@ -122,6 +124,8 @@ int LZWdct::ins(LZWdictElem *ita, LZWdictElem *itb)
 	data[data_used++] = data[itb->ofs];
 	// update current dict size
 	cdict_len++;
+
+	max_dict_len = std::max(max_dict_len,cdict_len);
 
 	// update stream width
 	if (cdict_len + 1 >= (1 << cbw))
@@ -168,6 +172,9 @@ LZWexpand::LZWexpand(int buf_size)
 {	
 	// allocate initial output buffer (this will exist until class destroyed and grow whenever needed)
 	buffer.resize(buf_size);
+	
+	// clear statistics
+	m_max_dict_size = 0;
 }
 
 // close LZW decoder
@@ -183,7 +190,7 @@ int LZWexpand::GetWord(uint8_t** dsrc, uint8_t* dend)
 {
 	static const uint32_t mskl[12] = { 0x80000000u,0xC0000000u,0xE0000000u,0xF0000000u,
 									   0xF8000000u,0xFC000000u,0xFE000000u,0xFF000000u,
-									   0xFF800000u,0xFFC00000u,0xFFE00000u,0xFFF00000u };
+									   0xFF800000u,0xFFC00000u,0xFFE00000u,0xFFF00000u };	
 
 	// reset bitstream
 	if (!dsrc)
@@ -191,6 +198,9 @@ int LZWexpand::GetWord(uint8_t** dsrc, uint8_t* dend)
 		bofs = 7;
 		return(0);
 	}
+
+	if((dend - *dsrc)*8 - (7 - bofs) < dct.cbw)
+		return(-1);
 
 	// get word from stream
 	uint32_t msk = mskl[dct.cbw - 1] >> (7 - bofs);
@@ -268,7 +278,7 @@ int LZWexpand::DecodeCore(uint8_t*dsrc, uint8_t *dend)
 		return(1);
 
 	// invalid parameter values?
-	if(dsrc>=dend)
+	if(dsrc >= dend)
 		return(1);
 
 	// no output data yet
@@ -362,6 +372,9 @@ int LZWexpand::DecodeCore(uint8_t*dsrc, uint8_t *dend)
 		// current word to previous word
 		pwrd = *cwrd;
 	}
+
+	// update statistics
+	m_max_dict_size = std::max(m_max_dict_size, dct.max_dict_len);
 	
 	return(0);
 }
@@ -392,20 +405,20 @@ LZdct::LZdct(uint8_t* sdat,int len)
 	// scan for used values
 	uint8_t idd[256];
 	std::memset((void*)idd,0,256);
-	for(i=0;i<len;i++)
-		idd[*sdat++]=1;
+	for(i = 0; i < len; i++)
+		idd[*sdat++] = 1;
 
 	// get initial dictionary len
-	idn=0;
-	for(i=0;i<256;i++)
+	idn = 0;
+	for(i = 0; i < 256; i++)
 		if(idd[i])
 		{
-			idc[idn]=(uint8_t)i;
-			map[i]=idn++;
+			idc[idn] = (uint8_t)i;
+			map[i] = idn++;
 		}
 
 	// calc item width
-	ibw=0;
+	ibw = 0;
 	while((1<<ibw)<(idn+2))
 		ibw++;
 }
@@ -416,22 +429,22 @@ void LZdct::DCfillIDC(void)
 	int i;
 
 	// copy initial dict into current one
-	for(i=0;i<idn;i++)
+	for(i = 0; i < idn; i++)
 	{
 		// item data
-		dc[i].val=idc[i];
+		dc[i].val = idc[i];
 		// item links
-		dc[i].left=-1;
-		dc[i].right=-1;
-		dc[i].pfx=-1;
-		dc[i].first=-1;
+		dc[i].left = -1;
+		dc[i].right = -1;
+		dc[i].pfx = -1;
+		dc[i].first = -1;
 	}
 
 	// add clear code to dictionary (it's never used)
-	dcn=idn+1;
+	dcn = idn + 1;
 
 	// calc current item width
-	bw=0;
+	bw = 0;
 	while((1<<bw)<(dcn+1))
 		bw++;
 }
@@ -440,17 +453,17 @@ void LZdct::DCfillIDC(void)
 int LZdct::DCadd(TDCitem* item)
 {
 	// return current code if no prefix index defined yet
-	if(item->pfx==-1)
+	if(item->pfx == -1)
 		return((int)((unsigned int)item->val));
 
 	// first item index for current prefix
-	int id=dc[item->pfx].first;
+	int id = dc[item->pfx].first;
 
 	// id exists?
-	if(id==-1)
+	if(id == -1)
 	{
-		// no - write new item id as first item index
-		dc[item->pfx].first=dcn;
+		// nope - write new item id as first item index
+		dc[item->pfx].first = dcn;
 	}
 	else
 	{
@@ -459,53 +472,52 @@ int LZdct::DCadd(TDCitem* item)
 		while(1)
 		{
 			// return id if match
-			if(item->val==dc[id].val)
+			if(item->val == dc[id].val)
 				return(id);
 
 			// scan list
-			if(item->val<dc[id].val)
+			if(item->val < dc[id].val)
 			{
 				// new item higher than dict item
-				int idn=dc[id].left;
-				if(idn==-1)
+				int idn = dc[id].left;
+				if(idn == -1)
 				{
 					// undefined so no match found
 					// insert new item into dict
-					dc[id].left=dcn;
+					dc[id].left = dcn;
 					// and leave with no match
 					break;
 				}
 				// defined, get next search location (next item with same prefix)
-				id=idn;
+				id = idn;
 			}
 			else
 			{
 				// new item lower than dict item
-				int idn=dc[id].right;
-				if(idn==-1)
+				int idn = dc[id].right;
+				if(idn == -1)
 				{
 					// undefined so no match found
 					// insert new item into dict
-					dc[id].right=dcn;
+					dc[id].right = dcn;
 					// and leave with no match
 					break;
 				}
 				// defined, get next search location (next item with same prefix)
-				id=idn;
+				id = idn;
 			}
 		}
 	}
 
-	// item not found in dictionary if we have reached this point
-	// so add it in
-	dc[dcn++]=*item;
+	// item not found in dictionary if we have reached this point so add it in
+	dc[dcn++] = *item;
 
 	// update item width
-	if(dcn-1>=(1<<bw))
+	if(dcn-1 >= (1<<bw))
 		bw++;
 
 	// check for dict full and return no match
-	if(dcn>DCMAXN-2)
+	if(dcn > DCMAXN-2)
 		return(-2);
 	return(-1);
 }
@@ -517,14 +529,14 @@ int LZdct::DCadd(TDCitem* item)
 int LZdct::DCfindAdd(TDCitem* item)
 {
 	// try to add item
-	int idx=DCadd(item);
-	if(idx>=0)
+	int idx = DCadd(item);
+	if(idx >= 0)
 	{
 		// match found
-		item->pfx=idx;
+		item->pfx = idx;
 		return(1);
 	}
-	if(idx<-1)
+	if(idx < -1)
 		return(idx);
 	return(0);
 }
@@ -588,7 +600,7 @@ int LZspell::Encode(uint8_t* sdat,int len)
 
 		// item in dict?
 		int ret = lzd.DCfindAdd(&item);
-		if(ret<=0)
+		if(ret <= 0)
 		{
 			// no, was added
 
@@ -602,7 +614,7 @@ int LZspell::Encode(uint8_t* sdat,int len)
 			}
 
 			// and clear dict if neccessary
-			if(ret<0)
+			if(ret < 0)
 			{
 				// put clear code
 				if(LZputClear())
@@ -802,6 +814,7 @@ int LZspell::LZputClear(void)
 	// put clear code
 	uint8_t* dptr = data.data() + duse;
 	int delta = LZbitPut((void**)&dptr, lzd.bw, lzd.idn);
+	//int delta = LZbitPut((void**)&dptr,lzd.bw,lzd.dcn);
 	duse = dptr - data.data();
 	rlen += delta;
 

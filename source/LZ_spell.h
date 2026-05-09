@@ -58,6 +58,9 @@ class LZWdct
 		int cdict_len;
 		// current stream bitwidth
 		int cbw;
+
+		// for statistics only
+		int max_dict_len;
 };
 
 class LZWexpand
@@ -88,6 +91,8 @@ public:
 	int Decode(uint8_t* dsrc, uint8_t* dend, uint8_t** dest, int* dlen);
 	std::vector<uint8_t> &Decode(uint8_t* dsrc,uint8_t* dend);
 
+	// for statistics
+	int m_max_dict_size;
 };
 
 
