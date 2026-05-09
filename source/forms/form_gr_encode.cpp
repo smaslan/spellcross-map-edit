@@ -1,4 +1,4 @@
-///////////////////////////////////////////////////////////////////////////
+﻿///////////////////////////////////////////////////////////////////////////
 // C++ code generated with wxFormBuilder (version 3.10.1-0-g8feb16b3)
 // http://www.wxformbuilder.org/
 //
@@ -25,150 +25,180 @@ FormGResEncoder::FormGResEncoder(wxWindow* parent,SpellData* spell_data,wxWindow
 	this->spell_data = spell_data;
 
 	// === AUTO GENERATED START ===	
-
-	this->SetSizeHints(wxDefaultSize,wxDefaultSize);
-	this->SetBackgroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_MENU));
-
-	m_menubar12 = new wxMenuBar(0);
+	// <wxFormsBuilder> - Section auto-inserted from 'forms.cpp' class 'FormGResEncoder' on 2026-05-09 14:29:43
+	this->SetSizeHints( wxDefaultSize, wxDefaultSize );
+	this->SetBackgroundColour( wxSystemSettings::GetColour( wxSYS_COLOUR_MENU ) );
+	
+	m_menubar12 = new wxMenuBar( 0 );
 	mmFile = new wxMenu();
 	wxMenuItem* mmOpen;
-	mmOpen = new wxMenuItem(mmFile,wxID_MM_OPEN,wxString(wxT("Open resource")) + wxT('\t') + wxT("Ctrl+O"),wxEmptyString,wxITEM_NORMAL);
-	mmFile->Append(mmOpen);
-
+	mmOpen = new wxMenuItem( mmFile, wxID_MM_OPEN, wxString( wxT("Open resource") ) + wxT('\t') + wxT("Ctrl+O"), wxEmptyString, wxITEM_NORMAL );
+	mmFile->Append( mmOpen );
+	
 	wxMenuItem* mmSave;
-	mmSave = new wxMenuItem(mmFile,wxID_MM_SAVE,wxString(wxT("Save resource")) + wxT('\t') + wxT("Ctrl+S"),wxEmptyString,wxITEM_NORMAL);
-	mmFile->Append(mmSave);
-
+	mmSave = new wxMenuItem( mmFile, wxID_MM_SAVE, wxString( wxT("Save resource") ) + wxT('\t') + wxT("Ctrl+S"), wxEmptyString, wxITEM_NORMAL );
+	mmFile->Append( mmSave );
+	
 	wxMenuItem* mmExportAll;
-	mmExportAll = new wxMenuItem(mmFile,wxID_MM_SAVE_ALL,wxString(wxT("Save All Resource")),wxEmptyString,wxITEM_NORMAL);
-	mmFile->Append(mmExportAll);
-
+	mmExportAll = new wxMenuItem( mmFile, wxID_MM_SAVE_ALL, wxString( wxT("Save All Resource") ) + wxT('\t') + wxT("Ctrl+Shift+S"), wxEmptyString, wxITEM_NORMAL );
+	mmFile->Append( mmExportAll );
+	
 	wxMenuItem* mmSavePal;
-	mmSavePal = new wxMenuItem(mmFile,wxID_MM_SAVE_PAL,wxString(wxT("Save palette")) + wxT('\t') + wxT("Ctrl+P"),wxEmptyString,wxITEM_NORMAL);
-	mmFile->Append(mmSavePal);
-
+	mmSavePal = new wxMenuItem( mmFile, wxID_MM_SAVE_PAL, wxString( wxT("Save palette") ) + wxT('\t') + wxT("Ctrl+P"), wxEmptyString, wxITEM_NORMAL );
+	mmFile->Append( mmSavePal );
+	
 	mmFile->AppendSeparator();
-
+	
 	wxMenuItem* mmExit;
-	mmExit = new wxMenuItem(mmFile,wxID_MM_EXIT,wxString(wxT("Exit")) + wxT('\t') + wxT("ESC"),wxEmptyString,wxITEM_NORMAL);
-	mmFile->Append(mmExit);
-
-	m_menubar12->Append(mmFile,wxT("File"));
-
-	this->SetMenuBar(m_menubar12);
-
-	sbar = this->CreateStatusBar(1,wxSTB_SIZEGRIP,wxID_SBAR);
+	mmExit = new wxMenuItem( mmFile, wxID_MM_EXIT, wxString( wxT("Exit") ) + wxT('\t') + wxT("ESC"), wxEmptyString, wxITEM_NORMAL );
+	mmFile->Append( mmExit );
+	
+	m_menubar12->Append( mmFile, wxT("File") );
+	
+	this->SetMenuBar( m_menubar12 );
+	
+	sbar = this->CreateStatusBar( 1, wxSTB_SIZEGRIP, wxID_SBAR );
 	wxBoxSizer* bSizer98;
-	bSizer98 = new wxBoxSizer(wxVERTICAL);
-
+	bSizer98 = new wxBoxSizer( wxVERTICAL );
+	
 	wxBoxSizer* bSizer101;
-	bSizer101 = new wxBoxSizer(wxHORIZONTAL);
-
+	bSizer101 = new wxBoxSizer( wxHORIZONTAL );
+	
 	wxBoxSizer* bSizer104;
-	bSizer104 = new wxBoxSizer(wxVERTICAL);
-
-	m_staticText103 = new wxStaticText(this,wxID_ANY,wxT("Others sharing palette:"),wxDefaultPosition,wxDefaultSize,0);
-	m_staticText103->Wrap(-1);
-	bSizer104->Add(m_staticText103,0,wxLEFT|wxTOP,5);
-
-	lboxList = new wxListBox(this,wxID_LB_LIST,wxDefaultPosition,wxDefaultSize,0,NULL,0|wxVSCROLL);
-	lboxList->SetMinSize(wxSize(150,-1));
-
-	bSizer104->Add(lboxList,1,wxBOTTOM|wxEXPAND|wxLEFT|wxRIGHT,5);
-
-
-	bSizer101->Add(bSizer104,0,wxEXPAND,5);
-
-	m_staticline37 = new wxStaticLine(this,wxID_ANY,wxDefaultPosition,wxDefaultSize,wxLI_VERTICAL);
-	bSizer101->Add(m_staticline37,0,wxEXPAND,5);
-
+	bSizer104 = new wxBoxSizer( wxVERTICAL );
+	
+	m_staticText103 = new wxStaticText( this, wxID_ANY, wxT("Others sharing palette:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText103->Wrap( -1 );
+	bSizer104->Add( m_staticText103, 0, wxLEFT|wxTOP, 5 );
+	
+	lboxList = new wxListBox( this, wxID_LB_LIST, wxDefaultPosition, wxDefaultSize, 0, NULL, 0|wxVSCROLL );
+	lboxList->SetMinSize( wxSize( 150,-1 ) );
+	
+	bSizer104->Add( lboxList, 1, wxBOTTOM|wxEXPAND|wxLEFT|wxRIGHT, 5 );
+	
+	
+	bSizer101->Add( bSizer104, 0, wxEXPAND, 5 );
+	
+	m_staticline37 = new wxStaticLine( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLI_VERTICAL );
+	bSizer101->Add( m_staticline37, 0, wxEXPAND, 5 );
+	
 	wxBoxSizer* bSizer99;
-	bSizer99 = new wxBoxSizer(wxVERTICAL);
-
-	m_staticText99 = new wxStaticText(this,wxID_ANY,wxT("Source:"),wxDefaultPosition,wxDefaultSize,0);
-	m_staticText99->Wrap(-1);
-	bSizer99->Add(m_staticText99,0,wxLEFT|wxTOP,5);
-
-	canvasSrc = new wxPanel(this,wxID_CANVAS_SRC,wxDefaultPosition,wxDefaultSize,wxFULL_REPAINT_ON_RESIZE|wxTAB_TRAVERSAL);
-	bSizer99->Add(canvasSrc,1,wxBOTTOM|wxEXPAND|wxLEFT|wxRIGHT,5);
-
-
-	bSizer101->Add(bSizer99,1,wxEXPAND,5);
-
-	m_staticline33 = new wxStaticLine(this,wxID_ANY,wxDefaultPosition,wxDefaultSize,wxLI_VERTICAL);
-	bSizer101->Add(m_staticline33,0,wxEXPAND,5);
-
+	bSizer99 = new wxBoxSizer( wxVERTICAL );
+	
+	m_staticText99 = new wxStaticText( this, wxID_ANY, wxT("Source:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText99->Wrap( -1 );
+	bSizer99->Add( m_staticText99, 0, wxLEFT|wxTOP, 5 );
+	
+	canvasSrc = new wxPanel( this, wxID_CANVAS_SRC, wxDefaultPosition, wxDefaultSize, wxFULL_REPAINT_ON_RESIZE|wxTAB_TRAVERSAL );
+	bSizer99->Add( canvasSrc, 1, wxBOTTOM|wxEXPAND|wxLEFT|wxRIGHT, 5 );
+	
+	
+	bSizer101->Add( bSizer99, 1, wxEXPAND, 5 );
+	
+	m_staticline33 = new wxStaticLine( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLI_VERTICAL );
+	bSizer101->Add( m_staticline33, 0, wxEXPAND, 5 );
+	
 	wxBoxSizer* bSizer100;
-	bSizer100 = new wxBoxSizer(wxVERTICAL);
-
-	m_staticText100 = new wxStaticText(this,wxID_ANY,wxT("Output:"),wxDefaultPosition,wxDefaultSize,0);
-	m_staticText100->Wrap(-1);
-	bSizer100->Add(m_staticText100,0,wxLEFT|wxTOP,5);
-
-	canvasRes = new wxPanel(this,wxID_CANVAS_RES,wxDefaultPosition,wxDefaultSize,wxFULL_REPAINT_ON_RESIZE|wxTAB_TRAVERSAL);
-	bSizer100->Add(canvasRes,1,wxBOTTOM|wxEXPAND|wxLEFT|wxRIGHT,5);
-
-
-	bSizer101->Add(bSizer100,1,wxEXPAND,5);
-
-
-	bSizer98->Add(bSizer101,1,wxEXPAND,5);
-
-	m_staticline34 = new wxStaticLine(this,wxID_ANY,wxDefaultPosition,wxDefaultSize,wxLI_HORIZONTAL);
-	bSizer98->Add(m_staticline34,0,wxBOTTOM|wxEXPAND,5);
-
-	m_staticText102 = new wxStaticText(this,wxID_ANY,wxT("Palette:"),wxDefaultPosition,wxDefaultSize,0);
-	m_staticText102->Wrap(-1);
-	bSizer98->Add(m_staticText102,0,wxLEFT,5);
-
-	palette = new wxPanel(this,wxID_PALETTE,wxDefaultPosition,wxSize(-1,-1),wxFULL_REPAINT_ON_RESIZE|wxTAB_TRAVERSAL);
-	palette->SetMaxSize(wxSize(-1,50));
-
-	bSizer98->Add(palette,1,wxEXPAND | wxALL,5);
-
-	m_staticline36 = new wxStaticLine(this,wxID_ANY,wxDefaultPosition,wxDefaultSize,wxLI_HORIZONTAL);
-	bSizer98->Add(m_staticline36,0,wxEXPAND | wxALL,5);
-
+	bSizer100 = new wxBoxSizer( wxVERTICAL );
+	
+	m_staticText100 = new wxStaticText( this, wxID_ANY, wxT("Output:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText100->Wrap( -1 );
+	bSizer100->Add( m_staticText100, 0, wxLEFT|wxTOP, 5 );
+	
+	canvasRes = new wxPanel( this, wxID_CANVAS_RES, wxDefaultPosition, wxDefaultSize, wxFULL_REPAINT_ON_RESIZE|wxTAB_TRAVERSAL );
+	bSizer100->Add( canvasRes, 1, wxBOTTOM|wxEXPAND|wxLEFT|wxRIGHT, 5 );
+	
+	
+	bSizer101->Add( bSizer100, 1, wxEXPAND, 5 );
+	
+	
+	bSizer98->Add( bSizer101, 1, wxEXPAND, 5 );
+	
+	m_staticline34 = new wxStaticLine( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLI_HORIZONTAL );
+	bSizer98->Add( m_staticline34, 0, wxBOTTOM|wxEXPAND, 5 );
+	
+	m_staticText102 = new wxStaticText( this, wxID_ANY, wxT("Palette:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText102->Wrap( -1 );
+	bSizer98->Add( m_staticText102, 0, wxLEFT, 5 );
+	
+	palette = new wxPanel( this, wxID_PALETTE, wxDefaultPosition, wxSize( -1,-1 ), wxFULL_REPAINT_ON_RESIZE|wxTAB_TRAVERSAL );
+	palette->SetMaxSize( wxSize( -1,50 ) );
+	
+	bSizer98->Add( palette, 1, wxEXPAND | wxALL, 5 );
+	
+	m_staticline36 = new wxStaticLine( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLI_HORIZONTAL );
+	bSizer98->Add( m_staticline36, 0, wxEXPAND | wxALL, 5 );
+	
 	wxBoxSizer* bSizer102;
-	bSizer102 = new wxBoxSizer(wxHORIZONTAL);
-
+	bSizer102 = new wxBoxSizer( wxHORIZONTAL );
+	
 	wxBoxSizer* bSizer103;
-	bSizer103 = new wxBoxSizer(wxVERTICAL);
-
-	m_staticText101 = new wxStaticText(this,wxID_ANY,wxT("Min color distance for dithering:"),wxDefaultPosition,wxDefaultSize,0);
-	m_staticText101->Wrap(-1);
-	bSizer103->Add(m_staticText101,0,wxLEFT,5);
-
-	slideMinDither = new wxSlider(this,wxID_SLIDE_MIN_DITHER,50,0,100,wxDefaultPosition,wxDefaultSize,wxSL_AUTOTICKS|wxSL_HORIZONTAL|wxSL_LABELS);
-	slideMinDither->SetMinSize(wxSize(200,-1));
-
-	bSizer103->Add(slideMinDither,1,wxALL|wxEXPAND,5);
-
-
-	bSizer102->Add(bSizer103,0,wxEXPAND,5);
-
-	m_staticline35 = new wxStaticLine(this,wxID_ANY,wxDefaultPosition,wxDefaultSize,wxLI_VERTICAL);
-	bSizer102->Add(m_staticline35,0,wxEXPAND|wxLEFT|wxRIGHT,5);
-
-
-	bSizer102->Add(0,0,1,wxEXPAND,5);
-
-	btnRegen = new wxButton(this,wxID_BTN_REGEN,wxT("Regenerate"),wxDefaultPosition,wxDefaultSize,0);
-	bSizer102->Add(btnRegen,0,wxALL|wxEXPAND,5);
-
-	btnRegenPalette = new wxButton(this,wxID_BTN_REGEN_PAL,wxT("Regenerate\nPalette"),wxDefaultPosition,wxDefaultSize,0);
-	bSizer102->Add(btnRegenPalette,0,wxALL|wxEXPAND,5);
-
-
-	bSizer98->Add(bSizer102,0,wxEXPAND,5);
-
-
-	this->SetSizer(bSizer98);
+	bSizer103 = new wxBoxSizer( wxVERTICAL );
+	
+	m_staticText101 = new wxStaticText( this, wxID_ANY, wxT("Min color distance for dithering:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText101->Wrap( -1 );
+	bSizer103->Add( m_staticText101, 0, wxLEFT, 5 );
+	
+	slideMinDither = new wxSlider( this, wxID_SLIDE_MIN_DITHER, 50, 0, 100, wxDefaultPosition, wxDefaultSize, wxSL_AUTOTICKS|wxSL_HORIZONTAL|wxSL_LABELS );
+	slideMinDither->SetMinSize( wxSize( 200,-1 ) );
+	
+	bSizer103->Add( slideMinDither, 1, wxALL|wxEXPAND, 5 );
+	
+	
+	bSizer102->Add( bSizer103, 0, wxEXPAND, 5 );
+	
+	m_staticline35 = new wxStaticLine( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLI_VERTICAL );
+	bSizer102->Add( m_staticline35, 0, wxEXPAND|wxLEFT|wxRIGHT, 5 );
+	
+	wxBoxSizer* bSizer114;
+	bSizer114 = new wxBoxSizer( wxVERTICAL );
+	
+	m_staticText115 = new wxStaticText( this, wxID_ANY, wxT("Extra x-offset:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText115->Wrap( -1 );
+	bSizer114->Add( m_staticText115, 0, wxRIGHT|wxLEFT, 5 );
+	
+	spinExtraXoffset = new wxSpinCtrl( this, wxID_SPIN_EX_OFS, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, -200, 200, 0 );
+	spinExtraXoffset->SetMinSize( wxSize( 100,-1 ) );
+	
+	bSizer114->Add( spinExtraXoffset, 0, wxBOTTOM|wxRIGHT|wxLEFT, 5 );
+	
+	m_staticText116 = new wxStaticText( this, wxID_ANY, wxT("Extra y-offset:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText116->Wrap( -1 );
+	bSizer114->Add( m_staticText116, 0, wxRIGHT|wxLEFT, 5 );
+	
+	spinExtraYoffset = new wxSpinCtrl( this, wxID_SPIN_EY_OFS, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, -200, 200, 0 );
+	spinExtraYoffset->SetMinSize( wxSize( 100,-1 ) );
+	
+	bSizer114->Add( spinExtraYoffset, 0, wxBOTTOM|wxRIGHT|wxLEFT, 5 );
+	
+	
+	bSizer102->Add( bSizer114, 0, wxEXPAND, 5 );
+	
+	m_staticline42 = new wxStaticLine( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLI_VERTICAL );
+	bSizer102->Add( m_staticline42, 0, wxEXPAND | wxALL, 5 );
+	
+	
+	bSizer102->Add( 0, 0, 1, wxEXPAND, 5 );
+	
+	btnRegen = new wxButton( this, wxID_BTN_REGEN, wxT("Regenerate"), wxDefaultPosition, wxDefaultSize, 0 );
+	bSizer102->Add( btnRegen, 0, wxALL|wxEXPAND, 5 );
+	
+	btnRegenPalette = new wxButton( this, wxID_BTN_REGEN_PAL, wxT("Regenerate\nPalette"), wxDefaultPosition, wxDefaultSize, 0 );
+	bSizer102->Add( btnRegenPalette, 0, wxALL|wxEXPAND, 5 );
+	
+	
+	bSizer98->Add( bSizer102, 0, wxEXPAND, 5 );
+	
+	
+	this->SetSizer( bSizer98 );
 	this->Layout();
+	
+	this->Centre( wxBOTH );
+	
 
-	this->Centre(wxBOTH);
-
+	// </wxFormsBuilder> - Section auto-inserted from 'forms.cpp' class 'FormGResEncoder' on 2026-05-09 14:29:43
 	// === AUTO GENERATED END ===
+	m_thread_active = 0;
 
 	// set icon
 	wxIcon appIcon;
@@ -188,6 +218,8 @@ FormGResEncoder::FormGResEncoder(wxWindow* parent,SpellData* spell_data,wxWindow
 	Bind(wxEVT_COMMAND_BUTTON_CLICKED,&FormGResEncoder::OnRegenPaletteClick,this,wxID_BTN_REGEN_PAL);
 	Bind(wxEVT_COMMAND_SLIDER_UPDATED,&FormGResEncoder::OnRegenClick,this,wxID_SLIDE_MIN_DITHER);
 	Bind(wxEVT_COMMAND_LISTBOX_SELECTED,&FormGResEncoder::OnSelectClick,this,wxID_LB_LIST);
+
+	Bind(wxEVT_THREAD,&FormGResEncoder::OnThreadEvent,this,wxID_PROC_THREAD);
 
 	
 	// canvas stuff:	
@@ -223,16 +255,199 @@ void FormGResEncoder::OnCloseClick(wxCommandEvent& event)
 
 
 
+
+
+
+
+// encoder thread constructor
+ProcTh::ProcTh(wxFrame* parent,Params& config)
+{
+	m_parent = parent;
+	m_config = config;
+}
+
+// encoder thread entry point
+wxThread::ExitCode ProcTh::Entry()
+{
+	
+	while(true)
+	{
+		// try get task
+		std::filesystem::path path;
+		m_config.mutex->lock();
+		if(!m_config.list->empty())
+		{
+			path = m_config.list->back();
+			m_config.list->pop_back();
+		}
+		m_config.mutex->unlock();
+		// done?
+		if(path.empty())
+			break;
+
+		// try read meta file
+		SpellGresInfo info;
+		if(info.LoadInfo(path))
+		{
+			m_config.mutex->lock();
+			if(!m_config.list->empty())
+				m_config.failed_list->push_back(path.filename().string());
+			m_config.mutex->unlock();			
+			continue;
+		}
+
+		// try load palette
+		SpellPalette pal;
+		auto pal_path = std::filesystem::path(path).parent_path().append(info.pal_name).wstring();
+		if(pal.LoadInfo(pal_path))
+		{
+			m_config.mutex->lock();
+			if(!m_config.list->empty())
+				m_config.failed_list->push_back(path.filename().string());
+			m_config.mutex->unlock();
+			continue;
+		}
+		
+		// try read image file
+		wxBitmap source;
+		auto image_path = std::filesystem::path(path).parent_path().append(info.img_name).wstring();
+		if(!source.LoadFile(image_path,wxBITMAP_TYPE_PNG))
+		{
+			m_config.mutex->lock();
+			if(!m_config.list->empty())
+				m_config.failed_list->push_back(path.filename().string());
+			m_config.mutex->unlock();
+			continue;
+		}
+
+		// show status
+		std::vector<std::string> status;
+		status.push_back(info.info_name);
+		status.push_back(info.name);
+		status.push_back(string_format("size = %d x %d",source.GetWidth(),source.GetHeight()));
+		status.push_back((info.is_transparent)?"transparent":"solid");
+		status.push_back(info.pal_name);
+		status.push_back(info.colors_str);
+		SetStatusCallback(status, &source);
+
+		// encode image
+		int* shadow_color = NULL;
+		if(info.format == "UNITS.FSU")
+			shadow_color = info.shadow_color;
+		SpellGraphicItem gres;
+		gres.Encode(source,info.name,&pal,m_config.dither_randomize,shadow_color,0xFD);
+
+		// save to file
+		auto save_path = std::filesystem::path(m_config.target_dir).append(info.name).wstring();
+		if(info.format == "UNITS.FSU")
+		{
+			// UNITS.FSU sprite
+			auto x_ofs = m_config.x_offset;
+			auto y_ofs = info.y_offset + m_config.y_offset;
+			if(FSU_sprite::SaveSprite(save_path, gres.pixels, gres.x_size, x_ofs, y_ofs, 0xFD))
+			{
+				m_config.mutex->lock();
+				if(!m_config.list->empty())
+					m_config.failed_list->push_back(path.filename().string());
+				m_config.mutex->unlock();
+				continue;
+			}
+		}
+		else
+		{
+			// general graphic resource
+			if(gres.Export(save_path))
+			{
+				m_config.mutex->lock();
+				if(!m_config.list->empty())
+					m_config.failed_list->push_back(path.filename().string());
+				m_config.mutex->unlock();
+				continue;
+			}
+		}
+	}
+
+	// signalize we are done
+	auto evt = new wxThreadEvent(wxEVT_THREAD,FormGResEncoder::wxID_PROC_THREAD);
+	evt->SetInt(Event::DONE);
+	auto handler = m_parent->GetEventHandler();
+	handler->QueueEvent(evt);
+
+	return(0);
+}
+
+// status bar callback
+void ProcTh::SetStatusCallback(std::vector<std::string>& info, wxBitmap *src)
+{
+	auto evt = new wxThreadEvent(wxEVT_THREAD,FormGResEncoder::wxID_PROC_THREAD);
+	evt->SetInt(Event::STATUS);	
+	auto payload = new Status();
+	payload->status = info;
+	if(src)
+		payload->src = *src;
+	evt->SetPayload(payload);
+	auto handler = m_parent->GetEventHandler();
+	handler->QueueEvent(evt);
+}
+
+
+
+
+// mod builder event
+void FormGResEncoder::OnThreadEvent(wxThreadEvent& event)
+{
+	auto what = event.GetInt();
+	if(what == ProcTh::Event::DONE)
+	{
+		// processing done		
+		m_thread_active--;
+		if(!m_thread_active)
+		{
+			std::string msg = "Encoding done!";
+			if(!m_task_failed_list.empty())
+			{
+				msg += " Encoding of following resources failed:\n";
+				for(auto &item: m_task_failed_list)
+					msg += string_format(" %s\n",item);
+			}
+			wxMessageBox(msg, "Encoding graphics resources");
+		}
+	}
+	else if(what == ProcTh::Event::STATUS)
+	{
+		// status bar		
+		auto *data = event.GetPayload<ProcTh::Status*>();
+		if(!data)
+			return;
+		for(auto k = 0; k < data->status.size(); k++)
+			sbar->SetStatusText(data->status.at(k), k);
+
+		if(data->src.IsOk())
+		{
+			m_source_mutex.lock();
+			m_source = data->src;
+			m_source_mutex.unlock();
+		}
+		canvasSrc->Refresh();
+
+		delete data;
+	}
+
+}
+
+
+
+
 //------------------------------------------------------------------------------------------------------------------------
 // Graphic resource meta file loader
 //------------------------------------------------------------------------------------------------------------------------
-FormGResEncoder::SpellGresInfo::SpellGresInfo()
+SpellGresInfo::SpellGresInfo()
 {
 	Clear();
 }
 
 // clear metadata
-void FormGResEncoder::SpellGresInfo::Clear()
+void SpellGresInfo::Clear()
 {
 	path = L"";
 	info_name = "";
@@ -243,26 +458,30 @@ void FormGResEncoder::SpellGresInfo::Clear()
 	x_size = 0;
 	y_size = 0;
 	is_transparent = false;
+	y_offset = 0;
+	format = "";
+	shadow_color[0] = -1;
+	shadow_color[1] = -1;
+	shadow_color[2] = -1;
 }
 
 // is loaded?
-bool FormGResEncoder::SpellGresInfo::isLoaded()
+bool SpellGresInfo::isLoaded()
 {
 	return(!path.empty() && !info_name.empty() && !name.empty() && !img_name.empty() && !pal_name.empty() && x_size && y_size);
 }
 
 // try load metadata from info file
-int FormGResEncoder::SpellGresInfo::LoadInfo(std::wstring path)
+int SpellGresInfo::LoadInfo(std::wstring path)
 {
 	Clear();
 
 	// try read meta file
-	ifstreamext fr(path.c_str(),ios::in);
-	if(!fr.is_open())
+	std::string infostr;
+	if(loadstr(path, infostr))
 		return(1);
-	auto info = fr.read_str();
-	fr.close();
-
+	auto info = get_text_lines(infostr, true);
+	
 	this->path = path;
 	info_name = std::filesystem::path(path).filename().string();
 
@@ -300,6 +519,22 @@ int FormGResEncoder::SpellGresInfo::LoadInfo(std::wstring path)
 	x_size = std::atoi(x_size_str.c_str());
 	y_size = std::atoi(y_size_str.c_str());
 	bool m_is_transparent = std::atoi(info_get_string(info,"transparent").c_str());
+	format = info_get_string(info,"format");
+	
+	auto y_offset_str = info_get_string(info,"yoffset");
+	y_offset = std::atoi(y_offset_str.c_str());
+
+	auto shadow_color_str = info_get_string(info,"shadow_color");
+	auto shadow_colors_list = get_text_lines(shadow_color_str,true,',');
+	if(!shadow_color_str.empty() && shadow_colors_list.size() != 3)
+	{
+		Clear();
+		return(1);
+	}
+	if(!shadow_color_str.empty())
+		for(auto &colstr: shadow_colors_list)
+			shadow_color[&colstr - shadow_colors_list.data()] = std::atoi(colstr.c_str());
+
 	return(0);
 }
 
@@ -339,6 +574,12 @@ int FormGResEncoder::LoadResource(std::wstring path)
 // open glyph resource
 void FormGResEncoder::OnOpenClick(wxCommandEvent& event)
 {
+	if(m_thread_active)
+	{
+		wxMessageBox("Encoding resources seems to be still in progress!","Encode resources");
+		return;
+	}
+
 	// cleanup
 	m_source = wxBitmap();
 	m_pal.Clear();
@@ -351,7 +592,7 @@ void FormGResEncoder::OnOpenClick(wxCommandEvent& event)
 	canvasRes->Refresh();
 	palette->Refresh();
 
-	// show save dialog
+	// show open dialog
 	wxFileDialog openFileDialog(this,"Open glyph resource",spell_data->export_path,L"","Graphic resource file (*.png)|*.png|Graphic resource meta file (*.info)|*.info",
 		wxFD_OPEN|wxFD_FILE_MUST_EXIST);
 	if(openFileDialog.ShowModal() == wxID_CANCEL)
@@ -421,11 +662,16 @@ void FormGResEncoder::OnOpenClick(wxCommandEvent& event)
 
 }
 
-// select resoutce from list
+// select resource from list
 void FormGResEncoder::OnSelectClick(wxCommandEvent& event)
 {
 	if(!m_info.isLoaded())
 		return;
+	if(m_thread_active)
+	{
+		wxMessageBox("Encoding resources seems to be still in progress!","Encode resources");
+		return;
+	}
 
 	auto id = lboxList->GetSelection();
 	if(id < 0)
@@ -444,9 +690,18 @@ void FormGResEncoder::OnRegenClick(wxCommandEvent& event)
 {
 	if(!m_info.isLoaded())
 		return;
+	if(m_thread_active)
+	{
+		wxMessageBox("Encoding resources seems to be still in progress!","Encode resources");
+		return;
+	}
+
+	int *shadow_color = NULL; 
+	if(m_info.format == "UNITS.FSU")
+		shadow_color = m_info.shadow_color;
 
 	// re-encode
-	m_gres.Encode(m_source,m_info.name,&m_pal,slideMinDither->GetValue());
+	m_gres.Encode(m_source,m_info.name,&m_pal,slideMinDither->GetValue(),shadow_color,0xFD);
 
 	canvasSrc->Refresh();
 	canvasRes->Refresh();
@@ -459,6 +714,11 @@ void FormGResEncoder::OnSaveClick(wxCommandEvent& event)
 {
 	if(!m_info.isLoaded())
 		return;
+	if(m_thread_active)
+	{
+		wxMessageBox("Encoding resources seems to be still in progress!","Encode resources");
+		return;
+	}
 
 	std::string name = m_info.name;
 
@@ -470,13 +730,28 @@ void FormGResEncoder::OnSaveClick(wxCommandEvent& event)
 	wstring path = wstring(saveFileDialog.GetPath().ToStdWstring());
 	spell_data->export_path = saveFileDialog.GetDirectory().ToStdWstring();
 
-	if(m_gres.Export(path))
+	// save to file
+	if(m_info.format == "UNITS.FSU")
 	{
-		wxMessageDialog msg(NULL,string_format("Exporting graphic resource failed!"),"Export glyph resource",wxOK| wxICON_EXCLAMATION);
-		msg.ShowModal();
-		return;
+		// UNITS.FSU sprite
+		auto x_ofs = spinExtraXoffset->GetValue();
+		auto y_ofs = m_info.y_offset + spinExtraYoffset->GetValue();
+		if(FSU_sprite::SaveSprite(path,m_gres.pixels,m_gres.x_size,x_ofs,y_ofs,0xFD))
+		{
+			wxMessageDialog msg(NULL,string_format("Exporting graphic resource failed!"),"Export glyph resource",wxOK| wxICON_EXCLAMATION);
+			msg.ShowModal();
+			return;
+		}
 	}
-
+	else
+	{
+		if(m_gres.Export(path))
+		{
+			wxMessageDialog msg(NULL,string_format("Exporting graphic resource failed!"),"Export glyph resource",wxOK| wxICON_EXCLAMATION);
+			msg.ShowModal();
+			return;
+		}		
+	}
 }
 
 // export all glyphs
@@ -484,6 +759,12 @@ void FormGResEncoder::OnSaveAllClick(wxCommandEvent& event)
 {
 	if(!m_info.isLoaded())
 		return;
+
+	if(m_thread_active)
+	{
+		wxMessageBox("Encoding resources seems to be still in progress!", "Encode resources");
+		return;
+	}
 
 	// show save dialog
 	wxDirDialog saveDirDialog(this,"Export multiple resources",spell_data->export_path,wxDD_DIR_MUST_EXIST);
@@ -498,21 +779,50 @@ void FormGResEncoder::OnSaveAllClick(wxCommandEvent& event)
 		return;
 
 	// for each listed resource
+	m_task_failed_list.clear();
+	m_task_list.clear();
 	for(auto &item: lboxList->GetStrings())
 	{
 		// item path
 		auto info_path = std::filesystem::path(dir).append(item.ToStdString()).wstring();
+		m_task_list.push_back(info_path);
+	}
 
-		// try load
-		if(LoadResource(info_path))
-			continue;
+	// build tasks
+	ProcTh::Params params;
+	params.x_offset = spinExtraXoffset->GetValue();
+	params.y_offset = spinExtraYoffset->GetValue();
+	params.dither_randomize = slideMinDither->GetValue();
+	params.target_dir = std::filesystem::path(dir);
+	params.mutex = &m_mutex;
+	params.list = &m_task_list;
+	params.failed_list = &m_task_failed_list;
 
-		// force encode
-		OnRegenClick(event);
-
-		auto path = std::filesystem::path(dir).append(m_info.name).wstring();
-		if(m_gres.Export(path))
-			continue;
+	// start processign threads	
+	auto cores = wxThread::GetCPUCount();	
+	m_threads.clear();
+	m_thread_active = 0;
+	for(int k = 0; k < cores; k++)
+	{
+		auto th_proc = new ProcTh(this,params);
+		m_threads.push_back(th_proc);
+		if(th_proc->Create() != wxTHREAD_NO_ERROR)
+		{
+			wxMessageBox(_("Couldn't create processing thread!"));
+			for(auto& th: m_threads)
+				delete th;
+			return;
+		}
+		m_thread_active++;
+	}
+	for(auto& th: m_threads)
+	{		
+		if(th->Run() != wxTHREAD_NO_ERROR)
+		{
+			wxMessageBox(_("Couldn't run processing thread!"));
+			// ###todo: somehow get rid of other threads?
+			return;
+		}
 	}
 
 }
@@ -673,7 +983,8 @@ void FormGResEncoder::OnRegenPaletteClick(wxCommandEvent& event)
 // render source
 void FormGResEncoder::OnPaintSource(wxPaintEvent& event)
 {
-	
+	m_source_mutex.lock();
+
 	int x_surf = canvasSrc->GetClientSize().GetWidth();
 	int y_surf = canvasSrc->GetClientSize().GetHeight();
 	int x_size = m_source.GetWidth();
@@ -707,7 +1018,7 @@ void FormGResEncoder::OnPaintSource(wxPaintEvent& event)
 		pdc.DrawBitmap(m_source,wxPoint(x_ofs,y_ofs));
 	}
 
-	
+	m_source_mutex.unlock();
 }
 
 

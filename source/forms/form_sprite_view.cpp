@@ -1525,7 +1525,7 @@ void FormSprite::OnSelectSpriteBtn(wxCommandEvent& event)
 {
 	if(!lboxSprites->GetItemCount())
 		return;
-	auto id = lboxSprites->GetNextItem(-1,wxLIST_NEXT_ALL,wxLIST_STATE_SELECTED);
+	int id = lboxSprites->GetNextItem(-1,wxLIST_NEXT_ALL,wxLIST_STATE_SELECTED);
 	if(id < 0)
 		return;
 	if(event.GetId() == wxID_BTN_NEXT)

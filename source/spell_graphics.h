@@ -34,7 +34,7 @@ public:
 	wxBitmap* Render(int x_size=-1,int y_size=-1,bool transparent=false,bool invert=false);
 	wxBitmap* Render(bool transparent,bool invert=false);
 	wxCursor* RenderCUR(bool is_grayscale=true);
-	int Encode(wxBitmap &bmp,std::string name,SpellPalette *target_pal,int dither_dist);
+	int Encode(wxBitmap &bmp,std::string name,SpellPalette *target_pal,int dither_dist,int *shadow_color=NULL,uint8_t shadow_index=0);
 	int RenderMask(uint8_t* buf,uint8_t* buf_end);
 	int ExportInfo(wstring path,wstring image_name);
 	int Export(std::wstring path);
@@ -56,10 +56,11 @@ public:
 class SpellGraphics
 {
 private:
-	vector<SpellGraphicItem*> items;
-	vector<AnimPNM*> pnms;
+	vector<SpellGraphicItem*> items;	
 	vector<SpellProjectile> projectiles;	
 public:
+	vector<AnimPNM*> m_pnms;
+	
 	SpellGraphics();
 	~SpellGraphics();
 	int AddRaw(uint8_t *data, int dlen, int x_size, int y_size, const char *name,SpellPalette *pal,int is_solid=false);

@@ -1,4 +1,4 @@
-///////////////////////////////////////////////////////////////////////////
+﻿///////////////////////////////////////////////////////////////////////////
 // C++ code generated with wxFormBuilder (version 3.10.1-0-g8feb16b3)
 // http://www.wxformbuilder.org/
 //
@@ -7,6 +7,7 @@
 
 #pragma once
 
+// <wxFormsBuilder-include> - Section auto-inserted from 'forms.h' class 'FormPalView' on 2026-05-07 19:54:32
 #include <wx/artprov.h>
 #include <wx/xrc/xmlres.h>
 #include <wx/string.h>
@@ -19,15 +20,29 @@
 #include <wx/colour.h>
 #include <wx/settings.h>
 #include <wx/stattext.h>
-#include <wx/textctrl.h>
-#include <wx/listbox.h>
 #include <wx/sizer.h>
-#include <wx/statline.h>
+#include <wx/listbox.h>
 #include <wx/panel.h>
+#include <wx/statbox.h>
 #include <wx/slider.h>
+#include <wx/checkbox.h>
+#include <wx/choice.h>
+#include <wx/statline.h>
+#include <wx/textctrl.h>
+#include <wx/treectrl.h>
 #include <wx/statusbr.h>
-#include <wx/timer.h>
 #include <wx/frame.h>
+#include <wx/button.h>
+#include <wx/dialog.h>
+#include <wx/spinctrl.h>
+#include <wx/timer.h>
+#include <wx/propgrid/propgrid.h>
+#include <wx/propgrid/advprops.h>
+#include <wx/notebook.h>
+#include <wx/radiobut.h>
+#include <wx/scrolbar.h>
+
+// </wxFormsBuilder-include> - Section auto-inserted from 'forms.h' class 'FormPalView' on 2026-05-07 19:54:32
 
 #include "spellcross.h"
 #include "sprites.h"
@@ -69,6 +84,7 @@ class FormPalView : public wxFrame
 		void OnSaveFilterFile(wxCommandEvent& event);
 		void OnChangePalListFilter(wxCommandEvent& event);
 		void OnSelectPalette(wxCommandEvent& event);
+		void OnExportPalInfo(wxCommandEvent& event);
 
 		Terrain* FindTerrain();
 		//void SelectTerrain();
@@ -77,9 +93,12 @@ class FormPalView : public wxFrame
 
 
 	protected:
+		
+		// <wxFormsBuilder> - Section auto-inserted from 'forms.h' class 'FormPalView' on 2026-05-07 19:54:32
 		enum
 		{
 			wxID_FRM_PAL_VIEW = 5999,
+			wxID_MM_SAVE_PALINFO,
 			wxID_MM_CLOSE,
 			wxID_TXT_FILTER,
 			wxID_LIST_PAL,
@@ -88,7 +107,7 @@ class FormPalView : public wxFrame
 			wxID_STAT_BAR,
 			wxID_TIMER,
 		};
-
+		
 		wxMenuBar* mMenu;
 		wxMenu* mmFile;
 		wxMenu* mmTerrain;
@@ -110,6 +129,8 @@ class FormPalView : public wxFrame
 		wxSlider* slideBlue;
 		wxStatusBar* sbar;
 		wxTimer timer;
+
+		// </wxFormsBuilder> - Section auto-inserted from 'forms.h' class 'FormPalView' on 2026-05-07 19:54:32
 
 	public:
 

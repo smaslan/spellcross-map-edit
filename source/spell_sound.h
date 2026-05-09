@@ -8,6 +8,7 @@
 #pragma once
 
 #include "fs_archive.h"
+#define CXXMIDI_QUIET
 #include "cxxmidi/file.hpp"
 #include "cxxmidi/output/default.hpp"
 #include "cxxmidi/player/player_async.hpp"

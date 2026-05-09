@@ -16,6 +16,16 @@
 
 using namespace std;
 
+// make empty archive
+FSarchive::FSarchive(std::string name)
+{
+	int m_options = Options::NONE;
+	m_file_path = L"";
+	m_fs_name = name;
+	m_lzw = NULL;
+	m_files.clear();
+}
+
 // load entire archive file
 FSarchive::FSarchive(wstring path, int options)
 {
@@ -59,6 +69,7 @@ void FSarchive::Append(wstring path,int options)
 		std::memset(name,'\0',14);
 		fr.read(name,13);
 		file->name = name;
+		file->name = toupper(file->name);
 		
 		// get file offset
 		uint32_t afofs;
@@ -71,6 +82,7 @@ void FSarchive::Append(wstring path,int options)
 		// file position and size on FS
 		file->file_size = aflen;
 		file->file_pos = afofs;
+		file->lz_unpacked = false;
 
 		if(options & FSarchive::Options::NO_LOAD)
 		{
@@ -103,6 +115,7 @@ void FSarchive::Append(wstring path,int options)
 						throw std::runtime_error(string_format("DeLZ of file \"%s\" failed!",name));
 					}
 					file->data = data;				
+					file->lz_unpacked = true;
 				}
 			}
 		}
@@ -117,9 +130,12 @@ void FSarchive::Append(wstring path,int options)
 
 // load file data for given file record if not loaded before
 int FSarchive::LoadFile(FSfile *fsfile)
-{
+{	
 	if(fsfile->is_loaded)
 		return(0);
+
+	if(fsfile->file_pos < 0)
+		return(1); // cannot reload if it was added outside original archive!
 
 	// try open FS archive
 	ifstream fr(m_file_path,ios::in | ios::binary);
@@ -131,6 +147,7 @@ int FSarchive::LoadFile(FSfile *fsfile)
 	fr.seekg(fsfile->file_pos);
 	fr.read((char*)fsfile->data.data(),fsfile->file_size);
 	fr.close();
+	fsfile->lz_unpacked = false;
 	
 	// optional deLZ of known types
 	if(m_lzw)
@@ -143,6 +160,7 @@ int FSarchive::LoadFile(FSfile *fsfile)
 			if(data.empty())
 				return(1);
 			fsfile->data = data;
+			fsfile->lz_unpacked = true;
 		}
 	}
 
@@ -150,6 +168,213 @@ int FSarchive::LoadFile(FSfile *fsfile)
 	fsfile->is_loaded = true;
 
 	return(0);
+}
+
+// loads files from folder into archive
+int FSarchive::LoadFolder(std::wstring dir, std::string wild_filter, bool allow_replace)
+{
+	m_last_error = "";
+
+	auto path = std::filesystem::path(dir);
+	if(path.has_extension())
+	{
+		m_last_error = string_format("Loading folder \"%ls\" to FS archive failed! Path is likely not folder?",path.wstring().c_str());
+		return(1); // likely not folder
+	}
+
+	if(m_fs_name.empty())
+	{
+		// make archive name from folder
+		m_fs_name = path.filename().concat(".FS").string();
+	}
+
+	bool do_wild = !(wild_filter == "*" || wild_filter.empty());
+
+	// list folder
+	for(const auto& entry: std::filesystem::directory_iterator(path))
+	{
+		auto item = entry.path();
+		if(entry.is_directory())
+			continue;
+		auto name = item.filename().string();
+		name = toupper(name);
+		
+		// skip non matching files
+		if(do_wild && !wildcmp(wild_filter, name))
+			continue;
+
+		// try get existing file
+		auto file = GetFileRec(name.c_str());
+		if(file && !allow_replace)
+			continue; // skip if exist and not allowed replace
+		// make new if needed
+		bool make_new = !file;
+		if(make_new)
+			file = new FSfile();
+
+		// try load file data
+		if(loaddata(item,file->data))
+		{
+			delete file;
+			m_last_error = string_format("Adding file \"%ls\" to FS archive failed! Cannot read the file data.",item.wstring().c_str());
+			return(1);
+		}
+		
+		// store file info
+		file->name = name;
+		file->file_pos = -1;
+		file->file_size = file->data.size();
+		file->is_loaded = true;
+		file->lz_unpacked = false;
+
+		// add to list
+		if(make_new)
+			m_files.push_back(file);
+	}
+
+	return(0);
+}
+
+// add file to archive, optional replace existing
+int FSarchive::AddFile(std::string name,std::vector<uint8_t> &data,bool allow_replace)
+{
+	m_last_error = "";
+
+	// try get existing
+	auto file = GetFileRec(name.c_str());
+	if(file && !allow_replace)
+	{
+		m_last_error = string_format("Adding file \"%s\" to FS archive failed! Name already exist and replace not allowed.",name.c_str());
+		return(1); 
+	}
+
+	if(name.size() > 13)
+	{
+		// invalid file name size
+		m_last_error = string_format("Adding file \"%s\" to FS archive failed! Only DOS file names upto 8.3 size allowed.",name.c_str());
+		return(1);
+	}
+
+	// make new if not present
+	if(!file)
+	{
+		file = new FSfile();
+		m_files.push_back(file);
+	}
+
+	// add or rewrite
+	file->name = toupper(name);
+	file->file_pos = -1;
+	file->file_size = data.size();
+	file->is_loaded = true;
+	file->data = data;
+	file->lz_unpacked = false;
+	
+	return(0);
+}
+
+// save archive to file
+/*int comp_fs_name(const void* a,const void* b)
+{
+	return(strcmp((*(FSarchive::FSfile**)a)->name.c_str(),(*(FSarchive::FSfile**)b)->name.c_str()));
+}*/
+int FSarchive::SaveFile(std::wstring path,bool allow_overwrite)
+{
+	m_last_error = "";
+
+	if(!path.empty())
+		m_file_path = path;
+	if(m_file_path.empty())
+	{
+		m_last_error = string_format("No save path defined for saving FS archive!");
+		return(1);
+	}
+	if(std::filesystem::exists(path) && !allow_overwrite)
+	{
+		m_last_error = string_format("Cannot save FS archive \"%ls\"! File already exists and rewrite not allowed.",path.c_str());
+		return(1);
+	}
+
+	// sort files by name
+	std::sort(m_files.begin(), m_files.end(), [](FSfile *a, FSfile *b){return(strcmp(b->name.c_str(), a->name.c_str()) > 0);});	
+	//std::qsort(m_files.data(), m_files.size(), sizeof(FSfile*),comp_fs_name);
+
+	// make new file (overwrite)
+	ofstreamext fw(path,std::ios::out | std::ios::binary | std::ios::trunc);
+	if(!fw.is_open())
+	{
+		m_last_error = string_format("Cannot write FS archive \"%ls\"! Possibly access violation?",path.c_str());
+		return(1);
+	}
+
+	// write files count
+	uint32_t count = (uint32_t)m_files.size();
+	fw.write(count);
+
+	// first file offset
+	uint32_t offset = sizeof(uint32_t) + count*(13 + 2*sizeof(uint32_t));
+
+	// write files list 
+	for(auto& file: m_files)
+	{
+		// write file name
+		char name[13];
+		if(file->name.size() > sizeof(name))
+		{
+			m_last_error = string_format("Cannot write file \"%s\" to FS archive \"%ls\"! File name too long.",path.c_str(),file->name.c_str());
+			return(1);
+		}
+		memset(name,'\0',sizeof(name));
+		memcpy(name,file->name.c_str(),file->name.size());
+		fw.write(name,sizeof(name));
+
+		// write file offset
+		fw.write(offset);
+
+		// write file size
+		uint32_t size = file->data.size();
+		fw.write(size);
+
+		offset += size;
+	}
+
+	// write files data
+	for(auto& file: m_files)
+	{
+		fw.write((char*)file->data.data(),file->data.size());
+	}
+
+	fw.close();
+	return(0);
+}
+
+// compare archive to another archive by content (must contain same files, order does not matter)
+bool FSarchive::CompareArchives(FSarchive *fs)
+{
+	if(fs->m_files.size() != m_files.size())
+		return(false);
+
+	// for each file:
+	for(auto &file: fs->m_files)
+	{
+		// try get this archive's file
+		auto ref_file = GetFileRec(file->name.c_str());
+		if(!ref_file)
+			return(false);
+		
+		// load ref file
+		if(fs->LoadFile(file))
+			return(false);
+
+		// load local file
+		if(LoadFile(ref_file))
+			return(false);
+
+		// compare content
+		if(file->data != ref_file->data)
+			return(false);
+	}
+	return(true);
 }
 
 // free loaded file data (will be reloaded on next access)
@@ -170,15 +395,11 @@ int FSarchive::FreeFileData(std::string name)
 // free loaded file data (will be reloaded on next access)
 int FSarchive::FreeFileData(const char *name)
 {
-	for(auto& file : m_files)
-	{
-		if(_strcmpi(file->name.c_str(),name) == 0)
-		{
-			FreeFileData(file);
-			return(0);
-		}
-	}
-	return(1);
+	auto file = GetFileRec(name);
+	if(!file)
+		return(1);
+	FreeFileData(file);	
+	return(0);
 }
 // free loaded file data (will be reloaded on next access)
 int FSarchive::FreeFileData(int id)
@@ -212,6 +433,26 @@ std::vector<FSarchive::FSfile*> &FSarchive::GetFiles()
 	return(m_files);
 }
 
+// get file item by name
+FSarchive::FSfile* FSarchive::GetFileRec(const char* name)
+{
+	for(auto &file: m_files)
+		if(_strcmpi(file->name.c_str(), name) == 0)
+			return(file);
+	return(NULL);
+}
+
+// get pointer to file data
+std::vector<uint8_t> *FSarchive::GetFileData(const char* name)
+{
+	auto file = GetFileRec(name);
+	if(!file)
+		return(NULL);
+	if(!file->is_loaded && LoadFile(file))
+		return(NULL);		
+	return(&file->data);
+}
+
 // get file by name
 int FSarchive::GetFile(string &name,uint8_t** data,int* size)
 {
@@ -219,26 +460,23 @@ int FSarchive::GetFile(string &name,uint8_t** data,int* size)
 }
 int FSarchive::GetFile(const char* name, uint8_t** data, int* size)
 {
-	for(auto & file : m_files)
-	{
-		if (_strcmpi(file->name.c_str(), name) == 0)
-		{
-			if(!file->is_loaded)
-			{
-				// load file data first
-				if(LoadFile(file))
-					return(1);
-			}
+	auto file = GetFileRec(name);
+	if(!file)
+		return(1);
 			
-			// file loaded - just return
-			if(data)
-				*data = file->data.data();
-			if(size)
-				*size = file->data.size();
-			return(0);
-		}
+	if(!file->is_loaded)
+	{
+		// load file data first
+		if(LoadFile(file))
+			return(1);
 	}
-	return(1);
+			
+	// file loaded - just return
+	if(data)
+		*data = file->data.data();
+	if(size)
+		*size = file->data.size();
+	return(0);
 }
 
 // get file by name
@@ -291,7 +529,7 @@ int FSarchive::GetFile(int id, uint8_t** data, int* size, const char **name)
 const char* FSarchive::GetFileName(int id)
 {
 	if(id >= m_files.size())
-		return("");
+		return(NULL);
 	return(m_files[id]->name.c_str());
 }
 
@@ -307,9 +545,11 @@ std::string FSarchive::GetFSname(bool with_extension)
 // get wildcard filtered file names
 std::vector<std::string> FSarchive::GetFileNames(std::string wild)
 {
+	//auto *list = new std::vector<std::string>;
 	std::vector<std::string> list;
 	for(auto &file: m_files)
 		if(wildcmp(wild.c_str(),file->name.c_str()))
 			list.push_back(file->name);
+	//return(std::move(*list));
 	return(list);
 }

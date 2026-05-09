@@ -6,6 +6,8 @@
 #include <random>
 #include <regex>
 #include <sstream>
+#include <chrono>
+#include <format>
 
 std::wstring char2wstring(const char* str)
 {
@@ -41,7 +43,7 @@ std::wstring char2wstringCP852(const char* str)
     
     std::wstring result;
     result.resize(strlen(str));
-    wchar_t *data = result.data();
+    wchar_t *data = (wchar_t*)result.data();
     while(*str)
     {
         int code = (unsigned)(unsigned char)*str++;
@@ -67,7 +69,7 @@ std::wstring char2wstringCP895(const char* str)
 
     std::wstring result;
     result.resize(strlen(str));
-    wchar_t* data = result.data();
+    wchar_t* data = (wchar_t*)result.data();
     while(*str)
     {
         int code = (unsigned)(unsigned char)*str++;
@@ -108,6 +110,14 @@ std::string wstring2stringCP895(std::wstring str)
     return(result);
 }
 
+// string to upper case
+std::string &toupper(std::string& str)
+{
+    for(auto &sym: str)
+        sym = toupper(sym);
+    return(str);
+}
+
 // inplace replacement of key occurences to rep
 std::string& strrep(std::string& str,std::string key,std::string rep)
 {
@@ -122,7 +132,21 @@ std::string& strrep(std::string& str,std::string key,std::string rep)
     return(str);
 }
 
+// is string wildcard?
+bool iswild(std::string wild)
+{
+    return(iswild(wild.c_str()));
+}
+bool iswild(const char* wild)
+{
+    return(strchr(wild,'*') || strchr(wild,'?'));
+}
+
 // compare wildcard string to string
+int wildcmp(std::string &wild,std::string &string)
+{
+    return(wildcmp(wild.c_str(),string.c_str()));
+}
 int wildcmp(const char* wild,const char* string)
 {
     // Written by Jack Handy - <A href="mailto:jakkhandy@hotmail.com">jakkhandy@hotmail.com</A>
@@ -213,11 +237,14 @@ std::string string_format(const std::string fmt,...) {
 // compare strings case insensitive
 bool iequals(const std::string& a,const std::string& b)
 {
-    return std::equal(a.begin(),a.end(),
+    return(_strcmpi(a.c_str(), b.c_str()) == 0);
+    
+    // ###: this was incredibly slow! at leas in debug mode...
+    /*return std::equal(a.begin(),a.end(),
         b.begin(),b.end(),
         [](char a,char b) {
             return std::tolower(a) == std::tolower(b);
-        });
+        });*/
 }
 
 // checks string for duplicates in the list, modify it to not be duplicate, like e.g. "my string 1" to "my string 2", etc.
@@ -244,23 +271,80 @@ std::string fix_no_duplicate_string(std::string str, std::vector<std::string> &l
     return(str);
 }
 
-// fetch info file key value
-std::string info_get_string(std::string info, std::string key, std::string default_value)
+// check for presence if "::" separator and return parts <left>::<right> with white space trim
+bool info_get_special(std::string &line, std::string &left, std::string &right)
 {
-    // look for entire section
-    std::regex secexp("^\\s*" + key + ":: ([^\\n]+)");
-    std::smatch match;
-    std::regex_search(info,match,secexp);
-    if(match.size() < 2)
-        return(default_value);
-    return(match[1]);
+    left.clear();
+    right.clear();
+    auto pos = line.find("::");
+    if(pos == std::string::npos)
+        return(false);
+    left = trim_whites(line.substr(0,pos));
+    right = trim_whites(line.substr(pos + 2));
+    return(true);
+}
+
+// fetch info file key value
+std::string info_get_string(std::string &info, std::string key, std::string default_value)
+{
+    auto lines = get_text_lines(info,true);
+    return(info_get_string(lines, key, default_value));
+}
+std::string info_get_string(std::vector<std::string>& lines,std::string key,std::string default_value)
+{
+    int section = 0;
+    int matrix = 0;
+    std::string matrix_name = "";
+    std::vector<std::string> section_names;
+    for(auto &line: lines)
+    {
+        std::string left,right;
+        if(!info_get_special(line, left, right))
+            continue;        
+        if(left == "#startmatrix")
+        {
+            if(matrix)
+                return("");
+            matrix++;
+            matrix_name = right;
+        }
+        else if(left == "#endmatrix")
+        {
+            if(!matrix || right != matrix_name)
+                return("");
+            matrix--;
+        }
+        else if(left == "#startsection")
+        {
+            if(section)
+                return("");
+            section++;
+            section_names.push_back(right);
+        }
+        else if(left == "#endsection")
+        {
+            if(!section || right != section_names.back())
+                return("");
+            section--;
+            section_names.pop_back();
+        }
+        else if(left == key && !matrix && !section)
+            return(right);
+    }
+    return(default_value);
 }
 
 // fetch info file key integer value
-int info_get_int(std::string info,std::string key,int default_value)
+int info_get_int(std::string &info,std::string key,int default_value)
 {
-    // look for entire section
     auto str = info_get_string(info,key,"");
+    if(str.empty())
+        return(default_value);
+    return(std::atoi(str.c_str()));
+}
+int info_get_int(std::vector<std::string>& lines,std::string key,int default_value)
+{        
+    auto str = info_get_string(lines,key,"");
     if(str.empty())
         return(default_value);
     return(std::atoi(str.c_str()));
@@ -296,48 +380,130 @@ std::string info_make_section(std::string section_name,std::string data,std::str
 }
 
 // get strings vector from info file
-std::vector<std::string> info_get_text_vector(std::string info,std::string key)
+std::vector<std::string> info_get_text_vector(std::string& info,std::string key)
+{
+    auto lines = get_text_lines(info,true);
+    return(info_get_text_vector(lines,key));
+}
+std::vector<std::string> info_get_text_vector(std::vector<std::string> &lines,std::string key)
 {
     std::vector<std::string> rows;
+    int section = 0;
+    int matrix = 0;
+    std::string matrix_name = "";
+    std::vector<std::string> section_names;
+    for(auto& line: lines)
+    {
+        std::string left,right;
+        bool is_key = info_get_special(line,left,right);
+        if(is_key && left == "#startmatrix")
+        {
+            if(matrix)
+                return(rows);
+            matrix++;
+            matrix_name = right;
+        }
+        else if(is_key && left == "#endmatrix")
+        {
+            if(!matrix || right != matrix_name)
+                return(rows);
+            matrix--;
+        }
+        else if(is_key && left == "#startsection")
+        {
+            if(section)
+                return(rows);
+            section++;
+            section_names.push_back(right);
+        }
+        else if(is_key && left == "#endsection")
+        {
+            if(!section || right != section_names.back())
+                return(rows);
+            section--;
+            section_names.pop_back();
+        }
+        else if(matrix == 1 && matrix_name == key && !section)
+        {
+            rows.push_back(line);
+        }
+    }   
 
-    // look for entire matrix section
-    auto regstr = string_format(".*?#startmatrix::\\s*%s\\n([\\s\\S]*?)#endmatrix::\\s*%s\\n*",key.c_str(),key.c_str());
-    std::regex secexp(regstr);
-    std::smatch match;
-    std::regex_search(info,match,secexp);
-    if(match.size() < 2)
-        return(rows);
-
-    // split rows
-    std::istringstream iss(match[1]);
-    std::string line;
-    while(std::getline(iss,line,'\n')) {
-        rows.push_back(std::regex_replace(line,std::regex("^\\s+|\\s+$|(\\s)\\s+"),"$1"));
-    };
     return(rows);
 }
 
 // get section content
-std::string info_get_section(std::string info,std::string section)
+std::vector<std::string> info_get_section(std::string &info,std::string section)
 {
-    auto regstr = string_format(".*?#startsection::\\s*%s\\n([\\s\\S]*?)#endsection::\\s*%s\\n*",section.c_str(),section.c_str());
+    auto lines = get_text_lines(info,true);
+    return(info_get_section(lines,section));
+}
+std::vector<std::string> info_get_section(std::vector<std::string> &lines,std::string section)
+{
+    std::vector<std::string> rows;
+
+    int section_level = 0;
+    int matrix = 0;
+    std::string matrix_name = "";
+    std::vector<std::string> section_names;
+    for(auto& line: lines)
+    {
+        bool section_level_prev = section_level;
+        std::string left,right;
+        bool is_key = info_get_special(line,left,right);
+        if(is_key && left == "#startmatrix")
+        {
+            if(matrix)
+                return(rows);
+            matrix++;
+            matrix_name = right;
+        }
+        else if(is_key && left == "#endmatrix")
+        {
+            if(!matrix || right != matrix_name)
+                return(rows);
+            matrix--;
+        }
+        else if(is_key && left == "#startsection")
+        {
+            if(section_level)
+                return(rows);
+            section_level++;
+            section_names.push_back(right);
+        }
+        else if(is_key && left == "#endsection")
+        {
+            if(!section_level || right != section_names.back())
+                return(rows);
+            section_level--;
+            section_names.pop_back();
+        }
+        
+        if(section_level > 0 && section_level_prev > 0 && section_names[0] == section)
+            rows.push_back(line);        
+    }
+    return(rows);
+    
+    /*auto regstr = string_format(".*?#startsection::\\s*%s\\n([\\s\\S]*?)#endsection::\\s*%s\\n*",section.c_str(),section.c_str());
     std::regex secexp(regstr);
     std::smatch match;
     std::regex_search(info,match,secexp);
     if(match.size() < 2)
         return("");
-    return(match[1]);
+    return(match[1]);*/
 }
 
-// split string by line
-std::vector<std::string> get_text_lines(std::string string)
+// split string by lines (or other separators), by default also trims white chars both ends
+std::vector<std::string> get_text_lines(std::string string, bool trim_white, char separator)
 {
     // split rows
     std::vector<std::string> rows;
     std::istringstream iss(string);
     std::string line;
-    while(std::getline(iss,line,'\n')) {
-        rows.push_back(std::regex_replace(line,std::regex("^\\s+|\\s+$|(\\s)\\s+"),"$1"));
+    while(std::getline(iss,line,separator)) {
+        if(trim_white)
+            line = trim_whites(line);
+        rows.push_back(line);
     };
     return(rows);
 }
@@ -355,6 +521,54 @@ std::vector<std::string> regexp_get(std::string str,std::string regkey)
     return(list);
 }
 
+// trim white spaces from string (both ends)
+std::string trim_whites(std::string str)
+{
+    for(auto it = str.rbegin(); it < str.rend(); it++)
+        if(*it != ' ' && *it != '\t' && *it != '\r' && *it != '\n')
+        {
+            str.resize(str.rend() - it);
+            break;
+        }
+    for(auto it = str.begin(); it < str.end(); it++)
+        if(*it != ' ' && *it != '\t' && *it != '\r' && *it != '\n')
+        {
+            str = str.substr(it - str.begin());
+            return(str);
+        }
+    return(str);
+    //return(std::regex_replace(str,std::regex("^\\s+|\\s+$|(\\s)\\s+"),"$1"));
+}
+
+// get ISO8601 time/date string
+std::string get_timestr_iso()
+{
+    auto time = std::chrono::system_clock::now();
+    std::time_t tt = to_time_t(time);
+    std::tm* gmt = std::gmtime(&tt);
+    std::stringstream buffer;
+    buffer << std::put_time(gmt,"%Y-%m-%dT%H:%M:%S%z");
+    return(buffer.str());
+    
+    // ###note: this causes memory leaks! (bad MSVC implementation)
+    /*std::chrono::system_clock::time_point now = std::chrono::system_clock::now();
+    return(std::format("{0:%F}T{0:%T%z}.",now));*/
+}
+
+// get local time string
+std::string get_local_time_str()
+{
+    auto time = std::chrono::system_clock::now();
+    std::time_t tt = std::chrono::system_clock::to_time_t(std::chrono::time_point_cast<std::chrono::system_clock::duration>(time));
+    std::tm* gmt = std::localtime(&tt);
+    std::stringstream buffer;
+    buffer << std::put_time(gmt,"%Y-%m-%d %H:%M:%S");
+    return(buffer.str());
+}
+
+
+
+
 // save string to a file (save as binary - no alteration of line breaks)
 int savestr(std::wstring path, std::string &str)
 {
@@ -366,94 +580,139 @@ int savestr(std::wstring path, std::string &str)
     return(0);
 }
 
+// save string to a file (save as binary - no alteration of line breaks)
+int savedata(std::wstring path,std::vector<uint8_t>& data)
+{
+    std::ofstream fw(path,std::ios::out | std::ios::binary | std::ios::trunc);
+    if(!fw.is_open())
+        return(1);
+    fw.write((const char*)data.data(),data.size());
+    fw.close();
+    return(0);
+}
+
+// load text file to string as binary
+int loadstr(std::filesystem::path path, std::string &strbuf)
+{
+    strbuf.clear();
+    std::ifstream fr(path,std::ios::in | std::ios::binary | std::ios::ate);
+    if(!fr.is_open())
+        return(1);    
+    std::streampos flen = fr.tellg();
+    fr.seekg(0);
+    strbuf.resize(flen);
+    fr.read((char*)strbuf.c_str(),strbuf.size());
+    fr.close();
+    return(0);
+}
+
+// load binary file
+int loaddata(std::filesystem::path path,std::vector<uint8_t> &data)
+{
+    data.clear();
+    std::ifstream fr(path,std::ios::in | std::ios::binary | std::ios::ate);
+    if(!fr.is_open())
+        return(1);
+    std::streampos flen = fr.tellg();
+    fr.seekg(0);
+    data.resize(flen);
+    fr.read((char*)data.data(),data.size());
+    fr.close();
+    return(0);
+}
+
+// rename file or folder, return non-zero 
+bool fs_rename(std::filesystem::path source,std::filesystem::path dest)
+{
+    std::error_code err;
+    bool err_except = false;
+    try {
+        std::filesystem::rename(source,dest,err);
+    }catch(const std::runtime_error& error) {
+        err_except = true;
+    }
+    return(err || err_except);
+}
+
+// copy file or folder, return non-zero 
+bool fs_copy(std::filesystem::path source,std::filesystem::path dest,std::filesystem::copy_options options)
+{
+    std::error_code err;
+    bool err_except = false;
+    try {
+        std::filesystem::copy(source,dest,options,err);
+    }catch(const std::runtime_error& error) {
+        err_except = true;
+    }
+    return(err || err_except);
+}
+
+// remove file or folder (optional all=true: with subfolders)
+bool fs_remove(std::filesystem::path path, bool all)
+{
+    std::error_code err;
+    bool err_except = false;
+    try {
+        if(all)
+            std::filesystem::remove_all(path,err);
+        else
+            std::filesystem::remove(path,err);
+    }
+    catch(const std::runtime_error& error) {
+        err_except = true;
+    }
+    return(err || err_except);
+}
+
+// list items 
+int fs_list_dir(std::filesystem::path dir, std::string wild, bool files, bool folders, std::vector<std::string> *names, std::vector<std::filesystem::path> *paths)
+{    
+    int count = 0;
+    if(names)
+        names->clear();
+    if(paths)
+        paths->clear();
+    if(!std::filesystem::exists(dir))
+        return(0);
+    for(const auto& entry: std::filesystem::directory_iterator(dir))
+    {
+        auto item = entry.path();
+        if(!entry.is_directory() || !folders)
+            continue;
+        auto name = item.filename().string();        
+        if(!wildcmp(wild.c_str(),name.c_str()))
+            continue;
+        if(names)
+            names->push_back(name);
+        if(paths)
+            paths->push_back(dir / name);
+        count++;
+    }
+    for(const auto& entry: std::filesystem::directory_iterator(dir))
+    {
+        auto item = entry.path();
+        if(entry.is_directory() || !files)
+            continue;
+        auto name = item.filename().string();
+        if(!wildcmp(wild.c_str(),name.c_str()))
+            continue;
+        if(names)
+            names->push_back(name);
+        if(paths)
+            paths->push_back(dir / name);
+        count++;
+    }
+    return(count);
+}
+
+
+
 // count bits in varible
 uint32_t popcount(uint32_t v) {
     v = v - ((v >> 1) & 0x55555555);                // put count of each 2 bits into those 2 bits
     v = (v & 0x33333333) + ((v >> 2) & 0x33333333); // put count of each 4 bits into those 4 bits  
     return ((v + (v >> 4) & 0xF0F0F0F) * 0x1010101) >> 24;
 }
-
-// write string with string size prefix (16bit)
-/*int ostream_write_string(std::ofstream& fw,std::string &str)
-{
-    return(ostream_write_string(fw,str.c_str()));
-}
-int ostream_write_string(std::ofstream& fw,std::string str)
-{
-    return(ostream_write_string(fw, str.c_str()));
-}
-int ostream_write_string(std::ofstream& fw, const char *str)
-{
-    uint16_t len = std::strlen(str) + 1;
-    fw.write((char*)&len,sizeof(uint16_t));
-    fw.write(str,len);
-    return(0);
-}*/
-
-// read string item with size prefix (16bit)
-/*std::string istream_read_string(std::ifstream& fr)
-{
-    uint16_t len;
-    fr.read((char*)&len,sizeof(uint16_t));
-    std::string str(len,'\0');
-    //str.reserve(len + 1);
-    fr.read(str.data(),len);
-    str.resize(len-1);
-    return(str);
-}*/
-
-// write u8 value
-/*int ostream_write_u8(std::ofstream& fw,uint8_t val)
-{
-    fw.write((char*)&val,sizeof(uint8_t));
-    return(0);
-}*/
-
-// write u16 value
-/*int ostream_write_u16(std::ofstream& fw,uint16_t val)
-{
-    fw.write((char*)&val,sizeof(uint16_t));
-    return(0);
-}*/
-
-// write u32 value
-/*int ostream_write_u32(std::ofstream& fw,uint32_t val)
-{
-    fw.write((char*)&val,sizeof(uint32_t));
-    return(0);
-}*/
-
-// write i32 value
-/*int ostream_write_i32(std::ofstream& fw,int32_t val)
-{
-    fw.write((char*)&val,sizeof(int32_t));
-    return(0);
-}*/
-
-// read uint32_t
-/*uint32_t istream_read_u32(std::ifstream& fr)
-{
-    uint32_t val;
-    fr.read((char*)&val,sizeof(uint32_t));
-    return(val);
-}*/
-
-// read int32_t
-/*int32_t istream_read_i32(std::ifstream& fr)
-{
-    int32_t val;
-    fr.read((char*)&val,sizeof(int32_t));
-    return(val);
-}*/
-
-
-
-// write u32 to ofstream
-/*basic_ofstream<charT,Traits> &write(uint32_t data)
-{
-    this->write((char*)&data, sizeof(uint32_t));
-}*/
-
 
 
 // Bresneham algorithm (based on GitHub/bert algorithm)

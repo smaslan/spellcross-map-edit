@@ -16,6 +16,7 @@
 class FSarchive
 {
 	public:
+		std::string m_last_error;
 
 		class Options
 		{
@@ -35,11 +36,17 @@ class FSarchive
 			uint32_t file_size;
 			std::string name;
 			std::vector<uint8_t> data;
+			bool lz_unpacked;
 		};		
 
+		~FSarchive();
+		FSarchive(std::string name="");
 		FSarchive(std::wstring path, int options=Options::NONE);
 		void Append(std::wstring path,int options=Options::NONE);
-		~FSarchive();		
+		int AddFile(std::string name, std::vector<uint8_t> &data, bool allow_replace=false);
+		int LoadFolder(std::wstring dir, std::string wild_filter="*", bool allow_replace=false);
+		int SaveFile(std::wstring path=L"",bool allow_overwrite=false);
+		bool CompareArchives(FSarchive* fs);
 		std::vector<FSfile*> &GetFiles();
 		int GetFile(const char* name, uint8_t** data, int* size);
 		int GetFile(std::string &name,uint8_t** data,int* size);
@@ -47,6 +54,8 @@ class FSarchive
 		inline std::string GetFile(const char* name);
 		std::string GetFile(std::string& name);
 		int GetFile(const char* name,std::vector<uint8_t> &data);
+		FSfile *GetFileRec(const char* name);
+		std::vector<uint8_t>* GetFileData(const char* name);
 		int FreeFileData(const char* name);
 		int FreeFileData(std::string name);
 		int FreeFileData(int id);
@@ -55,13 +64,15 @@ class FSarchive
 		std::string GetFSname(bool with_extension=true);
 		std::vector<std::string> GetFileNames(std::string wild="*");
 
-	private:			
-		
-		int m_options;
 		std::wstring m_file_path;
 		std::string m_fs_name;
+
+	private:			
+		
+		int m_options;		
 		LZWexpand* m_lzw;
 		std::vector<FSfile*> m_files;
+
 		int LoadFile(FSfile* fsfile);
 		int FreeFileData(FSfile* fsfile);
 };

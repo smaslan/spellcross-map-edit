@@ -501,7 +501,7 @@ SpellData::SpellData(wstring &data_path,wstring& cd_data_path,wstring& spec_path
 		status_list("Loading units graphics data (UNITS.FSU)...");
 	wstring fsu_path = std::filesystem::path(data_path) / std::filesystem::path("UNITS.FSU");
 	try{
-		units_fsu = new FSUarchive(fsu_path, status_item);
+		units_fsu = new FSUarchive(fsu_path, FSUarchive::Options::NONE, status_item);
 	}catch(const runtime_error& error) {
 		this->~SpellData();
 		if(status_list)
@@ -799,6 +799,9 @@ int SpellData::LoadPalettes(FSarchive* fs_common, FSarchive* fs_info)
 	last_error = "";
 	std::vector<uint8_t> chunk;
 	SpellPalette *pal;
+	
+	// palette for unints only (used for encoding unit sprites)
+	SpellPalette* units_pal = AddPalette("UNITS.PAL");
 
 	// make empty map palette (bottom 128 colors are from terrains)
 	pal = AddPalette("MAP");
@@ -810,6 +813,7 @@ int SpellData::LoadPalettes(FSarchive* fs_common, FSarchive* fs_info)
 		return(1); // missing item!
 	}	
 	pal->Insert(chunk,"UNITS.PAL",128);
+	units_pal->Insert(chunk,"UNITS.PAL",128);
 		
 	// load SYSTEM.PAL palette chunk for maps
 	if(fs_common->GetFile("SYSTEM.PAL",chunk) || chunk.size() != 32*3)
@@ -1056,7 +1060,7 @@ int SpellData::LoadAuxGraphics(FSarchive *fs,std::function<void(std::string)> st
 		{"I*.BTN", "PALETA.NRM", SpellGrpParams::GrpType::ICO, 0, true}, // info panel BTN files
 		{"*.BTN", "MAP", SpellGrpParams::GrpType::ICO, 0, false}, // BTN files
 		{"*.CUR", "MAP", SpellGrpParams::GrpType::CUR, 0, false}, // cursors
-		{"*.GFK", "MAP", SpellGrpParams::GrpType::RAW, 21, false}, // projectiles
+		{"*.GFK", "UNITS.PAL", SpellGrpParams::GrpType::RAW, 21, false}, // projectiles
 		{"I_TAB", "MAP", SpellGrpParams::GrpType::RAW, 45, true}, // raw icon files in war map panel
 		{"I_*", "MAP", SpellGrpParams::GrpType::RAW, 20, true}, // raw icon files in war map panel
 		{"RAM?HORZ.DTA", "MAP", SpellGrpParams::GrpType::RAW, 76, false}, // frame part
@@ -1552,7 +1556,7 @@ int SpellPalette::SaveChunks(std::wstring directory_path)
 
 
 // save palette as info file
-int SpellPalette::SaveInfo(std::wstring path)
+int SpellPalette::SaveInfo(std::filesystem::path path)
 {
 	std::string info = "";
 
@@ -1595,20 +1599,22 @@ int SpellPalette::SaveInfo(std::wstring path)
 		return(1);
 	fw.write((const char*)info.data(),info.size());
 	fw.close();
+
+	return(0);
 }
 
 // load palette from info file
-int SpellPalette::LoadInfo(std::wstring path)
+int SpellPalette::LoadInfo(std::filesystem::path path)
 {
 	Clear();
 
 	// load source info
-	ifstreamext fr(path.c_str(),ios::in);
-	if(!fr.is_open())
+	std::string infostr;
+	if(loadstr(path,infostr))
 		return(1);
-	auto info = fr.read_str();
-	fr.close();
+	auto info = get_text_lines(infostr);
 
+	// palette name
 	m_name = info_get_string(info, "name");
 	if(m_name.empty())
 		return(1);
@@ -1637,8 +1643,7 @@ int SpellPalette::LoadInfo(std::wstring path)
 		Clear();
 		return(1);
 	}
-	std::regex regexz(",");
-	auto chunks = vector<std::string>(std::sregex_token_iterator(assigned.begin(),assigned.end(),regexz,-1),std::sregex_token_iterator());
+	auto chunks = get_text_lines(assigned, true, ',');
 	for(auto& chunk: chunks)
 	{
 		auto list = regexp_get(chunk,"\\s*([\\d]+)\\s*-*\\s*([\\d]+)*");

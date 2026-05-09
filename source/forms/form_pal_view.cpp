@@ -1,4 +1,4 @@
-///////////////////////////////////////////////////////////////////////////
+﻿///////////////////////////////////////////////////////////////////////////
 // C++ code generated with wxFormBuilder (version 3.10.1-0-g8feb16b3)
 // http://www.wxformbuilder.org/
 //
@@ -12,6 +12,7 @@
 //#include <filesystem>
 #include <wx/stdpaths.h>
 #include <wx/filedlg.h>
+#include <wx/msgdlg.h>
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -21,135 +22,140 @@ FormPalView::FormPalView(wxWindow* parent,SpellData* spell_data,wxWindowID id,co
 	spell_map = NULL;
 
 	// === AUTO GENERATED START ===	
-
-	this->SetSizeHints(wxSize(950,400),wxDefaultSize);
-	this->SetForegroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOWTEXT));
-	this->SetBackgroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_MENU));
-
-	mMenu = new wxMenuBar(0);
+	// <wxFormsBuilder> - Section auto-inserted from 'forms.cpp' class 'FormPalView' on 2026-05-07 19:54:31
+	this->SetSizeHints( wxSize( 950,400 ), wxDefaultSize );
+	this->SetForegroundColour( wxSystemSettings::GetColour( wxSYS_COLOUR_WINDOWTEXT ) );
+	this->SetBackgroundColour( wxSystemSettings::GetColour( wxSYS_COLOUR_MENU ) );
+	
+	mMenu = new wxMenuBar( 0 );
 	mmFile = new wxMenu();
+	wxMenuItem* mmSavePalInfo;
+	mmSavePalInfo = new wxMenuItem( mmFile, wxID_MM_SAVE_PALINFO, wxString( wxT("Export palette info") ) , wxEmptyString, wxITEM_NORMAL );
+	mmFile->Append( mmSavePalInfo );
+	
 	wxMenuItem* mmClose;
-	mmClose = new wxMenuItem(mmFile,wxID_MM_CLOSE,wxString(wxT("Close")),wxEmptyString,wxITEM_NORMAL);
-	mmFile->Append(mmClose);
-
-	mMenu->Append(mmFile,wxT("File"));
-
+	mmClose = new wxMenuItem( mmFile, wxID_MM_CLOSE, wxString( wxT("Close") ) , wxEmptyString, wxITEM_NORMAL );
+	mmFile->Append( mmClose );
+	
+	mMenu->Append( mmFile, wxT("File") );
+	
 	mmTerrain = new wxMenu();
-	mMenu->Append(mmTerrain,wxT("Terrain"));
-
+	mMenu->Append( mmTerrain, wxT("Terrain") );
+	
 	mmFilter = new wxMenu();
-	mMenu->Append(mmFilter,wxT("Filter"));
-
-	this->SetMenuBar(mMenu);
-
+	mMenu->Append( mmFilter, wxT("Filter") );
+	
+	this->SetMenuBar( mMenu );
+	
 	wxBoxSizer* szCanvas;
-	szCanvas = new wxBoxSizer(wxVERTICAL);
-
+	szCanvas = new wxBoxSizer( wxVERTICAL );
+	
 	wxBoxSizer* bSizer112;
-	bSizer112 = new wxBoxSizer(wxHORIZONTAL);
-
+	bSizer112 = new wxBoxSizer( wxHORIZONTAL );
+	
 	wxBoxSizer* bSizer116;
-	bSizer116 = new wxBoxSizer(wxVERTICAL);
-
-	m_staticText113 = new wxStaticText(this,wxID_ANY,wxT("Filter (wildcard: *?):"),wxDefaultPosition,wxDefaultSize,0);
-	m_staticText113->Wrap(-1);
-	bSizer116->Add(m_staticText113,0,wxTOP|wxRIGHT|wxLEFT,5);
-
-	txtNameFilter = new wxTextCtrl(this,wxID_TXT_FILTER,"*",wxDefaultPosition,wxDefaultSize,0);
-	bSizer116->Add(txtNameFilter,0,wxEXPAND|wxRIGHT|wxLEFT,5);
-
-	m_staticText112 = new wxStaticText(this,wxID_ANY,wxT("Palettes list:"),wxDefaultPosition,wxDefaultSize,0);
-	m_staticText112->Wrap(-1);
-	bSizer116->Add(m_staticText112,0,wxTOP|wxRIGHT|wxLEFT,5);
-
-	listPal = new wxListBox(this,wxID_LIST_PAL,wxDefaultPosition,wxSize(180,-1),0,NULL,0);
-	bSizer116->Add(listPal,1,wxBOTTOM|wxRIGHT|wxLEFT,5);
-
-
-	bSizer112->Add(bSizer116,0,wxEXPAND,5);
-
-	m_staticline41 = new wxStaticLine(this,wxID_ANY,wxDefaultPosition,wxDefaultSize,wxLI_VERTICAL);
-	bSizer112->Add(m_staticline41,0,wxEXPAND|wxTOP|wxBOTTOM,5);
-
+	bSizer116 = new wxBoxSizer( wxVERTICAL );
+	
+	m_staticText113 = new wxStaticText( this, wxID_ANY, wxT("Filter (wildcard: *?):"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText113->Wrap( -1 );
+	bSizer116->Add( m_staticText113, 0, wxTOP|wxRIGHT|wxLEFT, 5 );
+	
+	txtNameFilter = new wxTextCtrl( this, wxID_TXT_FILTER, wxT("*"), wxDefaultPosition, wxDefaultSize, 0 );
+	bSizer116->Add( txtNameFilter, 0, wxEXPAND|wxRIGHT|wxLEFT, 5 );
+	
+	m_staticText112 = new wxStaticText( this, wxID_ANY, wxT("Palettes list:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText112->Wrap( -1 );
+	bSizer116->Add( m_staticText112, 0, wxTOP|wxRIGHT|wxLEFT, 5 );
+	
+	listPal = new wxListBox( this, wxID_LIST_PAL, wxDefaultPosition, wxSize( 180,-1 ), 0, NULL, 0 );
+	bSizer116->Add( listPal, 1, wxBOTTOM|wxRIGHT|wxLEFT, 5 );
+	
+	
+	bSizer112->Add( bSizer116, 0, wxEXPAND, 5 );
+	
+	m_staticline41 = new wxStaticLine( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLI_VERTICAL );
+	bSizer112->Add( m_staticline41, 0, wxEXPAND|wxTOP|wxBOTTOM, 5 );
+	
 	wxBoxSizer* bSizer114;
-	bSizer114 = new wxBoxSizer(wxVERTICAL);
-
-	m_staticText28 = new wxStaticText(this,wxID_ANY,wxT("Palette:"),wxDefaultPosition,wxDefaultSize,0);
-	m_staticText28->Wrap(-1);
-	bSizer114->Add(m_staticText28,0,wxTOP|wxRIGHT|wxLEFT,5);
-
-	canvas = new wxPanel(this,wxID_CANVAS,wxDefaultPosition,wxDefaultSize,wxFULL_REPAINT_ON_RESIZE|wxTAB_TRAVERSAL);
-	bSizer114->Add(canvas,1,wxEXPAND|wxBOTTOM|wxRIGHT|wxLEFT,5);
-
-	m_staticText29 = new wxStaticText(this,wxID_ANY,wxT("Selected color:"),wxDefaultPosition,wxDefaultSize,0);
-	m_staticText29->Wrap(-1);
-	bSizer114->Add(m_staticText29,0,wxTOP|wxRIGHT|wxLEFT,5);
-
-	color = new wxPanel(this,wxID_COLOR,wxDefaultPosition,wxSize(-1,20),wxFULL_REPAINT_ON_RESIZE|wxTAB_TRAVERSAL);
-	color->SetMaxSize(wxSize(-1,20));
-
-	bSizer114->Add(color,1,wxEXPAND|wxBOTTOM|wxRIGHT|wxLEFT,5);
-
+	bSizer114 = new wxBoxSizer( wxVERTICAL );
+	
+	m_staticText28 = new wxStaticText( this, wxID_ANY, wxT("Palette:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText28->Wrap( -1 );
+	bSizer114->Add( m_staticText28, 0, wxTOP|wxRIGHT|wxLEFT, 5 );
+	
+	canvas = new wxPanel( this, wxID_CANVAS, wxDefaultPosition, wxDefaultSize, wxFULL_REPAINT_ON_RESIZE|wxTAB_TRAVERSAL );
+	bSizer114->Add( canvas, 1, wxEXPAND|wxBOTTOM|wxRIGHT|wxLEFT, 5 );
+	
+	m_staticText29 = new wxStaticText( this, wxID_ANY, wxT("Selected color:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText29->Wrap( -1 );
+	bSizer114->Add( m_staticText29, 0, wxTOP|wxRIGHT|wxLEFT, 5 );
+	
+	color = new wxPanel( this, wxID_COLOR, wxDefaultPosition, wxSize( -1,20 ), wxFULL_REPAINT_ON_RESIZE|wxTAB_TRAVERSAL );
+	color->SetMaxSize( wxSize( -1,20 ) );
+	
+	bSizer114->Add( color, 1, wxEXPAND|wxBOTTOM|wxRIGHT|wxLEFT, 5 );
+	
 	wxBoxSizer* szFilter;
-	szFilter = new wxBoxSizer(wxHORIZONTAL);
-
+	szFilter = new wxBoxSizer( wxHORIZONTAL );
+	
 	wxBoxSizer* szRed;
-	szRed = new wxBoxSizer(wxVERTICAL);
-
-	txtFilterRed = new wxStaticText(this,wxID_ANY,wxT("Red:"),wxDefaultPosition,wxDefaultSize,0);
-	txtFilterRed->Wrap(-1);
-	szRed->Add(txtFilterRed,0,wxTOP|wxRIGHT|wxLEFT,5);
-
-	slideRed = new wxSlider(this,wxID_ANY,50,0,100,wxDefaultPosition,wxDefaultSize,wxSL_AUTOTICKS|wxSL_HORIZONTAL);
-	szRed->Add(slideRed,0,wxEXPAND|wxTOP|wxBOTTOM,5);
-
-
-	szFilter->Add(szRed,1,wxEXPAND,5);
-
+	szRed = new wxBoxSizer( wxVERTICAL );
+	
+	txtFilterRed = new wxStaticText( this, wxID_ANY, wxT("Red:"), wxDefaultPosition, wxDefaultSize, 0 );
+	txtFilterRed->Wrap( -1 );
+	szRed->Add( txtFilterRed, 0, wxTOP|wxRIGHT|wxLEFT, 5 );
+	
+	slideRed = new wxSlider( this, wxID_ANY, 50, 0, 100, wxDefaultPosition, wxDefaultSize, wxSL_AUTOTICKS|wxSL_HORIZONTAL );
+	szRed->Add( slideRed, 0, wxEXPAND|wxTOP|wxBOTTOM, 5 );
+	
+	
+	szFilter->Add( szRed, 1, wxEXPAND, 5 );
+	
 	wxBoxSizer* szGreen;
-	szGreen = new wxBoxSizer(wxVERTICAL);
-
-	txtFilterGreen = new wxStaticText(this,wxID_ANY,wxT("Green:"),wxDefaultPosition,wxDefaultSize,0);
-	txtFilterGreen->Wrap(-1);
-	szGreen->Add(txtFilterGreen,0,wxTOP|wxRIGHT|wxLEFT,5);
-
-	slideGreen = new wxSlider(this,wxID_ANY,50,0,100,wxDefaultPosition,wxDefaultSize,wxSL_AUTOTICKS|wxSL_HORIZONTAL);
-	szGreen->Add(slideGreen,0,wxEXPAND|wxTOP|wxBOTTOM,5);
-
-
-	szFilter->Add(szGreen,1,wxEXPAND,5);
-
+	szGreen = new wxBoxSizer( wxVERTICAL );
+	
+	txtFilterGreen = new wxStaticText( this, wxID_ANY, wxT("Green:"), wxDefaultPosition, wxDefaultSize, 0 );
+	txtFilterGreen->Wrap( -1 );
+	szGreen->Add( txtFilterGreen, 0, wxTOP|wxRIGHT|wxLEFT, 5 );
+	
+	slideGreen = new wxSlider( this, wxID_ANY, 50, 0, 100, wxDefaultPosition, wxDefaultSize, wxSL_AUTOTICKS|wxSL_HORIZONTAL );
+	szGreen->Add( slideGreen, 0, wxEXPAND|wxTOP|wxBOTTOM, 5 );
+	
+	
+	szFilter->Add( szGreen, 1, wxEXPAND, 5 );
+	
 	wxBoxSizer* szBlue;
-	szBlue = new wxBoxSizer(wxVERTICAL);
-
-	txtFilterBlue = new wxStaticText(this,wxID_ANY,wxT("Blue:"),wxDefaultPosition,wxDefaultSize,0);
-	txtFilterBlue->Wrap(-1);
-	szBlue->Add(txtFilterBlue,0,wxTOP|wxRIGHT|wxLEFT,5);
-
-	slideBlue = new wxSlider(this,wxID_ANY,50,0,100,wxDefaultPosition,wxDefaultSize,wxSL_AUTOTICKS|wxSL_HORIZONTAL);
-	szBlue->Add(slideBlue,0,wxEXPAND|wxTOP|wxBOTTOM,5);
-
-
-	szFilter->Add(szBlue,1,wxEXPAND,5);
-
-
-	bSizer114->Add(szFilter,0,wxEXPAND,5);
-
-
-	bSizer112->Add(bSizer114,1,wxEXPAND,5);
-
-
-	szCanvas->Add(bSizer112,1,wxEXPAND,5);
-
-
-	this->SetSizer(szCanvas);
+	szBlue = new wxBoxSizer( wxVERTICAL );
+	
+	txtFilterBlue = new wxStaticText( this, wxID_ANY, wxT("Blue:"), wxDefaultPosition, wxDefaultSize, 0 );
+	txtFilterBlue->Wrap( -1 );
+	szBlue->Add( txtFilterBlue, 0, wxTOP|wxRIGHT|wxLEFT, 5 );
+	
+	slideBlue = new wxSlider( this, wxID_ANY, 50, 0, 100, wxDefaultPosition, wxDefaultSize, wxSL_AUTOTICKS|wxSL_HORIZONTAL );
+	szBlue->Add( slideBlue, 0, wxEXPAND|wxTOP|wxBOTTOM, 5 );
+	
+	
+	szFilter->Add( szBlue, 1, wxEXPAND, 5 );
+	
+	
+	bSizer114->Add( szFilter, 0, wxEXPAND, 5 );
+	
+	
+	bSizer112->Add( bSizer114, 1, wxEXPAND, 5 );
+	
+	
+	szCanvas->Add( bSizer112, 1, wxEXPAND, 5 );
+	
+	
+	this->SetSizer( szCanvas );
 	this->Layout();
-	sbar = this->CreateStatusBar(1,wxSTB_SIZEGRIP,wxID_STAT_BAR);
-	timer.SetOwner(this,timer.GetId());
-
-	this->Centre(wxBOTH);
+	sbar = this->CreateStatusBar( 1, wxSTB_SIZEGRIP, wxID_STAT_BAR );
+	timer.SetOwner( this, timer.GetId() );
+	
+	this->Centre( wxBOTH );
 	
 
+	// </wxFormsBuilder> - Section auto-inserted from 'forms.cpp' class 'FormPalView' on 2026-05-07 19:54:31
 	// === AUTO GENERATED END ===
 	
 	// set icon
@@ -188,6 +194,10 @@ FormPalView::FormPalView(wxWindow* parent,SpellData* spell_data,wxWindowID id,co
 
 	Bind(wxEVT_COMMAND_TEXT_UPDATED,&FormPalView::OnChangePalListFilter,this,wxID_TXT_FILTER);
 	Bind(wxEVT_COMMAND_LISTBOX_SELECTED,&FormPalView::OnSelectPalette,this,wxID_LIST_PAL);
+
+	Bind(wxEVT_COMMAND_MENU_SELECTED,&FormPalView::OnExportPalInfo,this,wxID_MM_SAVE_PALINFO);
+
+	
 
 	// defaulf filter
 	filter = NULL;
@@ -349,6 +359,35 @@ void FormPalView::OnTerrainChange(wxCommandEvent& event)
 	canvas->Refresh();
 }
 
+// on export palette
+void FormPalView::OnExportPalInfo(wxCommandEvent& event)
+{
+	// get palette name
+	std::string pal_name = "";
+	int sel = listPal->GetSelection();
+	if(sel >= 0)
+		pal_name = listPal->GetString(sel);
+	auto pal = spell_data->GetPalette(pal_name);
+	if(!pal)
+	{
+		wxMessageDialog msg(NULL,string_format("Cannot export composed palette MAP! Select other palette."),"Exportinf palette info",wxOK| wxICON_EXCLAMATION);
+		msg.ShowModal();
+		return;
+	}
+
+	auto name = std::filesystem::path(pal->m_name).stem().wstring();
+
+	// show save dialog
+	wxFileDialog saveFileDialog(this,_("Export palette info"),spell_data->export_path,name,"Spellcross palette info (*.palinfo)|*.palinfo",
+		wxFD_SAVE|wxFD_OVERWRITE_PROMPT);
+	if(saveFileDialog.ShowModal() == wxID_CANCEL)
+		return;
+	auto path = std::filesystem::path(saveFileDialog.GetPath().ToStdWstring());
+	spell_data->export_path = saveFileDialog.GetDirectory().ToStdWstring();
+
+	// save palette info
+	pal->SaveInfo(path);	
+}
 
 
 // render preview

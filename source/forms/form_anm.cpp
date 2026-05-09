@@ -1,4 +1,4 @@
-///////////////////////////////////////////////////////////////////////////
+﻿///////////////////////////////////////////////////////////////////////////
 // C++ code generated with wxFormBuilder (version 4.2.1-0-g80c4cb6)
 // http://www.wxformbuilder.org/
 //
@@ -12,119 +12,137 @@
 FormANM::FormANM(wxWindow* parent,SpellData* spell_data,bool is_pnm,wxWindowID id, const wxString& title, const wxPoint& pos, const wxSize& size, long style ) : wxFrame( parent, id, title, pos, size, style )
 {		
 	// === AUTO GENERATED STUFF STARTS HERE ===
-
-	this->SetSizeHints(wxSize(700,500),wxDefaultSize);
-	this->SetBackgroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_MENU));
-
-	m_menubar10 = new wxMenuBar(0);
+	// <wxFormsBuilder> - Section auto-inserted from 'forms.cpp' class 'FormANM' on 2026-05-08 11:10:29
+	this->SetSizeHints( wxSize( 700,500 ), wxDefaultSize );
+	this->SetBackgroundColour( wxSystemSettings::GetColour( wxSYS_COLOUR_MENU ) );
+	
+	m_menubar10 = new wxMenuBar( 0 );
 	m_menu19 = new wxMenu();
 	wxMenuItem* mmSelect;
-	mmSelect = new wxMenuItem(m_menu19,wxID_MM_SELECT,wxString(wxT("Select and Close")) + wxT('\t') + wxT("Enter"),wxEmptyString,wxITEM_NORMAL);
-	m_menu19->Append(mmSelect);
-
+	mmSelect = new wxMenuItem( m_menu19, wxID_MM_SELECT, wxString( wxT("Select and Close") ) + wxT('\t') + wxT("Enter"), wxEmptyString, wxITEM_NORMAL );
+	m_menu19->Append( mmSelect );
+	
 	wxMenuItem* mmClose;
-	mmClose = new wxMenuItem(m_menu19,wxID_MM_CLOSE,wxString(wxT("Close")) + wxT('\t') + wxT("Esc"),wxEmptyString,wxITEM_NORMAL);
-	m_menu19->Append(mmClose);
-
-	m_menubar10->Append(m_menu19,wxT("File"));
-
+	mmClose = new wxMenuItem( m_menu19, wxID_MM_CLOSE, wxString( wxT("Close") ) + wxT('\t') + wxT("Esc"), wxEmptyString, wxITEM_NORMAL );
+	m_menu19->Append( mmClose );
+	
+	m_menubar10->Append( m_menu19, wxT("File") );
+	
 	mmTerrain = new wxMenu();
-	m_menubar10->Append(mmTerrain,wxT("Terrain"));
-
-	this->SetMenuBar(m_menubar10);
-
+	m_menubar10->Append( mmTerrain, wxT("Terrain") );
+	
+	this->SetMenuBar( m_menubar10 );
+	
 	wxBoxSizer* bSizer77;
-	bSizer77 = new wxBoxSizer(wxHORIZONTAL);
-
+	bSizer77 = new wxBoxSizer( wxHORIZONTAL );
+	
 	wxBoxSizer* bSizer78;
-	bSizer78 = new wxBoxSizer(wxVERTICAL);
-
-	txtResources = new wxStaticText(this,wxID_TXT_RESOURCES,wxT("ANM resources:"),wxDefaultPosition,wxDefaultSize,0);
-	txtResources->Wrap(-1);
-	bSizer78->Add(txtResources,0,wxLEFT|wxRIGHT|wxTOP,5);
-
-	lbList = new wxListBox(this,wxID_LB_LIST,wxDefaultPosition,wxSize(150,-1),0,NULL,wxLB_ALWAYS_SB);
-	bSizer78->Add(lbList,1,wxBOTTOM|wxLEFT|wxRIGHT,5);
-
-
-	bSizer77->Add(bSizer78,0,wxEXPAND,5);
-
+	bSizer78 = new wxBoxSizer( wxVERTICAL );
+	
+	m_staticText117 = new wxStaticText( this, wxID_ANY, wxT("Source:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText117->Wrap( -1 );
+	bSizer78->Add( m_staticText117, 0, wxTOP|wxRIGHT|wxLEFT, 5 );
+	
+	wxArrayString chSourceChoices;
+	chSource = new wxChoice( this, wxID_CH_SRC, wxDefaultPosition, wxDefaultSize, chSourceChoices, 0 );
+	chSource->SetSelection( 0 );
+	bSizer78->Add( chSource, 0, wxEXPAND|wxRIGHT|wxLEFT, 5 );
+	
+	m_staticText118 = new wxStaticText( this, wxID_ANY, wxT("Wildcard filter (*?):"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText118->Wrap( -1 );
+	bSizer78->Add( m_staticText118, 0, wxTOP|wxRIGHT|wxLEFT, 5 );
+	
+	txtFilter = new wxTextCtrl( this, wxID_TXT_FILTER, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0 );
+	bSizer78->Add( txtFilter, 0, wxRIGHT|wxLEFT|wxEXPAND, 5 );
+	
+	txtResources = new wxStaticText( this, wxID_TXT_RESOURCES, wxT("ANM resources:"), wxDefaultPosition, wxDefaultSize, 0 );
+	txtResources->Wrap( -1 );
+	bSizer78->Add( txtResources, 0, wxLEFT|wxRIGHT|wxTOP, 5 );
+	
+	lbList = new wxListBox( this, wxID_LB_LIST, wxDefaultPosition, wxSize( 150,-1 ), 0, NULL, wxLB_ALWAYS_SB );
+	bSizer78->Add( lbList, 1, wxBOTTOM|wxLEFT|wxRIGHT, 5 );
+	
+	
+	bSizer77->Add( bSizer78, 0, wxEXPAND, 5 );
+	
 	wxBoxSizer* bSizer79;
-	bSizer79 = new wxBoxSizer(wxVERTICAL);
-
-	txtFrames = new wxStaticText(this,wxID_TXT_FRAMES,wxT("Frames:"),wxDefaultPosition,wxDefaultSize,0);
-	txtFrames->Wrap(-1);
-	bSizer79->Add(txtFrames,0,wxLEFT|wxRIGHT|wxTOP,5);
-
-	lbFrames = new wxListBox(this,wxID_LB_FRAMES,wxDefaultPosition,wxSize(150,-1),0,NULL,wxLB_ALWAYS_SB);
-	bSizer79->Add(lbFrames,1,wxBOTTOM|wxLEFT|wxRIGHT,5);
-
-	cbAnimate = new wxCheckBox(this,wxID_CB_ANIM,wxT("Animate"),wxDefaultPosition,wxDefaultSize,0);
-	bSizer79->Add(cbAnimate,0,wxALL,5);
-
-
-	bSizer77->Add(bSizer79,0,wxEXPAND,5);
-
+	bSizer79 = new wxBoxSizer( wxVERTICAL );
+	
+	txtFrames = new wxStaticText( this, wxID_TXT_FRAMES, wxT("Frames:"), wxDefaultPosition, wxDefaultSize, 0 );
+	txtFrames->Wrap( -1 );
+	bSizer79->Add( txtFrames, 0, wxLEFT|wxRIGHT|wxTOP, 5 );
+	
+	lbFrames = new wxListBox( this, wxID_LB_FRAMES, wxDefaultPosition, wxSize( 150,-1 ), 0, NULL, wxLB_ALWAYS_SB );
+	bSizer79->Add( lbFrames, 1, wxBOTTOM|wxLEFT|wxRIGHT, 5 );
+	
+	cbAnimate = new wxCheckBox( this, wxID_CB_ANIM, wxT("Animate"), wxDefaultPosition, wxDefaultSize, 0 );
+	bSizer79->Add( cbAnimate, 0, wxALL, 5 );
+	
+	
+	bSizer77->Add( bSizer79, 0, wxEXPAND, 5 );
+	
 	wxBoxSizer* bSizer80;
-	bSizer80 = new wxBoxSizer(wxVERTICAL);
-
+	bSizer80 = new wxBoxSizer( wxVERTICAL );
+	
 	wxBoxSizer* bSizer5;
-	bSizer5 = new wxBoxSizer(wxVERTICAL);
-
-
-	bSizer5->Add(0,0,0,wxALL|wxEXPAND,4);
-
+	bSizer5 = new wxBoxSizer( wxVERTICAL );
+	
+	
+	bSizer5->Add( 0, 0, 0, wxALL|wxEXPAND, 4 );
+	
 	wxStaticBoxSizer* sizerCanvas;
-	sizerCanvas = new wxStaticBoxSizer(new wxStaticBox(this,wxID_ANY,wxT(" Frame view: ")),wxVERTICAL);
-
-	canvas = new wxPanel(sizerCanvas->GetStaticBox(),wxID_CANVAS,wxDefaultPosition,wxDefaultSize,wxTAB_TRAVERSAL);
-	sizerCanvas->Add(canvas,1,wxALL|wxEXPAND,5);
-
-
-	bSizer5->Add(sizerCanvas,1,wxBOTTOM|wxEXPAND|wxLEFT|wxRIGHT,5);
-
+	sizerCanvas = new wxStaticBoxSizer( new wxStaticBox( this, wxID_ANY, wxT(" Frame view: ") ), wxVERTICAL );
+	
+	canvas = new wxPanel( sizerCanvas->GetStaticBox(), wxID_CANVAS, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL );
+	sizerCanvas->Add( canvas, 1, wxALL|wxEXPAND, 5 );
+	
+	
+	bSizer5->Add( sizerCanvas, 1, wxBOTTOM|wxEXPAND|wxLEFT|wxRIGHT, 5 );
+	
 	wxBoxSizer* sizeOffsets;
-	sizeOffsets = new wxBoxSizer(wxHORIZONTAL);
-
-	m_staticText88 = new wxStaticText(this,wxID_ANY,wxT("X offset:"),wxDefaultPosition,wxDefaultSize,0);
-	m_staticText88->Wrap(-1);
-	sizeOffsets->Add(m_staticText88,0,wxALIGN_CENTER_VERTICAL|wxALL,5);
-
-	spinXofs = new wxSpinCtrl(this,wxID_SPIN_XOFS,wxEmptyString,wxDefaultPosition,wxDefaultSize,wxSP_ARROW_KEYS,0,10,0);
-	sizeOffsets->Add(spinXofs,1,wxALL,5);
-
-	m_staticText89 = new wxStaticText(this,wxID_ANY,wxT("Y offset:"),wxDefaultPosition,wxDefaultSize,0);
-	m_staticText89->Wrap(-1);
-	sizeOffsets->Add(m_staticText89,0,wxALIGN_CENTER_VERTICAL|wxALL,5);
-
-	spinYofs = new wxSpinCtrl(this,wxID_SPIN_YOFS,wxEmptyString,wxDefaultPosition,wxDefaultSize,wxSP_ARROW_KEYS,0,10,0);
-	sizeOffsets->Add(spinYofs,1,wxALL,5);
-
-
-	bSizer5->Add(sizeOffsets,0,wxEXPAND,5);
-
-	txtGamma = new wxStaticText(this,wxID_TXT_GAMMA,wxT("Set gamma correction:"),wxDefaultPosition,wxDefaultSize,0);
-	txtGamma->Wrap(-1);
-	bSizer5->Add(txtGamma,0,wxLEFT|wxTOP,5);
-
-	slideGamma = new wxSlider(this,wxID_SLIDE_GAMMA,1300,500,2000,wxDefaultPosition,wxDefaultSize,wxSL_HORIZONTAL);
-	bSizer5->Add(slideGamma,0,wxEXPAND|wxLEFT|wxRIGHT|wxTOP,1);
-
-	cbZoom = new wxCheckBox(this,wxID_CB_ZOOM,wxT("Zoom 2x"),wxDefaultPosition,wxDefaultSize,0);
-	bSizer5->Add(cbZoom,0,wxALL,5);
-
-
-	bSizer80->Add(bSizer5,1,wxEXPAND,5);
-
-
-	bSizer77->Add(bSizer80,1,wxEXPAND,5);
-
-
-	this->SetSizer(bSizer77);
+	sizeOffsets = new wxBoxSizer( wxHORIZONTAL );
+	
+	m_staticText88 = new wxStaticText( this, wxID_ANY, wxT("X offset:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText88->Wrap( -1 );
+	sizeOffsets->Add( m_staticText88, 0, wxALIGN_CENTER_VERTICAL|wxALL, 5 );
+	
+	spinXofs = new wxSpinCtrl( this, wxID_SPIN_XOFS, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, 0, 10, 0 );
+	sizeOffsets->Add( spinXofs, 1, wxALL, 5 );
+	
+	m_staticText89 = new wxStaticText( this, wxID_ANY, wxT("Y offset:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText89->Wrap( -1 );
+	sizeOffsets->Add( m_staticText89, 0, wxALIGN_CENTER_VERTICAL|wxALL, 5 );
+	
+	spinYofs = new wxSpinCtrl( this, wxID_SPIN_YOFS, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, 0, 10, 0 );
+	sizeOffsets->Add( spinYofs, 1, wxALL, 5 );
+	
+	
+	bSizer5->Add( sizeOffsets, 0, wxEXPAND, 5 );
+	
+	txtGamma = new wxStaticText( this, wxID_TXT_GAMMA, wxT("Set gamma correction:"), wxDefaultPosition, wxDefaultSize, 0 );
+	txtGamma->Wrap( -1 );
+	bSizer5->Add( txtGamma, 0, wxLEFT|wxTOP, 5 );
+	
+	slideGamma = new wxSlider( this, wxID_SLIDE_GAMMA, 1300, 500, 2000, wxDefaultPosition, wxDefaultSize, wxSL_HORIZONTAL );
+	bSizer5->Add( slideGamma, 0, wxEXPAND|wxLEFT|wxRIGHT|wxTOP, 1 );
+	
+	cbZoom = new wxCheckBox( this, wxID_CB_ZOOM, wxT("Zoom 2x"), wxDefaultPosition, wxDefaultSize, 0 );
+	bSizer5->Add( cbZoom, 0, wxALL, 5 );
+	
+	
+	bSizer80->Add( bSizer5, 1, wxEXPAND, 5 );
+	
+	
+	bSizer77->Add( bSizer80, 1, wxEXPAND, 5 );
+	
+	
+	this->SetSizer( bSizer77 );
 	this->Layout();
+	
+	this->Centre( wxBOTH );
+	
 
-	this->Centre(wxBOTH);
-
+	// </wxFormsBuilder> - Section auto-inserted from 'forms.cpp' class 'FormANM' on 2026-05-08 11:10:29
 	// === AUTO GENERATED STUFF STARTS HERE ===
 
 	// set icon
@@ -152,6 +170,8 @@ FormANM::FormANM(wxWindow* parent,SpellData* spell_data,bool is_pnm,wxWindowID i
 	canvas->Bind(wxEVT_PAINT,&FormANM::OnCanvasRepaint,this);
 	Bind(wxEVT_COMMAND_SLIDER_UPDATED,&FormANM::OnChangeGamma,this,wxID_SLIDE_GAMMA);
 	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormANM::OnChangeZoom,this,wxID_CB_ZOOM);
+	Bind(wxEVT_COMMAND_CHOICE_SELECTED,&FormANM::OnTerrainChange,this,wxID_CH_SRC);
+	Bind(wxEVT_COMMAND_TEXT_UPDATED,&FormANM::OnTerrainChange,this,wxID_TXT_FILTER);		
 
 	if(m_is_pnm)
 	{
@@ -190,6 +210,15 @@ FormANM::FormANM(wxWindow* parent,SpellData* spell_data,bool is_pnm,wxWindowID i
 	// stops flickering
 	canvas->SetDoubleBuffered(true);
 
+	// source data selector
+	chSource->Clear();
+	chSource->Append("Terrain");
+	chSource->Append("COMMON.FS");
+	chSource->Select(0);
+
+	// default filter to all
+	txtFilter->SetValue("*");
+
 	// select default terrain
 	SelectTerrain();
 	SelectANM();
@@ -220,6 +249,7 @@ void FormANM::OnCloseClick(wxCommandEvent& event)
 	// no exit anim selection
 	m_terrain = NULL;
 	m_anim = NULL;
+	m_pnm = NULL;
 	Close();
 }
 
@@ -227,6 +257,8 @@ void FormANM::OnCloseClick(wxCommandEvent& event)
 void FormANM::OnSelectClick(wxCommandEvent& event)
 {
 	// exit anim selection
+	if(m_is_pnm && m_is_common)
+		m_pnm = NULL;
 	Close();
 }
 
@@ -348,23 +380,44 @@ void FormANM::SelectTerrain()
 	if(!terr)
 		return;
 
+	// source is common.fs?
+	m_is_common = chSource->GetStringSelection() == "COMMON.FS";
+
 	// update window title
 	if(m_is_pnm)
 		SetTitle(wxString::Format("Objects layer animations viewer (%s)",terr->name));
 	else
 		SetTitle(wxString::Format("Terrain layer animations viewer (%s)",terr->name));
 
+	// wildcard filter
+	auto filter = txtFilter->GetValue().ToStdString();
+
 	// make list of animations
 	lbList->Freeze();
 	if(m_is_pnm)
 	{
-		for(auto& pnm: terr->pnms)
-			lbList->Append(pnm->name);
+		// PNM mode
+		if(m_is_common)
+		{
+			// from common.fs
+			for(auto& pnm: m_spell_data->gres.m_pnms)
+				if(wildcmp(filter.c_str(),pnm->name))
+					lbList->Append(pnm->name);
+		}
+		else
+		{
+			// from selected terrain
+			for(auto& pnm: terr->pnms)
+				if(wildcmp(filter.c_str(),pnm->name))
+					lbList->Append(pnm->name);
+		}
 	}
 	else
 	{
+		// ANM mode (always from terrain)
 		for(auto &anm: terr->anms)
-			lbList->Append(anm->name);
+			if(wildcmp(filter.c_str(),anm->name))
+				lbList->Append(anm->name);
 	}
 
 	// select default
@@ -393,7 +446,16 @@ void FormANM::SelectANM()
 	if(m_is_pnm)
 	{
 		// try get pnm
-		m_pnm = m_terrain->GetPNM(name);
+		if(m_is_common)
+		{
+			// from common.fs
+			m_pnm = m_spell_data->gres.GetPNM(name.c_str());
+		}
+		else
+		{
+			// from selected terrain
+			m_pnm = m_terrain->GetPNM(name);			
+		}
 		if(!m_pnm)
 			return;
 		m_anim = NULL;

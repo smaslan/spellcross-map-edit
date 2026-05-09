@@ -5,14 +5,14 @@
 // are a lot of them (>20000).
 // 
 // This code is part of Spellcross Map Editor project.
-// (c) 2021, Stanislav Maslan, s.maslan@seznam.cz
+// (c) 2021-2026, Stanislav Maslan, s.maslan@seznam.cz
 // Distributed under MIT license, https://opensource.org/licenses/MIT.
 //=============================================================================
 #undef _HAS_STD_BYTE
 #define _HAS_STD_BYTE 0
 
 #include "fsu_archive.h"
-#include "sprites.h"
+//#include "sprites.h"
 #include "LZ_spell.h"
 #include "other.h"
 
@@ -21,13 +21,22 @@
 #include <vector>
 #include <stdexcept>
 #include <thread>
+#define _USE_MATH_DEFINES
+#include <math.h>
 
 using namespace std;
 
 //---------------------------------------------------------------------------
 // load FS archive
 //---------------------------------------------------------------------------
-FSUarchive::FSUarchive(std::wstring &path,std::function<void(std::string)> status_item)
+// make blank
+FSUarchive::FSUarchive()
+{
+
+}
+
+// load from file
+FSUarchive::FSUarchive(std::wstring path,Options options,std::function<void(std::string)> status_item)
 {
 	// try open file
 	ifstream fr(path, ios::in | ios::binary | ios::ate);
@@ -51,7 +60,7 @@ FSUarchive::FSUarchive(std::wstring &path,std::function<void(std::string)> statu
 
 	// load/decode:
 	for (int k = 0; k < cores; k++)
-		threads.emplace_back(&FSUarchive::LoadResourceGroup,this,data.data(),k,units_count,cores,&lists[k],status_item);
+		threads.emplace_back(&FSUarchive::LoadResourceGroup,this,data.data(),k,units_count,cores,&lists[k],options,status_item);
 
 	// wait for threads
 	for(auto & thread : threads)
@@ -59,8 +68,236 @@ FSUarchive::FSUarchive(std::wstring &path,std::function<void(std::string)> statu
 
 	// merge results
 	for(auto & batch : lists)
-		list.insert(list.end(),batch.begin(),batch.end());
+		m_list.insert(m_list.end(),batch.begin(),batch.end());
 
+	threads.clear();
+}
+
+// make archive from folder data (no decoding mode, just load compressed sprites)
+int FSUarchive::LoadFolder(std::filesystem::path dir, std::string wild_filter)
+{
+	m_last_error = "";
+
+	auto path = std::filesystem::path(dir);
+	if(path.has_extension())
+		return(1); // likely not folder
+
+	bool do_wild = !(wild_filter == "*" || wild_filter.empty());
+
+	// list folder for unit folders:
+	for(const auto& entry: std::filesystem::directory_iterator(path))
+	{
+		auto item = entry.path();
+		if(!entry.is_directory())
+			continue;
+		auto name = item.filename().string();
+		name = toupper(name);
+		if(name.size() > 5)
+		{
+			m_last_error = string_format("Loading FSU archive from folder (%ls) failed! Unit folder (%s) has name longer than 5 characters.", path.wstring().c_str(), name.c_str());
+			return(1);
+		}
+
+		// skip non matching folders
+		if(do_wild && !wildcmp(wild_filter,name))
+			continue;
+
+		if(GetResource(name.c_str()))
+		{
+			m_last_error = string_format("Loading FSU archive from folder (%ls) failed! Unit name (%s) already in archive.",path.wstring().c_str(),name.c_str());
+			return(1);
+		}
+
+		// make new resource
+		FSU_resource *unit = new FSU_resource();
+		unit->name = name;
+		unit->tot_sprites = 0;
+		unit->offset = -1;
+
+		// list sprites:
+		auto unit_path = path / name;
+		for(const auto& entry: std::filesystem::directory_iterator(unit_path))
+		{
+			auto item = entry.path();
+			if(entry.is_directory())
+				continue;
+			auto sprite_name = item.filename().string();
+			sprite_name = toupper(sprite_name);
+			if(sprite_name.size() != 3)
+			{
+				delete unit;
+				m_last_error = string_format("Loading FSU archive from folder (%ls) failed! Unit folder (%s) contains sprite (%s) with wrong name size (must be 3 characters).",path.wstring().c_str(),name.c_str(),sprite_name.c_str());		
+				return(1);
+			}
+			auto sprite_path = unit_path / sprite_name;
+
+			// load sprite data
+			//FSU_sprite *spr = new FSU_sprite();
+			auto spr = &unit->list.emplace_back();
+			spr->not_decoded = true;
+			spr->x_max = 0;
+			spr->x_min = 0;
+			spr->y_ofs = 0;
+			spr->y_size = 0;
+			spr->name = sprite_name;
+			if(loaddata(sprite_path, spr->data))
+			{
+				delete spr;
+				delete unit;				
+				m_last_error = string_format("Loading FSU archive from folder (%ls) failed! Unit folder (%s) contains sprite (%s) that cannot be read?",path.wstring().c_str(),name.c_str(),sprite_name.c_str());
+				return(1);
+			}
+			spr->len = spr->data.size();
+			
+			// add to sprite list
+			//unit->list.push_back(spr);
+			unit->tot_sprites++;
+		}
+
+		// add unit to list
+		m_list.push_back(unit);
+	}
+
+	return(0);
+}
+
+// add resource to archive
+int FSUarchive::AddResource(FSU_resource* res)
+{
+	if(!res)
+		return(1);
+	if(GetResource(res->name.c_str()))
+		return(1);	
+	auto res_copy = new FSU_resource(*res);
+	m_list.push_back(res_copy);
+	return(0);
+}
+
+// compare two archive by content (order of items does not matter)
+bool FSUarchive::Compare(FSUarchive* ref)
+{
+	if(!ref)
+		return(false);
+	if(m_list.size() != ref->m_list.size())
+		return(false);
+
+	// for each resource:
+	for(auto &unit: m_list)
+	{
+		auto ref_unit = ref->GetResource(unit->name.c_str());
+		if(!ref_unit)
+			return(false);
+		if(ref_unit->list.size() != unit->list.size())
+			return(false);
+
+		// for each sprite:
+		for(auto &sprite: unit->list)
+		{
+			auto ref_sprite = ref_unit->GetSprite(sprite.name.c_str());
+			if(!ref_sprite)
+				return(false);
+			if(sprite.data != ref_sprite->data)
+				return(false);
+		}		
+	}
+	return(true);
+}
+
+// get resource names list
+std::vector<std::string> FSUarchive::GetResourceNanes()
+{
+	std::vector<std::string> names_list;
+	for(auto &item: m_list)
+		names_list.push_back(item->name);
+	return(names_list);
+}
+
+//---------------------------------------------------------------------------
+// save FSU archive to file (must be undecoded one!)
+//---------------------------------------------------------------------------
+bool comp_fsu_names(FSU_resource* a,FSU_resource* b)
+{
+	auto name_a = a->name;
+	auto name_b = b->name;
+	name_a.resize(5,'_');
+	name_b.resize(5,'_');
+	return(strcmp(name_b.c_str(), name_a.c_str()) > 0);
+}
+int FSUarchive::Save(std::filesystem::path path,bool allow_overwrite)
+{
+	if(std::filesystem::exists(path) && !allow_overwrite)
+		return(1);
+
+	// sort resources
+	std::sort(m_list.begin(), m_list.end(),comp_fsu_names);
+
+	// sort sprites
+	for(auto &res: m_list)
+		res->SortSprites();
+		
+	ofstreamext fw(path,std::ios::out | std::ios::binary | std::ios::trunc);
+	if(!fw.is_open())
+		return(1);
+
+	uint32_t unit_count = m_list.size();
+	uint32_t data_offset = sizeof(uint32_t) + sizeof(uint32_t) + unit_count*(5 + sizeof(uint32_t));
+	for(auto &unit: m_list)
+	{
+		unit->offset = data_offset;
+		data_offset += sizeof(uint16_t) + unit->tot_sprites*(3 + sizeof(uint32_t) + sizeof(uint16_t));
+	}
+
+	// first data offset
+	fw.write(data_offset);
+
+	// units count
+	fw.write(unit_count);
+
+	// write units list
+	for(auto& unit: m_list)
+	{		
+		// unit name str padded by '_'
+		auto name = unit->name;
+		name.resize(5,'_');
+		fw.write(name.c_str(), 5);
+
+		// sprite list offset
+		fw.write(unit->offset);
+	}
+
+	// write sprite list for each unit
+	for(auto& unit: m_list)
+	{
+		// sprites count
+		fw.write((uint16_t)unit->tot_sprites);
+
+		for(auto &sprite: unit->list)
+		{
+			// write sprite name
+			if(sprite.name.size() != 3)
+				return(1);
+			fw.write(sprite.name.c_str(),3);
+
+			// write data offset
+			fw.write(data_offset);
+			auto data_size = sprite.data.size();
+			data_offset += data_size;
+
+			// write data size			
+			if(data_size > 65535)
+				return(1);
+			fw.write((uint16_t)data_size);
+		}
+	}
+
+	// write sprite data
+	for(auto& unit: m_list)
+		for(auto& sprite: unit->list)
+			fw.write((char*)sprite.data.data(),sprite.data.size());
+
+	// done
+	fw.close();
+	return(0);
 }
 
 //---------------------------------------------------------------------------
@@ -68,30 +305,33 @@ FSUarchive::FSUarchive(std::wstring &path,std::function<void(std::string)> statu
 //---------------------------------------------------------------------------
 FSUarchive::~FSUarchive()
 {
-	for(auto item : list)
+	for(auto item : m_list)
 		delete item;
-	list.clear();
+	m_list.clear();
 }
 
 //---------------------------------------------------------------------------
 // Thread that loads multiple resources
 //---------------------------------------------------------------------------
-int FSUarchive::LoadResourceGroup(uint8_t* data, int first, int count, int step, std::vector<FSU_resource*> *list,std::function<void(std::string)> status_item)
+int FSUarchive::LoadResourceGroup(uint8_t* data, int first, int count, int step, std::vector<FSU_resource*> *list,Options options,std::function<void(std::string)> status_item)
 {
 	// read total graphic resources count
 	uint32_t max_count = *(uint32_t*)&data[4];
 
 	// initialize LZW decoder
-	// note: this object should not be destroyed for each sprite otherwise ti will be slow as hell!
-	LZWexpand delz(100000);
+	// note: this object should not be destroyed for each sprite otherwise it will be slow as hell!
+	LZWexpand lz_decoder(100000);
+	auto *delz = &lz_decoder;
+	if(options & Options::NO_DECODE)
+		delz = NULL;
 
 	for (unsigned k = first; k < max_count; k += step)
 	{
 		// make new unit record
 		FSU_resource* res = new FSU_resource();
 		
-		// try decode
-		LoadResource(data, k, res, &delz);
+		// try decode		
+		LoadResource(data, k, res, delz);
 
 		if(status_item)
 			status_item(res->name);
@@ -116,14 +356,15 @@ int FSUarchive::LoadResource(uint8_t *data, int rid, FSU_resource *res, LZWexpan
 	uint8_t* head = &data[8 + rid * (5 + 4)];
 
 	// get unit name
-	memset((void*)res->name, '\0', sizeof(res->name));
-	for (int c = 0; c < 5; c++)
+	res->name.resize(5);
+	auto *pstr = res->name.data();
+	for(int c = 0; c < 5; c++)
 	{
-		char sym = *head++;
-		
+		char sym = *head++;		
 		if (sym != '_') /* loose suffix symbols '_' */
-			res->name[c] = sym;
+			*pstr++ = sym;
 	}
+	res->name.resize(pstr - res->name.data());
 
 	// get unit sprite list offset in FSU data
 	res->offset = *(uint32_t*)head;
@@ -133,6 +374,8 @@ int FSUarchive::LoadResource(uint8_t *data, int rid, FSU_resource *res, LZWexpan
 
 	// read total sprites count
 	res->tot_sprites = *(uint16_t*)plist; plist += sizeof(uint16_t);
+
+	res->list.reserve(res->tot_sprites);
 			
 	// for each sprite
 	xmin  =65536;
@@ -142,31 +385,38 @@ int FSUarchive::LoadResource(uint8_t *data, int rid, FSU_resource *res, LZWexpan
 	for (i = 0; i < res->tot_sprites; i++)
 	{
 		// make new sprite
-		FSU_sprite* sprite = new FSU_sprite();
+		auto sprite = &res->list.emplace_back();
 
 		// get sprite name
-		std::memset((void*)sprite->name, '\0', sizeof(sprite->name));
-		memcpy((void*)sprite->name, (void*)plist, 3);
+		sprite->name.resize(3);
+		memcpy((void*)sprite->name.data(), (void*)plist, 3);
 		plist += 3;
 		
 		// get sprite data offset in FSU
 		uint32_t start = *(uint32_t*)plist; plist += sizeof(uint32_t);
 
 		// get sprite data len
-		uint16_t len = *(uint16_t*)plist; plist += sizeof(uint16_t);
+		sprite->len = *(uint16_t*)plist; plist += sizeof(uint16_t);
 
 		// load compressed sprite data
 		uint8_t* src = &data[start];
 		// sprite data end
-		uint8_t* srce = src + len;
-			
+		uint8_t* srce = src + sprite->len;
+
+		if(!delz)
+		{
+			// no decoding mode: just store raw data
+			sprite->data.resize(sprite->len);			
+			memcpy(sprite->data.data(), src,sprite->len);			
+			sprite->not_decoded = true;
+			continue;
+		}					
 
 		// try to decode sprite archive		
 		auto &spr = delz->Decode(src, srce);
 		if (spr.empty())
 		{
 			// something has fucked while decompressing
-			delete sprite;
 			return(1);
 		}
 
@@ -186,7 +436,8 @@ int FSUarchive::LoadResource(uint8_t *data, int rid, FSU_resource *res, LZWexpan
 		uint8_t *se = spr.data() + spr.size();
 
 		// alloc decoded image data (maximum possible size)
-		uint8_t *img_data = new uint8_t[spr.size()*2];
+		sprite->data.resize(spr.size()*2);		
+		uint8_t *img_data = sprite->data.data();
 		uint8_t *img = img_data;
 
 		// for each line
@@ -222,6 +473,8 @@ int FSUarchive::LoadResource(uint8_t *data, int rid, FSU_resource *res, LZWexpan
 			// read full parts
 			for(int k = 0; k < ful*4; k++)
 			{
+				/*if(sd[k] > 223)
+					sd[k] = 254;*/
 				if(sd[k])
 					img[k] = sd[k];
 				else
@@ -265,9 +518,6 @@ int FSUarchive::LoadResource(uint8_t *data, int rid, FSU_resource *res, LZWexpan
 				lxmax = ofs + xlen;
 		}
 
-		// loose LZ decoder output buffer
-		//delete[] spr;
-
 		// global ymax
 		if(sprite->y_ofs + sprite->y_size > ymax)
 			ymax = sprite->y_ofs + sprite->y_size;
@@ -286,14 +536,10 @@ int FSUarchive::LoadResource(uint8_t *data, int rid, FSU_resource *res, LZWexpan
 
 		// store image
 		int img_data_len = (int)(img - img_data);
-		sprite->data = new uint8_t[img_data_len];
-		std::memcpy((void*)sprite->data, (void*)img_data, img_data_len);
-
-		// loose temp image buffer
-		delete[] img_data;		
+		sprite->data.resize(img_data_len);
 
 		// store new sprite
-		res->list.push_back(sprite);
+		sprite->not_decoded = false;
 	}
 
 	/*if(strcmp(res->name,"SRANG") == 0)
@@ -302,7 +548,7 @@ int FSUarchive::LoadResource(uint8_t *data, int rid, FSU_resource *res, LZWexpan
 	
 	// ====== analyze sprite names ======
 	for (i = 0; i < res->tot_sprites; i++)
-		if(res->list[i]->name[0] == 'F')
+		if(res->list[i].name[0] == 'F')
 			break;
 	if(i != res->tot_sprites)
 	{
@@ -313,8 +559,9 @@ int FSUarchive::LoadResource(uint8_t *data, int rid, FSU_resource *res, LZWexpan
 		// single slope only
 		res->stat.slopes = 1;
 		// make list of standing sprites, one for each azimuth		
-		res->stat.lists[0] = new FSU_sprite*[res->stat.azimuths];
-		memcpy((void*)res->stat.lists[0], (void*)&res->list[i], res->stat.azimuths * sizeof(FSU_sprite*));
+		res->stat.lists[0].resize(res->stat.azimuths);
+		for(int k = 0; k < res->stat.azimuths; k++)
+			res->stat.lists[0][k] = &res->list[k];
 		// make default fire azimuths
 		res->stat.fire_origin[0].assign(res->stat.azimuths,{0,0});
 		
@@ -323,9 +570,9 @@ int FSUarchive::LoadResource(uint8_t *data, int rid, FSU_resource *res, LZWexpan
 		if(i > 0)
 		{
 			// count azimuths
-			char ffc = res->list[0]->name[1];
+			char ffc = res->list[0].name[1];
 			for (j = 0; j < i; j++)
-				if(res->list[j]->name[1] != ffc)
+				if(res->list[j].name[1] != ffc)
 					break;
 			
 			// azimuths count
@@ -335,13 +582,13 @@ int FSUarchive::LoadResource(uint8_t *data, int rid, FSU_resource *res, LZWexpan
 			// frames count
 			res->anim.frames = i / j;
 			// make list of azimuths
-			res->anim.lists = new FSU_sprite ** [res->anim.azimuths];
+			res->anim.lists.resize(res->anim.azimuths);
 			// for each azimuth:
 			for (int azid = 0; azid < res->anim.azimuths; azid++)
 			{
-				res->anim.lists[azid] = new FSU_sprite * [res->anim.frames];
+				res->anim.lists[azid].resize(res->anim.frames);
 				for (int k=0; k < res->anim.frames; k++)
-					res->anim.lists[azid][k] = res->list[azid + k*res->anim.azimuths];
+					res->anim.lists[azid][k] = &res->list[azid + k*res->anim.azimuths];
 			}
 			// make default fire azimuths
 			res->anim.fire_origin.assign(res->anim.azimuths,{0,0});
@@ -351,7 +598,7 @@ int FSUarchive::LoadResource(uint8_t *data, int rid, FSU_resource *res, LZWexpan
 			// no movement images			
 			res->anim.azimuths = 0;
 			res->anim.frames = 0;
-			res->anim.lists = NULL;
+			res->anim.lists.clear();
 		}
 	}
 	else
@@ -359,10 +606,10 @@ int FSUarchive::LoadResource(uint8_t *data, int rid, FSU_resource *res, LZWexpan
 		// === single image group ===
 		
 		for (i = 0; i < res->tot_sprites; i++)
-			if(res->list[i]->name[1] != '0')
+			if(res->list[i].name[1] != '0')
 				break;
 
-		if(strcmp(res->name,"DPEKJ") == 0)
+		if(res->name == "DPEKJ")
 		{
 			// --- animation with single azimuth, but more slopes (hell cavallery)
 
@@ -373,13 +620,13 @@ int FSUarchive::LoadResource(uint8_t *data, int rid, FSU_resource *res, LZWexpan
 			// frames count
 			res->anim.frames = res->tot_sprites / 13;
 			// make list of azimuths
-			res->anim.lists = new FSU_sprite * *[res->anim.slopes];
+			res->anim.lists.resize(res->anim.slopes);
 			// for each azimuth:
 			for(int azid = 0; azid < res->anim.slopes; azid++)
 			{
-				res->anim.lists[azid] = new FSU_sprite *[res->anim.frames];
+				res->anim.lists[azid].resize(res->anim.frames);
 				for(int k = 0; k < res->anim.frames; k++)
-					res->anim.lists[azid][k] = res->list[k + azid*res->anim.frames];
+					res->anim.lists[azid][k] = &res->list[k + azid*res->anim.frames];
 			}
 			// make default fire azimuths
 			res->anim.fire_origin.assign(res->anim.slopes,{0,0});
@@ -389,9 +636,9 @@ int FSUarchive::LoadResource(uint8_t *data, int rid, FSU_resource *res, LZWexpan
 			// --- it's animation ---
 		
 			// count azimuths
-			char ffc = res->list[0]->name[1];
+			char ffc = res->list[0].name[1];
 			for (j = 0; j < i; j++)
-				if(res->list[j]->name[1] != ffc)
+				if(res->list[j].name[1] != ffc)
 					break;
 
 			// azimuths count
@@ -401,13 +648,13 @@ int FSUarchive::LoadResource(uint8_t *data, int rid, FSU_resource *res, LZWexpan
 			// frames count
 			res->anim.frames = res->tot_sprites / j;
 			// make list of azimuths
-			res->anim.lists = new FSU_sprite * *[res->anim.azimuths];
+			res->anim.lists.resize(res->anim.azimuths);
 			// for each azimuth:
 			for (int azid = 0; azid < res->anim.azimuths; azid++)
 			{
-				res->anim.lists[azid] = new FSU_sprite * [res->anim.frames];
+				res->anim.lists[azid].resize(res->anim.frames);
 				for (int k = 0; k < res->anim.frames; k++)
-					res->anim.lists[azid][k] = res->list[azid + k*res->anim.azimuths];
+					res->anim.lists[azid][k] = &res->list[azid + k*res->anim.azimuths];
 			}
 			// make default fire azimuths
 			res->anim.fire_origin.assign(res->anim.azimuths,{0,0});			
@@ -417,9 +664,9 @@ int FSUarchive::LoadResource(uint8_t *data, int rid, FSU_resource *res, LZWexpan
 			// it's mechanical unit (has multiple terrain slope variants)
 
 			// count azimuths
-			char ffc = res->list[0]->name[0];
+			char ffc = res->list[0].name[0];
 			for(j=0;j<i;j++)
-				if(res->list[j]->name[0] != ffc)
+				if(res->list[j].name[0] != ffc)
 					break;
 
 			// sprites in the static group (name starts with F__) - azimuths
@@ -429,8 +676,9 @@ int FSUarchive::LoadResource(uint8_t *data, int rid, FSU_resource *res, LZWexpan
 			// make list of standing sprites, one for each azimuth		
 			for (int sid = 0; sid < res->stat.slopes; sid++)
 			{
-				res->stat.lists[sid] = new FSU_sprite * [res->stat.azimuths];
-				memcpy((void*)res->stat.lists[sid], (void*)&res->list[sid* res->stat.azimuths], res->stat.azimuths*sizeof(FSU_sprite*));
+				res->stat.lists[sid].resize(res->stat.azimuths);
+				for(int k = 0; k < res->stat.azimuths; k++)
+					res->stat.lists[sid][k] = &res->list[k + sid*res->stat.azimuths];
 				// make default fire azimuths
 				res->stat.fire_origin[sid].assign(res->stat.azimuths,{0,0});
 			}
@@ -440,19 +688,143 @@ int FSUarchive::LoadResource(uint8_t *data, int rid, FSU_resource *res, LZWexpan
 	return(0);
 }
 
+// save sprite raster data to file in proper sprite format
+int FSU_sprite::SaveSprite(std::filesystem::path path, std::vector<uint8_t> &buffer, int x_buf_size, int x_offset, int y_offset, uint8_t shadow_index)
+{
+	int y_buf_size = buffer.size() / x_buf_size;
+	if(y_buf_size*x_buf_size != buffer.size())
+		return(1);
+
+	std::vector<uint8_t> sprite;
+	sprite.resize(buffer.size()*4);
+	auto data = sprite.data();
+
+	uint16_t *p_y_size = (uint16_t*)data; data += sizeof(uint16_t);
+	int16_t *p_y_offset = (int16_t*)data; data += sizeof(int16_t);
+
+	uint8_t* p_last_line = data;
+	int y_min = -1;
+	int y_max = -1;
+	auto buf = buffer.data();
+	for(int y = 0; y < y_buf_size; y++)
+	{		
+		uint8_t* p_last = data;
+		uint16_t *p_x_offset = (uint16_t*)data; data += sizeof(uint16_t);
+		uint8_t* p_full_count = (uint8_t*)data; data += sizeof(uint8_t);
+		uint8_t* p_part_count = (uint8_t*)data; data += sizeof(uint8_t);		
+		
+		uint8_t quad[4] = {0,0,0,0};
+		uint8_t mask[4] = {0x00,0x00,0x00,0x00};
+		int pid = 0;
+		bool is_partial = false;
+		int full_count = 0;
+		int part_count = 0;
+		int last_part_count = part_count;
+		int last_full_count = full_count;
+		int x_min = -1;
+		for(int x = 0; x < x_buf_size; x++)
+		{
+			auto pix = buf[x + y*x_buf_size];
+			if(pix)
+			{
+				// first non-empty row
+				if(y_min < 0)
+					y_min = y;
+				// first non-empty pixel
+				if(x_min < 0)
+					x_min = x;								
+			}
+			if(x_min >= 0)
+			{
+				is_partial |= !pix;
+				quad[pid] = (pix == shadow_index)?0xFD:pix;
+				mask[pid] = (pix)?0x00:0xFF;
+				pid++;
+			}
+			if(y_min < 0)
+				continue;
+			if(pid >= 4 || x == x_buf_size - 1)
+			{
+				is_partial |= (pid < 4);
+				bool is_valid = part_count == 0 && full_count == 0;
+				for(int k = 0; k < pid; k++)
+					is_valid |= (mask[k] == 0);
+				// put pixel data chunk
+				for(int k = 0; k < 4; k++)
+					*data++ = quad[k];
+				// put mask chunk
+				if(is_partial)
+					for(int k = 0; k < 4; k++)
+						*data++ = mask[k];
+				if(is_partial)
+					part_count++;
+				else
+					full_count++;				
+				memset(quad,0x00,4);
+				memset(mask,0x00,4);
+				pid = 0;
+				if(is_valid)
+				{
+					p_last = data;
+					last_part_count = part_count;
+					last_full_count = full_count;
+				}
+			}
+		}
+		// move back to last valid line data
+		part_count = last_part_count;
+		full_count = last_full_count;
+		data = p_last;
+		if(y_min < 0)
+			continue;
+		// put line header
+		*p_x_offset = max(x_min,0) + x_offset;
+		*p_full_count = full_count;
+		*p_part_count = part_count;		
+		if(x_min >= 0)
+		{
+			p_last_line = data;
+			y_max = y;
+		}
+	}	
+	// put data y size
+	*p_y_size = y_max - y_min + 1;
+	// put first line y offset
+	*p_y_offset = y_min + y_offset;
+	
+	// trim to last non-empty line
+	data = p_last_line;
+	sprite.resize(data - sprite.data());
+
+	// empty sprite?
+	if(y_min < 0)
+		return(1);
+
+	// try compress
+	std::vector<uint8_t> lz_data;
+	LZspell* lz = new LZspell(sprite.data(),sprite.size(),lz_data);
+	delete lz;
+	if(lz_data.empty())
+		return(1);
+
+	// try save result
+	return(savedata(path, lz_data));
+}
+
+
 // get graphic resource by name
 FSU_resource *FSUarchive::GetResource(const char* name)
 {
-	for (unsigned k = 0; k < list.size(); k++)
-		if (_strcmpi(list[k]->name, name) == 0)
-			return(list[k]);
+	for (unsigned k = 0; k < m_list.size(); k++)
+		if (_strcmpi(m_list[k]->name.c_str(), name) == 0)
+			return(m_list[k]);
 	return(NULL);
 }
 
 // get count of resources
 int FSUarchive::GetCount()
 {
-	return(list.size());
+	return(m_list.size());
 }
 
 // save auxiliary data asociated to FSU archive
@@ -474,11 +846,11 @@ int FSUarchive::SaveAuxData(std::wstring path)
 	fw.write((int32_t)GetCount());
 
 	// store list of resource names
-	for(auto & res : list)
+	for(auto & res : m_list)
 		fw.write_str_p16(res->name);
 	
 	// store resouce data for each:
-	for(auto& res : list)
+	for(auto& res : m_list)
 	{
 		// static data:
 		auto &stat = res->stat;
@@ -601,44 +973,47 @@ int FSUarchive::LoadAuxData(std::wstring path)
 // single resource constructor
 FSU_resource::FSU_resource()
 {
-	// clearing only pointe rlists, but not the sprites themselves!
-	for (int k = 0; k < sizeof(stat.lists) / sizeof(FSU_sprite*); k++)
-		stat.lists[k] = NULL;
 	stat.azimuths = 0;
 	stat.slopes = 0;
+	stat.lists->clear();
 	anim.azimuths = 0;
 	anim.frames = 0;	
-	anim.lists = NULL;
+	anim.lists.clear();
 }
 // single resource cleaner
 FSU_resource::~FSU_resource()
 {
 	// clear static unit lists
-	for (int k = 0; k < sizeof(stat.lists) / sizeof(FSU_sprite*); k++)
-		if(stat.lists[k])
-			delete[] stat.lists[k];	
+	stat.lists->clear();
 	stat.azimuths = 0;
 	stat.slopes = 0;
 	
 	// clear unit animation lists
-	if (anim.lists)
-	{
-		for (int k = 0; k < anim.azimuths; k++)
-			if (anim.lists[k])
-				delete[] anim.lists[k];
-		for(int k = 0; k < anim.slopes; k++)
-			if(anim.lists[k])
-				delete[] anim.lists[k];
-		delete[] anim.lists;
-	}
+	anim.lists.clear();
 	anim.azimuths = 0;
 	anim.frames = 0;
 
 	// clear actual sprite data
-	for(unsigned k = 0; k < list.size(); k++)
-		delete list[k];
+	/*for(unsigned k = 0; k < list.size(); k++)
+		delete list[k];*/
 	list.clear();
 }
+
+// get sprite by name
+FSU_sprite *FSU_resource::GetSprite(const char *name)
+{
+	for(auto &item: list)
+		if(iequals(item.name, name))
+			return(&item);
+	return(NULL);
+}
+
+// sort sprites
+void FSU_resource::SortSprites()
+{
+	std::sort(list.begin(), list.end(), [](FSU_sprite& a,FSU_sprite& b){return(strcmp(b.name.c_str(), a.name.c_str()) > 0);});
+}
+
 
 // get azimuth index for fiven angle
 int FSU_resource::GetAnimAzim(double angle)
@@ -762,21 +1137,24 @@ FSU_resource::Txy FSU_resource::GetAnimFireOriginMean()
 // FSU sprite constructor
 FSU_sprite::FSU_sprite()
 {
-	name[0] = '\0';
-	data = NULL;
+	name.clear();
+	not_decoded = true;
+	y_size = 0;
+	y_ofs = 0;
+	x_min = 0;
+	x_max = 0;
+	len = 0;
 }
 // FSU sprite desctructor
 FSU_sprite::~FSU_sprite()
-{
-	if(data)
-		delete[] data;
+{	
 }
 
 // render sprite to target buffer, buffer is sprite origin, x_size is buffer width
 void FSU_sprite::Render(uint8_t* buffer, uint8_t* buf_end, int buf_x_pos, int buf_y_pos, int buf_x_size,uint8_t* shadow_filter,uint8_t* filter,int zoom)
 {
 	// source data
-	uint8_t* data = this->data;
+	uint8_t* data = this->data.data();
 
 	// initial xy-position
 	uint8_t *dest = &buffer[buf_x_pos + (buf_y_pos + (y_ofs - 128)*zoom) * buf_x_size];

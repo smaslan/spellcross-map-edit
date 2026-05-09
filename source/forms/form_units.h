@@ -1,4 +1,4 @@
-///////////////////////////////////////////////////////////////////////////
+﻿///////////////////////////////////////////////////////////////////////////
 // C++ code generated with wxFormBuilder (version 3.10.1-0-g8feb16b3)
 // http://www.wxformbuilder.org/
 //
@@ -10,33 +10,42 @@
 #include "spellcross.h"
 #include "map.h"
 
-#include <wx/filedlg.h>
+// <wxFormsBuilder-include> - Section auto-inserted from 'forms.h' class 'FormUnits' on 2026-05-06 19:07:51
 #include <wx/artprov.h>
 #include <wx/xrc/xmlres.h>
-#include <wx/statusbr.h>
-#include <wx/gdicmn.h>
-#include <wx/font.h>
-#include <wx/colour.h>
-#include <wx/settings.h>
 #include <wx/string.h>
 #include <wx/bitmap.h>
 #include <wx/image.h>
 #include <wx/icon.h>
 #include <wx/menu.h>
+#include <wx/gdicmn.h>
+#include <wx/font.h>
+#include <wx/colour.h>
+#include <wx/settings.h>
 #include <wx/stattext.h>
-#include <wx/listbox.h>
 #include <wx/sizer.h>
-#include <wx/statline.h>
+#include <wx/listbox.h>
 #include <wx/panel.h>
-#include <wx/propgrid/propgrid.h>
-#include <wx/propgrid/advprops.h>
-#include <wx/textctrl.h>
-#include <wx/spinctrl.h>
-#include <wx/choice.h>
+#include <wx/statbox.h>
 #include <wx/slider.h>
 #include <wx/checkbox.h>
-#include <wx/notebook.h>
+#include <wx/choice.h>
+#include <wx/statline.h>
+#include <wx/textctrl.h>
+#include <wx/treectrl.h>
+#include <wx/statusbr.h>
 #include <wx/frame.h>
+#include <wx/button.h>
+#include <wx/dialog.h>
+#include <wx/spinctrl.h>
+#include <wx/timer.h>
+#include <wx/propgrid/propgrid.h>
+#include <wx/propgrid/advprops.h>
+#include <wx/notebook.h>
+#include <wx/radiobut.h>
+#include <wx/scrolbar.h>
+
+// </wxFormsBuilder-include> - Section auto-inserted from 'forms.h' class 'FormUnits' on 2026-05-06 19:07:51
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -105,6 +114,8 @@ class FormUnits : public wxFrame
 		};
 
 	protected:
+		
+		// <wxFormsBuilder> - Section auto-inserted from 'forms.h' class 'FormUnits' on 2026-05-06 19:07:51
 		enum
 		{
 			wxID_SB = 5999,
@@ -127,6 +138,7 @@ class FormUnits : public wxFrame
 			wxID_LB_ART,
 			wxID_TXT_INFO,
 			wxID_PAGE_GRP,
+			wxID_LBL_SPRITE_RENDER,
 			wxID_CANVAS_GRP,
 			wxID_CHB_GRP_TYPE,
 			wxID_TXT_GRP_AZIM,
@@ -141,7 +153,7 @@ class FormUnits : public wxFrame
 			wxID_CB_GRP_FIRE_ORG_MEAN,
 			wxID_CB_GRP_FIRE_CENTER,
 		};
-
+		
 		wxStatusBar* sbar;
 		wxMenuBar* mmenu;
 		wxMenu* mmFile;
@@ -178,7 +190,7 @@ class FormUnits : public wxFrame
 		wxStaticText* m_staticText38;
 		wxTextCtrl* txtInfo;
 		wxPanel* pageGrp;
-		wxStaticText* m_staticText42;
+		wxStaticText* lblSpriteRender;
 		wxPanel* grp_canvas;
 		wxStaticLine* m_staticline14;
 		wxStaticText* m_staticText43;
@@ -202,10 +214,12 @@ class FormUnits : public wxFrame
 		wxCheckBox* cbGrpFireMean;
 		wxCheckBox* cbGrpFireCenter;
 
+		// </wxFormsBuilder> - Section auto-inserted from 'forms.h' class 'FormUnits' on 2026-05-06 19:07:51
+
 	public:
 
 		FormUnits(wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = wxT("Units viewer"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 1100,720 ),
-			long style = wxDEFAULT_FRAME_STYLE|wxTAB_TRAVERSAL|wxSTAY_ON_TOP);
+			long style = wxDEFAULT_FRAME_STYLE|wxTAB_TRAVERSAL|wxFRAME_FLOAT_ON_PARENT);
 		~FormUnits();
 
 		void SetSpellData(SpellData *spelldata);

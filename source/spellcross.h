@@ -132,8 +132,8 @@ public:
 	std::string GetRangeString();
 	int Save(std::wstring path);
 	int SaveChunks(std::wstring directory_path);
-	int LoadInfo(std::wstring path);
-	int SaveInfo(std::wstring path);
+	int LoadInfo(std::filesystem::path path);
+	int SaveInfo(std::filesystem::path path);
 	int Render(wxBitmap& bmp);
 	int RenderPaletteColor(wxBitmap& bmp,int x_size,int x_pos,uint8_t* filter=NULL);
 };
@@ -188,7 +188,6 @@ public:
 	SpellMIDI* midi;
 	// texts.fs
 	SpellTexts* texts;
-	// texts.fs
 	SpellTexts* research_texts;
 	// L2 object class parameters
 	SpellL2classes *L2_classes;

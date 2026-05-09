@@ -31,9 +31,9 @@ SpellGraphics::~SpellGraphics()
 	for(auto &item: items)
 		delete item;
 	items.clear();
-	for(auto & pnm : pnms)
+	for(auto & pnm : m_pnms)
 		delete pnm;
-	pnms.clear();
+	m_pnms.clear();
 
 	auto curs ={&cur_pointer, &cur_wait, &cur_select, &cur_question, &cur_move, &cur_attack_down, &cur_attack_up, &cur_attack_up_down};
 	for(auto &cur : curs)
@@ -335,6 +335,11 @@ int SpellGraphicItem::Export(std::wstring path)
 		fw.close();
 		
 	}
+	else if(iequals(ext,".GFK"))
+	{
+		// GFK projectiles
+		savedata(path, pixels);
+	}
 	else
 	{
 		// other formats not implemented yet
@@ -566,7 +571,7 @@ void SpellGraphicItem::Clear()
 
 
 // encode bitmap to graphic resouce
-int SpellGraphicItem::Encode(wxBitmap& bmp,std::string name,SpellPalette* target_pal,int dither_dist)
+int SpellGraphicItem::Encode(wxBitmap& bmp,std::string name,SpellPalette* target_pal,int dither_dist,int* shadow_color,uint8_t shadow_index)
 {
 	is_transparent = bmp.HasAlpha();
 
@@ -588,7 +593,7 @@ int SpellGraphicItem::Encode(wxBitmap& bmp,std::string name,SpellPalette* target
 	pal = (uint8_t(*)[3])palette->m_pal.data();
 
 	// make target palette
-	std::vector<int[3]> ipal(256);
+	int ipal[256][3];
 	for(int k = 0; k < 256; k++)
 	{
 		ipal[k][0] = pal[k][0];
@@ -658,6 +663,14 @@ int SpellGraphicItem::Encode(wxBitmap& bmp,std::string name,SpellPalette* target
 		int gg = pix[p].g;
 		int bb = pix[p].b;
 		int aa = pix[p].a;
+
+		int shadow_tolerance = 2;
+		bool is_shadow = shadow_color && (abs(shadow_color[0] - rr) < shadow_tolerance && abs(shadow_color[1] - gg) < shadow_tolerance && abs(shadow_color[2] - bb) < shadow_tolerance);
+		if(is_shadow)
+		{
+			pixels[p] = shadow_index;
+			continue;
+		}
 
 		int min_dist = 256*256*3;
 		int min_dist2 = 256*256*3;
@@ -776,16 +789,16 @@ int SpellGraphics::AddPNM(uint8_t* data,int dlen,const char* name)
 {
 	// insert new PNM object
 	AnimPNM *pnm = new AnimPNM();
-	pnms.push_back(pnm);	
+	m_pnms.push_back(pnm);
 	char temp_name[13];
 	strcpy_noext(temp_name, name);
-	return(pnms.back()->Decode(data,temp_name));
+	return(m_pnms.back()->Decode(data,temp_name));
 }
 
 // obtain PNM file from loaded list by name
 AnimPNM* SpellGraphics::GetPNM(const char* name)
 {
-	for(auto & pnm : pnms)
+	for(auto & pnm : m_pnms)
 		if(strcmp(pnm->name,name) == 0)
 			return(pnm);
 	return(NULL);

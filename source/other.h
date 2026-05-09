@@ -17,25 +17,63 @@ std::wstring char2wstringCP852(const char* str);
 std::wstring char2wstringCP895(const char* str);
 char wchar2charCP895(wchar_t sym);
 std::string wstring2stringCP895(std::wstring str);
+std::string& toupper(std::string& str);
 std::string string_format(const std::string fmt,...);
 bool iequals(const std::string& a,const std::string& b);
 std::string& strrep(std::string& str,std::string key,std::string rep);
 int savestr(std::wstring path,std::string& str);
+int loadstr(std::filesystem::path path,std::string& strbuf);
+int savedata(std::wstring path,std::vector<uint8_t>& data);
+int loaddata(std::filesystem::path path,std::vector<uint8_t>& data);
+std::string trim_whites(std::string str);
+std::string get_timestr_iso();
+std::string get_local_time_str();
 
+template <typename TP>
+std::time_t to_time_t(TP tp)
+{
+    using namespace std::chrono;
+    auto sctp = time_point_cast<system_clock::duration>(tp - TP::clock::now() + system_clock::now());
+    return system_clock::to_time_t(sctp);
+}
+
+// get local time string
+template <typename TP> std::string get_time_str(TP tp)
+{
+    //auto time = std::chrono::system_clock::now();
+    std::time_t tt = to_time_t(tp);
+    std::tm* gmt = std::localtime(&tt);
+    std::stringstream buffer;
+    buffer << std::put_time(gmt,"%Y-%m-%d %H:%M:%S");
+    return(buffer.str());
+}
+
+bool fs_rename(std::filesystem::path source,std::filesystem::path dest);
+bool fs_copy(std::filesystem::path source,std::filesystem::path dest,std::filesystem::copy_options options=std::filesystem::copy_options::none);
+bool fs_remove(std::filesystem::path path,bool all=false);
+int fs_list_dir(std::filesystem::path dir,std::string wild,bool files,bool folders,std::vector<std::string>* names=NULL,std::vector<std::filesystem::path>* paths=NULL);
+
+bool iswild(std::string wild);
+bool iswild(const char* wild);
+int wildcmp(std::string &wild,std::string &string);
 int wildcmp(const char* wild,const char* string);
 void strcpy_noext(const char* dest,const char* src);
 int hex2num(char hex);
 char num2hex(int num);
 std::string fix_no_duplicate_string(std::string str,std::vector<std::string>& list);
 
-std::string info_get_string(std::string info,std::string key,std::string default_value="");
-int info_get_int(std::string info,std::string key,int default_value=0);
+std::string info_get_string(std::string &info,std::string key,std::string default_value="");
+std::string info_get_string(std::vector<std::string>& lines,std::string key,std::string default_value="");
+int info_get_int(std::string& info,std::string key,int default_value=0);
+int info_get_int(std::vector<std::string>& lines,std::string key,int default_value=0);
 std::string info_make_text_vector(std::string key,std::vector<std::string> list,std::string comment="");
 std::string info_make_section(std::string section_name,std::string data,std::string comment="");
-std::vector<std::string> info_get_text_vector(std::string info,std::string key);
-std::string info_get_section(std::string info,std::string section);
+std::vector<std::string> info_get_text_vector(std::string& info,std::string key);
+std::vector<std::string> info_get_text_vector(std::vector<std::string>& lines,std::string key);
+std::vector<std::string> info_get_section(std::string &info,std::string section);
+std::vector<std::string> info_get_section(std::vector<std::string>& lines,std::string section);
 
-std::vector<std::string> get_text_lines(std::string string);
+std::vector<std::string> get_text_lines(std::string string,bool trim_white=true,char separator='\n');
 std::vector<std::string> regexp_get(std::string str,std::string regkey);
 
 uint32_t popcount(uint32_t v);
@@ -198,7 +236,7 @@ public:
     {
         uint16_t len = read_u16();
         std::string str(len,'\0');
-        std::ifstream::read(str.data(),len);
+        std::ifstream::read((char*)str.data(),len);
         str.resize(len-1);
         return(str);
     }
@@ -210,7 +248,7 @@ public:
         auto flen = tellg();
         seekg(0);
         std::string str(flen,'\0');
-        read(str.data(),flen);        
+        read((char*)str.data(),flen);        
         return(str);
     }
 
