@@ -19,15 +19,16 @@
 #include <wx/colour.h>
 #include <wx/settings.h>
 #include <wx/stattext.h>
-#include <wx/listbox.h>
 #include <wx/sizer.h>
+#include <wx/listbox.h>
 #include <wx/panel.h>
 #include <wx/statbox.h>
 #include <wx/slider.h>
 #include <wx/checkbox.h>
-#include <wx/statline.h>
 #include <wx/choice.h>
+#include <wx/statline.h>
 #include <wx/textctrl.h>
+#include <wx/treectrl.h>
 #include <wx/statusbr.h>
 #include <wx/frame.h>
 #include <wx/button.h>
@@ -38,6 +39,7 @@
 #include <wx/propgrid/advprops.h>
 #include <wx/notebook.h>
 #include <wx/radiobut.h>
+#include <wx/scrolbar.h>
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -51,7 +53,9 @@ class FormSprite : public wxFrame
 	protected:
 		enum
 		{
-			wxID_BTN_CLOSE = 5999,
+			wxID_BTN_SAVE = 5999,
+			wxID_BTN_SELECT,
+			wxID_BTN_CLOSE,
 			wxID_BTN_SEL_Q1,
 			wxID_BTN_SEL_Q2,
 			wxID_BTN_SEL_Q3,
@@ -59,10 +63,16 @@ class FormSprite : public wxFrame
 			wxID_BTN_NEXT,
 			wxID_BTN_PREV,
 			wxID_BTN_SET_KNOWS,
+			wxID_BTN_GEN_WALL_CONT,
 			wxID_BTN_CLR_CONTEXT,
+			wxID_BTN_CLR_ALL_CONTEXT,
 			wxID_EDIT_TILE_CONTEXT_AUTO,
 			wxID_BTN_AUTO_SHADING,
 			wxID_BTN_SAVE_CONTEXT,
+			wxID_MM_NEW_TOOLSET,
+			wxID_MM_NEW_TOOL,
+			wxID_MM_REMOVE_TOOL,
+			wxID_MM_EDIT_TOOLSET,
 			wxID_LBOX_SPRITES,
 			wxID_TXT_ALT,
 			wxID_LBOX_ALT,
@@ -70,29 +80,6 @@ class FormSprite : public wxFrame
 			wxID_CB_ZOOM,
 			wxID_LBOX_NEIGHBOR,
 			wxID_CH_SIDE,
-			wxID_CB_IS_GRASS,
-			wxID_CB_IS_DGRASS,
-			wxID_CB_IS_SAND,
-			wxID_CB_IS_MUD,
-			wxID_CB_IS_ASH,
-			wxID_CB_IS_SWAMP,
-			wxID_CB_IS_BLOOD,
-			wxID_CB_IS_HIGH_LAND,
-			wxID_CB_IS_WATER,
-			wxID_CB_IS_RIDGE,
-			wxID_CB_IS_CLIFF,
-			wxID_CB_IS_ASH_ROAD,
-			wxID_CB_IS_DIRT_ROAD,
-			wxID_CB_IS_MUD_PATH,
-			wxID_CB_IS_WALL_BASE,
-			wxID_CB_IS_WBRIDGE,
-			wxID_CB_IS_BRIDGE,
-			wxID_CB_IS_FORD,
-			wxID_CB_IS_RIDGE_BRIDGE,
-			wxID_CB_IS_BROKEN,
-			wxID_CB_IS_SHADOW,
-			wxID_CB_IS_SCAR,
-			wxID_CB_IS_OBJECT,
 			wxID_CB_USE_AS_GLYPH,
 			wxID_CB_FAULTY,
 			wxID_CHB_Q1_CLASS,
@@ -112,17 +99,17 @@ class FormSprite : public wxFrame
 			wxID_CB_SHADE_C3,
 			wxID_CB_SHADE_C4,
 			wxID_EDIT_MAP_TILE_FLAGS,
-			wxID_CHB_TOOL_CLASS,
-			wxID_CHB_TOOL_OBJ_GROUP,
 			wxID_CB_TOOL_GLYPH,
+			wxID_TREE_OBJECTS,
 		};
 
 		wxMenuBar* mMenu;
 		wxMenu* mnuFile;
 		wxMenu* mnuTerr;
 		wxMenu* mnuEdit;
+		wxMenu* mnuTools;
 		wxStaticText* txtSpriteList;
-		wxListBox* lboxSprites;
+		wxListCtrlVirtual* lboxSprites;
 		wxStaticText* txtAltList;
 		wxListBox* lboxAlt;
 		wxPanel* canvas;
@@ -131,35 +118,14 @@ class FormSprite : public wxFrame
 		wxCheckBox* cbZoom;
 		wxStaticText* m_staticText2;
 		wxListBox* lboxNeighbor;
-		wxStaticLine* m_staticline1;
 		wxStaticText* m_staticText3;
 		wxChoice* chbSide;
-		wxCheckBox* cbIsGrass;
-		wxCheckBox* cbIsDarkGrass;
-		wxCheckBox* cbIsSand;
-		wxCheckBox* cbIsMud;
-		wxCheckBox* cbIsAsh;
-		wxCheckBox* cbIsSwamp;
-		wxCheckBox* cbIsBlood;
-		wxCheckBox* cbIsHigh;
-		wxCheckBox* cbIsWater;
-		wxCheckBox* cbIsRidge;
-		wxCheckBox* cbIsCliff;
-		wxCheckBox* cbIsRoad;
-		wxCheckBox* cbIsDirtRoad;
-		wxCheckBox* cbIsMudPath;
-		wxCheckBox* cbIsWallBase;
-		wxCheckBox* cbIsWBridge;
-		wxCheckBox* cbIsBridge;
-		wxCheckBox* cbIsFord;
-		wxCheckBox* cbIsRidgeBridge;
-		wxCheckBox* cbIsBroken;
-		wxCheckBox* cbIsShadow;
-		wxCheckBox* cbIsScar;
-		wxCheckBox* cbIsObject;
-		wxStaticLine* m_staticline2;
+		wxStaticBoxSizer* sizerFlags;
 		wxCheckBox* cbUseAsGlyph;
 		wxCheckBox* cbFaultCont;
+		wxStaticLine* m_staticline2;
+		wxBoxSizer* sizerTerrFlags;
+		wxCheckBox* m_checkBox49;
 		wxStaticText* m_staticText5;
 		wxChoice* chbQ1class;
 		wxCheckBox* cbQ1nofilt;
@@ -183,11 +149,8 @@ class FormSprite : public wxFrame
 		wxCheckBox* cbShadeC4;
 		wxStaticText* txtFlags;
 		wxTextCtrl* editMapFlags;
-		wxStaticText* m_staticText13;
-		wxChoice* chbToolClass;
-		wxStaticText* m_staticText14;
-		wxChoice* chbToolObjGroup;
 		wxCheckBox* cbToolGlyph;
+		wxTreeCtrl* treeCtrlObjects;
 		wxStatusBar* statBar;
 
 	public:
@@ -210,41 +173,28 @@ class FormObjects : public wxFrame
 		enum
 		{
 			wxID_SB_MAIN = 5999,
-			wxID_LB_OBJECTS,
-			wxID_BTN_UP,
-			wxID_BTN_DOWN,
+			wxID_TRC_CLASSES,
 			wxID_CANVAS,
 			wxID_TXT_GAMMA,
 			wxID_SLIDE_GAMMA,
-			wxID_CHB_CLASS,
-			wxID_CHB_GROUP,
 			wxID_MM_SAVE_OBJECTS,
 			wxID_MM_CLOSE,
-			wxID_MM_NEXT,
-			wxID_MM_PREV,
 			wxID_MM_REMOVE,
 			wxID_MM_RENAME,
+			wxID_MM_NEW_CLASS,
+			wxID_MM_NEW_TOOL,
+			wxID_MM_EDIT_TOOLSET,
 		};
 
 		wxStatusBar* sbar;
 		wxStaticText* m_staticText14;
-		wxListBox* lbObjects;
-		wxButton* btnUp;
-		wxButton* btnDown;
+		wxTreeCtrl* treeCtrlClasses;
 		wxStaticLine* m_staticline5;
 		wxStaticText* m_staticText15;
 		wxPanel* canvas;
 		wxStaticLine* m_staticline8;
-		wxStaticText* m_staticText19;
-		wxTextCtrl* txtName;
-		wxStaticLine* m_staticline9;
 		wxStaticText* txtGamma;
 		wxSlider* slideGamma;
-		wxStaticLine* m_staticline6;
-		wxStaticText* m_staticText17;
-		wxChoice* chbObjectClass;
-		wxStaticText* m_staticText18;
-		wxChoice* chbObjectsGroup;
 		wxMenuBar* m_menubar2;
 		wxMenu* mnuFile;
 		wxMenu* mnuTerr;
@@ -252,7 +202,7 @@ class FormObjects : public wxFrame
 
 	public:
 
-		FormObjects( wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = wxT("Objects viewer"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 1000,600 ), long style = wxDEFAULT_FRAME_STYLE|wxFRAME_FLOAT_ON_PARENT|wxTAB_TRAVERSAL );
+		FormObjects( wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = wxT("Objects viewer"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 800,586 ), long style = wxDEFAULT_FRAME_STYLE|wxFRAME_FLOAT_ON_PARENT|wxTAB_TRAVERSAL );
 
 		~FormObjects();
 
@@ -269,19 +219,63 @@ class FormNewObject : public wxDialog
 		enum
 		{
 			wxID_TXT_DESC = 5999,
+			wxID_CHB_CLASS,
 			wxID_BTN_OK,
+			wxID_BTN_CANCEL,
 		};
 
 		wxStaticText* m_staticText11;
 		wxTextCtrl* txtDescription;
+		wxStaticText* m_staticText92;
+		wxChoice* chbClass;
+		wxStaticLine* m_staticline4;
+		wxButton* btnOk;
+		wxButton* btnCancel;
+
+	public:
+
+		FormNewObject( wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = wxT("New object"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 400,185 ), long style = wxDEFAULT_DIALOG_STYLE );
+
+		~FormNewObject();
+
+};
+
+///////////////////////////////////////////////////////////////////////////////
+/// Class FormEditToolset
+///////////////////////////////////////////////////////////////////////////////
+class FormEditToolset : public wxDialog
+{
+	private:
+
+	protected:
+		enum
+		{
+			wxID_TXT_NAME = 5999,
+			wxID_TXT_DESC,
+			wxID_CHB_SCALE,
+			wxID_SC_WIDTH,
+			wxID_SC_HEIGHT,
+			wxID_BTN_OK,
+		};
+
+		wxStaticText* m_staticText11;
+		wxTextCtrl* txtName;
+		wxStaticText* m_staticText111;
+		wxTextCtrl* txtDescription;
+		wxStaticText* m_staticText26;
+		wxChoice* chbScaling;
+		wxStaticText* m_staticText27;
+		wxSpinCtrl* scWidth;
+		wxStaticText* m_staticText28;
+		wxSpinCtrl* scHeight;
 		wxStaticLine* m_staticline4;
 		wxButton* btnOk;
 
 	public:
 
-		FormNewObject( wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = wxT("New object"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 400,120 ), long style = wxDEFAULT_DIALOG_STYLE );
+		FormEditToolset( wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = wxT("Edit Toolset Parameters"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 400,261 ), long style = wxDEFAULT_DIALOG_STYLE );
 
-		~FormNewObject();
+		~FormEditToolset();
 
 };
 
@@ -369,7 +363,10 @@ class FormPalView : public wxFrame
 		enum
 		{
 			wxID_FRM_PAL_VIEW = 5999,
+			wxID_MM_SAVE_PALINFO,
 			wxID_MM_CLOSE,
+			wxID_TXT_FILTER,
+			wxID_LIST_PAL,
 			wxID_CANVAS,
 			wxID_COLOR,
 			wxID_STAT_BAR,
@@ -380,6 +377,11 @@ class FormPalView : public wxFrame
 		wxMenu* mmFile;
 		wxMenu* mmTerrain;
 		wxMenu* mmFilter;
+		wxStaticText* m_staticText113;
+		wxTextCtrl* txtNameFilter;
+		wxStaticText* m_staticText112;
+		wxListBox* listPal;
+		wxStaticLine* m_staticline41;
 		wxStaticText* m_staticText28;
 		wxPanel* canvas;
 		wxStaticText* m_staticText29;
@@ -412,25 +414,39 @@ class FormGResView : public wxFrame
 		enum
 		{
 			wxID_MM_CLOSE = 5999,
+			wxID_MM_EXPORT,
+			wxID_MM_EXPORT_ALL,
 			wxID_SB,
+			wxID_CH_SOURCE,
+			wxID_TXT_FILTER,
 			wxID_LB_FILES,
 			wxID_SPIN_W,
+			wxID_CB_TRANSPARENT,
 			wxID_CANVAS,
+			wxID_PALETTE,
 		};
 
 		wxMenuBar* m_menubar5;
 		wxMenu* mmFile;
 		wxStatusBar* sbar;
+		wxStaticText* m_staticText104;
+		wxChoice* chSource;
+		wxStaticText* m_staticText97;
+		wxTextCtrl* txtFilter;
 		wxStaticText* m_staticText31;
 		wxListBox* lboxFiles;
 		wxStaticText* m_staticText32;
 		wxSpinCtrl* spinWidth;
+		wxCheckBox* cbTransparent;
 		wxStaticLine* m_staticline8;
 		wxPanel* canvas;
+		wxStaticLine* m_staticline32;
+		wxStaticText* m_staticText98;
+		wxPanel* palette;
 
 	public:
 
-		FormGResView( wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = wxT("Graphics resource viewer"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 875,513 ), long style = wxDEFAULT_FRAME_STYLE|wxFRAME_FLOAT_ON_PARENT|wxTAB_TRAVERSAL );
+		FormGResView( wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = wxT("Graphics resource viewer"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 1024,800 ), long style = wxDEFAULT_FRAME_STYLE|wxFRAME_FLOAT_ON_PARENT|wxTAB_TRAVERSAL );
 
 		~FormGResView();
 
@@ -466,6 +482,7 @@ class FormUnits : public wxFrame
 			wxID_LB_ART,
 			wxID_TXT_INFO,
 			wxID_PAGE_GRP,
+			wxID_LBL_SPRITE_RENDER,
 			wxID_CANVAS_GRP,
 			wxID_CHB_GRP_TYPE,
 			wxID_TXT_GRP_AZIM,
@@ -517,7 +534,7 @@ class FormUnits : public wxFrame
 		wxStaticText* m_staticText38;
 		wxTextCtrl* txtInfo;
 		wxPanel* pageGrp;
-		wxStaticText* m_staticText42;
+		wxStaticText* lblSpriteRender;
 		wxPanel* grp_canvas;
 		wxStaticLine* m_staticline14;
 		wxStaticText* m_staticText43;
@@ -540,11 +557,10 @@ class FormUnits : public wxFrame
 		wxCheckBox* cbGrpFireOrg;
 		wxCheckBox* cbGrpFireMean;
 		wxCheckBox* cbGrpFireCenter;
-		wxListBox* m_listBox11;
 
 	public:
 
-		FormUnits( wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = wxT("Units viewer"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 1099,710 ), long style = wxDEFAULT_FRAME_STYLE|wxSTAY_ON_TOP|wxTAB_TRAVERSAL );
+		FormUnits( wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = wxT("Units viewer"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 1099,710 ), long style = wxDEFAULT_FRAME_STYLE|wxFRAME_FLOAT_ON_PARENT|wxTAB_TRAVERSAL );
 
 		~FormUnits();
 
@@ -565,6 +581,7 @@ class FormEvent : public wxFrame
 			wxID_LB_EVENTS,
 			wxID_BTN_ADD_EVENT,
 			wxID_BTN_REM_EVENT,
+			wxID_BTN_CLEANUP,
 			wxID_CHB_TYPE,
 			wxID_TXT_OBJ_DESC,
 			wxID_CB_IS_OBJECTIVE,
@@ -591,6 +608,7 @@ class FormEvent : public wxFrame
 		wxListBox* lbEvents;
 		wxButton* btnAddEvent;
 		wxButton* btnRemoveEvent;
+		wxButton* btnCleanup;
 		wxStaticLine* m_staticline21;
 		wxStaticText* m_staticText50;
 		wxChoice* chbType;
@@ -792,9 +810,342 @@ class FormMissionParams : public wxDialog
 
 	public:
 
-		FormMissionParams( wxWindow* parent, wxWindowID id = wxID_WIN_MISSION_PARAMS, const wxString& title = wxT("Mission Parameters"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 593,388 ), long style = wxDEFAULT_DIALOG_STYLE );
+		FormMissionParams( wxWindow* parent, wxWindowID id = wxID_WIN_MISSION_PARAMS, const wxString& title = wxT("Mission Parameters"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 600,400 ), long style = wxDEFAULT_DIALOG_STYLE|wxRESIZE_BORDER );
 
 		~FormMissionParams();
+
+};
+
+///////////////////////////////////////////////////////////////////////////////
+/// Class FormAbout
+///////////////////////////////////////////////////////////////////////////////
+class FormAbout : public wxDialog
+{
+	private:
+
+	protected:
+		enum
+		{
+			wxID_FORM_ABOUT = 5999,
+			wxID_TXT_VER,
+			wxID_TXT_NAME,
+			wxID_TXT_EMAIL,
+			wxID_TXT_URL,
+			wxID_TXT_LICENSE,
+			wxID_TXT_DESC,
+			wxID_BTN_OK,
+		};
+
+		wxStaticText* m_staticText80;
+		wxStaticLine* m_staticline29;
+		wxTextCtrl* m_textCtrl17;
+		wxTextCtrl* m_textCtrl171;
+		wxTextCtrl* m_textCtrl172;
+		wxTextCtrl* m_textCtrl173;
+		wxTextCtrl* m_textCtrl174;
+		wxTextCtrl* txtVersion;
+		wxTextCtrl* txtName;
+		wxTextCtrl* txtEmail;
+		wxTextCtrl* txtURL;
+		wxTextCtrl* txtLicense;
+		wxStaticLine* m_staticline30;
+		wxTextCtrl* txtDesc;
+		wxStaticLine* m_staticline31;
+		wxButton* btnOK;
+
+	public:
+
+		FormAbout( wxWindow* parent, wxWindowID id = wxID_FORM_ABOUT, const wxString& title = wxT("About Spellcross Map Editor"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 600,350 ), long style = wxDEFAULT_DIALOG_STYLE|wxRESIZE_BORDER );
+
+		~FormAbout();
+
+};
+
+///////////////////////////////////////////////////////////////////////////////
+/// Class FormANM
+///////////////////////////////////////////////////////////////////////////////
+class FormANM : public wxFrame
+{
+	private:
+
+	protected:
+		enum
+		{
+			wxID_MM_SELECT = 5999,
+			wxID_MM_CLOSE,
+			wxID_CH_SRC,
+			wxID_TXT_FILTER,
+			wxID_TXT_RESOURCES,
+			wxID_LB_LIST,
+			wxID_TXT_FRAMES,
+			wxID_LB_FRAMES,
+			wxID_CB_ANIM,
+			wxID_CANVAS,
+			wxID_SPIN_XOFS,
+			wxID_SPIN_YOFS,
+			wxID_TXT_GAMMA,
+			wxID_SLIDE_GAMMA,
+			wxID_CB_ZOOM,
+		};
+
+		wxMenuBar* m_menubar10;
+		wxMenu* m_menu19;
+		wxMenu* mmTerrain;
+		wxStaticText* m_staticText117;
+		wxChoice* chSource;
+		wxStaticText* m_staticText118;
+		wxTextCtrl* txtFilter;
+		wxStaticText* txtResources;
+		wxListBox* lbList;
+		wxStaticText* txtFrames;
+		wxListBox* lbFrames;
+		wxCheckBox* cbAnimate;
+		wxPanel* canvas;
+		wxStaticText* m_staticText88;
+		wxSpinCtrl* spinXofs;
+		wxStaticText* m_staticText89;
+		wxSpinCtrl* spinYofs;
+		wxStaticText* txtGamma;
+		wxSlider* slideGamma;
+		wxCheckBox* cbZoom;
+
+	public:
+
+		FormANM( wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = wxT("Terrain layer animations ANM"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 700,500 ), long style = wxDEFAULT_FRAME_STYLE|wxRESIZE_BORDER|wxSTAY_ON_TOP|wxTAB_TRAVERSAL );
+
+		~FormANM();
+
+};
+
+///////////////////////////////////////////////////////////////////////////////
+/// Class FormSound
+///////////////////////////////////////////////////////////////////////////////
+class FormSound : public wxFrame
+{
+	private:
+
+	protected:
+		enum
+		{
+			wxID_MM_SELECT = 5999,
+			wxID_MM_CLOSE,
+			wxID_LB_LIST,
+			wxID_CHB_FILTER,
+			wxID_GRID_PROPS,
+			wxID_CH_MAP_SND_TYPE,
+			wxID_BTN_PLAY,
+			wxID_BTN_STOP,
+		};
+
+		wxMenuBar* m_menubar10;
+		wxMenu* m_menu19;
+		wxStaticText* m_staticText93;
+		wxListBox* lbList;
+		wxStaticText* m_staticText90;
+		wxChoice* chFilter;
+		wxStaticLine* m_staticline32;
+		wxStaticText* m_staticText91;
+		wxPropertyGrid* gridProps;
+		wxStaticText* m_staticText92;
+		wxChoice* chMapSndType;
+		wxButton* btnPlay;
+		wxButton* btnStop;
+
+	public:
+
+		FormSound( wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = wxT("Sound resources preview"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 600,400 ), long style = wxDEFAULT_FRAME_STYLE|wxRESIZE_BORDER|wxSTAY_ON_TOP|wxTAB_TRAVERSAL );
+
+		~FormSound();
+
+};
+
+///////////////////////////////////////////////////////////////////////////////
+/// Class FormFlags
+///////////////////////////////////////////////////////////////////////////////
+class FormFlags : public wxDialog
+{
+	private:
+
+	protected:
+		enum
+		{
+			wxID_CHB_FLAG = 5999,
+			wxID_CANVAS,
+			wxID_BTN_OK,
+			wxID_BTN_CANCEL,
+		};
+
+		wxStaticText* m_staticText90;
+		wxChoice* chbFlag;
+		wxPanel* canvas;
+		wxButton* btnOk;
+		wxButton* btnCancel;
+
+	public:
+
+		FormFlags( wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = wxT("Setup tile parameters"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 400,300 ), long style = wxDEFAULT_DIALOG_STYLE|wxRESIZE_BORDER );
+
+		~FormFlags();
+
+};
+
+///////////////////////////////////////////////////////////////////////////////
+/// Class FormNewMap
+///////////////////////////////////////////////////////////////////////////////
+class FormNewMap : public wxDialog
+{
+	private:
+
+	protected:
+		enum
+		{
+			wxID_CHB_TERR = 5999,
+			wxID_SPIN_X,
+			wxID_SPIN_Y,
+			wxID_SPIN_ELEV,
+			wxID_BTN_OK,
+			wxID_BTN_CANCEL,
+		};
+
+		wxStaticText* m_staticText92;
+		wxChoice* chbTerrain;
+		wxStaticText* m_staticText96;
+		wxStaticText* m_staticText97;
+		wxSpinCtrl* spinXsize;
+		wxStaticText* m_staticText98;
+		wxSpinCtrl* spinYsize;
+		wxStaticText* m_staticText99;
+		wxSpinCtrl* spinElev;
+		wxStaticLine* m_staticline4;
+		wxButton* btnOk;
+		wxButton* btnCancel;
+
+	public:
+
+		FormNewMap( wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = wxT("New map"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 400,185 ), long style = wxDEFAULT_DIALOG_STYLE );
+
+		~FormNewMap();
+
+};
+
+///////////////////////////////////////////////////////////////////////////////
+/// Class FormGResEncoder
+///////////////////////////////////////////////////////////////////////////////
+class FormGResEncoder : public wxFrame
+{
+	private:
+
+	protected:
+		enum
+		{
+			wxID_MM_OPEN = 5999,
+			wxID_MM_SAVE,
+			wxID_MM_SAVE_ALL,
+			wxID_MM_SAVE_PAL,
+			wxID_MM_EXIT,
+			wxID_SBAR,
+			wxID_LB_LIST,
+			wxID_CANVAS_SRC,
+			wxID_CANVAS_RES,
+			wxID_PALETTE,
+			wxID_SLIDE_MIN_DITHER,
+			wxID_SPIN_EX_OFS,
+			wxID_SPIN_EY_OFS,
+			wxID_BTN_REGEN,
+			wxID_BTN_REGEN_PAL,
+		};
+
+		wxMenuBar* m_menubar12;
+		wxMenu* mmFile;
+		wxStatusBar* sbar;
+		wxStaticText* m_staticText103;
+		wxListBox* lboxList;
+		wxStaticLine* m_staticline37;
+		wxStaticText* m_staticText99;
+		wxPanel* canvasSrc;
+		wxStaticLine* m_staticline33;
+		wxStaticText* m_staticText100;
+		wxPanel* canvasRes;
+		wxStaticLine* m_staticline34;
+		wxStaticText* m_staticText102;
+		wxPanel* palette;
+		wxStaticLine* m_staticline36;
+		wxStaticText* m_staticText101;
+		wxSlider* slideMinDither;
+		wxStaticLine* m_staticline35;
+		wxStaticText* m_staticText115;
+		wxSpinCtrl* spinExtraXoffset;
+		wxStaticText* m_staticText116;
+		wxSpinCtrl* spinExtraYoffset;
+		wxStaticLine* m_staticline42;
+		wxButton* btnRegen;
+		wxButton* btnRegenPalette;
+
+	public:
+
+		FormGResEncoder( wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = wxT("Graphics Resource Encoder"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 1600,800 ), long style = wxDEFAULT_FRAME_STYLE|wxFRAME_FLOAT_ON_PARENT|wxTAB_TRAVERSAL );
+
+		~FormGResEncoder();
+
+};
+
+///////////////////////////////////////////////////////////////////////////////
+/// Class FormText
+///////////////////////////////////////////////////////////////////////////////
+class FormText : public wxFrame
+{
+	private:
+
+	protected:
+		enum
+		{
+			wxID_MM_EXIT = 5999,
+			wxID_MM_SAVE,
+			wxID_MM_SAVE_ALL,
+			wxID_MM_RESTORE,
+			wxID_MM_APPLY,
+			wxID_SBAR,
+			wxID_CH_SOURCE,
+			wxID_TXT_WILD,
+			wxID_LIST_RESOURCES,
+			wxID_TXT_EDIT,
+			wxID_CH_TARGET,
+			wxID_CH_ALIGN,
+			wxID_CANVAS_TEXT,
+			wxID_SCROLL_TEXT,
+			wxID_CANVAS_FONT,
+		};
+
+		wxMenuBar* m_menubar13;
+		wxMenu* m_menu24;
+		wxMenu* m_menu25;
+		wxStatusBar* sbar;
+		wxStaticText* m_staticText106;
+		wxChoice* chSource;
+		wxStaticText* m_staticText107;
+		wxTextCtrl* txtFilter;
+		wxStaticText* m_staticText108;
+		wxListBox* listResources;
+		wxStaticLine* m_staticline39;
+		wxStaticText* m_staticText109;
+		wxTextCtrl* textEdit;
+		wxStaticText* m_staticText111;
+		wxChoice* chTarget;
+		wxStaticText* m_staticText114;
+		wxChoice* chAlign;
+		wxStaticLine* m_staticline40;
+		wxStaticText* m_staticText110;
+		wxPanel* canvasText;
+		wxScrollBar* scrollText;
+		wxStaticLine* m_staticline38;
+		wxStaticText* m_staticText105;
+		wxPanel* canvasFont;
+
+	public:
+
+		FormText( wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = wxT("Text resource viewer"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 1300,700 ), long style = wxDEFAULT_FRAME_STYLE|wxTAB_TRAVERSAL );
+
+		~FormText();
 
 };
 
