@@ -346,7 +346,8 @@ wxThread::ExitCode ProcTh::Entry()
 			// UNITS.FSU sprite
 			auto x_ofs = m_config.x_offset;
 			auto y_ofs = info.y_offset + m_config.y_offset;
-			if(FSU_sprite::SaveSprite(save_path, gres.pixels, gres.x_size, x_ofs, y_ofs, 0xFD))			
+			auto err = FSU_sprite::SaveSprite(save_path,gres.pixels,gres.x_size,x_ofs,y_ofs,0xFD);
+			if(err)
 			{
 				m_config.mutex->lock();
 				if(!m_config.list->empty())
@@ -801,7 +802,7 @@ void FormGResEncoder::OnSaveAllClick(wxCommandEvent& event)
 	params.failed_list = &m_task_failed_list;
 
 	// start processign threads	
-	auto cores = std::min(wxThread::GetCPUCount(),4);
+	auto cores = std::min(wxThread::GetCPUCount(),8);
 	//auto cores = 1;
 	m_threads.clear();
 	m_thread_active = 0;

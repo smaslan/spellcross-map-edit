@@ -137,6 +137,7 @@ private:
 	//int dlen;
 	int duse;
 	int rlen;
+	int bofs;
 
 	LZdct lzd;
 	int LZmemAdd(int len);
