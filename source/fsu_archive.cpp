@@ -756,9 +756,9 @@ int FSU_sprite::SaveSprite(std::filesystem::path path, std::vector<uint8_t> &buf
 				if(is_partial)
 					for(int k = 0; k < 4; k++)
 						*data++ = mask[k];
-				if(is_partial)
+				if(pid > 0 && is_partial)
 					part_count++;
-				else
+				else if(pid > 0)
 					full_count++;				
 				memset(quad,0x00,4);
 				memset(mask,0x00,4);
@@ -805,6 +805,12 @@ int FSU_sprite::SaveSprite(std::filesystem::path path, std::vector<uint8_t> &buf
 	LZspell* lz = new LZspell(sprite.data(),sprite.size(),lz_data);
 	delete lz;
 	if(lz_data.empty())
+		return(1);
+
+	// rather check if it compressed ok...
+	LZWexpand lze(100000);
+	auto lz_dec = lze.Decode(lz_data.data(),lz_data.data() + lz_data.size());
+	if(sprite != lz_dec)
 		return(1);
 
 	// try save result

@@ -45,6 +45,26 @@
 wxIMPLEMENT_APP(MyApp);
 bool MyApp::OnInit()
 {
+    
+    /*for(int len = 10; len < 100000; len++)
+    {    
+        std::vector<uint8_t> raw;
+        raw.resize(len);
+        for(int k = 0; k < len; k++)
+            raw[k] = std::rand() & 0xFF;
+
+        std::vector<uint8_t> lz_data;
+        LZspell lzc(raw.data(),raw.size(),lz_data);
+    
+        LZWexpand lze(100000);
+        auto res = lze.Decode(lz_data.data(),lz_data.data() + lz_data.size());
+
+        if(raw != res)
+            break;
+    }*/
+        
+    
+    
     // for saving PNG file (among other stuff)
     wxInitAllImageHandlers();
     

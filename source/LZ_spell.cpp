@@ -14,6 +14,8 @@
 
 #include <cstdint>
 #include <stdexcept>
+#include <fstream>
+
 //---------------------------------------------------------------------------
 
 // get u8 from stream
@@ -290,13 +292,16 @@ int LZWexpand::DecodeCore(uint8_t*dsrc, uint8_t *dend)
 
 	// init bitstream
 	GetWord(NULL, NULL);
+
+	int word = 0;
 		
 	// and start decoding
 	pwrd.len = 0;
+	bool was_clear = false;
 	while(dsrc < dend)
-	{
+	{	
 		// get item from stream
-		ccd = GetWord(&dsrc,dend);
+		ccd = GetWord(&dsrc,dend);		
 		if(ccd < 0)
 		{
 			// finished
@@ -306,25 +311,30 @@ int LZWexpand::DecodeCore(uint8_t*dsrc, uint8_t *dend)
 		// clear dictionary?
 		if(dct.isclr(ccd))
 		{
-			// yeah, clear dictionary
+			// yeah
+			
+			// we are done if this was double clear code
+			if(was_clear)
+				break;
 
-			// store previous chunk into local memory buffer first (because it
-			// can't be lost with dictionary)
+			// store previous chunk into local memory buffer first (because it can't be lost with dictionary)
 			if(pwrd.len > CMLEN)
 			{
-				// too long - leave (this should never happen but if so ...)
+				// too long - leave with error (this should never happen but if so ...)
 				return(3);
 			}
 			if(pwrd.len != 0)
 				std::memcpy((void*)temp_chunk,(void*)pwrd.data,pwrd.len);
 			pwrd.data = temp_chunk;
 
-			// now clear dictionary
+			// clear dictionary
 			dct.LZWreinitDict();
 
-			// and cotinue
+			// cotinue
+			was_clear = true;
 			continue;
 		}
+		was_clear = false;
 
 		// update dictionary?
 		if(ccd < dct.cdict_len)
@@ -357,12 +367,12 @@ int LZWexpand::DecodeCore(uint8_t*dsrc, uint8_t *dend)
 		}
 		else
 		{
-			// failed - invalid dictionary entry			
+			// failed - invalid dictionary entry
 			return(4);
 		}
 
 		// write chunk to local output buffer:
-		//  ###note: this is much faster than using vector resize every time even if preallocated by reserve()
+		//  ###note: this seems much faster than using vector resize every time even if preallocated by reserve()
 		int min_size = output_size + cwrd->len;
 		if(buffer.size() < min_size)
 			buffer.resize(buffer.size()*2);
@@ -417,9 +427,9 @@ LZdct::LZdct(uint8_t* sdat,int len)
 			map[i] = idn++;
 		}
 
-	// calc item width
+	// calc item width (must fit with clear code, so initial size + 1)
 	ibw = 0;
-	while((1<<ibw)<(idn+2))
+	while(idn + 1 > (1<<ibw) - 1)
 		ibw++;
 }
 
@@ -444,9 +454,7 @@ void LZdct::DCfillIDC(void)
 	dcn = idn + 1;
 
 	// calc current item width
-	bw = 0;
-	while((1<<bw)<(dcn+1))
-		bw++;
+	bw = ibw;
 }
 
 // add item into dictionary if not there, otherwise return found match index
@@ -513,7 +521,7 @@ int LZdct::DCadd(TDCitem* item)
 	dc[dcn++] = *item;
 
 	// update item width
-	if(dcn-1 >= (1<<bw))
+	if(dcn - 1 >= (1<<bw))
 		bw++;
 
 	// check for dict full and return no match
@@ -590,6 +598,8 @@ int LZspell::Encode(uint8_t* sdat,int len)
 		//throw Exception("LZ encoder failed, memory allocation failed!");
 	}
 
+	int word = 0;
+
 	// === encode data ===
 	TDCitem item ={0,-1,-1,-1,-1};
 	uint8_t* dptr = sdat;
@@ -635,6 +645,11 @@ int LZspell::Encode(uint8_t* sdat,int len)
 		// repeat for each byte
 	} while(dptr<dend);
 
+	// add fake item to dictionary to simulate bitwidth extension (was failing if last item was exactly on boundary of bw extension)
+	lzd.dcn++;
+	if(lzd.dcn - 1 >= (1 << lzd.bw))
+		lzd.bw++;
+	
 	// put last item index into output buffer
 	if(LZputItem(item.pfx))
 	{
@@ -643,6 +658,10 @@ int LZspell::Encode(uint8_t* sdat,int len)
 		return(1);
 		//throw Exception("LZ encoder failed, memory allocation failed!");
 	}
+
+	// update item width to accomodate clear code width
+	if(lzd.dcn - 0 >= (1 << lzd.bw))
+		lzd.bw++;
 
 	// put double clear code into output buffer (Spellcross speciality I think)
 	if(LZputClear())

@@ -328,14 +328,16 @@ wxThread::ExitCode ProcTh::Entry()
 		status.push_back((info.is_transparent)?"transparent":"solid");
 		status.push_back(info.pal_name);
 		status.push_back(info.colors_str);
-		SetStatusCallback(status, &source);
+		SetStatusCallback(status, &source);		
 
+		//m_config.mutex->lock();
 		// encode image
 		int* shadow_color = NULL;
 		if(info.format == "UNITS.FSU")
 			shadow_color = info.shadow_color;
 		SpellGraphicItem gres;
 		gres.Encode(source,info.name,&pal,m_config.dither_randomize,shadow_color,0xFD);
+		//m_config.mutex->unlock();
 
 		// save to file
 		auto save_path = std::filesystem::path(m_config.target_dir).append(info.name).wstring();
@@ -344,7 +346,7 @@ wxThread::ExitCode ProcTh::Entry()
 			// UNITS.FSU sprite
 			auto x_ofs = m_config.x_offset;
 			auto y_ofs = info.y_offset + m_config.y_offset;
-			if(FSU_sprite::SaveSprite(save_path, gres.pixels, gres.x_size, x_ofs, y_ofs, 0xFD))
+			if(FSU_sprite::SaveSprite(save_path, gres.pixels, gres.x_size, x_ofs, y_ofs, 0xFD))			
 			{
 				m_config.mutex->lock();
 				if(!m_config.list->empty())
@@ -408,7 +410,7 @@ void FormGResEncoder::OnThreadEvent(wxThreadEvent& event)
 			{
 				msg += " Encoding of following resources failed:\n";
 				for(auto &item: m_task_failed_list)
-					msg += string_format(" %s\n",item);
+					msg += string_format(" %s\n",item.c_str());
 			}
 			wxMessageBox(msg, "Encoding graphics resources");
 		}
@@ -799,7 +801,8 @@ void FormGResEncoder::OnSaveAllClick(wxCommandEvent& event)
 	params.failed_list = &m_task_failed_list;
 
 	// start processign threads	
-	auto cores = wxThread::GetCPUCount();	
+	auto cores = std::min(wxThread::GetCPUCount(),4);
+	//auto cores = 1;
 	m_threads.clear();
 	m_thread_active = 0;
 	for(int k = 0; k < cores; k++)
