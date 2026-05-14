@@ -561,7 +561,7 @@ int FSUarchive::LoadResource(uint8_t *data, int rid, FSU_resource *res, LZWexpan
 		// make list of standing sprites, one for each azimuth		
 		res->stat.lists[0].resize(res->stat.azimuths);
 		for(int k = 0; k < res->stat.azimuths; k++)
-			res->stat.lists[0][k] = &res->list[k];
+			res->stat.lists[0][k] = &res->list[i + k];
 		// make default fire azimuths
 		res->stat.fire_origin[0].assign(res->stat.azimuths,{0,0});
 		

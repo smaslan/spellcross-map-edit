@@ -1148,12 +1148,15 @@ int SpellData::LoadAuxGraphics(FSarchive *fs,std::function<void(std::string)> st
 		{"GU_LISTA.LZ", "MAP", SpellGrpParams::GrpType::RAW, 145, false}, // war map unit selection sub-panel
 		{"LEV_GFK.LZ", "MAP", SpellGrpParams::GrpType::RAW, 9, false}, // experience mark
 		{"M_*.LZ", "MAP", SpellGrpParams::GrpType::RAW, 340, false}, // war map end message
+		{"RAD??.LZ", "MAP", SpellGrpParams::GrpType::RAW, 78, false}, // war radar		
 		{"MAINMENU.LZ", "MAINMENU.PAL", SpellGrpParams::GrpType::RAW, 640, true}, // main menu background
 		{"MAINM_*.LZ", "MAINMENU.PAL", SpellGrpParams::GrpType::RAW, 255, true}, // main menu element highlighted
 		{"MAINMD*.LZ", "MAINMENU.PAL", SpellGrpParams::GrpType::RAW, 255, true}, // main menu element grayed
 		{"MM_LOAD.LZ", "MAINMENU.PAL", SpellGrpParams::GrpType::RAW, 402, false}, // loader frame
 		{"DIFFIC.LZ", "MAINMENU.PAL", SpellGrpParams::GrpType::RAW, 249, false}, // difficulty frame
 		{"DIFF??.LZ", "MAINMENU.PAL", SpellGrpParams::GrpType::RAW, 200, false}, // difficulty options
+		{"TUTMNU.LZ", "MAINMENU.PAL", SpellGrpParams::GrpType::RAW, 250, false}, // tutorial panel
+		{"T0*.LZ", "MAINMENU.PAL", SpellGrpParams::GrpType::RAW, 200, false}, // tutorial options
 		{"LOGO0001.LZ", "", SpellGrpParams::GrpType::RAW, 640, true}, // logo
 		{"NO_CD.LZ", "", SpellGrpParams::GrpType::RAW, 640, true}, // no cd splash
 		{"JRC_LOGO.LZ", "", SpellGrpParams::GrpType::RAW, 640, true}, // JRC logo splash
