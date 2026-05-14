@@ -63,6 +63,7 @@ public:
 	
 	SpellGraphics();
 	~SpellGraphics();
+	void Clear();
 	int AddRaw(uint8_t *data, int dlen, int x_size, int y_size, const char *name,SpellPalette *pal,int is_solid=false);
 	int AddICO(uint8_t* data,int dlen,const char* name,SpellPalette* pal,bool is_solid=true);
 	int AddCUR(uint8_t* data,int dlen,const char* name,SpellPalette* pal);

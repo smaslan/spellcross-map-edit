@@ -17,7 +17,7 @@
 
 ///////////////////////////////////////////////////////////////////////////
 
-FormLoader::FormLoader(wxWindow* parent,SpellData *&spell_data, wstring config_path, wxWindowID id, const wxString& title, const wxPoint& pos, const wxSize& size, long style ) : wxDialog( parent, id, title, pos, size, style )
+FormLoader::FormLoader(wxWindow* parent,SpellData *&spell_data, SpellConfig &cfg, wxWindowID id, const wxString& title, const wxPoint& pos, const wxSize& size, long style ) : wxDialog( parent, id, title, pos, size, style )
 {
 	// === AUTO GENERATER START ===
 	
@@ -50,8 +50,9 @@ FormLoader::FormLoader(wxWindow* parent,SpellData *&spell_data, wstring config_p
 	
 	// === AUTO GENERATER END ===
 
-	Bind(wxEVT_TEXT,&FormLoader::OnRefreshItem,this,wxID_TXT_ITEM);
-	Bind(wxEVT_TEXT,&FormLoader::OnRefreshList,this,wxID_TXT_LIST);
+	Bind(wxEVT_THREAD,&FormLoader::OnRefreshItem,this,wxID_TXT_ITEM);
+	Bind(wxEVT_THREAD,&FormLoader::OnRefreshList,this,wxID_TXT_LIST);
+	Bind(wxEVT_THREAD,&FormLoader::OnLoaderExit,this,wxID_TH_EXIT);
 	Bind(wxEVT_COMMAND_BUTTON_CLICKED,&FormLoader::OnExitClick,this,wxID_BTN_OK);
 	Bind(wxEVT_CLOSE_WINDOW,&FormLoader::OnClose,this);
 
@@ -59,8 +60,9 @@ FormLoader::FormLoader(wxWindow* parent,SpellData *&spell_data, wstring config_p
 	btnOK->Enable(false);
 
 	// initiate loader in its own thread
-	loader = new std::thread(&FormLoader::Loader,this,config_path,std::ref(spell_data));
-	
+	m_failed = false;
+	m_exit_msg = "";
+	loader = new std::thread(&FormLoader::Loader,this,this,std::ref(cfg),std::ref(spell_data));	
 }
 
 FormLoader::~FormLoader()
@@ -74,11 +76,8 @@ void FormLoader::OnClose(wxCloseEvent& ev)
 	loader->join();
 	delete loader;
 
-	// passed?
-	bool ok = !ev.GetEventObject();
-
 	// return state
-	EndModal(ok);
+	EndModal(m_failed);
 }
 
 // manual panel close click
@@ -87,67 +86,53 @@ void FormLoader::OnExitClick(wxCommandEvent &event)
 	Close();
 }
 
+// fetch exit error message
+std::string FormLoader::GetExitMessage()
+{
+	return(m_exit_msg);
+}
+
 
 // -------------------------------------------------------------------------------------------------
 // Data loader thread
 // -------------------------------------------------------------------------------------------------
-void FormLoader::Loader(std::wstring config_path,SpellData* &spell_data)
+void FormLoader::Loader(wxWindow *parent,SpellConfig &cfg,SpellData* &spell_data)
 {
-	spell_data = NULL;
-	
-	// try load config.ini
-	CSimpleIniA ini;
-	ini.SetUnicode();
-	if(ini.LoadFile(config_path.c_str()) != SI_OK)
-	{
-		UpdateList("Loading INI filed faild!");
-		LoaderExit(true);
-		return;
-	}
-
 	// get exec path
-	std::wstring exe_path = GetExecutableDir();
+	auto exe_path = GetExecutableDir();
 
-	// spellcross data root path
-	wstring spelldata_path = char2wstring(ini.GetValue("SPELCROS","spell_path",""));
-	// spellcross data root path
-	wstring spellcd_path = char2wstring(ini.GetValue("SPELCROS","spellcd_path",""));
 	// special data folder
-	wstring spec_folder = std::filesystem::path(exe_path) / std::filesystem::path(char2wstring(ini.GetValue("DATA","spec_data_path","")));
+	auto spec_folder = exe_path / cfg.spec_data_path;
 	// units aux data path
-	wstring units_aux_data_path = std::filesystem::path(exe_path) / std::filesystem::path(char2wstring(ini.GetValue("DATA","units_aux_data_path","")));
+	auto units_aux_data_path = exe_path / cfg.units_aux_data_path;
 
 	// try load spellcross data
-	try{
-		spell_data = new SpellData(spelldata_path,spellcd_path,spec_folder,bind(&FormLoader::UpdateList,this,placeholders::_1),bind(&FormLoader::UpdateItem,this,placeholders::_1));
-	}catch(const runtime_error& error){
-		UpdateList(std::string(error.what()));
-		LoaderExit(true);
+	if(spell_data->Reload(cfg.spell_path,cfg.spell_cd_path,cfg.spell_mod_path,spec_folder,bind(&FormLoader::UpdateList,this,placeholders::_1),bind(&FormLoader::UpdateItem,this,placeholders::_1)))
+	{
+		UpdateList(spell_data->GetLastError());
+		LoaderExit(true,spell_data->GetLastError());
 		return;
 	}
-	
+		
 	// try load units.fsu aux metadata
 	UpdateList("Loading units aux data...");
 	if(spell_data->units_fsu->LoadAuxData(units_aux_data_path))
 	{
-		delete spell_data;
-		spell_data = NULL;
+		spell_data->Cleanup();		
 		UpdateList(string_format(" - failed loading units aux data from ''%ls''!",units_aux_data_path.c_str()));
-		LoaderExit(true);
+		LoaderExit(true,string_format("Failed loading units aux data from ''%ls''!",units_aux_data_path.c_str()));
 		return;
 	}
-
+	
 	// for each terrain load tile context
 	UpdateList("Loading terrain context data...");
 	for(auto & terr : spell_data->terrain)
 	{
 		UpdateList(string_format(" - loading ''%s''...",terr->name.c_str()));
-
-		// make INI section
-		string sec_name = "TERRAIN::" + terr->name;
-
-		// try to load context
-		wstring cont_path = std::filesystem::path(exe_path) / std::filesystem::path(char2wstring(ini.GetValue(sec_name.c_str(),"context_path","")));
+		auto terr_id = cfg.context_path.find(terr->name);		
+		if(terr_id == cfg.context_path.end())
+			continue;		
+		std::filesystem::path cont_path = exe_path / terr_id->second;
 		if(terr->InitSpriteContext(cont_path))
 		{
 			UpdateList(string_format("   - context ''%ls'' not found...",cont_path.c_str()));
@@ -161,52 +146,54 @@ void FormLoader::Loader(std::wstring config_path,SpellData* &spell_data)
 }
 
 // end loader
-void FormLoader::LoaderExit(bool hold)
+void FormLoader::LoaderExit(bool hold,std::string message)
 {	
-	// show manual exit button
-	btnOK->Enable(true);	
-	SetWindowStyle(GetWindowStyle() | wxCLOSE_BOX);
-	
-	// optional auto-exit command?
-	if(!hold)
-	{
-		wxCommandEvent* evt = new wxCommandEvent(wxEVT_CLOSE_WINDOW);
-		wxQueueEvent(this,evt);
-	}
+	auto evt = new wxThreadEvent(wxEVT_THREAD,wxID_TH_EXIT);
+	evt->SetInt(hold);
+	evt->SetString(message);
+	this->QueueEvent(evt);		
 }
+// end loader event
+void FormLoader::OnLoaderExit(wxThreadEvent& event)
+{	
+	m_exit_msg = event.GetString();
+	m_failed = event.GetInt();
+
+	// show manual exit button
+	btnOK->Enable(true);
+	SetWindowStyle(GetWindowStyle() | wxCLOSE_BOX);
+
+	// optional auto-exit command?
+	if(!m_failed)
+		Close();
+}
+
 
 // update actual item info
 void FormLoader::UpdateItem(std::string text)
 {
-	wxCommandEvent* evt = new wxCommandEvent(wxEVT_TEXT);
-	evt->SetId(wxID_TXT_ITEM);
-	evt->SetClientData(new std::string(text));
-	wxQueueEvent(this,evt);
+	auto evt = new wxThreadEvent(wxEVT_THREAD,wxID_TXT_ITEM);
+	evt->SetString(text);
+	this->QueueEvent(evt);
 }
-
 // update progress list
 void FormLoader::UpdateList(std::string text)
 {
-	wxCommandEvent* evt = new wxCommandEvent(wxEVT_TEXT);
-	evt->SetId(wxID_TXT_LIST);
-	evt->SetClientData(new std::string(text));
-	wxQueueEvent(this,evt);
+	auto evt = new wxThreadEvent(wxEVT_THREAD,wxID_TXT_LIST);
+	evt->SetString(text);
+	this->QueueEvent(evt);
 }
-
 
 // on progress/item update
-void FormLoader::OnRefreshItem(wxCommandEvent& event)
+void FormLoader::OnRefreshItem(wxThreadEvent& event)
 {
-	auto *str = (std::string*)event.GetClientData();
-	txtItem->ChangeValue(*str);
-	delete str;
+	auto str = event.GetString();
+	txtItem->ChangeValue(str);
 }
-void FormLoader::OnRefreshList(wxCommandEvent& event)
+void FormLoader::OnRefreshList(wxThreadEvent& event)
 {
-	auto* str = (std::string*)event.GetClientData();
-	txtList->ChangeValue(txtList->GetValue() + *str + "\n");
-	txtList->ShowPosition(txtList->GetLastPosition());
-	delete str;
+	auto str = event.GetString() + "\n";	
+	txtList->AppendText(str);
 }
 
 

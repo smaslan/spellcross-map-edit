@@ -40,6 +40,7 @@
 #include <wx/notebook.h>
 #include <wx/radiobut.h>
 #include <wx/scrolbar.h>
+#include <wx/bmpbuttn.h>
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -1146,6 +1147,48 @@ class FormText : public wxFrame
 		FormText( wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = wxT("Text resource viewer"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 1300,700 ), long style = wxDEFAULT_FRAME_STYLE|wxTAB_TRAVERSAL );
 
 		~FormText();
+
+};
+
+///////////////////////////////////////////////////////////////////////////////
+/// Class FormConfig
+///////////////////////////////////////////////////////////////////////////////
+class FormConfig : public wxDialog
+{
+	private:
+
+	protected:
+		enum
+		{
+			wxID_CH_SPELL_PATH = 5999,
+			wxID_BTN_SPELL_PATH,
+			wxID_CH_SPELLCD_PATH,
+			wxID_BTN_SPELLCD_PATH,
+			wxID_CH_MOD_PATH,
+			wxID_BTN_MOD_PATH,
+			wxID_HIDE_MAP_LOAD_WARN,
+			wxID_BTN_OK,
+		};
+
+		wxStaticText* m_staticText119;
+		wxChoice* chSpellPath;
+		wxBitmapButton* btnSpellPath;
+		wxStaticText* m_staticText120;
+		wxChoice* chSpellcdPath;
+		wxBitmapButton* btnSpellcdPath;
+		wxStaticText* m_staticText121;
+		wxChoice* chModPath;
+		wxBitmapButton* btnModPath;
+		wxStaticLine* m_staticline43;
+		wxCheckBox* cbHideMapLoadWarnings;
+		wxStaticLine* m_staticline44;
+		wxButton* btnOK;
+
+	public:
+
+		FormConfig( wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = wxT("Configuration"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 830,305 ), long style = wxDEFAULT_DIALOG_STYLE|wxSTAY_ON_TOP );
+
+		~FormConfig();
 
 };
 

@@ -247,6 +247,19 @@ bool iequals(const std::string& a,const std::string& b)
         });*/
 }
 
+// compare strings case insensitive
+bool iequals(const std::wstring& a,const std::wstring& b)
+{
+    return(_wcsicmp(a.c_str(),b.c_str()) == 0);
+
+    // ###: this was incredibly slow! at leas in debug mode...
+    /*return std::equal(a.begin(),a.end(),
+        b.begin(),b.end(),
+        [](char a,char b) {
+            return std::tolower(a) == std::tolower(b);
+        });*/
+}
+
 // checks string for duplicates in the list, modify it to not be duplicate, like e.g. "my string 1" to "my string 2", etc.
 std::string fix_no_duplicate_string(std::string str, std::vector<std::string> &list)
 {

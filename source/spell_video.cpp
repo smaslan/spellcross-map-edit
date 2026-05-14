@@ -19,7 +19,7 @@
 // ------------------------------------------------------------------------------------------------
 
 // search all available videos
-SpellVideoResources::SpellVideoResources(std::vector<std::wstring> folders)
+SpellVideoResources::SpellVideoResources(std::vector<std::filesystem::path> folders)
 {	
 	// make list of all possible source archives
 	std::vector<std::filesystem::path> archives;

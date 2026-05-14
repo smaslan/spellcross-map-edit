@@ -203,9 +203,14 @@ public:
 	SpellPalette *GetPalette(std::string name);
 	uint8_t* GetPaletteData(std::string name);	
 	
-
-	SpellData(wstring& data_path,wstring& cd_data_path,wstring& spec_path,std::function<void(std::string)> status_list=NULL,std::function<void(std::string)> status_item=NULL);
-	~SpellData();	
+	static int FindArchive(std::vector<std::filesystem::path>& paths,std::string name,std::filesystem::path& arch_path,std::filesystem::path* dir_path=NULL,bool optional=false,std::string* error_msg=NULL);
+	
+	SpellData();
+	SpellData(std::filesystem::path& data_path,std::filesystem::path& cd_data_path,std::filesystem::path& mod_path,std::filesystem::path& spec_path,std::function<void(std::string)> status_list=NULL,std::function<void(std::string)> status_item=NULL);
+	int Reload(std::filesystem::path& data_path,std::filesystem::path& cd_data_path,std::filesystem::path& mod_path,std::filesystem::path& spec_path,std::function<void(std::string)> status_list=NULL,std::function<void(std::string)> status_item=NULL);
+	void Cleanup();
+	~SpellData();
+	std::string GetLastError();
 	Terrain* GetTerrain(const char* name);
 	Terrain* GetTerrain(int index);
 	int GetTerrainCount();

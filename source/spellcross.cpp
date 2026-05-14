@@ -308,7 +308,42 @@ string &SpellStringTable::GetRaw()
 // class SpellData
 //=============================================================================
 
-SpellData::SpellData(wstring &data_path,wstring& cd_data_path,wstring& spec_path,std::function<void(std::string)> status_list,std::function<void(std::string)> status_item)
+int SpellData::FindArchive(std::vector<std::filesystem::path> &paths, std::string name, std::filesystem::path &arch_path, std::filesystem::path *dir_path, bool optional, std::string *error_msg)
+{
+	if(error_msg)
+		error_msg->clear();
+	if(dir_path)
+		dir_path->clear();
+	arch_path.clear();
+
+	for(auto &dir: paths)
+	{
+		if(dir.empty())
+			continue;
+		auto path = dir / name;
+		if(!std::filesystem::exists(path))
+			continue;
+		// found
+		if(dir_path)
+			*dir_path = dir;
+		arch_path = path;
+		return(0);
+	}
+	// not found
+	if(optional)
+		return(-1);
+	if(!error_msg)
+		return(1);
+	// build error message
+	*error_msg = string_format("Non-optional game archive \"%s\" not found at any of paths:\n",name.c_str());
+	for(auto &dir: paths)
+		if(!dir.empty())
+			*error_msg += string_format("  %ls\n",dir.wstring().c_str());
+	return(1);
+}
+
+// make empty Spellcross data
+SpellData::SpellData()
 {
 	last_error = "";
 	font = NULL;
@@ -320,10 +355,25 @@ SpellData::SpellData(wstring &data_path,wstring& cd_data_path,wstring& spec_path
 	texts = NULL;
 	research_texts = NULL;
 	L2_classes = NULL;
-	unit_bonuses = NULL;		
+	unit_bonuses = NULL;
 	common_fs = NULL;
 	terrain_fs = NULL;
 	videos = NULL;
+}
+
+// make with loading Spellcross data 
+SpellData::SpellData(std::filesystem::path& data_path,std::filesystem::path& cd_data_path,std::filesystem::path& mod_path,std::filesystem::path& spec_path,std::function<void(std::string)> status_list,std::function<void(std::string)> status_item)
+{
+	SpellData();
+	if(Reload(data_path,cd_data_path,mod_path,spec_path,status_list,status_item))
+		throw runtime_error(last_error);
+}
+
+// load or reaload Spellcross data
+int SpellData::Reload(std::filesystem::path &data_path,std::filesystem::path& cd_data_path,std::filesystem::path &mod_path,std::filesystem::path& spec_path,std::function<void(std::string)> status_list,std::function<void(std::string)> status_item)
+{
+	// cleanup old data
+	Cleanup();
 
 	// store data paths for dynamic loading
 	this->data_path = data_path;
@@ -334,32 +384,54 @@ SpellData::SpellData(wstring &data_path,wstring& cd_data_path,wstring& spec_path
 	
 	// store path
 	spell_data_root = data_path;
+
+	// list of FS/FSU data search folders in order by priority
+	std::vector<std::filesystem::path> fs_search_paths = {mod_path, data_path, cd_data_path};
+
+	std::filesystem::path arch_path;
+	std::string err_msg;
 		
 	// load COMMON.FS
 	if(status_list)
 		status_list("Loading COMMON.FS archive...");	
-	wstring common_path = std::filesystem::path(data_path) / std::filesystem::path("COMMON.FS");
-	try{
-		common_fs = new FSarchive(common_path,FSarchive::Options::DELZ_ALL);
-	}catch(const runtime_error& error){
-		this->~SpellData();
+	if(FindArchive(fs_search_paths, "COMMON.FS",arch_path, NULL, false, &err_msg))
+	{
+		Cleanup();
 		if(status_list)
 			status_list(" - failed!");
-		throw runtime_error(string_format("Loading COMMON.FS archive failed (%s)!",error.what()));
+		last_error = err_msg;
+		return(1);
+	}
+	try{
+		common_fs = new FSarchive(arch_path,FSarchive::Options::DELZ_ALL);
+	}catch(const runtime_error& error){
+		Cleanup();
+		if(status_list)
+			status_list(" - failed!");
+		last_error = string_format("Loading COMMON.FS archive failed (%s)!",error.what());
+		return(1);
 	}
 
 	// load INFO.FS (units art)
 	if(status_list)
 		status_list("Loading INFO.FS archive...");
-	wstring info_path = std::filesystem::path(cd_data_path) / std::filesystem::path("INFO.FS");
-	try {
-		info_fs = new FSarchive(info_path,FSarchive::Options::DELZ_ALL);
-	}
-	catch(const runtime_error& error) {
-		this->~SpellData();
+	if(FindArchive(fs_search_paths,"INFO.FS",arch_path,NULL,false,&err_msg))
+	{
+		Cleanup();
 		if(status_list)
 			status_list(" - failed!");
-		throw runtime_error(string_format("Decoding INFO.FS failed (%s)!",error.what()));
+		last_error = err_msg;
+		return(1);
+	}
+	try {
+		info_fs = new FSarchive(arch_path,FSarchive::Options::DELZ_ALL);
+	}
+	catch(const runtime_error& error) {
+		Cleanup();
+		if(status_list)
+			status_list(" - failed!");
+		last_error = string_format("Decoding INFO.FS failed (%s)!",error.what());
+		return(1);
 	}
 		
 	// load sound stuff
@@ -368,23 +440,24 @@ SpellData::SpellData(wstring &data_path,wstring& cd_data_path,wstring& spec_path
 	try{
 		sounds = new SpellSounds(common_fs,data_path,16,status_list,status_item);
 	}catch(const runtime_error& error) {
-		this->~SpellData();
+		Cleanup();
 		if(status_list)
 			status_list(" - failed!");
-		throw runtime_error(string_format("Loading sound samples filed (%s)!",error.what()));
+		last_error = string_format("Loading sound samples filed (%s)!",error.what());
+		return(1);
 	}
 
 	// load MIDI stuff
 	if(status_list)
-		status_list("Loading MIDI files...");
-	try {
-		midi = new SpellMIDI(data_path,true,status_list,status_item);
-	}
-	catch(const runtime_error& error) {
-		this->~SpellData();
+		status_list("Loading MIDI files...");			
+	try {		
+		midi = new SpellMIDI(fs_search_paths,true,status_list,status_item);
+	}catch(const runtime_error& error) {
+		Cleanup();
 		if(status_list)
 			status_list(" - failed!");
-		throw runtime_error(string_format("Loading MIDI files (%s)!",error.what()));
+		last_error = string_format("Loading MIDI files failed:\n%s",error.what());
+		return(1);
 	}
 	
 	// load L2 object classes stuff
@@ -393,10 +466,11 @@ SpellData::SpellData(wstring &data_path,wstring& cd_data_path,wstring& spec_path
 	try{
 		L2_classes = new SpellL2classes(common_fs,sounds,status_list,status_item);
 	}catch(const runtime_error& error) {
-		this->~SpellData();
+		Cleanup();
 		if(status_list)
 			status_list(" - failed!");
-		throw runtime_error(string_format("Loading destructible object classes failed (%s)!",error.what()));
+		last_error = string_format("Loading destructible object classes failed (%s)!",error.what());
+		return(1);
 	}
 
 	// load unit bonuses BONUSES.DEF
@@ -406,10 +480,11 @@ SpellData::SpellData(wstring &data_path,wstring& cd_data_path,wstring& spec_path
 		string bonus_def = common_fs->GetFile("BONUSES.DEF");
 		unit_bonuses = new UnitBonuses(bonus_def);
 	}catch(const runtime_error& error) {
-		this->~SpellData();
+		Cleanup();
 		if(status_list)
 			status_list(" - failed!");
-		throw runtime_error(string_format("Loading unit bonuses failed (%s)!",error.what()));
+		last_error = string_format("Loading unit bonuses failed (%s)!",error.what());
+		return(1);
 	}
 	
 	// load palette chunks
@@ -418,10 +493,11 @@ SpellData::SpellData(wstring &data_path,wstring& cd_data_path,wstring& spec_path
 	if(LoadPalettes(common_fs,info_fs))
 	{
 		auto msg = last_error;
-		this->~SpellData();
+		Cleanup();
 		if(status_list)
 			status_list(string_format(" - failed with message: %s",msg.c_str()));
-		throw runtime_error(string_format("missing palette file(s) in COMMON.FS: %s",msg.c_str()));
+		last_error = string_format("missing palette file(s) in COMMON.FS: %s",msg.c_str());
+		return(1);
 	}
 
 	// load generic graphic resources
@@ -430,10 +506,11 @@ SpellData::SpellData(wstring &data_path,wstring& cd_data_path,wstring& spec_path
 	if(LoadAuxGraphics(common_fs,status_item))
 	{
 		auto msg = last_error;
-		this->~SpellData();
+		Cleanup();
 		if(status_list)
 			status_list(string_format(" - failed with message: %s",msg.c_str()));
-		throw runtime_error(string_format("Loading common graphics resources failed with message: %s",msg.c_str()));
+		last_error = string_format("Loading common graphics resources failed with message: %s",msg.c_str());
+		return(1);
 	}
 
 	// load info graphics resources
@@ -442,10 +519,11 @@ SpellData::SpellData(wstring &data_path,wstring& cd_data_path,wstring& spec_path
 	if(LoadInfoGraphics(info_fs,status_item))
 	{
 		auto msg = last_error;
-		this->~SpellData();
+		Cleanup();
 		if(status_list)
 			status_list(string_format(" - failed with message: %s",msg.c_str()));
-		throw runtime_error(string_format("Loading info graphics resources failed with message: %s",msg.c_str()));
+		last_error = string_format("Loading info graphics resources failed with message: %s",msg.c_str());
+		return(1);
 	}
 	
 	// load terrains
@@ -457,20 +535,28 @@ SpellData::SpellData(wstring &data_path,wstring& cd_data_path,wstring& spec_path
 		// load terrain
 		if(status_list)
 			status_list(string_format(" - loading terrain \"%s\"",name.c_str()));
-
-		// load FS
-		wstring path = std::filesystem::path(data_path) / std::filesystem::path(name);
+		
+		// try load FS archive
+		if(FindArchive(fs_search_paths,name,arch_path,NULL,false,&err_msg))
+		{
+			Cleanup();
+			if(status_list)
+				status_list(" - failed!");
+			last_error = err_msg;
+			return(1);
+		}
 		try{
-			terrain_fs = new FSarchive(path);
+			terrain_fs = new FSarchive(arch_path);
 		}catch(const runtime_error& error) {
-			this->~SpellData();
+			Cleanup();
 			if(status_list)
 				status_list("   - failed!");
-			throw runtime_error(string_format("Loading \"%ls\" archive failed (%s)!",path,error.what()));
+			last_error = string_format("Loading \"%ls\" archive failed:\n%s",arch_path,error.what());
+			return(1);
 		}
 
 		// try load aux FS data
-		wstring aux_path = std::filesystem::path(spec_path) / std::filesystem::path(name);
+		auto aux_path = std::filesystem::path(spec_path) / std::filesystem::path(name);
 		try{			
 			terrain_fs->Append(aux_path);
 		}catch(...){
@@ -481,10 +567,11 @@ SpellData::SpellData(wstring &data_path,wstring& cd_data_path,wstring& spec_path
 		Terrain* new_terrain = new Terrain();
 		if(new_terrain->Load(terrain_fs, map_pal, &gres, L2_classes, status_item))
 		{
-			this->~SpellData();
+			Cleanup();
 			if(status_list)
 				status_list(" - failed!");
-			throw runtime_error(string_format("Loading terrain \"%s\" failed!",name.c_str()));
+			last_error = string_format("Loading terrain \"%s\" failed!",name.c_str());
+			return(1);
 		}
 
 		// loose FS data
@@ -499,14 +586,22 @@ SpellData::SpellData(wstring &data_path,wstring& cd_data_path,wstring& spec_path
 	// load FSU data
 	if(status_list)
 		status_list("Loading units graphics data (UNITS.FSU)...");
-	wstring fsu_path = std::filesystem::path(data_path) / std::filesystem::path("UNITS.FSU");
-	try{
-		units_fsu = new FSUarchive(fsu_path, FSUarchive::Options::NONE, status_item);
-	}catch(const runtime_error& error) {
-		this->~SpellData();
+	if(FindArchive(fs_search_paths,"UNITS.FSU",arch_path,NULL,false,&err_msg))
+	{
+		Cleanup();
 		if(status_list)
 			status_list(" - failed!");
-		throw runtime_error(string_format("Loading UNITS.FSU units graphics failed (%s)!",error.what()));
+		last_error = err_msg;
+		return(1);
+	}
+	try{
+		units_fsu = new FSUarchive(arch_path, FSUarchive::Options::NONE, status_item);
+	}catch(const runtime_error& error) {
+		Cleanup();
+		if(status_list)
+			status_list(" - failed!");
+		last_error = string_format("Loading UNITS.FSU units graphics failed (%s)!",error.what());
+		return(1);
 	}	
 	
 
@@ -515,18 +610,20 @@ SpellData::SpellData(wstring &data_path,wstring& cd_data_path,wstring& spec_path
 		status_list("Loading units definitions (JEDNOTKY.DEF)...");
 	if(common_fs->GetFile("JEDNOTKY.DEF", &data, &size))
 	{		
-		this->~SpellData();
+		Cleanup();
 		if(status_list)
 			status_list(" - loading failed!");
-		throw runtime_error("JEDNOTKY.DEF not found in COMMON.FS!");
+		last_error = "JEDNOTKY.DEF not found in COMMON.FS!";
+		return(1);
 	}
 	try{
 		units = new SpellUnits(data, size, units_fsu, info_fs, &gres, &gres_info, sounds, unit_bonuses);
 	}catch(const runtime_error& error) {
-		this->~SpellData();
+		Cleanup();
 		if(status_list)
 			status_list(" - decoding failed!");
-		throw runtime_error(string_format("Decoding JEDNOTKY.DEF failed (%s)!",error.what()));
+		last_error = string_format("Decoding JEDNOTKY.DEF failed (%s)!",error.what());
+		return(1);
 	}
 
 	// load font file
@@ -535,18 +632,20 @@ SpellData::SpellData(wstring &data_path,wstring& cd_data_path,wstring& spec_path
 	if(common_fs->GetFile("FONT_001.FNT",&data,&size))
 	{
 		// failed
-		this->~SpellData();
+		Cleanup();
 		if(status_list)
 			status_list(" - loading main spellcross font file failed!");
-		throw std::exception("Font file FONT_001.FNT not found in FS archive!");
+		last_error = "Font file FONT_001.FNT not found in FS archive!";
+		return(1);
 	}
 	try{
 		font = new SpellFont(data, size);
 	}catch(const runtime_error& error) {
-		this->~SpellData();
+		Cleanup();
 		if(status_list)
 			status_list(" - failed!");
-		throw runtime_error(string_format("Decoding font file failed (%s)!",error.what()));
+		last_error = string_format("Decoding font file failed (%s)!",error.what());
+		return(1);
 	}
 
 	// close common.fs
@@ -557,31 +656,56 @@ SpellData::SpellData(wstring &data_path,wstring& cd_data_path,wstring& spec_path
 	// load TEXTS.FS
 	if(status_list)
 		status_list("Loading string tables...");
-	wstring texts_path = std::filesystem::path(data_path) / std::filesystem::path("TEXTS.FS");
-	FSarchive* texts_fs = new FSarchive(texts_path);
-	try{
-		texts = new SpellTexts(texts_fs, SpellLang::CZE,SpellTextRec::TextPanel::DEFAULT, sounds); // ###todo: decode language somehow?
-	}catch(const runtime_error& error) {
-		delete texts_fs;
-		this->~SpellData();
+	if(FindArchive(fs_search_paths,"TEXTS.FS",arch_path,NULL,false,&err_msg))
+	{
+		Cleanup();
 		if(status_list)
 			status_list(" - failed!");
-		throw runtime_error(string_format("Decoding string tables failed (%s)!",error.what()));
+		last_error = err_msg;
+		return(1);
+	}	
+	try{
+		auto texts_fs = new FSarchive(arch_path);
+		texts = new SpellTexts(texts_fs, SpellLang::CZE,SpellTextRec::TextPanel::DEFAULT, sounds); // ###todo: decode language somehow?
+		delete texts_fs;
+	}catch(const runtime_error& error) {		
+		Cleanup();
+		if(status_list)
+			status_list(" - failed!");
+		last_error = string_format("Decoding string tables failed (%s)!",error.what());
+		return(1);
 	}
-	delete texts_fs;
 
 	// load RESEARCH.FS
 	if(status_list)
 		status_list("Loading research...");
-	wstring research_path = std::filesystem::path(data_path) / std::filesystem::path("RESEARCH.FS");
-	FSarchive* rsch_fs = new FSarchive(research_path);
+	//wstring research_path = std::filesystem::path(data_path) / std::filesystem::path("RESEARCH.FS");
+	if(FindArchive(fs_search_paths,"RESEARCH.FS",arch_path,NULL,false,&err_msg))
+	{
+		Cleanup();
+		if(status_list)
+			status_list(" - failed!");
+		last_error = err_msg;
+		return(1);
+	}
+	FSarchive* rsch_fs;
+	try{
+		rsch_fs = new FSarchive(arch_path);
+	}catch(const runtime_error& error) {
+		Cleanup();
+		if(status_list)
+			status_list(" - failed!");
+		last_error = string_format("Decoding string tables failed:\n%s!",error.what());
+		return(1);
+	}
 	if(LoadResearch(rsch_fs,status_item))
 	{
 		delete rsch_fs;
-		this->~SpellData();
+		Cleanup();
 		if(status_list)
 			status_list(" - failed!");
-		throw runtime_error(string_format("Loading research string failed!"));
+		last_error = string_format("Loading research string failed!");
+		return(1);
 	}
 	delete rsch_fs;
 		
@@ -591,10 +715,11 @@ SpellData::SpellData(wstring &data_path,wstring& cd_data_path,wstring& spec_path
 		status_list("Loading special tiles (selection, etc.)...");
 	if(GenerateSpecialTiles())
 	{
-		this->~SpellData();
+		Cleanup();
 		if(status_list)
 			status_list(" - failed!");
-		throw runtime_error("Loading special selection tiles failed!");
+		last_error = "Loading special selection tiles failed!";
+		return(1);
 	}
 
 	// load aux 7pix font
@@ -604,10 +729,11 @@ SpellData::SpellData(wstring &data_path,wstring& cd_data_path,wstring& spec_path
 	try{
 		font7 = new SpellFont(font7_path);
 	}catch(const runtime_error& error) {
-		this->~SpellData();
+		Cleanup();
 		if(status_list)
 			status_list(" - failed!");
-		throw runtime_error(string_format("Failed loading aux font ''%ls'' (%s)!",font7_path.c_str(),error.what()));
+		last_error = string_format("Failed loading aux font ''%ls'' (%s)!",font7_path.c_str(),error.what());
+		return(1);
 	}
 
 	// load aux 14pix font and merge it to spellcross font
@@ -618,10 +744,11 @@ SpellData::SpellData(wstring &data_path,wstring& cd_data_path,wstring& spec_path
 		SpellFont font14_aux(font14_path);
 		font->Merge(font14_aux);
 	}catch(const runtime_error& error) {
-		this->~SpellData();
+		Cleanup();
 		if(status_list)
 			status_list(" - failed!");
-		throw runtime_error(string_format("Failed loading aux font ''%ls'' (%s)!",font14_path.c_str(),error.what()));
+		last_error = string_format("Failed loading aux font ''%ls'' (%s)!",font14_path.c_str(),error.what());
+		return(1);
 	}
 	
 	// copy some global stuff to terrains
@@ -635,20 +762,24 @@ SpellData::SpellData(wstring &data_path,wstring& cd_data_path,wstring& spec_path
 	if(status_list)
 		status_list("Loading video resources (MOVIE.FS, SPEAKER.FS)...");		
 	try {
-		auto vid_paths ={cd_data_path,data_path};
-		videos = new SpellVideoResources(vid_paths);
-	}
-	catch(const runtime_error& error) {
-		this->~SpellData();
+		videos = new SpellVideoResources(fs_search_paths);
+	}catch(const runtime_error& error) {
+		Cleanup();
 		if(status_list)
 			status_list(" - failed!");
-		throw runtime_error(string_format("Loading video resources from MOVIE.FS and SPEAKER.FS failed (%s)!",error.what()));
+		last_error = string_format("Loading video resources from MOVIE.FS and SPEAKER.FS failed:\n%s",error.what());
+		return(1);
 	}
 	
+	return(0);
 }
 
 // cleanup spellcross data
 SpellData::~SpellData()
+{
+	Cleanup();
+}
+void SpellData::Cleanup()
 {
 	// destroy terrain data
 	for(auto & terr : terrain)
@@ -702,6 +833,13 @@ SpellData::~SpellData()
 	for(auto &pal: pal_list)
 		delete pal;
 	pal_list.clear();
+	gres.Clear();
+}
+
+// check last error message
+std::string SpellData::GetLastError()
+{
+	return(last_error);
 }
 
 // auto build sprite context from all available spellcross maps
@@ -826,7 +964,7 @@ int SpellData::LoadPalettes(FSarchive* fs_common, FSarchive* fs_info)
 	// load CURSOR.PAL palette chunk for maps - ###todo: not sure where to place this
 	/*if(common_fs->GetFile("CURSOR.PAL",&data,&size) || size != 6*3)
 	{
-		this->~SpellData();
+		Cleanup();
 		if(status_list)
 			status_list(" - missing CURSOR.PAL!");
 		throw runtime_error("CURSOR.PAL not found in COMMON.FS!");

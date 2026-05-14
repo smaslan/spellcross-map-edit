@@ -536,7 +536,7 @@ public:
 	};
 	std::vector<SpriteFlag> GetSpriteFlagList();
 		
-	int InitSpriteContext(wstring& path);
+	int InitSpriteContext(std::filesystem::path& path);
 	int SaveSpriteContext(wstring& path);	
 	std::wstring &GetSpriteContextPath();
 	void ClearSpriteContext();

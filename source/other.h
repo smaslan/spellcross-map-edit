@@ -20,6 +20,7 @@ std::string wstring2stringCP895(std::wstring str);
 std::string& toupper(std::string& str);
 std::string string_format(const std::string fmt,...);
 bool iequals(const std::string& a,const std::string& b);
+bool iequals(const std::wstring& a,const std::wstring& b);
 std::string& strrep(std::string& str,std::string key,std::string rep);
 int savestr(std::wstring path,std::string& str);
 int loadstr(std::filesystem::path path,std::string& strbuf);

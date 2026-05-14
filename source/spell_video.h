@@ -26,7 +26,7 @@ private:
     
 public:
 
-    SpellVideoResources(std::vector<std::wstring> folders);
+    SpellVideoResources(std::vector<std::filesystem::path> folders);
     ~SpellVideoResources();
 
     std::vector<std::string> GetNames(std::string wild="*");

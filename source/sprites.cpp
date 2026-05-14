@@ -1944,13 +1944,13 @@ std::vector<Terrain::SpriteFlag> Terrain::GetSpriteFlagList()
 
 
 // initialize sprite tiles context from file (optional)
-int Terrain::InitSpriteContext(wstring &path)
+int Terrain::InitSpriteContext(std::filesystem::path &path)
 {
 	// total sprites count
 	int spr_count = sprites.size();
 	
 	// leave if not path
-	if(!path.length())
+	if(path.empty())
 		return(1);
 	
 	ifstreamext fr(path,ios::in | ios::binary);

@@ -28,21 +28,28 @@ SpellGraphics::SpellGraphics()
 
 SpellGraphics::~SpellGraphics()
 {
-	for(auto &item: items)
+	Clear();
+}
+
+// clead list of resources
+void SpellGraphics::Clear()
+{
+	for(auto& item: items)
 		delete item;
 	items.clear();
-	for(auto & pnm : m_pnms)
+	for(auto& pnm : m_pnms)
 		delete pnm;
 	m_pnms.clear();
 
 	auto curs ={&cur_pointer, &cur_wait, &cur_select, &cur_question, &cur_move, &cur_attack_down, &cur_attack_up, &cur_attack_up_down};
-	for(auto &cur : curs)
+	for(auto& cur : curs)
 		if(*cur)
 		{
-			delete *cur;
+			delete* cur;
 			*cur = NULL;
 		}
 }
+
 
 // load raw bitmap of known size
 int SpellGraphics::AddRaw(uint8_t* data,int dlen,int x_size,int y_size,const char *name,SpellPalette *pal,int is_solid)

@@ -133,7 +133,7 @@ SpellSounds::~SpellSounds()
 }
 
 // load sound stuff from spellcross fs data folder
-SpellSounds::SpellSounds(FSarchive *common_fs, wstring& fs_data_path, int count,std::function<void(std::string)> status_list,std::function<void(std::string)> status_item)
+SpellSounds::SpellSounds(FSarchive *common_fs, std::filesystem::path& fs_data_path, int count,std::function<void(std::string)> status_list,std::function<void(std::string)> status_item)
 {            
     channels = NULL;
     

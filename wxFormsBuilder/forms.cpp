@@ -2776,3 +2776,92 @@ FormText::FormText( wxWindow* parent, wxWindowID id, const wxString& title, cons
 FormText::~FormText()
 {
 }
+
+FormConfig::FormConfig( wxWindow* parent, wxWindowID id, const wxString& title, const wxPoint& pos, const wxSize& size, long style ) : wxDialog( parent, id, title, pos, size, style )
+{
+	this->SetSizeHints( wxDefaultSize, wxDefaultSize );
+
+	wxBoxSizer* bSizer115;
+	bSizer115 = new wxBoxSizer( wxVERTICAL );
+
+	m_staticText119 = new wxStaticText( this, wxID_ANY, wxT("Spellcross installation DATA folder:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText119->Wrap( -1 );
+	bSizer115->Add( m_staticText119, 0, wxTOP|wxRIGHT|wxLEFT, 5 );
+
+	wxBoxSizer* bSizer116;
+	bSizer116 = new wxBoxSizer( wxHORIZONTAL );
+
+	wxArrayString chSpellPathChoices;
+	chSpellPath = new wxChoice( this, wxID_CH_SPELL_PATH, wxDefaultPosition, wxDefaultSize, chSpellPathChoices, 0 );
+	chSpellPath->SetSelection( 0 );
+	bSizer116->Add( chSpellPath, 1, wxRIGHT|wxLEFT, 5 );
+
+	btnSpellPath = new wxBitmapButton( this, wxID_BTN_SPELL_PATH, wxNullBitmap, wxDefaultPosition, wxDefaultSize, wxBU_AUTODRAW|wxBORDER_NONE );
+	bSizer116->Add( btnSpellPath, 0, wxRIGHT|wxLEFT, 5 );
+
+
+	bSizer115->Add( bSizer116, 0, wxEXPAND, 5 );
+
+	m_staticText120 = new wxStaticText( this, wxID_ANY, wxT("Spellcross CD DATA path (leave empty if no CD data available):"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText120->Wrap( -1 );
+	bSizer115->Add( m_staticText120, 0, wxTOP|wxRIGHT|wxLEFT, 5 );
+
+	wxBoxSizer* bSizer1161;
+	bSizer1161 = new wxBoxSizer( wxHORIZONTAL );
+
+	wxArrayString chSpellcdPathChoices;
+	chSpellcdPath = new wxChoice( this, wxID_CH_SPELLCD_PATH, wxDefaultPosition, wxDefaultSize, chSpellcdPathChoices, 0 );
+	chSpellcdPath->SetSelection( 0 );
+	bSizer1161->Add( chSpellcdPath, 1, wxRIGHT|wxLEFT, 5 );
+
+	btnSpellcdPath = new wxBitmapButton( this, wxID_BTN_SPELLCD_PATH, wxNullBitmap, wxDefaultPosition, wxDefaultSize, wxBU_AUTODRAW|wxBORDER_NONE );
+	bSizer1161->Add( btnSpellcdPath, 0, wxRIGHT|wxLEFT, 5 );
+
+
+	bSizer115->Add( bSizer1161, 0, wxEXPAND, 5 );
+
+	m_staticText121 = new wxStaticText( this, wxID_ANY, wxT("Mod make folder path (optional, priority over above load paths):"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText121->Wrap( -1 );
+	bSizer115->Add( m_staticText121, 0, wxTOP|wxRIGHT|wxLEFT, 5 );
+
+	wxBoxSizer* bSizer11611;
+	bSizer11611 = new wxBoxSizer( wxHORIZONTAL );
+
+	wxArrayString chModPathChoices;
+	chModPath = new wxChoice( this, wxID_CH_MOD_PATH, wxDefaultPosition, wxDefaultSize, chModPathChoices, 0 );
+	chModPath->SetSelection( 0 );
+	bSizer11611->Add( chModPath, 1, wxRIGHT|wxLEFT, 5 );
+
+	btnModPath = new wxBitmapButton( this, wxID_BTN_MOD_PATH, wxNullBitmap, wxDefaultPosition, wxDefaultSize, wxBU_AUTODRAW|wxBORDER_NONE );
+	bSizer11611->Add( btnModPath, 0, wxRIGHT|wxLEFT, 5 );
+
+
+	bSizer115->Add( bSizer11611, 0, wxEXPAND|wxBOTTOM, 5 );
+
+	m_staticline43 = new wxStaticLine( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLI_HORIZONTAL );
+	bSizer115->Add( m_staticline43, 0, wxEXPAND | wxALL, 5 );
+
+	cbHideMapLoadWarnings = new wxCheckBox( this, wxID_HIDE_MAP_LOAD_WARN, wxT("Hide map loading warning (missing resources)"), wxDefaultPosition, wxDefaultSize, 0 );
+	bSizer115->Add( cbHideMapLoadWarnings, 0, wxALL, 5 );
+
+
+	bSizer115->Add( 0, 0, 1, wxEXPAND, 5 );
+
+	m_staticline44 = new wxStaticLine( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLI_HORIZONTAL );
+	bSizer115->Add( m_staticline44, 0, wxEXPAND | wxALL, 5 );
+
+	btnOK = new wxButton( this, wxID_BTN_OK, wxT("OK"), wxDefaultPosition, wxDefaultSize, 0 );
+	btnOK->SetMinSize( wxSize( -1,30 ) );
+
+	bSizer115->Add( btnOK, 0, wxALL|wxEXPAND, 5 );
+
+
+	this->SetSizer( bSizer115 );
+	this->Layout();
+
+	this->Centre( wxBOTH );
+}
+
+FormConfig::~FormConfig()
+{
+}

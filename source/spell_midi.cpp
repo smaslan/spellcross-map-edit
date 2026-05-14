@@ -9,6 +9,7 @@
 //#define _HAS_STD_BYTE 0
 
 #include "spell_midi.h"
+#include "spellcross.h"
 #include "other.h"
 
 #include <string>
@@ -49,7 +50,7 @@ int SpellMIDIfile::SaveAs(std::wstring path)
 
 
 // init MIDI engine
-SpellMIDI::SpellMIDI(std::wstring& data_path, bool optional, std::function<void(std::string)> status_list, std::function<void(std::string)> status_item)
+SpellMIDI::SpellMIDI(std::vector<std::filesystem::path>& folders, bool optional, std::function<void(std::string)> status_list, std::function<void(std::string)> status_item)
 {
     // try to get first available midi port and open MIDI player
     if(status_list)
@@ -59,13 +60,25 @@ SpellMIDI::SpellMIDI(std::wstring& data_path, bool optional, std::function<void(
     m_player = new cxxmidi::player::PlayerAsync(m_port);
     m_volume = 0.5;
 
+    std::filesystem::path arch_path;
+    std::string err_msg;
+
     // load music.fs (MIDI)
     if(status_list)
         status_list(" - Loading MUSIC.FS...");
+
+    if(SpellData::FindArchive(folders,"MUSIC.FS",arch_path,NULL,optional,&err_msg))
+    {
+        if(status_list)
+            status_list("   - failed!");
+        if(optional)
+            return;
+        throw runtime_error(err_msg);
+    }
+
     FSarchive* music_fs;
-    wstring music_fs_path = std::filesystem::path(data_path) / std::filesystem::path("music.fs");
     try {
-        music_fs = new FSarchive(music_fs_path,FSarchive::Options::DELZ_ALL);
+        music_fs = new FSarchive(arch_path,FSarchive::Options::DELZ_ALL);
     }catch(const runtime_error& error) {
         if(status_list)
             status_list("   - failed!");

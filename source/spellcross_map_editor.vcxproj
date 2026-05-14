@@ -29,6 +29,7 @@
   <ItemGroup>
     <ClCompile Include="forms\form_about.cpp" />
     <ClCompile Include="forms\form_anm.cpp" />
+    <ClCompile Include="forms\form_config.cpp" />
     <ClCompile Include="forms\form_edit_toolset.cpp" />
     <ClCompile Include="forms\form_events.cpp" />
     <ClCompile Include="forms\form_flags.cpp" />
@@ -98,6 +99,7 @@
     <ClInclude Include="cxxmidi\track.hpp" />
     <ClInclude Include="forms\form_about.h" />
     <ClInclude Include="forms\form_anm.h" />
+    <ClInclude Include="forms\form_config.h" />
     <ClInclude Include="forms\form_edit_toolset.h" />
     <ClInclude Include="forms\form_events.h" />
     <ClInclude Include="forms\form_flags.h" />

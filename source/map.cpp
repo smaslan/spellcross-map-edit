@@ -632,6 +632,7 @@ void SpellMap::Close()
 	// remove placeholder resources generated for missing map items
 	if(spelldata)
 		spelldata->texts->RemovePlaceholders();
+	spelldata = NULL;
 
 	// unlock map
 	ResumeUnitRanging(true);
@@ -718,7 +719,7 @@ int SpellMap::Create(SpellData* spelldata, const char *terr_name, int x, int y, 
 }
 
 // Load MAP from file
-int SpellMap::Load(wstring &path, SpellData *spelldata)
+int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 {		
 	last_error = "";
 
@@ -732,13 +733,14 @@ int SpellMap::Load(wstring &path, SpellData *spelldata)
 	// DEF file
 	SpellDEF *def = NULL;
 
-	if (path.rfind(L".DEF") != wstring::npos)
+	if(path.extension() == L".DEF" || path.extension() == L".def")
 	{
 		// --- this is DEF file: parse it ---
 
 		// load DEF file
 		try{
-			def = new SpellDEF(path);
+			auto def_path = path.wstring();
+			def = new SpellDEF(def_path);
 		}catch(const runtime_error& error) {
 			last_error = string_format("Loading map DEF file '%ls' failed!",path.c_str());
 			Close();

@@ -685,7 +685,7 @@ class SpellMap
 		int isGameMode();
 		void Close();
 		int Create(SpellData* spelldata,const char* terr_name,int x,int y,int elev=2);
-		int Load(wstring &path, SpellData* spelldata);
+		int Load(std::filesystem::path path, SpellData* spelldata);
 		int SaveDTA(std::wstring path);
 		int SaveDEF(std::wstring path);
 		int IsLoaded();

@@ -4,6 +4,8 @@
 #include <wx/treectrl.h>
 #include <wx/dialog.h>
 
+#include <filesystem>
+
 class wxListCtrlVirtual : public wxListCtrl {
 private:
 	std::function<wxString(long item)> m_get_item_text_cb;
@@ -90,7 +92,8 @@ public:
 	}
 };
 
-std::wstring GetExecutableDir();
-wxBitmapBundle LoadSVGiconsBundle(const char* resrouce_name);
+std::filesystem::path GetExecutableDir();
+wxBitmapBundle LoadSVGiconsBundle(const char* resource_name);
+int AssignSVGresourceToMenu(wxMenu* frame,int item_id,const char* resource_name);
 
 int RescaleWindowDPI(wxWindow *win);

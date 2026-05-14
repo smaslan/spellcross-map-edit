@@ -39,51 +39,122 @@
 #include "spellcross.h"
 #include "map.h"
 
+// load history of paths from INI
+std::filesystem::path iniLoadPathHist(CSimpleIniA &ini, std::string section, std::string key, std::vector<std::filesystem::path> &list, int count=10)
+{
+    std::filesystem::path main_path;
+    list.clear();
+    for(int k = 0; k < count; k++)
+    {
+        std::string hkey = key;
+        if(k)
+            hkey = string_format("%s<%d>",key.c_str(),k);
+        std::filesystem::path path = char2wstring(ini.GetValue(section.c_str(), hkey.c_str(), ""));
+        if(!k)
+            main_path = path;
+        if(path.empty() || !std::filesystem::exists(path))
+            continue;
+        list.push_back(path);
+    }
+    return(main_path);
+}
 
+// save history of paths to INI
+void iniSavePathHist(CSimpleIniA& ini,std::string section,std::string key,std::vector<std::filesystem::path>& list,std::string comment="",int count=10)
+{
+    std::vector<std::filesystem::path> paths;
+    for(auto &item: list)
+        if(!item.empty() && std::filesystem::exists(item))
+            paths.push_back(item);
 
+    for(int k = 0; k < count; k++)
+    {
+        std::string hkey = key;
+        if(k)
+            hkey = string_format("%s<%d>",key.c_str(),k);
+        std::filesystem::path path = "";
+        if(k < paths.size())
+            path = paths[k];        
+        const char *com = NULL;
+        if(!k)
+            com = comment.c_str();
+        ini.SetValue(section.c_str(), hkey.c_str(),wstring2string(path.wstring()).c_str(),com);
+    }    
+}
+
+// spellcross data loader ui
+int MainFrame::LoadSpellData(wxWindow *parent, SpellConfig &config, SpellData *&spell_data)
+{
+    while(true)
+    {
+        FormLoader form_loader(parent,spell_data,config,ID_LOADER_WIN);
+        if(form_loader.ShowModal())
+        {
+            auto error = form_loader.GetExitMessage();
+
+            // try again with different paths?
+            wxMessageDialog dial(parent,string_format("Loading Spellcross data failed! Loader reports:\n%s\n\nSome data files are missing? Modify search paths?",error.c_str()),"Loading Spellcross data",wxYES_NO | wxYES_DEFAULT |wxICON_ERROR);
+            if(dial.ShowModal() != wxID_YES)
+            {             
+                // failed and no retry
+                return(1);
+            }
+
+            // show config dialogue and try again
+            FormConfig form_config(parent,ID_CONFIG_WIN,&config);
+            form_config.ShowModal();
+            continue;
+        }
+        return(0);
+    }
+}
 
 wxIMPLEMENT_APP(MyApp);
 bool MyApp::OnInit()
 {
     
-    /*for(int len = 10; len < 100000; len++)
-    {    
-        std::vector<uint8_t> raw;
-        raw.resize(len);
-        for(int k = 0; k < len; k++)
-            raw[k] = std::rand() & 0xFF;
-
-        std::vector<uint8_t> lz_data;
-        LZspell lzc(raw.data(),raw.size(),lz_data);
-    
-        LZWexpand lze(100000);
-        auto res = lze.Decode(lz_data.data(),lz_data.data() + lz_data.size());
-
-        if(raw != res)
-            break;
-    }*/
-        
-    
-    
     // for saving PNG file (among other stuff)
     wxInitAllImageHandlers();
-    
+
     // load config.ini
     ini.SetUnicode();
     ini.LoadFile("config.ini");
 
-    // --- try load Spellcross data
-    FormLoader* form_loader = new FormLoader(NULL,spell_data,L"config.ini");
-    bool data_ok = form_loader->ShowModal();
-    delete form_loader;
-    if(!data_ok)
-    {
-        wxMessageBox("Loading Spellcross data failed!\nPossibly incorrect game paths in ''config.ini''?","Error",wxICON_ERROR);
-        return(false);
-    }
+    // spellcross data path
+    m_config.spell_path = iniLoadPathHist(ini, "SPELCROS", "spell_path",m_config.spell_path_hist);
+
+    // spellcross CD data path
+    m_config.spell_cd_path = iniLoadPathHist(ini,"SPELCROS","spellcd_path",m_config.spell_cd_path_hist);
+    
+    // spellcross mod data path
+    m_config.spell_mod_path = iniLoadPathHist(ini,"SPELCROS","mod_path",m_config.spell_mod_path_hist);
 
     // hide warnings when loading maps?
-    bool hide_map_load_warnings = ini.GetBoolValue("STATE","hide_map_load_warnings",false);
+    m_config.hide_map_warnings = ini.GetBoolValue("STATE","hide_map_load_warnings",false);
+
+    // additional program data folder
+    m_config.spec_data_path = char2wstring(ini.GetValue("DATA","spec_data_path",""));
+    
+    // some additional metadata for units.fsu
+    m_config.units_aux_data_path = char2wstring(ini.GetValue("DATA","units_aux_data_path",""));
+
+    // load list of context paths for each terrain
+    std::list<CSimpleIniA::Entry> ini_sec_list;
+    ini.GetAllSections(ini_sec_list);
+    for(auto item: ini_sec_list)
+    {
+        auto tok = regexp_get(item.pItem,"TERRAIN::([^s]+)");
+        if(tok.size() != 1)
+            continue;
+        std::string terrain_section = "TERRAIN::" + tok[0];
+        std::filesystem::path cont_path = char2wstring(ini.GetValue(terrain_section.c_str(), "context_path"));
+        m_config.context_path.insert({tok[0], cont_path});
+    }
+
+    // --- try load Spellcross data
+    spell_data = new SpellData();
+    if(MainFrame::LoadSpellData(NULL, m_config, spell_data))
+        return(false);
 
     // last export path
     spell_data->export_path = char2wstring(ini.GetValue("STATE","export_path",""));
@@ -91,10 +162,10 @@ bool MyApp::OnInit()
     // --- load some map
     wstring map_path = char2wstring(ini.GetValue("STATE","last_map",""));
     spell_map = new SpellMap();
-    spell_map->hide_map_load_warnings = hide_map_load_warnings;
+    spell_map->hide_map_load_warnings = m_config.hide_map_warnings;
     if(spell_map->Load(map_path,spell_data))
         wxMessageBox(string_format("Loading Spellcross map file failed with error:\n%s",spell_map->GetLastError().c_str()),"Error",wxICON_ERROR);
-    else if(!hide_map_load_warnings && !spell_map->GetLastError().empty())
+    else if(!m_config.hide_map_warnings && !spell_map->GetLastError().empty())
         wxMessageBox(string_format("Loading Spellcross map file ended with warning(s):\n%s",spell_map->GetLastError().c_str()),"Warning",wxICON_WARNING);
     spell_map->SetGamma(1.3);
 
@@ -124,7 +195,7 @@ bool MyApp::OnInit()
                 
     // --- run main form    
     // main window frame
-    MainFrame* frame = new MainFrame(spell_map, spell_data);
+    MainFrame* frame = new MainFrame(&m_config, spell_map, spell_data);
     frame->SetSize(win_x_size,win_y_size);
     if(win_maximize)
         frame->Maximize();
@@ -144,13 +215,22 @@ int MyApp::OnExit()
 {
     // store last path
     ini.SetValue("STATE","last_map",wstring2string(spell_map->GetTopPath()).c_str());
+    // map warnings
+    ini.SetBoolValue("STATE","hide_map_load_warnings",m_config.hide_map_warnings);
 
     // last export path
     ini.SetValue("STATE","export_path",wstring2string(spell_data->export_path).c_str());
-
+        
     // store sound/midi volumes
-    ini.SetLongValue("STATE", "sound_volume", 100.0*spell_data->sounds->channels->GetVolume());
-    ini.SetLongValue("STATE", "music_volume", 100.0*spell_data->midi->GetVolume());
+    if(spell_data->sounds)
+        ini.SetLongValue("STATE", "sound_volume", 100.0*spell_data->sounds->channels->GetVolume());
+    if(spell_data->midi)
+        ini.SetLongValue("STATE", "music_volume", 100.0*spell_data->midi->GetVolume());            
+
+    // save data paths
+    iniSavePathHist(ini,"SPELCROS","spell_path",m_config.spell_path_hist,"; spellcross installation data folder");
+    iniSavePathHist(ini,"SPELCROS","spellcd_path",m_config.spell_cd_path_hist,"; spellcross CD copy data path");
+    iniSavePathHist(ini,"SPELCROS","mod_path",m_config.spell_mod_path_hist,"; spellcross mod path (optional)");
 
     // save INI
     ini.SaveFile("config.ini");
@@ -165,11 +245,13 @@ int MyApp::OnExit()
 }
 
 // Main panel init
-MainFrame::MainFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY, "Spellcross Map Editor", wxDefaultPosition, wxSize(1600,1000))
+MainFrame::MainFrame(SpellConfig* config, SpellMap *&map, SpellData *&spelldata):
+    wxFrame(NULL, wxID_ANY, "Spellcross Map Editor", wxDefaultPosition, wxSize(1600,1000)),
+    spell_data(spelldata),
+    spell_map(map)
 {
     // store local reference to initial map and data
-    spell_map = map;
-    spell_data = spelldata;
+    m_spell_config = config;
 
     // subforms
     form_gamma = NULL;
@@ -198,7 +280,17 @@ MainFrame::MainFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY
     menuFile->Append(ID_SaveDEF,"&Save DEF map file","Save Spellcross map DEF file.");
     menuFile->Append(ID_NewMap,"&Ceate new Map\tCtrl-N","Create new map.");
     menuFile->AppendSeparator();
+    menuFile->Append(ID_Config,"Configuration","Open new Spellcross Map Editor configuration.");
+    menuFile->AppendSeparator();
     menuFile->Append(wxID_EXIT);
+    AssignSVGresourceToMenu(menuFile,ID_OpenMap,"IDR_OPEN3");
+    AssignSVGresourceToMenu(menuFile,ID_SaveMap,"IDR_SAVE");
+    AssignSVGresourceToMenu(menuFile,ID_SaveDTA,"IDR_SAVE");
+    AssignSVGresourceToMenu(menuFile,ID_SaveDEF,"IDR_SAVE");
+    AssignSVGresourceToMenu(menuFile,ID_NewMap,"IDR_NEW");
+    AssignSVGresourceToMenu(menuFile,ID_Config,"IDR_SETUP");
+    AssignSVGresourceToMenu(menuFile,wxID_EXIT,"IDR_CLOSE");
+    
 
     // Game menu
     wxMenu* menuGame = new wxMenu;
@@ -313,6 +405,7 @@ MainFrame::MainFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY
     // Help menu
     wxMenu* menuHelp = new wxMenu;
     menuHelp->Append(wxID_ABOUT);
+    AssignSVGresourceToMenu(menuHelp,wxID_ABOUT,"IDR_INFO");
     
     // Main menu
     wxMenuBar* menuBar = new wxMenuBar;    
@@ -387,6 +480,7 @@ MainFrame::MainFrame(SpellMap* map, SpellData* spelldata):wxFrame(NULL, wxID_ANY
     Bind(wxEVT_MENU,&MainFrame::OnSaveDEF,this,ID_SaveDEF);
     Bind(wxEVT_MENU,&MainFrame::OnNewMap,this,ID_NewMap);
     Bind(wxEVT_MENU,&MainFrame::OnAbout, this, wxID_ABOUT);
+    Bind(wxEVT_MENU,&MainFrame::OnConfig,this,ID_Config);
     Bind(wxEVT_MENU,&MainFrame::OnExit, this, wxID_EXIT);
 
     Bind(wxEVT_MENU,&MainFrame::OnSwitchGameMode,this,ID_mmGameMode);
@@ -482,6 +576,47 @@ void MainFrame::OnAbout(wxCommandEvent& event)
     }
     delete form;
 }
+
+// run configuration
+void MainFrame::OnConfig(wxCommandEvent& event)
+{
+    // close map
+    std::filesystem::path map_path = "";
+    if(spell_map->IsLoaded())
+    {
+        wxMessageDialog dlg(this, "Opened map will be closed and all Spellcross data will be reloaded! Continue?", "Spellcross configuration", wxYES_NO | wxNO_DEFAULT | wxICON_WARNING);
+        if(dlg.ShowModal() != wxID_YES)
+            return;
+        map_path = spell_map->GetTopPath();
+    }
+    spell_map->Close();
+
+    // show config dialogue
+    FormConfig form_config(this,ID_CONFIG_WIN,m_spell_config);
+    form_config.ShowModal();
+
+    // loose old spellcross data
+    spell_data->Cleanup();
+        
+    // try reload spellcross data
+    if(LoadSpellData(this, *m_spell_config,spell_data))
+        Close();
+    
+    // ###note: This is absolutely needed because RtAudio seems to messup with threading concurency model for main UI thread,
+    // which results in file dialog calls (and god knows what else) to hangup? Maybe it will be fixed in new version of wxWidgets? 
+    // Anyway, here we reset it back to original state before RtAudio channels were changed in spell_data destructor/constructor above.
+    // It took me whole day to figure this out! :-)
+#ifdef __WXMSW__
+    ::CoInitializeEx(NULL,COINIT_APARTMENTTHREADED);
+#endif
+    
+    // try reload map
+    if(!map_path.empty())
+        spell_map->Load(map_path, spell_data);
+    canvas->Refresh();
+}
+
+
 // callback function to write status messages from within the spellcross routines:
 // usage: make and pass callback pointer using: bind(&MainFrame::StatusStringCallback,this,placeholders::_1)
 // spellcross function example:
@@ -781,6 +916,8 @@ void MainFrame::OnSelectUnitView(wxCommandEvent& event)
 // map animation periodic refresh tick
 void MainFrame::OnTimer(wxTimerEvent& event)
 {
+    if(!spell_data)
+        return;
     if(!spell_map || !canvas)
         return;
     if(!spell_map->IsLoaded())
@@ -802,13 +939,13 @@ void MainFrame::OnThreadCanvas(wxThreadEvent& event)
     canvas->Refresh();
 }
 void MainFrame::OnPaintCanvas(wxPaintEvent& event)
-{       
+{           
     // make buffer
     if(!m_buffer.IsOk() || m_buffer.GetSize() != canvas->GetClientSize())
         m_buffer = wxBitmap(canvas->GetClientSize(),24);
     
     // render map    
-    if(!spell_map->IsLoaded())
+    if(!spell_data || !spell_map->IsLoaded())
         canvas->ClearBackground();
     else
     {
@@ -829,7 +966,7 @@ void MainFrame::OnPaintCanvas(wxPaintEvent& event)
 
 
 void MainFrame::CreateHUDbuttons()
-{
+{    
     // mark all buttons as unused
     for(auto & pan : hud_buttons)
     {
@@ -902,6 +1039,8 @@ void MainFrame::OnPaintHUDbutton(wxPaintEvent& event)
 }
 void MainFrame::OnHUDbuttonsMouseEnter(wxMouseEvent& event)
 {
+    if(!spell_data)
+        return;
     wxPanel* pan = (wxPanel*)event.GetEventObject();
     auto* btn = spell_map->GetHUDbutton(pan->GetId());
     if(btn)
@@ -946,6 +1085,8 @@ void MainFrame::OnHUDbuttonsLeave(wxMouseEvent& event)
 }
 void MainFrame::OnHUDbuttonsClick(wxMouseEvent& event)
 {
+    if(!spell_data)
+        return;
     wxPanel* pan = (wxPanel*)event.GetEventObject();
     auto* btn = spell_map->GetHUDbutton(pan->GetId());
     if(btn && !btn->is_disabled)
@@ -1111,6 +1252,9 @@ void MainFrame::OnSaveDEF(wxCommandEvent& event)
 // create new map
 void MainFrame::OnNewMap(wxCommandEvent& event)
 {
+    if(!spell_data)
+        return;
+
     FormNewMap form(this, spell_data,ID_NEW_MAP);
     if(form.ShowModal() != wxID_OK)
         return;
@@ -2264,6 +2408,8 @@ void MainFrame::OnCanvasMouseLeave(wxMouseEvent& event)
 // on canvas mouse move
 void MainFrame::OnCanvasMouseMove(wxMouseEvent& event)
 {
+    if(!spell_data)
+        return;
     if(!spell_map->IsLoaded())
         return;
     if(inUnitOptions())

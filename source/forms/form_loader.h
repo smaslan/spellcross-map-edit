@@ -25,6 +25,7 @@
 
 #include <thread>
 
+#include "form_config.h"
 #include "spellcross.h"
 
 ///////////////////////////////////////////////////////////////////////////
@@ -37,19 +38,23 @@ class FormLoader : public wxDialog
 	private:
 
 		std::thread* loader;
+		std::string m_exit_msg;
+		int m_failed;
 
-		void Loader(std::wstring config_path, SpellData* &spell_data);
+		void Loader(wxWindow* parent,SpellConfig& cfg, SpellData* &spell_data);
 
-		void LoaderExit(bool hold=false);
+		void LoaderExit(bool hold=false,std::string message="");
 		void UpdateItem(std::string text);
 		void UpdateList(std::string text);
 
 		void OnClose(wxCloseEvent& ev);
 		void OnExitClick(wxCommandEvent& event);
-		void OnRefreshItem(wxCommandEvent& event);
-		void OnRefreshList(wxCommandEvent& event);
+		void OnLoaderExit(wxThreadEvent& event);
+		void OnRefreshItem(wxThreadEvent& event);
+		void OnRefreshList(wxThreadEvent& event);
 
 	protected:
+		const int wxID_TH_EXIT = 2000;
 		enum
 		{
 			wxID_TXT_LIST = 1000,
@@ -65,9 +70,9 @@ class FormLoader : public wxDialog
 
 	public:
 
-		FormLoader(wxWindow* parent, SpellData *&spell_data, wstring config_path, wxWindowID id = wxID_ANY, const wxString& title = wxT("Loading Spellcross Data..."), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 550,372 ), long style = wxCAPTION|wxSTAY_ON_TOP );
-
+		FormLoader(wxWindow* parent, SpellData *&spell_data,SpellConfig &cfg, wxWindowID id = wxID_ANY, const wxString& title = wxT("Loading Spellcross Data..."), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 550,372 ), long style = wxCAPTION|wxSTAY_ON_TOP );
 		~FormLoader();
+		std::string GetExitMessage();
 
 };
 

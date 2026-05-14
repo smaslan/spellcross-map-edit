@@ -17,6 +17,7 @@
 #include "map.h"
 #include "spell_hud_buttons.h"
 #include "spell_texts.h"
+#include "forms/form_config.h"
 #include "forms/form_loader.h"
 #include "forms/form_objects.h"
 #include "forms/form_sprite_view.h"
@@ -49,6 +50,9 @@
 #include <wx/ribbon/art.h>
 #include <wx/ribbon/bar.h>
 
+#include <filesystem>
+
+
 // app entry point class
 class MyApp : public wxApp
 {
@@ -56,11 +60,11 @@ private:
     CSimpleIniA ini;
     SpellMap* spell_map;
     SpellData* spell_data;   
+    SpellConfig m_config;
 public:
     virtual bool OnInit();
     virtual int OnExit();
 };
-
 
 
 // gamma correction form
@@ -105,9 +109,11 @@ private:
 class MainFrame : public wxFrame
 {
 public:
-    MainFrame(SpellMap* map,SpellData* spelldata);      
+    MainFrame(SpellConfig* config, SpellMap *&map,SpellData *&spelldata);
     void StatusStringCallback(std::string info);
     void CreateHUDbuttons();
+
+    static int LoadSpellData(wxWindow* parent, SpellConfig &config,SpellData *&spell_data);
 
 private:
     void OnViewLayer(wxCommandEvent& event);
@@ -119,6 +125,7 @@ private:
     void OnExit(wxCommandEvent& event);
     void OnAbout(wxCommandEvent& event);
     void OnClose(wxCloseEvent& ev);     
+    void OnConfig(wxCommandEvent& event);
 
     void OnSwitchGameMode(wxCommandEvent& event);
     void OnResetUnitView(wxCommandEvent& event);
@@ -195,10 +202,12 @@ private:
     wxBoxSizer* sizer;
     wxRibbonBar* ribbonBar = NULL;
     
+    // spellcross config
+    SpellConfig *m_spell_config;
     // spellcross data object
-    SpellData* spell_data;
+    SpellData *&spell_data;
     // spellcross map object
-    SpellMap* spell_map;
+    SpellMap *&spell_map;
     // last selected tile pos
     MapXY spell_pos;
     // selected edit tool
@@ -268,6 +277,8 @@ private:
     enum
     {
         ID_MAIN_WIN = 2000,
+        ID_LOADER_WIN,
+        ID_CONFIG_WIN,
         ID_GAMMA_WIN,
         ID_TARRAIN_WIN,
         ID_OBJECTS_WIN,
@@ -344,6 +355,7 @@ enum
     ID_SaveDTA,
     ID_SaveDEF,
     ID_NewMap,
+    ID_Config,
     ID_mmGameMode,
     ID_mmResetViewMap,
     ID_mmUnitViewMode,
