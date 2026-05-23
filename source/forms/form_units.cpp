@@ -614,25 +614,31 @@ void FormUnits::SelectUnit(MapUnit *unit)
 	// unit behaviour
 	if(m_unit)
 	{		
-		if(m_unit->is_event)
+		
+		chUnitType->Clear();
+		if(m_new_unit || (m_unit->is_enemy && !m_unit->is_event))
 		{
-			// no beahave when event-unit
-			chUnitBehave->Clear();
-			chUnitBehave->Enable(false);
-
-			// unit spec type list
+			chUnitType->Append("Non-event EnemyUnit");
+			chUnitType->Select(0);
+		}		
+		if(m_new_unit || m_unit->is_event)
+		{
 			std::vector<MapUnitType::Values> spec_list ={MapUnitType::Values::EnemyUnit, MapUnitType::Values::ArmyUnit, MapUnitType::Values::MissionUnit, MapUnitType::Values::SpecUnit, MapUnitType::Values::VoluntUnit};
-			chUnitType->Clear();
-			if(m_new_unit)
-				chUnitType->Append("Non-event EnemyUnit");
 			for(auto spec: spec_list)
 				chUnitType->Append(MapUnitType(spec).GetString());
 			auto bid = chUnitType->FindString(m_unit->spec_type.GetString());
 			if(bid >= 0)
-			{
-				chUnitType->Enable(true);
 				chUnitType->Select(bid);
-			}
+			else if(m_unit->is_enemy && m_unit->is_event)
+				chUnitType->SetStringSelection(MapUnitType(MapUnitType::Values::EnemyUnit).GetString());
+		}
+		chUnitType->Enable(true);
+
+		if(m_unit->is_event)
+		{
+			// no beahave when event-unit
+			chUnitBehave->Clear();
+			chUnitBehave->Enable(false);			
 		}
 		else
 		{
@@ -646,17 +652,6 @@ void FormUnits::SelectUnit(MapUnit *unit)
 			{
 				chUnitBehave->Enable(true);
 				chUnitBehave->Select(bid);
-			}
-
-			if(!m_new_unit)
-			{
-				chUnitType->Select(0);
-				chUnitType->Enable(false);
-			}
-			else
-			{
-				chUnitType->Select(0);
-				chUnitType->Enable(true);
 			}
 		}		
 	}

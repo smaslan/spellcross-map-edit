@@ -78,9 +78,12 @@ MapUnit *SpellMapEventRec::ExtractUnit(MapUnit* unit)
 			// unlink from this event
 			unit->creator_event = NULL;
 			unit->is_event = false;
+			// static units can be only enemies
+			unit->is_enemy = true;
+			unit->spec_type = MapUnitType::Values::Unknown;
+			// return unit
 			map->ResumeUnitRanging(false);
 			map->ReleaseMap();
-			// return unit
 			return(unit);
 		}
 	// not found

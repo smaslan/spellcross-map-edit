@@ -1359,6 +1359,7 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 
 				// always os
 				unit->is_enemy = 1;
+				unit->spec_type = MapUnitType::Values::Unknown;
 
 				// unit index within map (identifier)
 				unit->id = stoi(cmd->parameters->at(0));

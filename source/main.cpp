@@ -1778,7 +1778,7 @@ void MainFrame::OnCanvasPopupSelect(wxCommandEvent& event)
     else if(menu_id == ID_POP_REM_MISSIONSTART)
     {
         // try remove the unit from MissionStart() event
-        cur_unit->creator_event->ExtractUnit(cur_unit);
+        cur_unit->creator_event->ExtractUnit(cur_unit);        
         spell_map->AddUnit(cur_unit);
         spell_map->SortUnits();
     }
