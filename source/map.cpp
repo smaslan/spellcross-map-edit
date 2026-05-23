@@ -645,6 +645,9 @@ int SpellMap::Create(SpellData* spelldata, const char *terr_name, int x, int y, 
 {
 	// loose old map data
 	Close();
+	this->spelldata = spelldata;
+	this->map_path.clear();
+	this->def_path.clear();
 
 	// lock map before doing anything
 	LockMap();
@@ -5878,7 +5881,10 @@ int SpellMap::RenderHUD(uint8_t *buf,uint8_t* buf_end,int buf_x_size,MapXY *curs
 		{
 			int skill_frac_base = unit->unit->GetExperiencePts(unit->experience_level);
 			int skill_frac_next = unit->unit->GetNextExperiencePts(unit->experience_level);
-			skill_fraction_pix = 51*(unit->experience - skill_frac_base)/(skill_frac_next - skill_frac_base);
+			if(skill_frac_base == skill_frac_next)
+				skill_fraction_pix = 0;
+			else
+				skill_fraction_pix = 51*(unit->experience - skill_frac_base)/(skill_frac_next - skill_frac_base);
 		}
 		for(int y = 0; y < 2; y++)
 			memset(&buf[hud_left+ix_ref+5 + (hud_top+y+77)*buf_x_size],235,min(max(skill_fraction_pix,1),51));

@@ -162,13 +162,26 @@ int FSUarchive::LoadFolder(std::filesystem::path dir, std::string wild_filter)
 }
 
 // add resource to archive
-int FSUarchive::AddResource(FSU_resource* res)
+int FSUarchive::AddResource(FSU_resource* res,bool allow_replace)
 {
 	if(!res)
 		return(1);
-	if(GetResource(res->name.c_str()))
+	auto old_res = GetResource(res->name.c_str());
+	if(old_res && !allow_replace)
 		return(1);	
 	auto res_copy = new FSU_resource(*res);
+	if(old_res)
+	{
+		auto target = std::find(m_list.begin(), m_list.end(), old_res);
+		if(target == m_list.end())
+		{
+			delete res_copy;
+			return(1);
+		}
+		delete old_res;
+		*target = res_copy;
+		return(0);
+	}
 	m_list.push_back(res_copy);
 	return(0);
 }
@@ -819,6 +832,10 @@ int FSU_sprite::SaveSprite(std::filesystem::path path, std::vector<uint8_t> &buf
 
 
 // get graphic resource by name
+FSU_resource* FSUarchive::GetResource(std::string &name)
+{
+	return(GetResource(name.c_str()));
+}
 FSU_resource *FSUarchive::GetResource(const char* name)
 {
 	for (unsigned k = 0; k < m_list.size(); k++)

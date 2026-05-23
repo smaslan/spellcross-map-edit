@@ -146,6 +146,7 @@ IDI_SPR_OBJ             BITMAP                  "ico/spr_obj.bmp"
 //
 
 IDR_SAVE                RCDATA                     "ico/save.svg"
+IDR_SAVE_ALL             RCDATA                     "ico/save-all.svg"
 IDR_RELOAD                RCDATA                     "ico/reload.svg"
 IDR_OPEN                RCDATA                     "ico/open.svg"
 IDR_OPEN2                RCDATA                     "ico/open2.svg"
@@ -158,6 +159,16 @@ IDR_CLOSE                RCDATA                     "ico/close.svg"
 IDR_START                RCDATA                     "ico/start.svg"
 IDR_SETUP                RCDATA                     "ico/setup.svg"
 IDR_NEW                RCDATA                     "ico/new.svg"
+IDR_COPY                RCDATA                     "ico/copy.svg"
+IDR_CUT                RCDATA                     "ico/cut.svg"
+IDR_PASTE                RCDATA                     "ico/paste.svg"
+IDR_CLEAR                RCDATA                     "ico/clear.svg"
+IDR_UP                RCDATA                     "ico/up.svg"
+IDR_DOWN                RCDATA                     "ico/down.svg"
+IDR_MOVE_LEFT            RCDATA                     "ico/move-left.svg"
+IDR_MOVE_RIGHT                RCDATA                     "ico/move-right.svg"
+IDR_MOVE_LEFT_RED            RCDATA                     "ico/move-left-red.svg"
+IDR_MOVE_RIGHT_RED                RCDATA                     "ico/move-right-red.svg"
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -180,4 +191,5 @@ IDB_PNG1                PNG                     "ico/multi.png"
 
 /////////////////////////////////////////////////////////////////////////////
 #endif    // not APSTUDIO_INVOKED
+
 

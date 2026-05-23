@@ -281,10 +281,10 @@ SpellStringTable::SpellStringTable(FSarchive* fs,string name)
 		// decode
 		string &raw = rec.items[0];
 		wstring text = L"";
-		if(lang.compare("CZ") == 0)
-			text = char2wstringCP895(raw.c_str());
-		else if(lang.compare("ENG") == 0)
-			text = char2wstring(raw.c_str());
+		if(lang == "CZ" || lang == "ENG")
+			text = char2wstringCP895(raw.c_str()); // assume ENG version does not contain anything above 127 (needed for translation mod)
+		/*else if(lang.compare("ENG") == 0)
+			text = char2wstring(raw.c_str());*/
 		else if(lang.compare("PL") == 0)
 			text = char2wstring(raw.c_str()); // ###todo: shoud be CP1250
 
@@ -308,6 +308,7 @@ string &SpellStringTable::GetRaw()
 // class SpellData
 //=============================================================================
 
+// look for archive at given folder paths
 int SpellData::FindArchive(std::vector<std::filesystem::path> &paths, std::string name, std::filesystem::path &arch_path, std::filesystem::path *dir_path, bool optional, std::string *error_msg)
 {
 	if(error_msg)
@@ -438,7 +439,7 @@ int SpellData::Reload(std::filesystem::path &data_path,std::filesystem::path& cd
 	if(status_list)
 		status_list("Loading sound samples...");
 	try{
-		sounds = new SpellSounds(common_fs,data_path,16,status_list,status_item);
+		sounds = new SpellSounds(common_fs,fs_search_paths,16,status_list,status_item);
 	}catch(const runtime_error& error) {
 		Cleanup();
 		if(status_list)
@@ -1004,7 +1005,8 @@ int SpellData::LoadPalettes(FSarchive* fs_common, FSarchive* fs_info)
 		last_error = string_format("Missing or corrupted palette: MAINMENU.PAL!");
 		return(1); // missing item!
 	}
-	pal->Insert(chunk,"MAINMENU.PAL");
+	pal->Insert(chunk,"MAINMENU.PAL",0,250);
+	
 
 	// make empty main menu palette
 	pal = AddPalette("STRATEGY.PAL");
@@ -1026,6 +1028,19 @@ int SpellData::LoadPalettes(FSarchive* fs_common, FSarchive* fs_info)
 		return(1); // missing item!
 	}
 	pal->Insert(chunk,"PALETA.NRM");
+
+	// preload sector map palettes
+	for(int k = 2; k <= 10; k++)
+	{
+		auto pal_name = string_format("LEVEL_%02d.PAL",k);
+		if(!fs_common->GetFile(pal_name.c_str(),chunk) && chunk.size() == 64*3)
+		{
+			pal = AddPalette(pal_name);
+			if(!pal)
+				continue;
+			pal->Insert(chunk,pal_name,128);
+		}
+	}
 					
 
 	return(0);
@@ -1137,7 +1152,7 @@ int SpellData::LoadAuxGraphics(FSarchive *fs,std::function<void(std::string)> st
 	last_error = "";
 
 	std::vector<SpellGrpParams> grp_list = {
-		{"I_*.LZ", "MAP", SpellGrpParams::GrpType::RAW, 60, true}, // unit icons
+		{"I_*.LZ", "UNITS.PAL", SpellGrpParams::GrpType::RAW, 60, true}, // war map unit icons
 		{"LEVEL_??.LZ", "", SpellGrpParams::GrpType::RAW, 379, false}, // territories
 		{"HMLA__??.LZ", "LEVEL_??.PAL", SpellGrpParams::GrpType::RAW, 379, true}, // territories in fog
 		{"BIG_MAP.LZ", "", SpellGrpParams::GrpType::RAW, 640, true}, // big map main
@@ -1235,7 +1250,7 @@ int SpellData::LoadAuxGraphics(FSarchive *fs,std::function<void(std::string)> st
 				// replace ? in palette name by file name symbol
 				for(int k = 0; k < min(pal_name.length(), file->name.length()); k++)
 					if(item.wild[k] == '?')
-						pal_name[k] = item.wild[k];
+						pal_name[k] = file->name[k];
 			}
 			if(pal_name.empty())
 			{
@@ -1567,12 +1582,18 @@ void SpellPalette::Clear()
 }
 
 // place chunk of data to palette with offset (0 - 255)
-int SpellPalette::Insert(std::vector<uint8_t>& data,std::string name,int offset)
+int SpellPalette::Insert(std::vector<uint8_t>& data,std::string name,int offset,int count)
 {
 	if(data.size() % 3 || data.size()/3 + offset > 256)
 		return(1);
-	memcpy(m_pal.data() + offset*3,data.data(),data.size());
-	memset(m_used.data() + offset,1,data.size()/3);
+	if(count && offset + count > 256)
+		return(1);
+	if(count > data.size()/3)
+		return(1);
+	if(!count)
+		count = data.size()/3;
+	memcpy(m_pal.data() + offset*3,data.data(),count*3);
+	memset(m_used.data() + offset,1,count);
 	
 	// add chunk record
 	SpellPalette::Chunk chunk;

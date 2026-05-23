@@ -271,6 +271,10 @@ SpellGraphicItem *SpellGraphics::GetResource(int index)
 	else
 		return(NULL);
 }
+SpellGraphicItem* SpellGraphics::GetResource(std::string &name)
+{
+	return(GetResource(name.c_str()));
+}
 SpellGraphicItem *SpellGraphics::GetResource(const char* name)
 {
 	for(int k = 0; k < items.size(); k++)
@@ -618,6 +622,7 @@ int SpellGraphicItem::Encode(wxBitmap& bmp,std::string name,SpellPalette* target
 	};
 	std::vector<Pixel> pix(x_size*y_size);
 
+	bool has_transparent = false;
 	if(is_transparent)
 	{
 		// scan 32bit RGBA bmp data to buffer
@@ -634,6 +639,7 @@ int SpellGraphicItem::Encode(wxBitmap& bmp,std::string name,SpellPalette* target
 				pix[id].g = *scan++;
 				pix[id].r = *scan++;
 				pix[id].a = *scan++;
+				has_transparent |= !pix[id].a;
 				id++;
 			}
 			p.OffsetY(data,1);
@@ -707,10 +713,10 @@ int SpellGraphicItem::Encode(wxBitmap& bmp,std::string name,SpellPalette* target
 		if(min_id < 0)
 			min_id = 0;
 
-		if(aa && !(rr == 0 && gg == 0 && bb == 0))
-			pixels[p] = min_id;
-		else
+		if(!aa || (!has_transparent && (rr == 0 && gg == 0 && bb == 0)))
 			pixels[p] = 0;
+		else
+			pixels[p] = min_id;
 	}
 
 	return(1);
@@ -803,6 +809,10 @@ int SpellGraphics::AddPNM(uint8_t* data,int dlen,const char* name)
 }
 
 // obtain PNM file from loaded list by name
+AnimPNM* SpellGraphics::GetPNM(std::string &name)
+{
+	return(GetPNM(name.c_str()));
+}
 AnimPNM* SpellGraphics::GetPNM(const char* name)
 {
 	for(auto & pnm : m_pnms)
@@ -898,7 +908,7 @@ int SpellGraphics::SortProjectiles()
 	// group projectiles:
 	for(auto & gfk : items)
 	{		
-		if(wildcmp("ST?*.GFK",gfk->name.c_str()))
+		if(wildcmp("ST?*.GFK",gfk->full_name.c_str()))
 		{
 			// make base name
 			std::string base_name = gfk->full_name;
@@ -925,16 +935,20 @@ int SpellGraphics::SortProjectiles()
 		}
 	}
 	for(auto& proj : projectiles)
-	if(!proj.Check())
-	{
-		// porjectil incomplete
-		return(1);
-	}
+		if(!proj.Check())
+		{
+			// porjectil incomplete
+			return(1);
+		}
 	return(0);
 }
 
 // get projectile record by name or NULL
-SpellProjectile* SpellGraphics::GetProjectile(char* name)
+SpellProjectile* SpellGraphics::GetProjectile(std::string &name)
+{
+	return(GetProjectile(name.c_str()));
+}
+SpellProjectile* SpellGraphics::GetProjectile(const char* name)
 {
 	for(auto & proj : projectiles)
 		if(strcmp(proj.name, name) == 0)

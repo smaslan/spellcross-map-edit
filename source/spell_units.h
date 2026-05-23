@@ -57,7 +57,7 @@ class SpellUnitRec
 		int type_id;
 		
 		// name
-		char name[28];
+		std::string name;
 
 		// attack
 		int attack_light;
@@ -124,23 +124,23 @@ class SpellUnitRec
 		SpellSound* sound_level_up;
 
 		// animations/graphics
-		char info[9];
-		char gra[6];
-		char grb[6];
-		char icon[9];
-		char anim_atack_light_name[6];
-		char anim_atack_armor_name[6];
-		char anim_atack_air_name[6];
+		std::string info;
+		std::string gra;
+		std::string grb;
+		std::string icon;
+		std::string anim_atack_light_name;
+		std::string anim_atack_armor_name;
+		std::string anim_atack_air_name;
 		int anim_atack_light_frames;
 		int anim_atack_armor_frames;
 		int anim_atack_air_frames;
-		char pnm_light_hit_name[9];
-		char pnm_armored_hit_name[9];
-		char pnm_air_hit_name[9];
-		char pnm_light_shot_name[9];
-		char pnm_armored_shot_name[9];
-		char pnm_air_shot_name[9];
-		char projetile_name[13];
+		std::string pnm_light_hit_name;
+		std::string pnm_armored_hit_name;
+		std::string pnm_air_hit_name;
+		std::string pnm_light_shot_name;
+		std::string pnm_armored_shot_name;
+		std::string pnm_air_shot_name;
+		std::string projetile_name;
 		int projectile_visible;
 		int vis;
 
@@ -152,7 +152,7 @@ class SpellUnitRec
 
 		// special actions
 		int action_id;
-		char action_fsu_name[6];
+		std::string action_fsu_name;
 		int action_fsu_frames;
 		int action_ap;
 		int action_params[3];
@@ -160,7 +160,7 @@ class SpellUnitRec
 		// die action
 		int die_action_id;
 		int die_action_params[3];
-		char die_anim_name[6];
+		std::string die_anim_name;
 		int die_anim_frames;
 
 		int GetHP() {return((cnt==1)?(100):(cnt));};
@@ -303,14 +303,15 @@ class SpellUnits
 {
 private:
 	int is_eng;
-	vector<SpellUnitRec*> units;
+	std::vector<std::unique_ptr<SpellUnitRec>> units;
 
 public:	
 	SpellUnits(uint8_t* data, int dlen, FSUarchive *fsu, FSarchive* fs_info, SpellGraphics *graphics,SpellGraphics* info_graphics,SpellSounds* sounds,UnitBonuses *bonuses);
 	~SpellUnits();
 	int Count();
 	SpellUnitRec* GetUnit(int uid);
-	vector<SpellUnitRec*> &GetUnits();
+	std::vector<std::unique_ptr<SpellUnitRec>>& GetUnits();
+	//vector<SpellUnitRec*> &GetUnits();
 };
 
 
@@ -515,6 +516,8 @@ public:
 	double morale;
 	// unit in placement (selected and moving)
 	int in_placement;
+	// new not yet placed
+	bool not_placed_yet;
 	// unit moved flag (cleared when rendered)
 	int was_moved;
 	// unit was already seen?
@@ -655,4 +658,25 @@ public:
 	int AddExperience(int points=0);
 	int AddExperience(MapUnit *target, int killed);
 	int UpdateModale(double points);
+};
+
+
+// template that holds setup for new unit creation
+class MapUnitTemplate
+{
+public:
+	// type ID
+	int unit_type_id;
+	// experience
+	int experience_level; // level 1 to 12
+	// man count (health)
+	int man;
+	// spec unit type (event generated units)
+	MapUnitType spec_type;
+	// unit behaviour (non-event enemy units)
+	MapUnitType behave;
+	// event created unit?
+	bool is_event;
+
+	MapUnitTemplate();
 };

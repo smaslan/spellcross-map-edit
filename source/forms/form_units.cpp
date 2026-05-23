@@ -370,6 +370,7 @@ FormUnits::FormUnits( wxWindow* parent, wxWindowID id, const wxString& title, co
 	m_spell_data = NULL;
 	m_unit = NULL;
 	m_update = false;
+	m_unit_template = NULL;
 	
 	// close
 	Bind(wxEVT_CLOSE_WINDOW,&FormUnits::OnClose,this,this->m_windowId);
@@ -454,6 +455,14 @@ void FormUnits::OnCloseClick(wxCommandEvent& event)
 		EditUnit();
 		m_unit->map->AssignUnitID(m_unit);
 		m_unit->map->ResumeUnitRanging(false);
+
+		// update template
+		m_unit_template->unit_type_id = m_unit->unit->type_id;
+		m_unit_template->is_event = m_unit->is_event;
+		m_unit_template->spec_type = m_unit->spec_type;
+		m_unit_template->behave = m_unit->behave;
+		m_unit_template->man = m_unit->man;
+		m_unit_template->experience_level = m_unit->experience_level;
 	}
 	else if(m_unit && m_new_unit)
 	{
@@ -490,7 +499,7 @@ void FormUnits::SetSpellData(SpellData* spelldata)
 	lboxUnits->Freeze();
 	lboxUnits->Clear();
 	for(auto & unit : m_spell_data->units->GetUnits())
-		lboxUnits->Append(string_format("#%02d: %s ",lboxUnits->GetCount(),unit->name));
+		lboxUnits->Append(string_format("#%02d: %s ",lboxUnits->GetCount(),unit->name.c_str()));
 	lboxUnits->Thaw();
 	if(lboxUnits->GetCount())
 		lboxUnits->Select(0);
@@ -499,19 +508,24 @@ void FormUnits::SetSpellData(SpellData* spelldata)
 }
 
 // set spellcross map unit ref (or null to deselect unit)
-void FormUnits::SetMapUnit(MapUnit *unit, SpellMap* map)
+void FormUnits::SetMapUnit(MapUnit *unit, SpellMap* map, MapUnitTemplate *unit_template)
 {
+	m_unit_template = &m_unit_template_default;
+	if(unit_template)
+		m_unit_template = unit_template;
+
 	m_new_unit = false;
 	if(!unit && map)
 	{
 		// no map unit link provided - make new unit
 		unit = new MapUnit(map);
 		
-		unit->unit = m_spell_data->units->GetUnit(0);
-		unit->is_event = true;
-		unit->behave = MapUnitType::Values::NormalUnit;
-		unit->spec_type = MapUnitType::Values::MissionUnit;
-		unit->ResetHealth();
+		unit->unit = m_spell_data->units->GetUnit(m_unit_template->unit_type_id);
+		unit->is_event = m_unit_template->is_event;
+		unit->behave = m_unit_template->behave;
+		unit->spec_type = m_unit_template->spec_type;
+		unit->InitExperience(m_unit_template->experience_level);
+		unit->ResetHealth();					
 
 		// try assign new unit ID
 		map->AssignUnitID(unit);

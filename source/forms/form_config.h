@@ -78,7 +78,7 @@ private:
 	void OnCloseClick(wxCommandEvent& event);
 
 	std::filesystem::path GetChoicePaths(wxChoice* choice,std::vector<std::filesystem::path>& list);
-	void FillPathHistory(wxChoice* choice,std::vector<std::filesystem::path>& list);
+	void FillPathHistory(wxChoice* choice,std::vector<std::filesystem::path>& list,std::filesystem::path& path);
 	void ChoiceCheckPaths(wxChoice* choice);
 	std::wstring GetPathChoiceLastPath(wxChoice* choice,std::wstring default_path=L"");
 	void OnSelectPath(wxCommandEvent& event);

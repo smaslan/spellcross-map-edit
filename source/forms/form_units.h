@@ -80,6 +80,8 @@ class FormUnits : public wxFrame
 
 		SpellData *m_spell_data;
 		MapUnit *m_unit;
+		MapUnitTemplate *m_unit_template;
+		MapUnitTemplate m_unit_template_default;
 		bool m_update;
 		bool m_new_unit;
 
@@ -223,7 +225,7 @@ class FormUnits : public wxFrame
 		~FormUnits();
 
 		void SetSpellData(SpellData *spelldata);
-		void SetMapUnit(MapUnit* unit=NULL, SpellMap *map=NULL);
+		void SetMapUnit(MapUnit* unit=NULL, SpellMap *map=NULL, MapUnitTemplate* unit_template=NULL);
 		bool DoUpdateUnit();
 		MapUnit *DoAddUnit();
 		

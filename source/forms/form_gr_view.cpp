@@ -8,6 +8,7 @@
 #include "form_gr_view.h"
 #include "sprites.h"
 #include "other.h"
+#include "wx_other.h"
 #include "LZ_spell.h"
 
 #include <wx/rawbmp.h>
@@ -127,6 +128,11 @@ FormGResView::FormGResView(wxWindow* parent,SpellData* spell_data,wxWindowID id,
 	appIcon.LoadFile("IDI_ICON2",wxBITMAP_TYPE_ICO_RESOURCE);
 	if(appIcon.IsOk())
 		SetIcon(appIcon);
+
+	AssignSVGresourceToMenu(mmClose,"IDR_CLOSE");
+	AssignSVGresourceToMenu(mmExport,"IDR_SAVE");
+	AssignSVGresourceToMenu(mmExportAll,"IDR_SAVE_ALL");
+
 	
 	// close
 	Bind(wxEVT_CLOSE_WINDOW, &FormGResView::OnClose, this, this->m_windowId);

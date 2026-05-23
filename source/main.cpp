@@ -64,7 +64,7 @@ void iniSavePathHist(CSimpleIniA& ini,std::string section,std::string key,std::v
 {
     std::vector<std::filesystem::path> paths;
     for(auto &item: list)
-        if(!item.empty() && std::filesystem::exists(item))
+        if(item.empty() || std::filesystem::exists(item))
             paths.push_back(item);
 
     for(int k = 0; k < count; k++)
@@ -92,6 +92,14 @@ int MainFrame::LoadSpellData(wxWindow *parent, SpellConfig &config, SpellData *&
         {
             auto error = form_loader.GetExitMessage();
 
+            // ###note: This is absolutely needed because RtAudio seems to messup with threading concurency model for main UI thread,
+            // which results in file dialog calls (and god knows what else) to hangup? Maybe it will be fixed in new version of wxWidgets? 
+            // Anyway, here we reset it back to original state before RtAudio channels were changed in spell_data destructor/constructor above.
+            // It took me whole day to figure this out! :-)
+            #ifdef __WXMSW__
+                ::CoInitializeEx(NULL,COINIT_APARTMENTTHREADED);
+            #endif
+
             // try again with different paths?
             wxMessageDialog dial(parent,string_format("Loading Spellcross data failed! Loader reports:\n%s\n\nSome data files are missing? Modify search paths?",error.c_str()),"Loading Spellcross data",wxYES_NO | wxYES_DEFAULT |wxICON_ERROR);
             if(dial.ShowModal() != wxID_YES)
@@ -112,7 +120,9 @@ int MainFrame::LoadSpellData(wxWindow *parent, SpellConfig &config, SpellData *&
 wxIMPLEMENT_APP(MyApp);
 bool MyApp::OnInit()
 {
-    
+    spell_data = NULL;
+    spell_map = NULL;
+
     // for saving PNG file (among other stuff)
     wxInitAllImageHandlers();
 
@@ -154,7 +164,11 @@ bool MyApp::OnInit()
     // --- try load Spellcross data
     spell_data = new SpellData();
     if(MainFrame::LoadSpellData(NULL, m_config, spell_data))
+    {        
+        OnExit();
         return(false);
+    }
+
 
     // last export path
     spell_data->export_path = char2wstring(ini.GetValue("STATE","export_path",""));
@@ -163,10 +177,13 @@ bool MyApp::OnInit()
     wstring map_path = char2wstring(ini.GetValue("STATE","last_map",""));
     spell_map = new SpellMap();
     spell_map->hide_map_load_warnings = m_config.hide_map_warnings;
-    if(spell_map->Load(map_path,spell_data))
-        wxMessageBox(string_format("Loading Spellcross map file failed with error:\n%s",spell_map->GetLastError().c_str()),"Error",wxICON_ERROR);
-    else if(!m_config.hide_map_warnings && !spell_map->GetLastError().empty())
-        wxMessageBox(string_format("Loading Spellcross map file ended with warning(s):\n%s",spell_map->GetLastError().c_str()),"Warning",wxICON_WARNING);
+    if(!map_path.empty())
+    {
+        if(spell_map->Load(map_path,spell_data))
+            wxMessageBox(string_format("Loading Spellcross map file failed with error:\n%s",spell_map->GetLastError().c_str()),"Error",wxICON_ERROR);
+        else if(!m_config.hide_map_warnings && !spell_map->GetLastError().empty())
+            wxMessageBox(string_format("Loading Spellcross map file ended with warning(s):\n%s",spell_map->GetLastError().c_str()),"Warning",wxICON_WARNING);
+    }
     spell_map->SetGamma(1.3);
 
     // sound effects/midi volumes
@@ -213,13 +230,20 @@ bool MyApp::OnInit()
 }
 int MyApp::OnExit()
 {
-    // store last path
-    ini.SetValue("STATE","last_map",wstring2string(spell_map->GetTopPath()).c_str());
-    // map warnings
-    ini.SetBoolValue("STATE","hide_map_load_warnings",m_config.hide_map_warnings);
+    if(spell_map)
+    {
+        
+        // store last path
+        if(!spell_map->GetTopPath().empty())
+            ini.SetValue("STATE","last_map",wstring2string(spell_map->GetTopPath()).c_str());
+        
+        // map warnings
+        ini.SetBoolValue("STATE","hide_map_load_warnings",m_config.hide_map_warnings);
+    }
 
     // last export path
-    ini.SetValue("STATE","export_path",wstring2string(spell_data->export_path).c_str());
+    if(spell_data)
+        ini.SetValue("STATE","export_path",wstring2string(spell_data->export_path).c_str());
         
     // store sound/midi volumes
     if(spell_data->sounds)
@@ -236,10 +260,12 @@ int MyApp::OnExit()
     ini.SaveFile("config.ini");
 
     // loose map
-    delete spell_map;
+    if(spell_map)
+        delete spell_map;
 
     // loose spell data
-    delete spell_data;
+    if(spell_data)
+        delete spell_data;
 
     return(0);
 }
@@ -276,6 +302,7 @@ MainFrame::MainFrame(SpellConfig* config, SpellMap *&map, SpellData *&spelldata)
     wxMenu* menuFile = new wxMenu;
     menuFile->Append(ID_OpenMap, "&Open Map\tCtrl-O", "Open new Spellcross map file.");
     menuFile->Append(ID_SaveMap,"&Save Map\tCtrl-S","Save Spellcross map file(s).");
+    menuFile->Append(ID_SaveMapAs,"&Save Map As","Save Spellcross map file(s).");
     menuFile->Append(ID_SaveDTA,"&Save DTA map file","Save Spellcross map DTA file.");
     menuFile->Append(ID_SaveDEF,"&Save DEF map file","Save Spellcross map DEF file.");
     menuFile->Append(ID_NewMap,"&Ceate new Map\tCtrl-N","Create new map.");
@@ -285,6 +312,7 @@ MainFrame::MainFrame(SpellConfig* config, SpellMap *&map, SpellData *&spelldata)
     menuFile->Append(wxID_EXIT);
     AssignSVGresourceToMenu(menuFile,ID_OpenMap,"IDR_OPEN3");
     AssignSVGresourceToMenu(menuFile,ID_SaveMap,"IDR_SAVE");
+    AssignSVGresourceToMenu(menuFile,ID_SaveMapAs,"IDR_SAVE");
     AssignSVGresourceToMenu(menuFile,ID_SaveDTA,"IDR_SAVE");
     AssignSVGresourceToMenu(menuFile,ID_SaveDEF,"IDR_SAVE");
     AssignSVGresourceToMenu(menuFile,ID_NewMap,"IDR_NEW");
@@ -371,6 +399,16 @@ MainFrame::MainFrame(SpellConfig* config, SpellMap *&map, SpellData *&spelldata)
     menuEdit->Append(ID_CreateNewObject,"Create new object\tCtrl+Shift+O","",wxITEM_NORMAL);
     menuEdit->Append(wxID_ANY,"","",wxITEM_SEPARATOR);
     menuEdit->Append(ID_AddUnit,"Add unit\tCtrl+Shift+U","",wxITEM_NORMAL);
+    AssignSVGresourceToMenu(menuEdit,ID_EditMissionParams,"IDR_EDIT");
+    AssignSVGresourceToMenu(menuEdit,ID_CopyBuf,"IDR_COPY");
+    AssignSVGresourceToMenu(menuEdit,ID_CutBuf,"IDR_CUT");
+    AssignSVGresourceToMenu(menuEdit,ID_PasteBuf,"IDR_PASTE");
+    AssignSVGresourceToMenu(menuEdit,ID_ClearBuf,"IDR_CLEAR");    
+    AssignSVGresourceToMenu(menuEdit,ID_InvalidateSel,"IDR_CLEAR");
+    AssignSVGresourceToMenu(menuEdit,ID_DeleteSel,"IDR_CLEAR");
+    AssignSVGresourceToMenu(menuEdit,ID_CreateNewObject,"IDR_NEW");
+    AssignSVGresourceToMenu(menuEdit,ID_ElevUp,"IDR_UP");
+    AssignSVGresourceToMenu(menuEdit,ID_ElevDown,"IDR_DOWN");
 
 
     
@@ -384,6 +422,7 @@ MainFrame::MainFrame(SpellConfig* config, SpellMap *&map, SpellData *&spelldata)
     menuTools->Append(ID_ViewGRes,"Graphics viewer","",wxITEM_NORMAL);
     menuTools->Append(ID_EncodeGRes,"Graphics endoder","",wxITEM_NORMAL);
     menuTools->Append(ID_TextEdit,"Text view/editor","",wxITEM_NORMAL);
+    menuTools->Append(ID_TextEditRaw,"Raw text view/editor","",wxITEM_NORMAL);
     menuTools->Append(ID_EditUnit,"Units viewer/editor\tCtrl+U","",wxITEM_NORMAL);
     menuTools->Append(ID_EditEvent,"Event viewer/editor\tCtrl+E","",wxITEM_NORMAL);
     menuTools->Append(ID_ViewVideo,"Video viewer","",wxITEM_NORMAL);
@@ -476,6 +515,7 @@ MainFrame::MainFrame(SpellConfig* config, SpellMap *&map, SpellData *&spelldata)
     
     Bind(wxEVT_MENU,&MainFrame::OnOpenMap,this,ID_OpenMap);
     Bind(wxEVT_MENU,&MainFrame::OnSaveMap,this,ID_SaveMap);
+    Bind(wxEVT_MENU,&MainFrame::OnSaveMap,this,ID_SaveMapAs);
     Bind(wxEVT_MENU,&MainFrame::OnSaveDTA,this,ID_SaveDTA);
     Bind(wxEVT_MENU,&MainFrame::OnSaveDEF,this,ID_SaveDEF);
     Bind(wxEVT_MENU,&MainFrame::OnNewMap,this,ID_NewMap);
@@ -511,6 +551,7 @@ MainFrame::MainFrame(SpellConfig* config, SpellMap *&map, SpellData *&spelldata)
     Bind(wxEVT_MENU,&MainFrame::OnViewGrRes,this,ID_ViewGRes);
     Bind(wxEVT_MENU,&MainFrame::OnEncodeGrRes,this,ID_EncodeGRes);
     Bind(wxEVT_MENU,&MainFrame::OnTextEdit,this,ID_TextEdit);
+    Bind(wxEVT_MENU,&MainFrame::OnTextEditRaw,this,ID_TextEditRaw);
     Bind(wxEVT_MENU,&MainFrame::OnEditUnit,this,ID_EditUnit);
     Bind(wxEVT_MENU,&MainFrame::OnEditEvent,this,ID_EditEvent);
     Bind(wxEVT_MENU,&MainFrame::OnViewVideo,this,ID_ViewVideo);
@@ -748,6 +789,10 @@ void MainFrame::OnClose(wxCloseEvent& ev)
     {
         form_text_edit->Destroy();
     }
+    else if(ev.GetId() == ID_TEXT_EDIT_RAW_WIN)
+    {
+        form_text_edit_raw->Destroy();
+    }
     else if(ev.GetId() == ID_MINIMAP_WIN)
     {
         delete form_minimap;
@@ -763,6 +808,7 @@ void MainFrame::OnClose(wxCloseEvent& ev)
             new_unit->in_placement = true;
             new_unit->is_active = true;
             new_unit->ResetAP();
+            new_unit->not_placed_yet = true;
             auto pos = spell_map->GetSelection();
             if(pos.IsSelected())
                 new_unit->coor = pos;
@@ -1200,9 +1246,23 @@ void MainFrame::OnSaveMap(wxCommandEvent& event)
 {
     if(!spell_map || !spell_map->IsLoaded())
         return;
-
-    OnSaveDTA(event);
-    OnSaveDEF(event);    
+    
+    bool save_as = spell_map->map_path.empty() || spell_map->def_path.empty() || event.GetId() == ID_SaveMapAs;
+    if(save_as)
+    {
+        // save as
+        OnSaveDTA(event);
+        OnSaveDEF(event);
+    }
+    else
+    {
+        // save
+        wxMessageDialog dlg(this, "Overwrire map files (DTA and DEF)?", "Save map file", wxYES_NO| wxYES_DEFAULT);
+        if(dlg.ShowModal() != wxID_YES)
+            return;
+        spell_map->SaveDTA(spell_map->map_path);
+        spell_map->SaveDEF(spell_map->def_path);
+    }    
 }
 
 // save map DTA file
@@ -1440,6 +1500,16 @@ void MainFrame::OnTextEdit(wxCommandEvent& event)
     }
 }
 
+// open raw text view/editor
+void MainFrame::OnTextEditRaw(wxCommandEvent& event)
+{
+    if(!FindWindowById(ID_TEXT_EDIT_RAW_WIN))
+    {
+        form_text_edit_raw = new FormTextEdit(this,ID_TEXT_EDIT_RAW_WIN);
+        form_text_edit_raw->Show();
+    }
+}
+
 
 // open units viewer/editor
 void MainFrame::OnEditUnit(wxCommandEvent& event)
@@ -1672,7 +1742,7 @@ void MainFrame::OnAddUnit(wxCommandEvent& event)
 
         form_units = new FormUnits(this,ID_UNITS_WIN);
         form_units->SetSpellData(spell_data);
-        form_units->SetMapUnit(NULL, spell_map);
+        form_units->SetMapUnit(NULL, spell_map, &m_spell_unit_template);
         form_units->Show();
     }
 
@@ -2096,7 +2166,16 @@ void MainFrame::OnClearBuf(wxCommandEvent& event)
     // clear copy buffer and also clear tool
     spell_map->ClearBuffer();    
     wxRibbonBarEvent rev;
-    OnToolPageClick(rev);        
+    OnToolPageClick(rev);
+
+    auto* unit = spell_map->GetSelectedUnit();
+    if(unit && unit->in_placement && unit->not_placed_yet)
+    {
+        // cancel unit in placement        
+        spell_map->RemoveUnit(unit, true);
+    }
+
+
     Refresh();
 }
 // try place copy buffer to map
@@ -2309,9 +2388,40 @@ void MainFrame::OnCanvasLMouseDown(wxMouseEvent& event)
                 else if(cur_unit && cur_unit == sel_unit)
                 {
                     // move/place unit
+                    bool was_new_unit = sel_unit->not_placed_yet;
+
                     if(sel_evt)
                         sel_evt->in_placement = false;
+                    if(sel_unit->in_placement)
+                        sel_unit->not_placed_yet = false;
                     sel_unit->in_placement = !sel_unit->in_placement;
+
+                    if(was_new_unit)
+                    {
+                        // was placement of new unit: fork unit and place again
+                        auto new_unit = new MapUnit(*sel_unit);
+                        new_unit->in_placement = true;
+                        new_unit->is_active = true;
+                        new_unit->ResetAP();
+                        new_unit->not_placed_yet = true;
+                        auto pos = spell_map->GetSelection();
+                        if(pos.IsSelected())
+                            new_unit->coor = pos;
+                        else
+                            new_unit->coor = MapXY(0,0);
+                        if(new_unit->is_event)
+                        {
+                            // event unit - place to MissionStart
+                            spell_map->events->AddMissionStartUnit(new_unit);
+                        }
+                        else
+                        {
+                            // normal unit - place to map
+                            spell_map->AddUnit(new_unit);
+                        }
+                        spell_map->SelectUnit(new_unit);
+                    }
+
                 }
                 else if(cur_unit)
                 {

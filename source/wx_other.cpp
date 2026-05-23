@@ -41,6 +41,17 @@ int AssignSVGresourceToMenu(wxMenu *frame, int item_id,const char* resource_name
 	
 }
 
+// try assign SVG resource icon to wxFrame menu item
+int AssignSVGresourceToMenu(wxMenuItem* item,const char* resource_name)
+{
+	if(!item)
+		return(1);
+	auto res = LoadSVGiconsBundle(resource_name);
+	item->SetBitmaps(res);
+	return(0);
+
+}
+
 // rescale window based on DPI, if has parent, center to parent
 int RescaleWindowDPI(wxWindow *win)
 {

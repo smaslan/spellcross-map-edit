@@ -1192,3 +1192,65 @@ class FormConfig : public wxDialog
 
 };
 
+///////////////////////////////////////////////////////////////////////////////
+/// Class FormTextEdit
+///////////////////////////////////////////////////////////////////////////////
+class FormTextEdit : public wxFrame
+{
+	private:
+
+	protected:
+		enum
+		{
+			wxID_MM_EXIT = 5999,
+			wxID_MM_LEFT_OPEN,
+			wxID_MM_LEFT_SAVE,
+			wxID_MM_RIGHT_OPEN,
+			wxID_MM_RIGHT_SAVE,
+			wxID_TXT_LEFT_FILTER,
+			wxID_LIST_LEFT,
+			wxID_CB_LEFT_ENCODING,
+			wxID_TXT_LEFT,
+			wxID_BTN_TO_LEFT,
+			wxID_BTN_TO_RIGHT,
+			wxID_TXT_RIGHT_FILTER,
+			wxID_LIST_RIGHT,
+			wxID_CB_RIGHT_ENCODING,
+			wxID_TXT_RIGHT,
+			wxID_SBAR,
+		};
+
+		wxMenuBar* m_menubar14;
+		wxMenu* mFile;
+		wxMenu* mLeft;
+		wxMenu* mRight;
+		wxStaticText* m_staticText122;
+		wxTextCtrl* txtLeftFilter;
+		wxStaticText* m_staticText123;
+		wxListBox* listLeft;
+		wxStaticText* m_staticText125;
+		wxChoice* chLeftEncoding;
+		wxStaticText* m_staticText124;
+		wxTextCtrl* txtLeft;
+		wxStaticLine* m_staticline45;
+		wxBitmapButton* btnToLeft;
+		wxBitmapButton* btnToRight;
+		wxStaticLine* m_staticline451;
+		wxStaticText* m_staticText1221;
+		wxTextCtrl* txtRightFilter;
+		wxStaticText* m_staticText1231;
+		wxListBox* listRight;
+		wxStaticText* m_staticText1251;
+		wxChoice* chRightEncoding;
+		wxStaticText* m_staticText1241;
+		wxTextCtrl* txtRight;
+		wxStatusBar* sbar;
+
+	public:
+
+		FormTextEdit( wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = wxT("Generic text editor"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 1170,600 ), long style = wxDEFAULT_FRAME_STYLE|wxTAB_TRAVERSAL );
+
+		~FormTextEdit();
+
+};
+

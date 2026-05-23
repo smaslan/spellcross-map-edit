@@ -70,11 +70,13 @@ public:
 	int AddLED(int color,const char* name,SpellPalette* pal);
 	int Count();
 	SpellGraphicItem *GetResource(int index);
+	SpellGraphicItem* GetResource(std::string& name);
 	SpellGraphicItem *GetResource(const char *name);
 	wxCursor* RenderCUR(const char* name);
 
 	// PNM animations	
 	int AddPNM(uint8_t* data,int dlen,const char* name);
+	AnimPNM* GetPNM(std::string& name);
 	AnimPNM *GetPNM(const char *name);
 
 	// direct links to common items
@@ -150,6 +152,7 @@ public:
 
 	// projectile lists
 	int SortProjectiles();
-	SpellProjectile *GetProjectile(char *name);
+	SpellProjectile* GetProjectile(std::string& name);
+	SpellProjectile *GetProjectile(const char *name);
 };
 

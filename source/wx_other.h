@@ -95,5 +95,6 @@ public:
 std::filesystem::path GetExecutableDir();
 wxBitmapBundle LoadSVGiconsBundle(const char* resource_name);
 int AssignSVGresourceToMenu(wxMenu* frame,int item_id,const char* resource_name);
+int AssignSVGresourceToMenu(wxMenuItem* item,const char* resource_name);
 
 int RescaleWindowDPI(wxWindow *win);

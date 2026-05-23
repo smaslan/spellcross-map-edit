@@ -126,7 +126,7 @@ public:
 	SpellPalette();
 	SpellPalette(std::string name);
 	void Clear();
-	int Insert(std::vector<uint8_t> &data,std::string name="",int offset=0);
+	int Insert(std::vector<uint8_t> &data,std::string name="",int offset=0,int count=0);
 	int Insert(std::wstring path,int offset=0,std::string used="");
 	std::tuple<int,int> GetRange(int start=0);
 	std::string GetRangeString();

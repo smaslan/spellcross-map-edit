@@ -26,6 +26,7 @@
 #include "forms/form_gr_view.h"
 #include "forms/form_gr_encode.h"
 #include "forms/form_text.h"
+#include "forms/form_text_edit.h"
 #include "forms/form_units.h"
 #include "forms/form_events.h"
 #include "forms/form_new_object.h"
@@ -146,6 +147,7 @@ private:
     void OnViewGrRes(wxCommandEvent& event);
     void OnEncodeGrRes(wxCommandEvent& event);
     void OnTextEdit(wxCommandEvent& event);
+    void OnTextEditRaw(wxCommandEvent& event);
     void OnEditUnit(wxCommandEvent& event);
     void OnEditEvent(wxCommandEvent& event);
     void OnViewVideo(wxCommandEvent& event);
@@ -212,6 +214,8 @@ private:
     MapXY spell_pos;
     // selected edit tool
     SpellTool spell_tool;
+    // new unit template
+    MapUnitTemplate m_spell_unit_template;
 
     // last target selection
     MapXY select_pos;
@@ -228,6 +232,7 @@ private:
         form_gres != NULL ||
         form_gres_encoder != NULL ||
         form_text_edit != NULL ||
+        form_text_edit_raw != NULL ||
         form_units != NULL ||
         form_events != NULL ||
         form_videos != NULL ||
@@ -254,6 +259,7 @@ private:
     FormGResView* form_gres = NULL;
     FormGResEncoder* form_gres_encoder = NULL;
     FormText* form_text_edit = NULL;
+    FormTextEdit* form_text_edit_raw = NULL;
     FormUnits* form_units = NULL;
     FormEvent* form_events = NULL;
     FormVideo* form_videos = NULL;
@@ -290,6 +296,7 @@ private:
         ID_GRES_WIN,
         ID_GRES_ENCODE_WIN,
         ID_TEXT_EDIT_WIN,
+        ID_TEXT_EDIT_RAW_WIN,
         ID_UNITS_WIN,
         ID_EVENT_WIN,
         ID_MINIMAP_WIN,
@@ -417,7 +424,8 @@ enum
     ID_ViewVideo,
     ID_ViewMIDI,
     ID_EditTileFlags,
-    ID_TextEdit
+    ID_TextEdit,
+    ID_TextEditRaw
 };
 
 

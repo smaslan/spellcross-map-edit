@@ -133,17 +133,24 @@ SpellSounds::~SpellSounds()
 }
 
 // load sound stuff from spellcross fs data folder
-SpellSounds::SpellSounds(FSarchive *common_fs, std::filesystem::path& fs_data_path, int count,std::function<void(std::string)> status_list,std::function<void(std::string)> status_item)
+SpellSounds::SpellSounds(FSarchive *common_fs, std::vector<std::filesystem::path> &data_paths, int count,std::function<void(std::string)> status_list,std::function<void(std::string)> status_item)
 {            
     channels = NULL;
     
     // load sound.fs (samples)
     if(status_list)
         status_list(" - Loading SAMPLES.FS...");
-    FSarchive* samples_fs;
+    std::filesystem::path arch_path;
+    std::string error_msg;
+    if(SpellData::FindArchive(data_paths,"samples.fs",arch_path,NULL,false,&error_msg))
+    {
+        if(status_list)
+            status_list("   - failed!");
+        throw runtime_error(error_msg);
+    }
+    FSarchive* samples_fs = NULL;
     try{
-        wstring samples_fs_path = std::filesystem::path(fs_data_path) / std::filesystem::path("samples.fs");
-        samples_fs = new FSarchive(samples_fs_path);
+        samples_fs = new FSarchive(arch_path);
     }catch(const runtime_error& error) {        
         if(status_list)
             status_list("   - failed!");

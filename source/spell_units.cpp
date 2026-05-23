@@ -76,20 +76,27 @@ SpellUnitRec::~SpellUnitRec()
 		delete info_text;
 }
 
-// copy resource name string ignoring trailing '_'
-int GetNameStr(char *name, uint8_t* data, int count)
+// get string from data with optional removal of trailing '_'
+std::string get_char_str(uint8_t *data,int max_len=0,bool remove_trail=false)
 {
-	int trail = false;
-	for(int k = 0; k < count; k++)
+	int len;
+	if(max_len)
+		len = strnlen((const char*)data,max_len);
+	else
+		len = strlen((const char*)data);
+	std::string str;
+	str.resize(len);
+	memcpy(str.data(),data,len);
+	if(remove_trail)
 	{
-		if(data[k] == '_')
-			trail = true;
-		if(!trail)
-			*name++ = data[k];
-		else
-			*name++ = '\0';
+		for(auto it = str.rbegin(); it < str.rend(); it++)
+			if(*it != '_')
+			{
+				str.resize(str.rend() - it);
+				break;
+			}
 	}
-	return(0);
+	return(str);
 }
 
 // decode units def file
@@ -111,7 +118,7 @@ SpellUnits::SpellUnits(uint8_t* data,int dlen,FSUarchive* fsu,FSarchive* fs_info
 	else
 	{
 		// unknown
-		throw runtime_error("Cannot identify game version of JEDNOTKY.DEF file with units definitions!");
+		throw runtime_error("Cannot identify game version of JEDNOTKY.DEF file with units definitions! It has wrong size. Must be multiple of 206 or 207 bytes.");
 	}
 	
 	// --- for each unit:
@@ -124,7 +131,7 @@ SpellUnits::SpellUnits(uint8_t* data,int dlen,FSUarchive* fsu,FSarchive* fs_info
 			data += 206;
 		
 		// new unit record
-		SpellUnitRec *unit = new SpellUnitRec();
+		auto &unit = units.emplace_back(std::make_unique<SpellUnitRec>());
 
 		// unit type ID
 		unit->type_id = k;
@@ -132,22 +139,21 @@ SpellUnits::SpellUnits(uint8_t* data,int dlen,FSUarchive* fsu,FSarchive* fs_info
 #define rdu8(rdu8_r) ((int)((unsigned int)*(rdu8_r)))
 #define rdu16(rdu16_r) ((int)((unsigned int)*((unsigned short*)(rdu16_r))))
 #define rdu32(rdu32_r) ((int)*((unsigned int*)(rdu32_r)))
-#define rdsc(rdsc_d,rdsc_r,rdsc_n) memcpy((void*)(rdsc_d),(void*)(rdsc_r),rdsc_n)
 
 		// unit name
-		rdsc(unit->name, rec + 0x00, 28);
+		unit->name = get_char_str(rec + 0x00,27);
 
 		// unit info resource
-		rdsc(unit->info, rec + 0x1C, 9);
+		unit->info = get_char_str(rec + 0x1C,8);
 
 		// unit graphics resource
-		GetNameStr(unit->gra, rec + 0x25,6);
+		unit->gra = get_char_str(rec + 0x25,5,true);
 
 		// unit aditional graphics resource (tank turrets or so)
-		GetNameStr(unit->grb,rec + 0x2B, 6);
+		unit->grb = get_char_str(rec + 0x2B,5,true);
 
 		// unit icon
-		rdsc(unit->icon, rec + 0x31, 9);
+		unit->icon = get_char_str(rec + 0x31,8);
 
 		// unit class flags
 		// 0x01 - has turret
@@ -218,44 +224,44 @@ SpellUnits::SpellUnits(uint8_t* data,int dlen,FSUarchive* fsu,FSarchive* fs_info
 
 
 		// light attack hit animation (*.pnm animation)
-		rdsc(unit->pnm_light_hit_name, rec + 0x49, 9);
+		unit->pnm_light_hit_name = get_char_str(rec + 0x49,8);
 
 		// light attack unit animation resource (*.fsu resource)
-		GetNameStr(unit->anim_atack_light_name,rec + 0x52,6);
+		unit->anim_atack_light_name = get_char_str(rec + 0x52,5,true);
 		
 		// used frames count
 		unit->anim_atack_light_frames = rdu8(rec + 0x61);
 
 		// light attack shot animation (*.pnm resource)
-		rdsc(unit->pnm_light_shot_name, rec + 0x58, 9);
+		unit->pnm_light_shot_name = get_char_str(rec + 0x58,8);
 
 		// armored attack hit animation (*.pnm animation)
-		rdsc(unit->pnm_armored_hit_name, rec + 0x62, 9);
+		unit->pnm_armored_hit_name = get_char_str(rec + 0x62,8);
 
 		// armored attack unit animation resource (*.fsu resource)
-		GetNameStr(unit->anim_atack_armor_name,rec + 0x6B,6);
+		unit->anim_atack_armor_name = get_char_str(rec + 0x6B,5,true);
 		// used frames count
 		unit->anim_atack_armor_frames = rdu8(rec + 0x7A);
 
 		// armored attack shot animation (*.pnm resource)
-		rdsc(unit->pnm_armored_shot_name, rec + 0x71, 9);
+		unit->pnm_armored_shot_name = get_char_str(rec + 0x71,8);
 
 		// air attack hit animation (*.pnm animation)
-		rdsc(unit->pnm_air_hit_name, rec + 0x7B, 9);
+		unit->pnm_air_hit_name = get_char_str(rec + 0x7B,8);
 
 		// air attack unit animation resource (*.fsu content)
-		GetNameStr(unit->anim_atack_air_name,rec + 0x84,6);
+		unit->anim_atack_air_name = get_char_str(rec + 0x84,5,true);
 		// used frames count
 		unit->anim_atack_air_frames = rdu8(rec + 0x93);
 
 		// air attack shot animation (*.pnm resource)
-		rdsc(unit->pnm_air_shot_name, rec + 0x8A, 9);
+		unit->pnm_air_shot_name = get_char_str(rec + 0x8A,8);
 
 		// projectile visibility flags (0x01-light, 0x02-armored, 0x04-air attacks)
 		unit->projectile_visible = rdu8(rec + 0x94);
 
 		// projectile resource (*.grf files)
-		rdsc(unit->projetile_name, rec + 0x95, 13);
+		unit->projetile_name = get_char_str(rec + 0x95,12);
 
 		// special action id
 		// 1  - enable/disable radar (par3-radar indirect sight range)
@@ -277,7 +283,7 @@ SpellUnits::SpellUnits(uint8_t* data,int dlen,FSUarchive* fsu,FSarchive* fs_info
 		unit->action_id = rdu8(rec + 0xA2);
 
 		// special action animation resource (*.fsu content)
-		GetNameStr(unit->action_fsu_name,rec + 0xA4,6);
+		unit->action_fsu_name = get_char_str(rec + 0xA4,5,true);		
 		// frames count
 		unit->action_fsu_frames = rdu8(rec + 0xAA);
 
@@ -298,7 +304,7 @@ SpellUnits::SpellUnits(uint8_t* data,int dlen,FSUarchive* fsu,FSarchive* fs_info
 		unit->die_action_params[2] = rdu8(rec + 0xBD);
 
 		// die action animation resource (*.fsu content)
-		GetNameStr(unit->die_anim_name,rec + 0xB2,6);
+		unit->die_anim_name = get_char_str(rec + 0xB2,5,true);		
 		// frames count
 		unit->die_anim_frames = rdu8(rec + 0xB8);
 
@@ -345,12 +351,26 @@ SpellUnits::SpellUnits(uint8_t* data,int dlen,FSUarchive* fsu,FSarchive* fs_info
 		if(fsu)
 		{
 			unit->gr_base = fsu->GetResource(unit->gra);
+			if(!unit->gr_base)
+				throw runtime_error(string_format("Main FSU graphic resource \"%s\" not found for unit \"%s\"!",unit->gra.c_str(),unit->name.c_str()));
 			unit->gr_aux = fsu->GetResource(unit->grb);
+			if(!unit->grb.empty() && !unit->gr_aux)
+				throw runtime_error(string_format("Aux FSU graphic resource \"%s\" not found for unit \"%s\"!",unit->grb.c_str(),unit->name.c_str()));
 			unit->gr_attack_light = fsu->GetResource(unit->anim_atack_light_name);
+			if(!unit->anim_atack_light_name.empty() && !unit->gr_attack_light)
+				throw runtime_error(string_format("Light attack FSU graphic resource \"%s\" not found for unit \"%s\"!",unit->anim_atack_light_name.c_str(),unit->name.c_str()));
 			unit->gr_attack_armor = fsu->GetResource(unit->anim_atack_armor_name);
+			if(!unit->anim_atack_armor_name.empty() && !unit->gr_attack_armor)
+				throw runtime_error(string_format("Armored attack FSU graphic resource \"%s\" not found for unit \"%s\"!",unit->anim_atack_armor_name.c_str(),unit->name.c_str()));
 			unit->gr_attack_air = fsu->GetResource(unit->anim_atack_air_name);
+			if(!unit->anim_atack_air_name.empty() && !unit->gr_attack_air)
+				throw runtime_error(string_format("Air attack FSU graphic resource \"%s\" not found for unit \"%s\"!",unit->anim_atack_air_name.c_str(),unit->name.c_str()));
 			unit->gr_action = fsu->GetResource(unit->action_fsu_name);
+			if(!unit->action_fsu_name.empty() && !unit->gr_action)
+				throw runtime_error(string_format("Special action FSU graphic resource \"%s\" not found for unit \"%s\"!",unit->action_fsu_name.c_str(),unit->name.c_str()));
 			unit->gr_die = fsu->GetResource(unit->die_anim_name);
+			if(!unit->die_anim_name.empty() && !unit->gr_die)
+				throw runtime_error(string_format("Die action FSU graphic resource \"%s\" not found for unit \"%s\"!",unit->die_anim_name.c_str(),unit->name.c_str()));
 		}
 
 		// load unit info text
@@ -360,13 +380,14 @@ SpellUnits::SpellUnits(uint8_t* data,int dlen,FSUarchive* fsu,FSarchive* fs_info
 			for(auto& lang: langs)
 			{
 				// try load info text file
-				std::string art_info_name = std::string(unit->info) + "." + ((lang == SpellLang::CZE)?"CZ":"EN");
+				std::string art_info_name = std::string(unit->info) + "." + ((lang == SpellLang::CZE)?"CZ":"ENG");
 				
 				auto info_text_raw = fs_info->GetFile(art_info_name);
 				if(info_text_raw.empty())
 					continue;
 
-				unit->info_text = new SpellTextRec(info_text_raw, lang, art_info_name.c_str(),SpellTextRec::TextPanel::UNIT_INFO);
+				// force CZ language because of language mods
+				unit->info_text = new SpellTextRec(info_text_raw, SpellLang::CZE, art_info_name.c_str(),SpellTextRec::TextPanel::UNIT_INFO);
 				if(unit->info_text)
 					break;
 			}
@@ -399,17 +420,33 @@ SpellUnits::SpellUnits(uint8_t* data,int dlen,FSUarchive* fsu,FSarchive* fs_info
 		{					
 			// find unit icon
 			unit->icon_glyph = graphics->GetResource(unit->icon);
+			if(!unit->icon.empty() && !unit->icon_glyph)
+				throw runtime_error(string_format("Icon file \"%s\" not found for unit \"%s\"!",unit->icon.c_str(), unit->name.c_str()));
 
 			// find unit projectile
 			unit->projectile = graphics->GetProjectile(unit->projetile_name);
+			if(!unit->projetile_name.empty() && !unit->projectile)
+				throw runtime_error(string_format("Projectile glyph graphic resoruce \"%s\" not found for unit \"%s\"!",unit->projetile_name.c_str(),unit->name.c_str()));
 
 			// find shot/hit PNMs
 			unit->pnm_air_hit = graphics->GetPNM(unit->pnm_air_hit_name);
+			if(!unit->pnm_air_hit_name.empty() && !unit->pnm_air_hit)
+				throw runtime_error(string_format("Air unit hit PNM resoruce \"%s\" not found for unit \"%s\"!",unit->pnm_air_hit_name.c_str(),unit->name.c_str()));
 			unit->pnm_air_shot = graphics->GetPNM(unit->pnm_air_shot_name);
+			if(!unit->pnm_air_shot_name.empty() && !unit->pnm_air_shot)
+				throw runtime_error(string_format("Air unit shot PNM resoruce \"%s\" not found for unit \"%s\"!",unit->pnm_air_shot_name.c_str(),unit->name.c_str()));
 			unit->pnm_light_hit = graphics->GetPNM(unit->pnm_light_hit_name);
+			if(!unit->pnm_light_hit_name.empty() && !unit->pnm_light_hit)
+				throw runtime_error(string_format("Light unit hit PNM resoruce \"%s\" not found for unit \"%s\"!",unit->pnm_light_hit_name.c_str(),unit->name.c_str()));
 			unit->pnm_light_shot = graphics->GetPNM(unit->pnm_light_shot_name);
+			if(!unit->pnm_light_shot_name.empty() && !unit->pnm_light_shot)
+				throw runtime_error(string_format("Light unit shot PNM resoruce \"%s\" not found for unit \"%s\"!",unit->pnm_light_shot_name.c_str(),unit->name.c_str()));
 			unit->pnm_armored_hit = graphics->GetPNM(unit->pnm_armored_hit_name);
+			if(!unit->pnm_armored_hit_name.empty() && !unit->pnm_armored_hit)
+				throw runtime_error(string_format("Armored unit hit PNM resoruce \"%s\" not found for unit \"%s\"!",unit->pnm_armored_hit_name.c_str(),unit->name.c_str()));
 			unit->pnm_armored_shot = graphics->GetPNM(unit->pnm_armored_shot_name);
+			if(!unit->pnm_armored_shot_name.empty() && !unit->pnm_armored_shot)
+				throw runtime_error(string_format("Armored unit shot PNM resoruce \"%s\" not found for unit \"%s\"!",unit->pnm_armored_shot_name.c_str(),unit->name.c_str()));
 
 			// assign special action button glyph
 			if(unit->isActionTurretUp())
@@ -431,33 +468,55 @@ SpellUnits::SpellUnits(uint8_t* data,int dlen,FSUarchive* fsu,FSarchive* fs_info
 				unit->action_button_glyph = graphics->wm_glyph_up;
 			else if(unit->isActionCreateUnit())
 				unit->action_button_glyph = graphics->wm_glyph_place_unit;
-
-
 		}
 
 		// --- assign sounds
 		if(sounds)
 		{
 			unit->sound_move = sounds->GetMoveClass(unit->smov);
+			if(!unit->sound_move)
+				throw runtime_error(string_format("Move sound resource #%d not found for unit \"%s\"!",unit->smov,unit->name.c_str()));
 			unit->sound_report = sounds->GetReportClass(unit->ssel);
+			if(!unit->sound_report)
+				throw runtime_error(string_format("Report sound resource #%d not found for unit \"%s\"!",unit->sound_report,unit->name.c_str()));
 			unit->sound_contact = sounds->GetContactClass(unit->ssel);
+			if(!unit->sound_contact)
+				throw runtime_error(string_format("Contact sound resource #%d not found for unit \"%s\"!",unit->ssel,unit->name.c_str()));
 			unit->sound_hit = sounds->GetHitClass(unit->shit);
+			if(!unit->sound_hit)
+				throw runtime_error(string_format("Hit sound resource #%d not found for unit \"%s\"!",unit->shit,unit->name.c_str()));
 			unit->sound_die = sounds->GetDieClass(unit->shit);
+			if(!unit->sound_die)
+				throw runtime_error(string_format("Death sound resource #%d not found for unit \"%s\"!",unit->shit,unit->name.c_str()));
 			unit->sound_attack_light = sounds->GetAttackClass(unit->slig);
+			if(!unit->sound_attack_light)
+				throw runtime_error(string_format("Light attack sound resource #%d not found for unit \"%s\"!",unit->slig,unit->name.c_str()));
 			unit->sound_attack_armor = sounds->GetAttackClass(unit->sarm);
+			if(!unit->sound_attack_armor)
+				throw runtime_error(string_format("Armored attack sound resource #%d not found for unit \"%s\"!",unit->sarm,unit->name.c_str()));
 			unit->sound_attack_air = sounds->GetAttackClass(unit->sair);			
+			if(!unit->sound_attack_air)
+				throw runtime_error(string_format("Air attack sound resource #%d not found for unit \"%s\"!",unit->sair,unit->name.c_str()));
 			unit->sound_action = sounds->GetSpecialClass(unit->snd_action_id);
+			if(!unit->sound_action)
+				throw runtime_error(string_format("Special action sound resource #%d not found for unit \"%s\"!",unit->snd_action_id,unit->name.c_str()));
 			unit->sound_level_up = sounds->aux_samples.unit_level_up;
 		}
 
 		// store BONUSES.DEF link
 		unit->bonuses = bonuses;
-
-		// store unit to list
-		units.push_back(unit);
+		
 	}
-
 }
+
+// cleanup
+SpellUnits::~SpellUnits()
+{
+	/*for(auto &unit: units)
+		delete unit;*/
+	units.clear();
+}
+
 
 // unit type
 int SpellUnitRec::isAir()
@@ -534,6 +593,8 @@ int SpellUnitRec::CalcExperiencePts(int level)
 {
 	// very crude approximation of strange Spellcross experience boundaries
 	// note: it's not accurate, but decently close...
+	if(!exp_min || !exp_max)
+		return(0);
 	double a = (double)exp_min;
 	double b = log(200.0*exp_max/exp_min)/log(12);
 	level = min(max(level,0),11);
@@ -654,13 +715,6 @@ int SpellUnitRec::GetMaxDig()
 
 
 
-// cleanup
-SpellUnits::~SpellUnits()
-{
-	for (int k = 0; k < units.size(); k++)
-		delete units[k];
-	units.clear();
-}
 
 // get units count
 int SpellUnits::Count()
@@ -673,11 +727,11 @@ SpellUnitRec *SpellUnits::GetUnit(int uid)
 {
 	if (uid >= units.size())
 		return(NULL);
-	return(units[uid]);
+	return(units[uid].get());
 }
 
 // get full units list
-vector<SpellUnitRec*> &SpellUnits::GetUnits()
+std::vector<std::unique_ptr<SpellUnitRec>> &SpellUnits::GetUnits()
 {
 	return(units);
 }
@@ -2034,4 +2088,19 @@ SpellMapEventRec* MapUnit::GetTrigEvent(std::vector<int> types)
 			return(evt);
 	}
 	return(NULL);
+}
+
+
+
+
+
+// default new map unit template
+MapUnitTemplate::MapUnitTemplate()
+{
+	unit_type_id = 0;
+	experience_level = 1;
+	man = 0;
+	spec_type = MapUnitType::Values::MissionUnit;
+	behave = MapUnitType::Values::NormalUnit;
+	is_event = true;
 }

@@ -8,6 +8,7 @@
 #include "form_gr_encode.h"
 #include "sprites.h"
 #include "other.h"
+#include "wx_other.h"
 #include "LZ_spell.h"
 
 #include <wx/rawbmp.h>
@@ -205,6 +206,13 @@ FormGResEncoder::FormGResEncoder(wxWindow* parent,SpellData* spell_data,wxWindow
 	appIcon.LoadFile("IDI_ICON2",wxBITMAP_TYPE_ICO_RESOURCE);
 	if(appIcon.IsOk())
 		SetIcon(appIcon);
+
+	AssignSVGresourceToMenu(mmOpen, "IDR_OPEN3");
+	AssignSVGresourceToMenu(mmSave,"IDR_SAVE");
+	AssignSVGresourceToMenu(mmSavePal,"IDR_SAVE");
+	AssignSVGresourceToMenu(mmExportAll,"IDR_SAVE_ALL");
+	AssignSVGresourceToMenu(mmExit,"IDR_CLOSE");
+	
 		
 	Bind(wxEVT_CLOSE_WINDOW, &FormGResEncoder::OnClose, this, this->m_windowId);
 	Bind(wxEVT_MENU,&FormGResEncoder::OnCloseClick,this,wxID_MM_EXIT);
@@ -521,7 +529,7 @@ int SpellGresInfo::LoadInfo(std::wstring path)
 	}
 	x_size = std::atoi(x_size_str.c_str());
 	y_size = std::atoi(y_size_str.c_str());
-	bool m_is_transparent = std::atoi(info_get_string(info,"transparent").c_str());
+	is_transparent = std::atoi(info_get_string(info,"transparent").c_str());
 	format = info_get_string(info,"format");
 	
 	auto y_offset_str = info_get_string(info,"yoffset");
@@ -638,7 +646,7 @@ void FormGResEncoder::OnOpenClick(wxCommandEvent& event)
 	// load resource
 	LoadResource(path);
 	
-	// load all other resources with shares palette
+	// load all other resources with shared palette
 	lboxList->Clear();
 	lboxList->Freeze();
 	int select_id = -1;

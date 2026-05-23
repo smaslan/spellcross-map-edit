@@ -130,9 +130,9 @@ FormConfig::FormConfig(wxWindow* parent,wxWindowID id,SpellConfig *config,const 
 	Bind(wxEVT_COMMAND_CHOICE_SELECTED,&FormConfig::OnSelectPath,this,wxID_CH_MOD_PATH);
 
 
-	FillPathHistory(chSpellPath, config->spell_path_hist);
-	FillPathHistory(chSpellcdPath,config->spell_cd_path_hist);
-	FillPathHistory(chModPath,config->spell_mod_path_hist);
+	FillPathHistory(chSpellPath, config->spell_path_hist, config->spell_path);
+	FillPathHistory(chSpellcdPath,config->spell_cd_path_hist, config->spell_cd_path);
+	FillPathHistory(chModPath,config->spell_mod_path_hist, config->spell_mod_path);
 	cbHideMapLoadWarnings->SetValue(config->hide_map_warnings);
 }
 
@@ -161,7 +161,7 @@ void FormConfig::OnCloseClick(wxCommandEvent& event)
 
 
 // fill path choice history
-void FormConfig::FillPathHistory(wxChoice *choice, std::vector<std::filesystem::path>& list)
+void FormConfig::FillPathHistory(wxChoice *choice, std::vector<std::filesystem::path>& list, std::filesystem::path &path)
 {
 	choice->Freeze();
 	choice->Clear();
@@ -173,7 +173,7 @@ void FormConfig::FillPathHistory(wxChoice *choice, std::vector<std::filesystem::
 
 	ChoiceCheckPaths(choice);
 
-	if(list.empty())
+	if(list.empty() || path.empty())
 		choice->SetStringSelection(cstr_path_empty);
 	else
 		choice->Select(0);
@@ -185,16 +185,18 @@ std::filesystem::path FormConfig::GetChoicePaths(wxChoice* choice,std::vector<st
 	// remove rubbish
 	ChoiceCheckPaths(choice);
 
-	// make list of unique paths
-	list.clear();
+	// make list of history paths
+	list.clear();	
 	if(choice->GetStringSelection() == cstr_path_empty)
-		return("");
+		list.push_back("");
 	for(auto& item: choice->GetStrings())
 	{
 		if(item == cstr_path_browse || item == cstr_path_empty)
 			continue;
 		list.push_back(item.ToStdWstring());
 	}
+	if(choice->GetStringSelection() == cstr_path_empty)
+		return("");
 	if(list.empty())
 		return("");
 	return(list[0]);
