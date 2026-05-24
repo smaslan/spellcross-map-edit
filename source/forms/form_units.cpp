@@ -7,6 +7,7 @@
 
 #include "form_units.h"
 #include "other.h"
+#include "wx_other.h"
 
 #include <wx/rawbmp.h>
 #include <wx/filedlg.h>
@@ -16,7 +17,7 @@
 FormUnits::FormUnits( wxWindow* parent, wxWindowID id, const wxString& title, const wxPoint& pos, const wxSize& size, long style ) : wxFrame( parent, id, title, pos, size, style )
 {
 	// === AUTO GENERATED START ===	
-	// <wxFormsBuilder> - Section auto-inserted from 'forms.cpp' class 'FormUnits' on 2026-05-06 19:07:51
+	// <wxFormsBuilder> - Section auto-inserted from 'forms.cpp' class 'FormUnits' on 2026-05-24 09:14:40
 	this->SetSizeHints( wxDefaultSize, wxDefaultSize );
 	this->SetBackgroundColour( wxSystemSettings::GetColour( wxSYS_COLOUR_MENU ) );
 	
@@ -118,12 +119,21 @@ FormUnits::FormUnits( wxWindow* parent, wxWindowID id, const wxString& title, co
 	m_staticText40->Wrap( -1 );
 	szProps->Add( m_staticText40, 0, wxRIGHT|wxLEFT, 5 );
 	
+	wxBoxSizer* bSizer125;
+	bSizer125 = new wxBoxSizer( wxHORIZONTAL );
+	
 	spinHealth = new wxSpinCtrl( this, wxID_SPIN_HEALTH, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, 0, 10, 0 );
-	szProps->Add( spinHealth, 0, wxEXPAND|wxBOTTOM|wxRIGHT|wxLEFT, 5 );
+	bSizer125->Add( spinHealth, 1, wxRIGHT|wxLEFT, 5 );
+	
+	btnHPmax = new wxButton( this, wxID_BTN_HP_MAX, wxT("Max"), wxDefaultPosition, wxDefaultSize, 0 );
+	bSizer125->Add( btnHPmax, 0, wxEXPAND|wxRIGHT, 5 );
+	
+	
+	szProps->Add( bSizer125, 0, wxEXPAND, 5 );
 	
 	m_staticText75 = new wxStaticText( this, wxID_ANY, wxT("Experience:"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_staticText75->Wrap( -1 );
-	szProps->Add( m_staticText75, 0, wxLEFT|wxRIGHT, 5 );
+	szProps->Add( m_staticText75, 0, wxTOP|wxRIGHT|wxLEFT, 5 );
 	
 	slideXP = new wxSlider( this, wxID_ANY, 50, 0, 12, wxDefaultPosition, wxDefaultSize, wxSL_AUTOTICKS|wxSL_HORIZONTAL|wxSL_MIN_MAX_LABELS|wxSL_SELRANGE|wxSL_VALUE_LABEL );
 	szProps->Add( slideXP, 0, wxEXPAND|wxLEFT|wxRIGHT, 5 );
@@ -355,7 +365,7 @@ FormUnits::FormUnits( wxWindow* parent, wxWindowID id, const wxString& title, co
 	this->Centre( wxBOTH );
 	
 
-	// </wxFormsBuilder> - Section auto-inserted from 'forms.cpp' class 'FormUnits' on 2026-05-06 19:07:51
+	// </wxFormsBuilder> - Section auto-inserted from 'forms.cpp' class 'FormUnits' on 2026-05-24 09:14:40
 	// === AUTO GENERATED END ===
 
 	// set icon
@@ -364,6 +374,12 @@ FormUnits::FormUnits( wxWindow* parent, wxWindowID id, const wxString& title, co
 	if(appIcon.IsOk())
 		SetIcon(appIcon);
 
+	auto op_sz = FromDIP(wxSize(16,16));	
+	btnHPmax->SetBitmap(LoadSVGiconsBundle("IDR_UP").GetBitmap(op_sz));
+	btnHPmax->SetBitmapMargins(5,0);
+
+	sbar->SetDoubleBuffered(true);
+	
 	// unit ID is read only
 	spinID->Enable(false);
 
@@ -424,6 +440,7 @@ FormUnits::FormUnits( wxWindow* parent, wxWindowID id, const wxString& title, co
 	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormUnits::OnChangeGrpFrame,this,wxID_CB_GRP_FIRE_ORG_MEAN);
 
 	Bind(wxEVT_COMMAND_CHOICE_SELECTED,&FormUnits::OnSelectSpecUnit,this,wxID_UNIT_TYPE);
+	Bind(wxEVT_COMMAND_BUTTON_CLICKED,&FormUnits::OnHPmaxClick,this,wxID_BTN_HP_MAX);
 
 
 	
@@ -438,19 +455,11 @@ FormUnits::~FormUnits()
 
 void FormUnits::OnClose(wxCloseEvent& ev)
 {
-	wxPostEvent(GetParent(),ev);
-	ev.Skip();
-	Destroy();
-}
-// close form
-void FormUnits::OnCloseClick(wxCommandEvent& event)
-{
-	m_update = (event.GetId() == wxID_MM_SET) && m_unit;
 	if(m_update && lboxUnits->GetSelection() >= 0)
 	{
 		// update unit record (if attached)		
 		m_unit->map->HaltUnitRanging(true);
-		m_unit->MorphUnit(m_spell_data->units->GetUnit(lboxUnits->GetSelection()));		
+		m_unit->MorphUnit(m_spell_data->units->GetUnit(lboxUnits->GetSelection()));
 		m_unit->was_moved = true;
 		EditUnit();
 		m_unit->map->AssignUnitID(m_unit);
@@ -471,7 +480,15 @@ void FormUnits::OnCloseClick(wxCommandEvent& event)
 		m_unit = NULL;
 		m_update = false;
 	}
-
+	
+	wxPostEvent(GetParent(),ev);
+	ev.Skip();
+	Destroy();
+}
+// close form
+void FormUnits::OnCloseClick(wxCommandEvent& event)
+{
+	m_update = (event.GetId() == wxID_MM_SET) && m_unit;	
 	Close();
 }
 
@@ -525,7 +542,7 @@ void FormUnits::SetMapUnit(MapUnit *unit, SpellMap* map, MapUnitTemplate *unit_t
 		unit->behave = m_unit_template->behave;
 		unit->spec_type = m_unit_template->spec_type;
 		unit->InitExperience(m_unit_template->experience_level);
-		unit->ResetHealth();					
+		unit->ResetHealth();
 
 		// try assign new unit ID
 		map->AssignUnitID(unit);
@@ -540,7 +557,7 @@ void FormUnits::SetMapUnit(MapUnit *unit, SpellMap* map, MapUnitTemplate *unit_t
 // on unit selection change
 void FormUnits::OnSelectUnit(wxCommandEvent& event)
 {
-	SelectUnit();	
+	SelectUnit(NULL,true);	
 }
 
 // on unit selection change
@@ -554,7 +571,7 @@ void FormUnits::OnSelectSpecUnit(wxCommandEvent& event)
 }
 
 // fill form stuff when unit selected
-void FormUnits::SelectUnit(MapUnit *unit)
+void FormUnits::SelectUnit(MapUnit *unit,bool unit_change)
 {
 	if(unit)
 	{
@@ -565,6 +582,7 @@ void FormUnits::SelectUnit(MapUnit *unit)
 			if(item == unit->unit)
 			{
 				lboxUnits->Select(uid);
+				lboxUnits->EnsureVisible(uid);
 				break;
 			}
 		}
@@ -574,6 +592,7 @@ void FormUnits::SelectUnit(MapUnit *unit)
 		return;
 	auto sel = lboxUnits->GetSelection();
 	auto *unit_rec = m_spell_data->units->GetUnit(sel);
+	
 
 	// show some properties
 	props->Freeze();
@@ -587,6 +606,7 @@ void FormUnits::SelectUnit(MapUnit *unit)
 	props->Append(new wxStringProperty(wxT("Objects attack"),wxT(""),string_format("%d",unit_rec->attack_objects)));
 	props->Append(new wxStringProperty(wxT("Man count"),wxT(""),string_format("%d",unit_rec->cnt)));
 	props->Thaw();	
+	props->FitColumns();
 
 	// show unit ID
 	if(m_unit)
@@ -594,7 +614,7 @@ void FormUnits::SelectUnit(MapUnit *unit)
 
 	// set health control
 	int health = unit_rec->GetHP();
-	if(m_unit)
+	if(m_unit && !unit_change)
 		health = m_unit->man;
 	spinHealth->SetRange(1, unit_rec->cnt);
 	spinHealth->SetValue(health);
@@ -632,7 +652,7 @@ void FormUnits::SelectUnit(MapUnit *unit)
 			else if(m_unit->is_enemy && m_unit->is_event)
 				chUnitType->SetStringSelection(MapUnitType(MapUnitType::Values::EnemyUnit).GetString());
 		}
-		chUnitType->Enable(true);
+		chUnitType->Enable(true);		
 
 		if(m_unit->is_event)
 		{
@@ -816,6 +836,13 @@ void FormUnits::EditUnit()
 		m_unit->name = txtName->GetValue();
 
 }
+
+// set unit HP to max
+void FormUnits::OnHPmaxClick(wxCommandEvent& event)
+{
+	spinHealth->SetValue(spinHealth->GetMax());
+}
+
 
 // on paint icon
 void FormUnits::OnPaintIcon(wxPaintEvent& event)
@@ -1129,7 +1156,7 @@ void FormUnits::OnGrpCanvasMouseMove(wxMouseEvent& event)
 	int color = 0;
 	if(x_abs <= surf_x && y_abs <= surf_y)
 		color = (unsigned)m_grpbuf[x_abs + y_abs*surf_x];
-	string txt = string_format("x = %d, y = %d, color = %d (0x%02X)", x_pos, y_pos, color);
+	string txt = string_format("x = %d, y = %d, color = %d (0x%02X)", x_pos, y_pos, color, color);
 	SetStatusText(txt);
 
 	// update fire origin

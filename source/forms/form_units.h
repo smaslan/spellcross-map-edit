@@ -10,7 +10,7 @@
 #include "spellcross.h"
 #include "map.h"
 
-// <wxFormsBuilder-include> - Section auto-inserted from 'forms.h' class 'FormUnits' on 2026-05-06 19:07:51
+// <wxFormsBuilder-include> - Section auto-inserted from 'forms.h' class 'FormUnits' on 2026-05-24 09:14:41
 #include <wx/artprov.h>
 #include <wx/xrc/xmlres.h>
 #include <wx/string.h>
@@ -44,8 +44,9 @@
 #include <wx/notebook.h>
 #include <wx/radiobut.h>
 #include <wx/scrolbar.h>
+#include <wx/bmpbuttn.h>
 
-// </wxFormsBuilder-include> - Section auto-inserted from 'forms.h' class 'FormUnits' on 2026-05-06 19:07:51
+// </wxFormsBuilder-include> - Section auto-inserted from 'forms.h' class 'FormUnits' on 2026-05-24 09:14:41
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -65,6 +66,7 @@ class FormUnits : public wxFrame
 		void OnPaintIcon(wxPaintEvent& event);
 		void OnPaintArt(wxPaintEvent& event);
 		void OnCopyGrpOriginsClick(wxCommandEvent& event);
+		void OnHPmaxClick(wxCommandEvent& event);
 		
 		void OnPaintGrp(wxPaintEvent& event);
 		void OnGrpCanvasLMouseDown(wxMouseEvent& event);
@@ -75,7 +77,7 @@ class FormUnits : public wxFrame
 		void ChangeGrpResource();
 
 
-		void SelectUnit(MapUnit *unit=NULL);
+		void SelectUnit(MapUnit *unit=NULL,bool unit_change=false);
 		void EditUnit();
 
 		SpellData *m_spell_data;
@@ -117,7 +119,7 @@ class FormUnits : public wxFrame
 
 	protected:
 		
-		// <wxFormsBuilder> - Section auto-inserted from 'forms.h' class 'FormUnits' on 2026-05-06 19:07:51
+		// <wxFormsBuilder> - Section auto-inserted from 'forms.h' class 'FormUnits' on 2026-05-24 09:14:41
 		enum
 		{
 			wxID_SB = 5999,
@@ -132,6 +134,7 @@ class FormUnits : public wxFrame
 			wxID_SPIN_ID,
 			wxID_NAME,
 			wxID_SPIN_HEALTH,
+			wxID_BTN_HP_MAX,
 			wxID_UNIT_BEHAVE,
 			wxID_UNIT_TYPE,
 			wxID_PAGE_CTRL,
@@ -174,6 +177,7 @@ class FormUnits : public wxFrame
 		wxTextCtrl* txtName;
 		wxStaticText* m_staticText40;
 		wxSpinCtrl* spinHealth;
+		wxButton* btnHPmax;
 		wxStaticText* m_staticText75;
 		wxSlider* slideXP;
 		wxStaticText* m_staticText401;
@@ -216,7 +220,7 @@ class FormUnits : public wxFrame
 		wxCheckBox* cbGrpFireMean;
 		wxCheckBox* cbGrpFireCenter;
 
-		// </wxFormsBuilder> - Section auto-inserted from 'forms.h' class 'FormUnits' on 2026-05-06 19:07:51
+		// </wxFormsBuilder> - Section auto-inserted from 'forms.h' class 'FormUnits' on 2026-05-24 09:14:41
 
 	public:
 
