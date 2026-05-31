@@ -56,6 +56,9 @@ tuple<int,int> TScroll::GetSurface()
 // reset scroller to default
 void TScroll::Reset()
 {
+	xsize = 0;
+	ysize = 0;
+
 	xref = 0;
 	yref = 0;
 	// scroll position

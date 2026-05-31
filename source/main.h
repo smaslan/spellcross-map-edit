@@ -172,6 +172,8 @@ private:
     void OnCreateNewObject(wxCommandEvent& event);
     void OnAddUnit(wxCommandEvent& event);
     void OnEditMissionParams(wxCommandEvent& event);
+    void OnExportMapRender(wxCommandEvent& event);
+    void OnExportAllMapsRender(wxCommandEvent& event);
 
     void OnToolBtnClick(wxRibbonButtonBarEvent& event);
     void OnToolBtnDropClick(wxRibbonButtonBarEvent& event);
@@ -383,6 +385,8 @@ enum
     ID_ViewVoxZ,
     ID_ViewMiniMap,
     ID_ExportVoxZ,
+    ID_ExportMapImg,
+    ID_ExportMapsImg,
     ID_SetGamma,
     ID_ViewSprites,
     ID_ViewAnms,

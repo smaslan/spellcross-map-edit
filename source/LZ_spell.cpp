@@ -265,6 +265,22 @@ std::vector<uint8_t>& LZWexpand::Decode(uint8_t* dsrc,uint8_t* dend)
 	buffer.resize(output_size);
 	return(buffer);
 }
+std::vector<uint8_t>& LZWexpand::Decode(std::vector<uint8_t> &data)
+{
+	// deLZ
+	auto dsrc = data.data();
+	auto dend = dsrc + data.size();
+	auto err = DecodeCore(dsrc,dend);
+	if(err)
+	{
+		buffer.resize(0);
+		return(buffer);
+	}
+
+	// return directly working buffer resized to actual data size
+	buffer.resize(output_size);
+	return(buffer);
+}
 int LZWexpand::DecodeCore(uint8_t*dsrc, uint8_t *dend)
 {
 	LZWdictElem *cwrd = NULL;

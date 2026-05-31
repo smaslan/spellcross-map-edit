@@ -434,6 +434,8 @@ MainFrame::MainFrame(SpellConfig* config, SpellMap *&map, SpellData *&spelldata)
     menuTools->Append(ID_ViewMiniMap,"View mini-map","",wxITEM_NORMAL);
     menuTools->Append(ID_ViewVoxZ,"View Z-map","",wxITEM_NORMAL);
     menuTools->Append(ID_ExportVoxZ,"Export Z-map","",wxITEM_NORMAL);
+    menuTools->Append(ID_ExportMapImg,"Export map render","",wxITEM_NORMAL);
+    menuTools->Append(ID_ExportMapsImg,"Export batch map renders","",wxITEM_NORMAL);
     menuTools->Append(wxID_ANY,"","",wxITEM_SEPARATOR);
     menuTools->Append(ID_UpdateSprContext, "Update tile context from this map","",wxITEM_NORMAL);
     menuTools->Append(ID_UpdateSprContextMaps,"Update tile context from ALL maps","",wxITEM_NORMAL);
@@ -559,6 +561,9 @@ MainFrame::MainFrame(SpellConfig* config, SpellMap *&map, SpellData *&spelldata)
     Bind(wxEVT_MENU,&MainFrame::OnTileFlags,this,ID_EditTileFlags);
     Bind(wxEVT_MENU,&MainFrame::OnViewVoxZ,this,ID_ViewVoxZ);
     Bind(wxEVT_MENU,&MainFrame::OnViewVoxZ,this,ID_ExportVoxZ);
+    Bind(wxEVT_MENU,&MainFrame::OnExportMapRender,this,ID_ExportMapImg);    
+    Bind(wxEVT_MENU,&MainFrame::OnExportAllMapsRender,this,ID_ExportMapsImg);    
+
     Bind(wxEVT_MENU,&MainFrame::OnViewMiniMap,this,ID_ViewMiniMap);
     Bind(wxEVT_MENU,&MainFrame::OnUnitViewDebug,this,ID_UnitViewDbg);
     Bind(wxEVT_MENU,&MainFrame::OnUpdateTileContext,this,ID_UpdateSprContext);
@@ -1197,6 +1202,7 @@ void MainFrame::OnViewLayer(wxCommandEvent& event)
     bool hud = GetMenuBar()->FindItem(ID_ViewHUD)->IsChecked();
     spell_map->SetHUDstate(hud);
     Refresh();
+    
 }
 
 // enable disable unit view debug mode
@@ -1657,6 +1663,135 @@ void MainFrame::OnViewMiniMap(wxCommandEvent& event)
     form_minimap = new FormMiniMap(canvas,ID_MINIMAP_WIN,spell_data,minimap);
 
 }
+
+
+// export current map render
+void MainFrame::OnExportMapRender(wxCommandEvent& event)
+{
+    if(!spell_map->IsLoaded())
+        return;
+
+    // save dialogue
+    auto map_path = std::filesystem::path(spell_map->GetTopPath());
+    auto png_name = std::wstring(map_path.stem().concat(".png"));
+    wxFileDialog saveFileDialog(this,_("Save map render image"),spell_data->export_path,png_name,"PNG file (*.png)|*.png",wxFD_SAVE);
+    if(saveFileDialog.ShowModal() == wxID_CANCEL)
+        return;
+    auto png_path = saveFileDialog.GetPath();
+
+    // make local scroll object with zero scroll state
+    TScroll scrl;
+    scrl.Reset();
+
+    // obtain redner surface range
+    auto [pic_x,pic_y] = spell_map->GetMapSurfaceSize();
+    int hud_state = spell_map->SetHUDstate(false);
+    wxBitmap* buf = new wxBitmap(1,1,24);
+    scrl.SetPos(0,0);
+    //scrl.SetSurface(pic_x,pic_y);
+    scrl.SetSurface(1,1);
+    spell_map->RenderPrepare(&scrl);
+    auto [x1,y1] = scrl.GetScroll();
+    scrl.SetPos(pic_x,pic_y);
+    spell_map->RenderPrepare(&scrl);
+    auto [x2,y2] = scrl.GetScroll();
+    delete buf;
+
+    // make local render buffer for entire map size    
+    buf = new wxBitmap(x2-x1,y2-y1,24);
+    scrl.SetSurface(x2-x1,y2-y1);
+    scrl.SetPos(0,0);
+    spell_map->Render(*buf,&scrl);
+    spell_map->SetHUDstate(hud_state);
+
+    // try save
+    buf->SaveFile(png_path,wxBITMAP_TYPE_PNG);
+    delete buf;        
+}
+
+
+// export all maps renders
+void MainFrame::OnExportAllMapsRender(wxCommandEvent& event)
+{
+    auto src_dir = std::filesystem::path(spell_map->GetTopPath()).parent_path().wstring();
+
+    // get source maps
+    wxFileDialog openMapsDialogue(this, "Select map files to render (multiple files allowed)", src_dir, "M*.def", "Map DEF files (*.def)|*.def", wxFD_OPEN|wxFD_MULTIPLE|wxFD_FILE_MUST_EXIST);
+    if(openMapsDialogue.ShowModal() == wxID_CANCEL)
+        return;
+    wxArrayString maps_list;
+    openMapsDialogue.GetFilenames(maps_list);
+    
+    // target directory dialogue
+    wxDirDialog saveDialog(this,_("Select export path for renders"),spell_data->export_path,wxDD_DIR_MUST_EXIST);
+    if(saveDialog.ShowModal() == wxID_CANCEL)
+        return;
+    auto export_dir = std::filesystem::path(saveDialog.GetPath().ToStdWstring());
+    // rather ask for overwrite
+    wxMessageDialog overDial(this, "Image files in target directory can be overwriten! Continue?", "Exporting map renders", wxICON_EXCLAMATION|wxYES_NO|wxYES_DEFAULT);
+    if(overDial.ShowModal() != wxID_YES)
+        return;
+    spell_data->export_path = export_dir;
+
+
+    bool wL1 = GetMenuBar()->FindItem(ID_ViewTer)->IsChecked();
+    bool wL2 = GetMenuBar()->FindItem(ID_ViewObj)->IsChecked();
+    bool wL3 = GetMenuBar()->FindItem(ID_ViewAnm)->IsChecked();
+    bool wL4 = GetMenuBar()->FindItem(ID_ViewPnm)->IsChecked();
+    bool wL5 = GetMenuBar()->FindItem(ID_ViewUnt)->IsChecked();
+    bool wSS = GetMenuBar()->FindItem(ID_ViewStTa)->IsChecked();
+    bool wSound = GetMenuBar()->FindItem(ID_ViewSounds)->IsChecked();
+    bool wSoundLoop = GetMenuBar()->FindItem(ID_ViewSoundLoops)->IsChecked();
+    bool wEvents = GetMenuBar()->FindItem(ID_ViewEvents)->IsChecked();
+    bool wHobj = GetMenuBar()->FindItem(ID_HighlighObj)->IsChecked();
+    bool wDebug = GetMenuBar()->FindItem(ID_ShowDebug)->IsChecked();
+
+    // for each map file
+    for(int fid = 0; fid < maps_list.Count(); fid++)
+    {        
+        auto map_path = maps_list[fid];
+        SetStatusText(string_format("Exporting map %d of %d: \"%ls\"...",fid+1,maps_list.Count(),map_path.ToStdWstring().c_str()),7);
+
+        // try load map
+        SpellMap map;
+        map.hide_map_load_warnings = true;
+        if(map.Load(std::filesystem::path(map_path.ToStdWstring()),spell_data))
+        {
+            wxMessageDialog dlg(this,string_format("Loading map file \"%ls\" failed! Error message:\n%s\n\nContinue?",map_path.ToStdWstring().c_str(), map.GetLastError().c_str()), "Export map render error",wxYES_NO|wxYES_DEFAULT|wxICON_ERROR);
+            if(dlg.ShowModal() != wxID_YES)
+                break;
+            continue;
+        }
+
+        // set current view format
+        map.SetRender(wL1,wL2,wL3,wL4,wSS,false,wL5,wSound,wSoundLoop,wEvents,wHobj,wDebug);
+
+        // make local scroll object with zero scroll state
+        TScroll scrl;
+        scrl.Reset();
+        map.RenderPrepare(&scrl);
+        map.SetHUDstate(false);
+        map.SetGamma(spell_map->GetGamma());
+        auto [pic_x,pic_y] = map.GetMapSurfaceSize();
+        // render full scale image
+        auto buf = new wxBitmap(pic_x,pic_y,24);
+        scrl.SetSurface(pic_x,pic_y);
+        scrl.SetPos(0,0);
+        map.Render(*buf,&scrl);
+
+        int x_crop_left = 100;
+        int y_crop_top = 250;
+        int x_crop_right = 200;
+        int y_crop_bot = 400;
+        // try save
+        auto png_path = export_dir / std::filesystem::path(map_path.ToStdWstring()).stem().concat(".png");
+        buf->GetSubBitmap(wxRect(x_crop_left, y_crop_top, pic_x - x_crop_left - x_crop_right, pic_y - y_crop_top - y_crop_bot)).SaveFile(png_path.wstring(),wxBITMAP_TYPE_PNG);
+        delete buf;
+    }
+    SetStatusText(string_format("Exporting %d maps done!",maps_list.Count()),7);
+}
+
+
 
 
 // edit mission parameters
