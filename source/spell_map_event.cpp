@@ -884,27 +884,30 @@ std::tuple<std::string, std::string> SpellMapEventRec::FormatDEFrecord(int *init
 		// --- AddSpecialEvent():
 
 		// total data count for event
-		int evt_count = texts.size() + units.size() + !video.empty();
+		int evt_count = texts.size() + !video.empty() + !units.empty();
 
-		// duplicate event header for each data (spellcross cannot aggregate more data for one event...)
+		// duplicate event header for each data (spellcross seems to not be able to aggregate different actions for one event...)
+		std::string event_cmd = "";
 		bool used = evt_count > 0;
 		for(int k = *initial_id; k < *initial_id + evt_count; k++)
-		{
+		{			
 			switch(evt_type)
 			{
-				case EvtTypes::EVT_MISSION_START:
-					head += string_format("    AddSpecialEvent(MissionStart,%d,%d%%)\n", k, probability);					
+				case EvtTypes::EVT_MISSION_START:					
+					event_cmd = string_format("AddSpecialEvent(MissionStart,%d,%d%%)", k, probability);
 					break;
 				case EvtTypes::EVT_SEE_PLACE:
-					head += string_format("    AddSpecialEvent(SeePlace,%d,%d,%d%%)\n",map->ConvXY(position),k,probability);
+					event_cmd = string_format("AddSpecialEvent(SeePlace,%d,%d,%d%%)",map->ConvXY(position),k,probability);
 					break;
 				case EvtTypes::EVT_SEE_UNIT:
-					head += string_format("    AddSpecialEvent(SeeUnit,%d,%d,%d%%)\n",trig_unit_id,k,probability);
+					event_cmd = string_format("AddSpecialEvent(SeeUnit,%d,%d,%d%%)",trig_unit_id,k,probability);
 					break;
 				default:
 					used = false;
 					break;
 			}
+			if(!event_cmd.empty())
+				head += string_format("    %s\n",event_cmd.c_str());
 		}
 
 		if(used)
@@ -912,6 +915,7 @@ std::tuple<std::string, std::string> SpellMapEventRec::FormatDEFrecord(int *init
 			// place text data
 			for(auto text: texts)
 			{
+				data += string_format(";%s:\n",event_cmd.c_str());
 				data += string_format("EventData(%d) {\n",(*initial_id)++);
 				data += string_format("    EventText(%s)\n}\n\n",text.text->name.c_str());
 			}
@@ -919,23 +923,30 @@ std::tuple<std::string, std::string> SpellMapEventRec::FormatDEFrecord(int *init
 			// place video data
 			if(!video.empty())
 			{
+				data += string_format(";%s:\n",event_cmd.c_str());
 				data += string_format("EventData(%d) {\n",(*initial_id)++);
 				data += string_format("    PlayCANAnimation(%s)\n}\n\n",video.c_str());
 			}
 
 			// place unit data
-			for(auto& unit: units)
-			{
-				std::string name = unit.unit->name;
-				if(name.empty())
-					name = "-";
-				std::string spec_type_str = unit.unit->spec_type.GetString();
-				if(unit.unit->spec_type == MapUnitType::Values::SpecUnit && unit.unit->id == 48)
-					spec_type_str = "SpecUnit1";
-				else if(unit.unit->spec_type == MapUnitType::Values::SpecUnit && unit.unit->id == 49)
-					spec_type_str = "SpecUnit2";
+			if(!units.empty())
+			{				
+				data += string_format(";%s:\n",event_cmd.c_str());
 				data += string_format("EventData(%d) {\n",(*initial_id)++);
-				data += string_format("    AddSpecialUnit(%s,%d,%d,%02d,%d,%s)\n}\n\n",spec_type_str.c_str(),unit.unit->unit->type_id,map->ConvXY(unit.unit->coor),unit.unit->experience_init,unit.unit->man,name.c_str());
+				for(auto& unit: units)
+				{
+					std::string name = unit.unit->name;
+					if(name.empty())
+						name = "-";
+					std::string spec_type_str = unit.unit->spec_type.GetString();
+					if(unit.unit->spec_type == MapUnitType::Values::SpecUnit && unit.unit->id == 48)
+						spec_type_str = "SpecUnit1";
+					else if(unit.unit->spec_type == MapUnitType::Values::SpecUnit && unit.unit->id == 49)
+						spec_type_str = "SpecUnit2";
+					data += string_format("    ;%s\n",unit.unit->unit->name.c_str());
+					data += string_format("    AddSpecialUnit(%s,%d,%d,%02d,%d,%s)\n",spec_type_str.c_str(),unit.unit->unit->type_id,map->ConvXY(unit.unit->coor),unit.unit->experience_init,unit.unit->man,name.c_str());
+				}
+				data += string_format("}\n\n");
 			}
 		}
 	}

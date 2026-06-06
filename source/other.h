@@ -19,6 +19,7 @@ char wchar2charCP895(wchar_t sym);
 std::string wstring2stringCP895(std::wstring str);
 std::string& toupper(std::string& str);
 std::string string_format(const std::string fmt,...);
+std::wstring wstring_format(const std::wstring fmt,...);
 std::string format_bin(uint32_t dword,int digits=32,bool gaps=false);
 bool iequals(const std::string& a,const std::string& b);
 bool iequals(const std::wstring& a,const std::wstring& b);

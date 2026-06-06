@@ -2019,7 +2019,10 @@ int SpellMap::SaveDEF(std::wstring path)
 	}
 
 	// place start/escape/target squares
-	std::vector<std::pair<std::vector<MapXY>,std::string>> squares = {{start,"AddStartSquare"},{escape,"AddEscapeSquare"},{target,"AddTargetSquare"}};
+	std::vector<std::pair<std::vector<MapXY>,std::string>> squares = {
+		{start,"AddStartSquare"},
+		{escape,"AddEscapeSquare"},
+		{target,"AddTargetSquare"}};
 	for(auto &square: squares)
 	{	
 		int num = 0;

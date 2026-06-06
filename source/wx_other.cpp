@@ -4,6 +4,7 @@
 #include <wx/menu.h>
 #include <wx/menuitem.h>
 
+
 // get executable directory via wxWidgets (should be multiplatform)
 std::filesystem::path GetExecutableDir()
 {
@@ -78,4 +79,22 @@ int RescaleWindowDPI(wxWindow *win)
 		win->Layout();
 	}
 	return(0);
+}
+
+// make PropertyGrid choices from std::map<int,string> (careful - not reentrant!)
+wxPGChoices& MapToPGenumChoices(const std::map<int,std::string>& map)
+{
+	static wxPGChoices ch;
+	ch.Clear();
+	for(auto& item: map)
+		ch.Add(item.second,item.first);
+	return(ch);
+}
+wxPGChoices& MapToPGenumChoices(const std::map<int,std::wstring>& map)
+{
+	static wxPGChoices ch;
+	ch.Clear();
+	for(auto& item: map)
+		ch.Add(item.second,item.first);
+	return(ch);
 }
