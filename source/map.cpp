@@ -1360,9 +1360,9 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 				// make void unit
 				MapUnit *unit = new MapUnit(this);
 
-				// always os
+				// static unit are always OS
 				unit->is_enemy = 1;
-				unit->spec_type = MapUnitType::Values::Unknown;
+				unit->spec_type = MapUnitType::Values::EnemyUnit;
 
 				// unit index within map (identifier)
 				unit->id = stoi(cmd->parameters->at(0));
@@ -4501,9 +4501,11 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 		// render event-unit connection lines:
 		for(auto & evt : events->GetEvents())
 		{
-			if(!evt->hasPosition())
-				continue;
+			/*if(!evt->hasPosition())
+				continue;*/
 			auto ev_pos = evt->GetPosition();
+			if(!ev_pos.IsSelected())
+				continue;
 			
 			// event position in surface
 			Sprite* spr = tiles[ConvXY(ev_pos)].L1;
@@ -8840,7 +8842,7 @@ MapUnit* SpellMap::ExtractUnit(MapUnit* unit)
 		ResumeUnitRanging(false);
 		return(NULL); // not found
 	}
-	
+
 	// remove from list
 	units.erase(uid);
 
@@ -9050,8 +9052,8 @@ int SpellMap::AssignUnitID(MapUnit *unit)
 		trig_event->trig_unit_id = id;
 	
 	// fix eventual map event ID
-	if(unit->creator_event)
-		unit->creator_event->trig_unit_id = id;
+	/*if(unit->creator_event)
+		unit->creator_event->trig_unit_id = id;*/
 
 	return(ret);
 }
@@ -9307,11 +9309,14 @@ SpellMapEventRec* SpellMap::GetSelectEvent()
 // moves unit from map list to event or back
 int SpellMap::UpdateEventUnit(SpellMapEventRec* evt,MapUnit* unit)
 {
+	if(!evt->isEventType())
+		return(1);
+	
 	// it the unit in map?
 	auto free_unit = ExtractUnit(unit);
 	if(free_unit)
 	{
-		// yaha: move unit from map to event
+		// yaha: move unit from map to event		
 		evt->AddUnit(unit);
 		SortUnits();
 		events->ResetEvents();
@@ -9322,14 +9327,13 @@ int SpellMap::UpdateEventUnit(SpellMapEventRec* evt,MapUnit* unit)
 	free_unit = evt->ExtractUnit(unit);
 	if(free_unit)
 	{
+		// move unit from event to map		
 		AddUnit(free_unit);
 		SortUnits();
 		events->ResetEvents();
 		return(0);
 	}
 
-	
-	
 	
 	// unit is not found, most likely belongs to other event, do nothing
 	return(1);

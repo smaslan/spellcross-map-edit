@@ -94,7 +94,7 @@ public:
     int SetType(int type_id);
     int AddUnit(MapUnit *unit);
     MapUnit *ExtractUnit(MapUnit* unit);
-    void ClearUnits();
+    void ClearUnits(bool to_static=true);
     void ClearTexts();
     SpellMapEventRec(SpellMap *parent_map);
     SpellMapEventRec(SpellMapEventRec* rec);

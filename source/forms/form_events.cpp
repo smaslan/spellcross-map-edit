@@ -760,7 +760,7 @@ void FormEvent::OnSelectMsgResource(wxCommandEvent& event)
 
 // edit event parameters
 void FormEvent::OnEditParams(wxCommandEvent& event)
-{
+{	
 	if(!spell_event)
 		return;
 
@@ -799,12 +799,13 @@ void FormEvent::OnEditParams(wxCommandEvent& event)
 		txtObjectiveDesc->SetValue("");
 		txtObjectiveDesc->Enable(false);
 	}
+		
 
 	// update coordinates
 	spell_event->position = MapXY(spinXpos->GetValue(),spinYpos->GetValue());
 	spinXpos->Enable(spell_event->hasPosition());
 	spinYpos->Enable(spell_event->hasPosition());
-
+	
 	// update target unit id
 	spell_event->trig_unit_id = spinTrigUnit->GetValue();
 	spinTrigUnit->Enable(spell_event->hasTargetUnit());
@@ -812,7 +813,7 @@ void FormEvent::OnEditParams(wxCommandEvent& event)
 	if(!spell_event->isEventType())
 	{
 		// clear event stuff (messages and units)
-		spell_event->ClearUnits();
+		spell_event->ClearUnits();		
 		spell_event->ClearTexts();
 		chbCANanim->Select(0);
 	}

@@ -59,6 +59,10 @@ int SpellMapEventRec::AddUnit(MapUnit* unit)
 	// make unit link to this event
 	unit->creator_event = this;
 	unit->is_event = true;
+	if(unit->is_enemy)
+		unit->spec_type = MapUnitType::Values::EnemyUnit;
+	else if(unit->spec_type == MapUnitType::Values::EnemyUnit)
+		unit->spec_type = MapUnitType::Values::MissionUnit;
 
 	map->events->RelinkUnits();
 	map->ResumeUnitRanging(false);
@@ -80,7 +84,7 @@ MapUnit *SpellMapEventRec::ExtractUnit(MapUnit* unit)
 			unit->is_event = false;
 			// static units can be only enemies
 			unit->is_enemy = true;
-			unit->spec_type = MapUnitType::Values::Unknown;
+			unit->spec_type = MapUnitType::Values::EnemyUnit;
 			// return unit
 			map->ResumeUnitRanging(false);
 			map->ReleaseMap();
@@ -89,14 +93,23 @@ MapUnit *SpellMapEventRec::ExtractUnit(MapUnit* unit)
 	// not found
 	return(NULL);
 }
-// remove all spawned unit from event's list
-void SpellMapEventRec::ClearUnits()
+// remove all spawned units from event's list, optional move them to map
+void SpellMapEventRec::ClearUnits(bool to_static)
 {
 	map->LockMap();
 	map->HaltUnitRanging(true);
-	for(auto& unit : units)
-		delete unit.unit;
+	bool was_changed = !units.empty();
+	for(auto& unit: units)
+	{		
+		auto ext_unit = ExtractUnit(unit.unit);
+		if(!ext_unit)
+			continue;
+		if(to_static)
+			map->AddUnit(ext_unit);
+	}
 	units.clear();
+	if(was_changed)
+		map->SortUnits();
 	map->ResumeUnitRanging(false);
 	map->ReleaseMap();
 }
@@ -1296,6 +1309,7 @@ SpellMapEventRec* SpellMapEvents::AddUnitObjective(MapUnit* unit,SpellMapEventRe
 	evt->trig_unit_id = unit->id;
 	evt->probability = 100;
 	evt->is_objective = true;
+	evt->label = char2wstring(evt->type_name.c_str());
 	AddEvent(evt);
 	ResetEvents();
 
