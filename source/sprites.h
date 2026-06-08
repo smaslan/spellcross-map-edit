@@ -367,7 +367,8 @@ class AnimPNM
 		// void constructor
 		AnimPNM();
 		~AnimPNM();
-		int Decode(uint8_t* data, char* name);
+		int Decode(uint8_t* data, const char* name);
+		static int Encode(std::filesystem::path path,std::vector<std::unique_ptr<SpellGraphicItem>>& frames);
 
 };
 
@@ -492,6 +493,10 @@ private:
 	
 
 public:
+
+	static constexpr int RENDER_CENTER = 0x01;
+	static constexpr int RENDER_ZOOMX2 = 0x02;
+
 	// terrain name
 	std::string name;
 	// sprites of particular layers
@@ -554,7 +559,7 @@ public:
 	int RenderPreview(wxBitmap& bmp,int count,int* data,int flags,double gamma);
 	int RenderSpritePreview(wxBitmap& bmp,std::vector<Sprite*>& tiles,int flags,double gamma);
 	int RenderSpritePreview(wxBitmap& bmp,Sprite* tile,int flags,double gamma);
-	int RenderPNMpreview(wxBitmap& bmp,Sprite* spr,int flags,double gamma);
+	int RenderPNMpreview(wxBitmap& bmp,Sprite* spr,int flags=RENDER_CENTER,double gamma=1.0);
 		
 	SpellObject* AddObject(std::vector<MapXY> xy,std::vector<Sprite*> L1_list,std::vector<Sprite*> L2_list,std::vector<uint8_t> flag_list,std::vector<MapLayer4> pnm_list,uint8_t* palette,std::string desc);
 	SpellObject* AddObject(SpellObject* obj);
@@ -605,8 +610,6 @@ public:
 	int RenderPaletteColor(wxBitmap& bmp,int x_size,int x_pos,uint8_t* filter=NULL);
 	
 
-	static constexpr int RENDER_CENTER = 0x01;
-	static constexpr int RENDER_ZOOMX2 = 0x02;
 };
 
 

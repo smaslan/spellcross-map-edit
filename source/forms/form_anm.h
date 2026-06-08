@@ -7,7 +7,7 @@
 
 #pragma once
 
-// <wxFormsBuilder-include> - Section auto-inserted from 'forms.h' class 'FormANM' on 2026-05-08 11:10:29
+// <wxFormsBuilder-include> - Section auto-inserted from 'forms.h' class 'FormANM' on 2026-06-07 15:15:52
 #include <wx/artprov.h>
 #include <wx/xrc/xmlres.h>
 #include <wx/string.h>
@@ -41,8 +41,9 @@
 #include <wx/notebook.h>
 #include <wx/radiobut.h>
 #include <wx/scrolbar.h>
+#include <wx/bmpbuttn.h>
 
-// </wxFormsBuilder-include> - Section auto-inserted from 'forms.h' class 'FormANM' on 2026-05-08 11:10:29
+// </wxFormsBuilder-include> - Section auto-inserted from 'forms.h' class 'FormANM' on 2026-06-07 15:15:52
 
 #include <tuple>
 
@@ -79,6 +80,7 @@ class FormANM : public wxFrame
 		void OnChangeZoom(wxCommandEvent& event);
 		void OnChangeGamma(wxCommandEvent& event);
 		void OnTimer(wxTimerEvent& event);
+		void OnExportClick(wxCommandEvent& event);
 		
 		void SetTerrain(Terrain* terr);
 		Terrain* FindTerrain();
@@ -87,10 +89,11 @@ class FormANM : public wxFrame
 		
 	protected:
 		
-		// <wxFormsBuilder> - Section auto-inserted from 'forms.h' class 'FormANM' on 2026-05-08 11:10:29
+		// <wxFormsBuilder> - Section auto-inserted from 'forms.h' class 'FormANM' on 2026-06-07 15:15:52
 		enum
 		{
-			wxID_MM_SELECT = 5999,
+			wxID_MM_EXPRT = 5999,
+			wxID_MM_SELECT,
 			wxID_MM_CLOSE,
 			wxID_CH_SRC,
 			wxID_TXT_FILTER,
@@ -128,11 +131,11 @@ class FormANM : public wxFrame
 		wxSlider* slideGamma;
 		wxCheckBox* cbZoom;
 
-		// </wxFormsBuilder> - Section auto-inserted from 'forms.h' class 'FormANM' on 2026-05-08 11:10:29
+		// </wxFormsBuilder> - Section auto-inserted from 'forms.h' class 'FormANM' on 2026-06-07 15:15:52
 
 	public:
 
-		FormANM( wxWindow* parent,SpellData* spell_data,bool is_pnm,wxWindowID id = wxID_ANY, const wxString& title = wxT("Terrain layer animations ANM"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 700,500 ), long style = wxDEFAULT_FRAME_STYLE|wxRESIZE_BORDER|wxSTAY_ON_TOP|wxTAB_TRAVERSAL );
+		FormANM( wxWindow* parent,SpellData* spell_data,bool is_pnm,wxWindowID id = wxID_ANY, const wxString& title = wxT("Terrain layer animations ANM"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 700,500 ), long style = wxDEFAULT_FRAME_STYLE|wxRESIZE_BORDER|wxFRAME_FLOAT_ON_PARENT|wxTAB_TRAVERSAL );
 		~FormANM();
 		void SetANM(Terrain* terr,AnimL1* anm);
 		void SetPNM(Terrain* terr,AnimPNM* pnm,int x_ofs=0,int y_ofs=0);

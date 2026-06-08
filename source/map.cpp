@@ -1968,7 +1968,7 @@ int SpellMap::SaveDEF(std::wstring path)
 	if(SortUnitIDs())
 	{
 		// failed
-		last_error = string_format("Saving map DEF file: assigning units IDs failed! Most likely too many units or more than two SpecUnits.");
+		last_error = string_format("Saving map DEF file: assigning units IDs failed with error:\n",last_error.c_str());
 		return(1);
 	}
 
@@ -9031,11 +9031,16 @@ int SpellMap::AssignUnitID(MapUnit *unit)
 				if(id > 49)
 				{
 					// ###error - original spelcros cannot handle more than two SpecUnits!
+					last_error = string_format("There can be only two SpecUnits per map (SpecUnit1 and SpecUnit2)!");
 					ret = 1;
 				}
 			}
 			if(id >= 50 && id < 100)
+			{
 				id = 100;
+				last_error = string_format("There are more than 50 static units.");
+				ret = 1;
+			}
 		}
 		// is unique?
 		if(std::find(list.begin(),list.end(),id) == list.end())

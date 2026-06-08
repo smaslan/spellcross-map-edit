@@ -854,8 +854,157 @@ AnimPNM::~AnimPNM()
 	frames.clear();
 }
 
+// encode frames
+int AnimPNM::Encode(std::filesystem::path path,std::vector<std::unique_ptr<SpellGraphicItem>> &frames)
+{
+	// try open file
+	ofstreamext fw(path,ios::out | ios::binary | ios::trunc);
+	if(!fw.is_open())
+		return(1);
+
+	// write frames count
+	int32_t frame_count = frames.size();
+	fw.write((uint8_t)frame_count);
+
+	// skip data offsets table
+	auto fpos_frame_pointers = fw.tellp();
+	fw.seekp(frame_count*sizeof(int32_t), ios::_Seekcur);
+
+	// for each frame
+	for(auto &frame: frames)
+	{
+		// put frame start pos		
+		uint32_t fpos_frame = fw.tellp();
+		auto fpos_next = fw.tellp();		
+		fw.seekp(fpos_frame_pointers);
+		fw.write(fpos_frame - 1);
+		fpos_frame_pointers = fw.tellp();
+		fw.seekp(fpos_next);
+
+		// skip header
+		auto fpos_frame_head = fw.tellp();
+		fw.seekp(3*sizeof(int16_t) + sizeof(uint8_t),ios::_Seekcur);
+		
+		// pixel data
+		auto &pixels = frame->pixels;
+		auto x_buf_size = frame->x_size;
+		auto y_buf_size = frame->y_size;
+
+		// find first non-empty line
+		auto first_pix_id = std::find_if(pixels.begin(), pixels.end(),[](uint8_t x){return(!!x);});
+		if(first_pix_id == pixels.end())
+			return(1);
+		int first_pix = first_pix_id - pixels.begin();
+
+		// find last non-empty line
+		auto last_pix_id = std::find_if(pixels.rbegin(),pixels.rend(),[](uint8_t x) {return(!!x);});
+		if(last_pix_id == pixels.rend())
+			return(1);
+		int last_pix = pixels.rend() - last_pix_id;
+
+		// vertical offset of first line
+		int16_t y_ofs = first_pix/x_buf_size;
+
+		// vertical offset of first line
+		int16_t y_last = last_pix/x_buf_size;
+
+		// minimum x-offset for all lines
+		uint16_t x_ofs = 256;
+
+		uint16_t x_max = 0;
+
+		// for each source line (except initial empty lines):
+		for(int y = y_ofs; y <= y_last; y++)
+		{
+			std::streampos fpos_pix_count; 			
+			bool gap = true;
+			int ofs = 0;
+			int len = 0;
+			for(int x = 0; x < x_buf_size; x++)
+			{
+				auto &pix = pixels[x + y*x_buf_size];
+
+				if(pix && x < x_ofs)
+					x_ofs = x;
+				if(pix && x > x_max)
+					x_max = x;
+
+				if(gap)
+				{
+					// pixels gap
+					if(!pix)
+						ofs++; // gap continues
+					else
+					{
+						// end of gap
+
+						// put chunk offset
+						fw.write((uint8_t)ofs);
+						ofs = 0;						
+
+						// skip chunk size
+						fpos_pix_count = fw.tellp();
+						fw.seekp(sizeof(uint8_t),ios::_Seekcur);
+
+						len = 0;
+						gap = false;
+					}
+				}
+				
+				if(!gap)
+				{
+					// active pixels chunk
+
+					if(pix)
+					{
+						// put pixel
+						fw.write(pix);
+						len++;
+					}
+					else
+					{
+						// gap start												
+						ofs++;
+						gap = true;
+					}
+
+					if(!pix || x == x_buf_size-1)
+					{
+						// end of chunk
+
+						// put chunk len
+						auto fpos_next = fw.tellp();
+						fw.seekp(fpos_pix_count);
+						fw.write((uint8_t)len);
+						fw.seekp(fpos_next);
+					}
+				}
+
+			} // for each pixel
+			
+			// put end of line mark
+			fw.write((uint8_t)0xFF);			
+
+		} // for each line
+
+		// put first line offset
+		fpos_next = fw.tellp();
+		fw.seekp(fpos_frame_head);
+		fw.write((int16_t)y_ofs);
+		fw.write((uint16_t)x_ofs);
+		fw.write((uint16_t)(x_max - x_ofs + 1));
+		fw.write((uint8_t)(y_last - y_ofs + 1));
+		fw.seekp(fpos_next);
+	}
+
+	// done
+	fw.close();
+
+	return(0);
+}
+
 // decode animation file from buffer
-int AnimPNM::Decode(uint8_t* data, char* name)
+int AnimPNM::Decode(uint8_t* data, const char* name)
 {
 	// get frames count
 	int count = *data++;
@@ -875,10 +1024,10 @@ int AnimPNM::Decode(uint8_t* data, char* name)
 		// frame data start
 		uint8_t* pnm = &data[*list++];
 
-		// vertilcal offset
+		// vertical offset
 		int y_ofs = *(int16_t*)pnm; pnm += 2;
 
-		// minimum left offset of all lines
+		// minimum left-most offset of all lines
 		int x_ofs = *(uint16_t*)pnm; pnm += 2;
 
 		// maximum line len
@@ -903,7 +1052,7 @@ int AnimPNM::Decode(uint8_t* data, char* name)
 			// clear line
 			std::memset((void*)line, 0, sizeof(line));
 
-			// this line offset in result image
+			// this line x-offset in result image
 			int line_offset = *pnm;
 
 			// running chunk offset
@@ -3036,7 +3185,8 @@ int Terrain::RenderSpritePreview(wxBitmap& bmp, std::vector<Sprite*> &tiles, int
 int Terrain::RenderPNMpreview(wxBitmap& bmp,Sprite *spr,int flags,double gamma)
 {
 	// zoom mode
-	int zoom = (flags&Terrain::RENDER_ZOOMX2)?2:1;
+	int zoom = (flags & Terrain::RENDER_ZOOMX2)?2:1;
+	int center = !!(flags & Terrain::RENDER_CENTER);
 
 	// allocate render buffer for indexed image
 	int surf_x = bmp.GetWidth();
@@ -3046,8 +3196,13 @@ int Terrain::RenderPNMpreview(wxBitmap& bmp,Sprite *spr,int flags,double gamma)
 
 	// center
 	int elev = 0;	
-	int ref_x = (surf_x/zoom - 80)/2;
-	int ref_y = (surf_y/zoom - 80)/2 - elev*18;
+	int ref_x = 0;
+	int ref_y = 0;
+	if(center)
+	{
+		ref_x = (surf_x/zoom - 80)/2;
+		ref_y = (surf_y/zoom - 80)/2 - elev*18;
+	}
 
 	// render tile
 	spr->Render(buf.data(),buf_end,ref_x,ref_y,surf_x);

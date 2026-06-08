@@ -96,6 +96,7 @@ public:
 	std::string info_name;
 	std::string name;
 	std::string img_name;
+	std::vector<std::string> img_names;
 	std::string pal_name;
 	std::string colors_str;
 	std::string format;
@@ -109,6 +110,8 @@ public:
 	void Clear();
 	int LoadInfo(std::wstring path);
 	bool isLoaded();
+	bool isPNM() {return(format == "PNM");};
+	bool isUnitsFSU() { return(format == "UNITS.FSU"); };
 };
 
 
@@ -133,7 +136,7 @@ private:
 	std::vector<std::string> m_task_failed_list;
 	int m_thread_active;
 
-	int LoadResource(std::wstring path);
+	int LoadResource(std::wstring path, int frame_id=-1);
 	
 	void OnClose(wxCloseEvent& ev);
 	void OnCloseClick(wxCommandEvent& event);

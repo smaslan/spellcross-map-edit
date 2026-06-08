@@ -315,47 +315,20 @@ wxThread::ExitCode ProcTh::Entry()
 			m_config.mutex->unlock();
 			continue;
 		}
-		
-		// try read image file
-		wxBitmap source;
-		auto image_path = std::filesystem::path(path).parent_path().append(info.img_name).wstring();
-		if(!source.LoadFile(image_path,wxBITMAP_TYPE_PNG))
-		{
-			m_config.mutex->lock();
-			if(!m_config.list->empty())
-				m_config.failed_list->push_back(path.filename().string());
-			m_config.mutex->unlock();
-			continue;
-		}
 
-		// show status
-		std::vector<std::string> status;
-		status.push_back(info.info_name);
-		status.push_back(info.name);
-		status.push_back(string_format("size = %d x %d",source.GetWidth(),source.GetHeight()));
-		status.push_back((info.is_transparent)?"transparent":"solid");
-		status.push_back(info.pal_name);
-		status.push_back(info.colors_str);
-		SetStatusCallback(status, &source);		
-
-		//m_config.mutex->lock();
-		// encode image
-		int* shadow_color = NULL;
-		if(info.format == "UNITS.FSU")
-			shadow_color = info.shadow_color;
-		SpellGraphicItem gres;
-		gres.Encode(source,info.name,&pal,m_config.dither_randomize,shadow_color,0xFD);
-		//m_config.mutex->unlock();
-
-		// save to file
-		auto save_path = std::filesystem::path(m_config.target_dir).append(info.name).wstring();
-		if(info.format == "UNITS.FSU")
-		{
-			// UNITS.FSU sprite
-			auto x_ofs = m_config.x_offset;
-			auto y_ofs = info.y_offset + m_config.y_offset;
-			auto err = FSU_sprite::SaveSprite(save_path,gres.pixels,gres.x_size,x_ofs,y_ofs,0xFD);
-			if(err)
+		// for each frame in case of animations:
+		std::vector<std::unique_ptr<SpellGraphicItem>> gres_list;
+		std::vector<std::string> img_names = {info.img_name};
+		if(info.isPNM())
+			img_names = info.img_names;
+		for(auto &img_name: img_names)
+		{		
+			int frame_id = &img_name - img_names.data();
+			
+			// try read image file
+			wxBitmap source;
+			auto image_path = std::filesystem::path(path).parent_path().append(img_name).wstring();
+			if(!source.LoadFile(image_path,wxBITMAP_TYPE_PNG))
 			{
 				m_config.mutex->lock();
 				if(!m_config.list->empty())
@@ -363,18 +336,128 @@ wxThread::ExitCode ProcTh::Entry()
 				m_config.mutex->unlock();
 				continue;
 			}
-		}
-		else
-		{
-			// general graphic resource
-			if(gres.Export(save_path))
-			{
-				m_config.mutex->lock();
-				if(!m_config.list->empty())
-					m_config.failed_list->push_back(path.filename().string());
-				m_config.mutex->unlock();
+
+			// show status
+			std::vector<std::string> status;
+			if(info.isPNM())
+				status.push_back(string_format("%s (frame %d)",info.info_name.c_str(),frame_id));
+			else
+				status.push_back(info.info_name);
+			status.push_back(string_format("size = %d x %d",source.GetWidth(),source.GetHeight()));
+			status.push_back((info.is_transparent)?"transparent":"solid");
+			status.push_back(info.pal_name);
+			status.push_back(info.colors_str);
+			SetStatusCallback(status, &source);
+
+			// encode image
+			int* shadow_color = NULL;
+			if(info.isUnitsFSU())
+				shadow_color = info.shadow_color;			
+			gres_list.push_back(std::make_unique<SpellGraphicItem>());
+			auto &gres = gres_list.back();
+			gres->Encode(source,info.name,&pal,m_config.dither_randomize,shadow_color,0xFD);
+
+			// just collect frames for animations
+			if(info.isPNM() && frame_id < info.img_names.size() - 1)
 				continue;
+
+			// save to file
+			auto save_path = std::filesystem::path(m_config.target_dir).append(info.name).wstring();
+			if(info.isPNM())
+			{
+				// PNM animation: all frames encoded
+				
+				auto err = AnimPNM::Encode(save_path, gres_list);
+				if(err)
+				{
+					m_config.mutex->lock();
+					if(!m_config.list->empty())
+						m_config.failed_list->push_back(path.filename().string());
+					m_config.mutex->unlock();
+					continue;
+				}
+
+				/*std::vector<uint8_t> pnm_data;
+				loaddata(save_path,pnm_data);
+
+				AnimPNM pnm;
+				pnm.Decode(pnm_data.data(), "test.pnm");
+
+				
+				auto frame = pnm.frames[0];
+
+				int x_size = pnm.x_max;
+				int y_size = pnm.y_max;
+				int y_ref = 0;
+				if(pnm.y_min < 0)
+				{
+					y_ref = -pnm.y_min;
+					y_size += (-pnm.y_min);
+				}				
+				
+				
+				// make indexed buffer
+				std::vector<uint8_t> buf(x_size*y_size,0);
+				uint8_t* buf_end = buf.data() + buf.size();
+
+				// render tile
+				frame->Render(buf.data(),buf_end,0,y_ref,x_size);
+
+				// render 24bit RGB data to raw bmp buffer
+				auto ppal = (uint8_t(*)[3])pal.m_pal.data();
+
+				// render with alpha channel to bitmap
+				wxBitmap bmp(x_size,y_size,32);
+				bmp.UseAlpha(true);
+				typedef wxPixelData<wxBitmap,wxAlphaPixelFormat> PixelData;
+				PixelData data(bmp);
+				PixelData::Iterator p(data);
+				for(int y = 0; y < y_size; ++y)
+				{
+					uint8_t* scan = p.m_ptr;
+					uint8_t* src = &buf[y*x_size];
+					for(int x = 0; x < x_size; x++)
+					{
+						*scan++ = ppal[*src][2];
+						*scan++ = ppal[*src][1];
+						*scan++ = ppal[*src][0];
+						*scan++ = (*src)?255:0;
+						src++;
+					}
+					p.OffsetY(data,1);
+				}
+
+				SetStatusCallback(status,&bmp);*/
+
 			}
+			else if(info.isUnitsFSU())
+			{
+				// UNITS.FSU sprite
+				auto x_ofs = m_config.x_offset;
+				auto y_ofs = info.y_offset + m_config.y_offset;
+				auto err = FSU_sprite::SaveSprite(save_path,gres->pixels,gres->x_size,x_ofs,y_ofs,0xFD);
+				if(err)
+				{
+					m_config.mutex->lock();
+					if(!m_config.list->empty())
+						m_config.failed_list->push_back(path.filename().string());
+					m_config.mutex->unlock();
+					continue;
+				}
+			}
+			else
+			{
+				// general graphic resource
+				if(gres->Export(save_path))
+				{
+					m_config.mutex->lock();
+					if(!m_config.list->empty())
+						m_config.failed_list->push_back(path.filename().string());
+					m_config.mutex->unlock();
+					continue;
+				}
+			}
+
 		}
 	}
 
@@ -546,11 +629,14 @@ int SpellGresInfo::LoadInfo(std::wstring path)
 		for(auto &colstr: shadow_colors_list)
 			shadow_color[&colstr - shadow_colors_list.data()] = std::atoi(colstr.c_str());
 
+	// try read image names (optional for PNM format)
+	img_names = info_get_text_vector(info, "images");
+
 	return(0);
 }
 
 // load new resource
-int FormGResEncoder::LoadResource(std::wstring path)
+int FormGResEncoder::LoadResource(std::wstring path,int frame_id)
 {
 	m_source = wxBitmap();
 	m_pal.Clear();
@@ -566,8 +652,16 @@ int FormGResEncoder::LoadResource(std::wstring path)
 		return(1);
 	//m_pal.m_name = m_info.pal_name;
 
+	// pick frame of animation?
+	bool is_pnm = m_info.isPNM();
+	if(is_pnm && frame_id < 0 || frame_id >= m_info.img_names.size())
+		return(1);
+	auto img_name = m_info.img_name;
+	if(is_pnm && frame_id >= 0)
+		img_name = m_info.img_names[frame_id];
+
 	// try read image file
-	auto image_path = std::filesystem::path(path).parent_path().append(m_info.img_name).wstring();
+	auto image_path = std::filesystem::path(path).parent_path().append(img_name).wstring();
 	if(!m_source.LoadFile(image_path,wxBITMAP_TYPE_PNG))
 		return(1);
 
@@ -644,7 +738,7 @@ void FormGResEncoder::OnOpenClick(wxCommandEvent& event)
 	}	
 	
 	// load resource
-	LoadResource(path);
+	LoadResource(path,0);
 	
 	// load all other resources with shared palette
 	lboxList->Clear();
@@ -742,7 +836,7 @@ void FormGResEncoder::OnSaveClick(wxCommandEvent& event)
 	spell_data->export_path = saveFileDialog.GetDirectory().ToStdWstring();
 
 	// save to file
-	if(m_info.format == "UNITS.FSU")
+	if(m_info.isUnitsFSU())
 	{
 		// UNITS.FSU sprite
 		auto x_ofs = spinExtraXoffset->GetValue();
@@ -785,7 +879,7 @@ void FormGResEncoder::OnSaveAllClick(wxCommandEvent& event)
 	spell_data->export_path = dir;
 
 	// rather ask for permission
-	wxMessageDialog msg(NULL,"Files in the selected folder might be overwritten! Continue?","Export glyphs",wxYES_NO | wxNO_DEFAULT | wxICON_QUESTION);
+	wxMessageDialog msg(NULL,"Files in the selected folder might be overwritten! Continue?","Export glyphs",wxYES_NO | wxYES_DEFAULT | wxICON_QUESTION);
 	if(msg.ShowModal() != wxID_YES)
 		return;
 
