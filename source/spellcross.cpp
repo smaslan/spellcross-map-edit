@@ -412,6 +412,17 @@ int SpellData::Reload(std::filesystem::path &data_path,std::filesystem::path& cd
 		last_error = string_format("Loading COMMON.FS archive failed (%s)!",error.what());
 		return(1);
 	}
+	auto aux_common_path = spec_path / "common.fs";
+	try {
+		common_fs->Append(aux_common_path);
+	}catch(const runtime_error& error) {
+		Cleanup();
+		if(status_list)
+			status_list(" - failed!");
+		last_error = string_format("Loading auxiliary COMMON.FS archive failed (%s)!",error.what());
+		return(1);
+	}
+	
 
 	// load INFO.FS (units art)
 	if(status_list)
@@ -565,7 +576,7 @@ int SpellData::Reload(std::filesystem::path &data_path,std::filesystem::path& cd
 		};
 		
 		// make new terrain
-		Terrain* new_terrain = new Terrain();
+		Terrain* new_terrain = new Terrain(*this);
 		if(new_terrain->Load(terrain_fs, map_pal, &gres, L2_classes, status_item))
 		{
 			Cleanup();
@@ -1455,7 +1466,7 @@ int SpellData::GenerateSpecialTiles()
 		}
 		
 		// make selection frame
-		const int fwidth = 3;
+		const int fwidth = 2;
 		const int fxgap = 3;
 		const int fygap = 2;
 		const uint8_t sel_color = 0xC1;

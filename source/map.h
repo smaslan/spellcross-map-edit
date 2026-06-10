@@ -268,8 +268,8 @@ class SpellMap
 		Sprite* start_sprite;
 		Sprite* escape_sprite;
 		Sprite* target_sprite;
-		Sprite* ca_start_aliance_sprite;
-		Sprite* ca_start_os_sprite;
+		MapLayer4 ca_start_aliance_sprite;
+		MapLayer4 ca_start_os_sprite;
 		// unit pointer animation
 		MapLayer4 pnm_sipka;
 

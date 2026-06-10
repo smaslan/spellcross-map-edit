@@ -469,10 +469,13 @@ public:
 };
 
 
+class SpellData;
 
 class Terrain
 {
 private:
+	SpellData &m_spell_data;
+
 	//double gamma;
 	double last_gamma;
 	uint8_t gamma_pal[256][3];
@@ -520,7 +523,7 @@ public:
 	enum WildMode { FIRST,RANDOM };
 
 	// void contructor
-	Terrain();
+	Terrain(SpellData &spell_data);
 	~Terrain();
 	int Load(FSarchive *terrain_fs, uint8_t map_pal[][3], SpellGraphics *gres, SpellL2classes* L2=NULL,std::function<void(std::string)> status_item=NULL);
 	Sprite* GetSprite(const char* name);

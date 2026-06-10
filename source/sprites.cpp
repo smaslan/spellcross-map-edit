@@ -1737,7 +1737,8 @@ DestructibleRec SpellL2classes::GetClass(const char* sprite_name)
 // class Terrain
 //=============================================================================
 
-Terrain::Terrain()
+Terrain::Terrain(SpellData &spell_data) :
+	m_spell_data(spell_data)
 {
 	name[0] = '\0';	
 	sprites.clear();
@@ -3331,9 +3332,12 @@ SpellObject::SpellObject(vector<MapXY> &xy,vector<Sprite*> &L1_list,vector<Sprit
 		flags.push_back(flag_list[k]);
 
 		// set object flag to all tiles
-		auto sflags = L1->GetFlags();
-		sflags |= Sprite::LandFlags::IS_OBJECT;
-		L1->SetFlags(sflags);
+		if(L1)
+		{
+			auto sflags = L1->GetFlags();
+			sflags |= Sprite::LandFlags::IS_OBJECT;
+			L1->SetFlags(sflags);
+		}
 
 		// make PNM list
 		for(auto pnm: pnm_list)
@@ -3453,14 +3457,16 @@ int SpellObject::RenderObjectGlyph()
 	// L1 render:
 	for(int tid = 0;tid < sprite_pos.size(); tid++)
 	{
+		Sprite* spr = L1_sprites[tid];
+		if(!spr)
+			continue;
 		// tile position in surface
 		int sx = sprite_pos[tid].x;
 		int sy = sprite_pos[tid].y;
 		int ref_x = org_x + sx*80 + ((sy&1)?0:40);
 		int ref_y = org_y + sy*24;
 
-		// render tile
-		Sprite* spr = L1_sprites[tid];
+		// render tile		
 		spr->Render(pic,ref_x,ref_y,surf_x);
 	}
 	// L2 render:
@@ -3482,6 +3488,24 @@ int SpellObject::RenderObjectGlyph()
 
 		// render tile		
 		spr->Render(pic,ref_x,ref_y,surf_x);
+	}
+	// render PNMs
+	for(int tid = 0;tid < sprite_pos.size(); tid++)
+	{
+		// tile position in surface
+		int sx = sprite_pos[tid].x;
+		int sy = sprite_pos[tid].y;
+		int ref_x = org_x + sx*80 + ((sy&1)?0:40);
+		int ref_y = org_y + sy*24;
+
+		for(auto& pnm: L4_list)
+			if(pnm.x_pos == sx && pnm.y_pos == sy)
+			{
+				// get frame
+				Sprite* frame = pnm.anim->frames[0];
+				// render sprite
+				frame->Render(pic.data(),pic_end,ref_x,ref_y,surf_x);
+			}
 	}
 
 	return(0);
@@ -4051,8 +4075,8 @@ int Terrain::AddSpecialTools()
 	ts_id = GetToolSetID("Special");
 
 	// get/create start/escape tiles
-	std::vector<std::string> sprite_names = {"c_target","CIEL","START","cas_alia","cas_os"};
-	std::vector<std::string> tool_names = {"Target tile","Escape tile","Start tile","Counter attack Aliance","Counter attack OS"};
+	std::vector<std::string> sprite_names = {"c_target","CIEL","START"};
+	std::vector<std::string> tool_names = {"Target tile","Escape tile","Start tile"};
 	for(int k = 0; k < sprite_names.size(); k++)
 	{
 		auto tool_id = GetToolSetItem(ts_id,tool_names[k]);
@@ -4071,6 +4095,38 @@ int Terrain::AddSpecialTools()
 			sprite->SetGlyphFlags(Sprite::LandFlags::IS_TOOL_ITEM_GLYPH);
 		}
 	}
+
+	// create counter attack post object
+	std::vector<std::string> pnm_names ={"CAPOS_PL","CAPOS_EN"};
+	tool_names = {"Counter Attack Player Post","Counter Attack Enemy Post"};
+	for(int k = 0; k < pnm_names.size(); k++)
+	{
+		auto tool_id = GetToolSetItem(ts_id,tool_names[k]);
+		if(tool_id < 0)
+		{
+			int pos = 0;
+			AddToolSetItem(ts_id,tool_names[k],pos);
+		}
+		tool_id = GetToolSetItem(ts_id,tool_names[k]);
+		
+		std::vector<MapXY> posxy ={MapXY(0,0)};
+		std::vector<Sprite*> L1_list ={NULL};
+		std::vector<Sprite*> L2_list ={NULL};
+		std::vector<uint8_t> flag_list ={0x00};
+		MapLayer4 pnm;
+		pnm.anim = m_spell_data.gres.GetPNM(pnm_names[k].c_str());
+		if(!pnm.anim)
+			return(1);
+		pnm.frame_limit = pnm.anim->frames.size();
+		pnm.x_pos = 0;
+		pnm.y_pos = 0;
+		std::vector<MapLayer4> pnm_list ={pnm};
+		auto obj = AddObject(posxy,L1_list,L2_list,flag_list,pnm_list,(uint8_t*)pal,tool_names[k]);
+		if(!obj)
+			return(1);
+		obj->SetToolClass(ts_id + 1);
+		obj->SetToolClassGroup(tool_id + 1);
+	}	
 
 	return(0);
 }

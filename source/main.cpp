@@ -1186,13 +1186,7 @@ void MainFrame::OnViewLayer(wxCommandEvent& event)
     bool wL4 = GetMenuBar()->FindItem(ID_ViewPnm)->IsChecked();
     bool wL5 = GetMenuBar()->FindItem(ID_ViewUnt)->IsChecked();
     bool wSS = GetMenuBar()->FindItem(ID_ViewStTa)->IsChecked();
-    bool wCounterStart = GetMenuBar()->FindItem(ID_ViewStartCounterAttack)->IsChecked();
-    if(event.GetId() == ID_ViewStTa && wSS)
-        wCounterStart = false;
-    if(event.GetId() == ID_ViewStartCounterAttack && wCounterStart)
-        wSS = false;
-    GetMenuBar()->FindItem(ID_ViewStTa)->Check(wSS);
-    GetMenuBar()->FindItem(ID_ViewStartCounterAttack)->Check(wCounterStart);
+    bool wCounterStart = GetMenuBar()->FindItem(ID_ViewStartCounterAttack)->IsChecked();    
     bool wSound = GetMenuBar()->FindItem(ID_ViewSounds)->IsChecked();
     bool wSoundLoop = GetMenuBar()->FindItem(ID_ViewSoundLoops)->IsChecked();
     bool wEvents = GetMenuBar()->FindItem(ID_ViewEvents)->IsChecked();
@@ -2611,6 +2605,9 @@ void MainFrame::OnCanvasLMouseUp(wxMouseEvent& event)
             // something in copy buffer
             //spell_map->SetBuffer(spell_tool);
             auto pos_list = spell_map->GetSelections();
+            // remove reference item because it was already placed by mouse-down event
+            if(!pos_list.empty())
+                pos_list.erase(pos_list.end() - 1);
             spell_map->scroller.ResizeSelection(0);
             for(auto pos: pos_list)
             {

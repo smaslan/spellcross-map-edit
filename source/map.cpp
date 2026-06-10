@@ -692,8 +692,12 @@ int SpellMap::Create(SpellData* spelldata, const char *terr_name, int x, int y, 
 	start_sprite = terrain->GetSprite("START");
 	escape_sprite = terrain->GetSprite("CIEL");
 	target_sprite = terrain->GetSprite("c_target");
-	ca_start_aliance_sprite = terrain->GetSprite("cas_alia");
-	ca_start_os_sprite = terrain->GetSprite("cas_os");
+	ca_start_aliance_sprite.anim = spelldata->gres.GetPNM("CAPOS_PL");
+	if(ca_start_aliance_sprite.anim)
+		ca_start_aliance_sprite.frame_limit = ca_start_aliance_sprite.anim->frames.size();
+	ca_start_os_sprite.anim = spelldata->gres.GetPNM("CAPOS_EN");
+	if(ca_start_os_sprite.anim)
+		ca_start_os_sprite.frame_limit = ca_start_os_sprite.anim->frames.size();
 
 	// reset scroller
 	scroller.Reset();
@@ -1561,8 +1565,12 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 	start_sprite = terrain->GetSprite("START");
 	escape_sprite = terrain->GetSprite("CIEL");
 	target_sprite = terrain->GetSprite("c_target");
-	ca_start_aliance_sprite = terrain->GetSprite("cas_alia");
-	ca_start_os_sprite = terrain->GetSprite("cas_os");
+	ca_start_aliance_sprite.anim = spelldata->gres.GetPNM("CAPOS_PL");
+	if(ca_start_aliance_sprite.anim)
+		ca_start_aliance_sprite.frame_limit = ca_start_aliance_sprite.anim->frames.size();
+	ca_start_os_sprite.anim = spelldata->gres.GetPNM("CAPOS_EN");
+	if(ca_start_os_sprite.anim)
+		ca_start_os_sprite.frame_limit = ca_start_os_sprite.anim->frames.size();
 
 	// map should be valid from this point
 	is_valid = true;
@@ -2663,7 +2671,26 @@ int SpellMap::SetBuffer(SpellTool &tool,int cycle,int init)
 
 	// no sprites, use objects?
 	if(tool_sprites.empty())
-		return(SetBuffer(tool_objects[tool_item_id]));
+	{
+		int err = SetBuffer(tool_objects[tool_item_id]);
+		if(err)
+			return(1);
+		if(copy_buf.pos.size() == 1)
+		{
+			// duplicate single tile objects to all buffer positions
+			for(int k = 1; k < rsel.size(); k++)
+			{
+				copy_buf.pos.push_back(rsel[k]);
+				if(copy_buf.tiles.size())
+					copy_buf.tiles.push_back(copy_buf.tiles[0]);
+				if(copy_buf.anms.size())
+					copy_buf.anms.push_back(copy_buf.anms[0]);
+				if(copy_buf.pnms.size())
+					copy_buf.pnms.push_back(copy_buf.pnms[0]);
+			}
+		}
+		return(0);
+	}
 
 	// sprites mode
 	LockMap();
@@ -2855,10 +2882,10 @@ void SpellMap::PasteBuffer(std::vector<MapSprite>& tiles, std::vector<MapLayer3>
 				PlaceStartEscape(sspos,start,escape,target,ca_aliance,ca_os,SpellMap::SPEC_TILE_ESCAPE);
 			else if(tile.L2 == target_sprite)
 				PlaceStartEscape(sspos,start,escape,target,ca_aliance,ca_os,SpellMap::SPEC_TILE_TARGET);
-			else if(tile.L2 == ca_start_aliance_sprite)
+			/*else if(tile.L2 == ca_start_aliance_sprite)
 				PlaceStartEscape(sspos,start,escape,target,ca_aliance,ca_os,SpellMap::SPEC_TILE_CA_ALIANCE);
 			else if(tile.L2 == ca_start_os_sprite)
-				PlaceStartEscape(sspos,start,escape,target,ca_aliance,ca_os,SpellMap::SPEC_TILE_CA_OS);
+				PlaceStartEscape(sspos,start,escape,target,ca_aliance,ca_os,SpellMap::SPEC_TILE_CA_OS);*/
 			else
 			{
 				// terrain and objects layers
@@ -2902,16 +2929,24 @@ void SpellMap::PasteBuffer(std::vector<MapSprite>& tiles, std::vector<MapLayer3>
 					new_pnm.frame_ofs = std::rand() % new_pnm.frame_limit;
 				new_pnm.x_pos = x;
 				new_pnm.y_pos = y;
-				// remove existing tile
-				for(int m = 0; m < pnms.size(); m++)
-					if(pnms[m].x_pos == x && pnms[m].y_pos == y)
-					{
-						pnms.erase(pnms.begin() + m);
-						break;
-					}
-				// place new one
-				if(new_pnm.anim)
-					pnms.push_back(new_pnm);
+
+				if(new_pnm.anim == ca_start_aliance_sprite.anim)
+					PlaceStartEscape(sspos,start,escape,target,ca_aliance,ca_os,SpellMap::SPEC_TILE_CA_ALIANCE);
+				else if(new_pnm.anim == ca_start_os_sprite.anim)
+					PlaceStartEscape(sspos,start,escape,target,ca_aliance,ca_os,SpellMap::SPEC_TILE_CA_OS);
+				else
+				{
+					// remove existing tile
+					for(int m = 0; m < pnms.size(); m++)
+						if(pnms[m].x_pos == x && pnms[m].y_pos == y)
+						{
+							pnms.erase(pnms.begin() + m);
+							break;
+						}
+					// place new one
+					if(new_pnm.anim)
+						pnms.push_back(new_pnm);
+				}
 			}
 		}
 	}
@@ -4020,6 +4055,8 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 			int mxx = n * 80 + (((m & 1) != 0) ? 0 : 40);
 			int myy = m * 24 - sof * 18 + MSYOFS + 50;
 			sid->Render(pic, pic_end, mxx, myy, pic_x_size, fil);
+
+			//pic[mxx + 40 + (myy + sid->y_size/2)*pic_x_size] = 230;
 		}
 	}
 
@@ -4094,11 +4131,11 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 			spec = { &start, &escape, &targets};
 			spec_sprite = { start_sprite, escape_sprite, target_sprite };
 		}
-		if(wCounterStart)
+		/*if(wCounterStart)
 		{
 			spec ={&counter_attack_start_os, &counter_attack_start_alinace};
 			spec_sprite ={ca_start_os_sprite, ca_start_aliance_sprite};
-		}
+		}*/
 
 		for (int sid = 0; sid < spec.size(); sid++)
 		{
@@ -4412,14 +4449,62 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 		double angle =  unit->unit_angle;
 
 		auto glyph = attacker->unit->projectile->GetGlyph(angle);
-		
+
 		int dx = target_pos.x - attack_pos.x;
 		int dy = target_pos.y - attack_pos.y;
 		int mxx = attack_pos.x + dx*attacker->attack_proj_step/attacker->attack_proj_delay - glyph->x_size/2;
 		int myy = attack_pos.y + dy*attacker->attack_proj_step/attacker->attack_proj_delay - glyph->y_size/2;
-			
-		glyph->Render(pic, pic_end, pic_x_size, mxx, myy);
+
+		glyph->Render(pic,pic_end,pic_x_size,mxx,myy);
 	}
+
+	// --- Render counter attack marks
+	if(wCounterStart)
+	{
+		// for each special sprite type
+		std::vector<vector<MapXY>*> spec = {&counter_attack_start_os, &counter_attack_start_alinace};
+		std::vector<MapLayer4*> spec_sprite = {&ca_start_os_sprite, &ca_start_aliance_sprite};
+		
+		for(int sid = 0; sid < spec.size(); sid++)
+		{
+			if(!spec_sprite[sid])
+				continue;
+	
+			for(i = 0; i < spec[sid]->size(); i++)
+			{
+				MapXY* pos = &(*spec[sid])[i];
+				auto* pnm = spec_sprite[sid];
+
+				// skip if not in visible area
+				if(pos->x < xs_ofs || pos->x >= (xs_ofs + xs_size) || pos->y < ys_ofs * 2 || pos->y >= (ys_ofs * 2 + ys_size))
+					continue;
+				int mxy = ConvXY(pos->x,pos->y);
+
+				// game mode view range
+				uint8_t* fil = GetUnitRangeFilter(pos->x,pos->y);
+				if(use_view_mask && unit_view->view[mxy] == 0)
+					continue;
+				else if(use_view_mask && unit_view->view[mxy] == 1)
+					fil = terrain->filter.darkpal;
+				
+				// L1 elevation
+				auto L1_spr = tiles[mxy].L1;
+				int y_elev = tiles[mxy].elev;
+				
+				// get frame sprite
+				Sprite* frame = pnm->anim->frames[pnm->frame_ofs];
+				int y_ofs = L1_spr->y_size/2 + L1_spr->y_ofs - pnm->anim->y_max;
+							
+				// render sprite
+				int mxx = (pos->x - xs_ofs) * 80 + ((((pos->y - ys_ofs * 2) & 1) != 0) ? 0 : 40);
+				int myy = (pos->y - ys_ofs * 2) * 24 - y_elev * 18 + MSYOFS + 50 + y_ofs;
+				frame->Render(pic,pic_end,mxx,myy,pic_x_size,fil);				
+			}
+		}
+	}
+
+
+	
 		
 
 	
@@ -7760,6 +7845,20 @@ int SpellMap::Tick()
 			pnm->frame_ofs++;
 			if (pnm->frame_ofs >= pnm->frame_limit)
 				pnm->frame_ofs = 0;
+		}
+		
+		// animate special anims
+		if(ca_start_aliance_sprite.anim)
+		{
+			ca_start_aliance_sprite.frame_ofs++;
+			if(ca_start_aliance_sprite.frame_ofs >= ca_start_aliance_sprite.frame_limit)
+				ca_start_aliance_sprite.frame_ofs = 0;
+		}
+		if(ca_start_os_sprite.anim)
+		{
+			ca_start_os_sprite.frame_ofs++;
+			if(ca_start_os_sprite.frame_ofs >= ca_start_os_sprite.frame_limit)
+				ca_start_os_sprite.frame_ofs = 0;
 		}
 
 		// animate unit pointer
@@ -11752,7 +11851,8 @@ int SpellMap::BuildHouseObjectsScan(std::vector<int> &used,std::vector<MapXY> &l
 
 
 // place/remove start/escape tiles to map data
-int SpellMap::PlaceStartEscape(vector<MapXY>& posxy,std::vector<MapXY>& start,std::vector<MapXY>& escape,std::vector<MapXY>& target,std::vector<MapXY>& ca_alinace,std::vector<MapXY>& ca_os,int spec_tile_type)
+int SpellMap::PlaceStartEscape(vector<MapXY>& posxy,std::vector<MapXY>& start,std::vector<MapXY>& escape,std::vector<MapXY>& target,
+	std::vector<MapXY>& ca_alinace,std::vector<MapXY>& ca_os,int spec_tile_type)
 {
 	if(posxy.empty())
 		return(1);
