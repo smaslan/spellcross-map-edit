@@ -60,13 +60,17 @@ std::filesystem::path iniLoadPathHist(CSimpleIniA &ini, std::string section, std
 }
 
 // save history of paths to INI
-void iniSavePathHist(CSimpleIniA& ini,std::string section,std::string key,std::vector<std::filesystem::path>& list,std::string comment="",int count=10)
+void iniSavePathHist(CSimpleIniA& ini,std::string section,std::string key,std::filesystem::path path, std::vector<std::filesystem::path>& list,std::string comment="",int count=10)
 {
     std::vector<std::filesystem::path> paths;
     for(auto &item: list)
         if(item.empty() || std::filesystem::exists(item))
             paths.push_back(item);
+    // prepend no-path if not in history
+    if(!paths.empty() && !paths[0].empty() && path.empty())
+        paths.insert(paths.begin(), path);
 
+    
     for(int k = 0; k < count; k++)
     {
         std::string hkey = key;
@@ -252,9 +256,9 @@ int MyApp::OnExit()
         ini.SetLongValue("STATE", "music_volume", 100.0*spell_data->midi->GetVolume());            
 
     // save data paths
-    iniSavePathHist(ini,"SPELCROS","spell_path",m_config.spell_path_hist,"; spellcross installation data folder");
-    iniSavePathHist(ini,"SPELCROS","spellcd_path",m_config.spell_cd_path_hist,"; spellcross CD copy data path");
-    iniSavePathHist(ini,"SPELCROS","mod_path",m_config.spell_mod_path_hist,"; spellcross mod path (optional)");
+    iniSavePathHist(ini,"SPELCROS","spell_path",m_config.spell_path, m_config.spell_path_hist,"; spellcross installation data folder");
+    iniSavePathHist(ini,"SPELCROS","spellcd_path",m_config.spell_cd_path, m_config.spell_cd_path_hist,"; spellcross CD copy data path");
+    iniSavePathHist(ini,"SPELCROS","mod_path",m_config.spell_mod_path, m_config.spell_mod_path_hist,"; spellcross mod path (optional)");
 
     // save INI
     ini.SaveFile("config.ini");
