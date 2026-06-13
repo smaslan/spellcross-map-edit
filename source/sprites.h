@@ -96,6 +96,8 @@ public:
 class Sprite
 {
 	public:
+		// place holder sprite
+		bool is_dummy;
 		// sprite name tag
 		std::string name;
 		// sprite data
@@ -122,6 +124,7 @@ class Sprite
 		AnimPNM *destroy_pnm;
 		
 		// void constructor
+		Sprite(Sprite &source);
 		Sprite();
 		~Sprite();
 		/*Sprite& operator=(const Sprite& other);
@@ -352,8 +355,10 @@ class AnimL1
 class AnimPNM
 {
 	public:
+		// placeholder item
+		bool is_dummy;
 		// animation name
-		char name[MAX_SPRITE_NAME + 1];
+		std::string name;
 		// frames list
 		std::vector<Sprite*> frames;
 		// sprite data limits relative to origin defined by frames
@@ -378,7 +383,7 @@ class MapLayer4;
 // spellcross terrain object (group of sprites forming e.g. house)
 class SpellObject
 {
-private:
+private:	
 	// item description
 	std::string description;
 	// sprite positions
@@ -391,8 +396,7 @@ private:
 	// bitmap data
 	int surf_x;
 	int surf_y;
-	std::vector<uint8_t> pic;
-	uint8_t* pic_end;
+	std::vector<uint8_t> pic;	
 	// tool classes 
 	uint32_t tool_class;
 	uint32_t tool_group;
@@ -404,10 +408,14 @@ private:
 	int RenderObjectGlyph();
 
 public:
+
+	// vritual tool created on startup not to be stored to context file
+	bool is_virtual;
 	
-	enum GLYPH_FORMAT{
+	enum GLYPH_FORMAT{		
 		INDEX_8BIT = 0,
-		LZ_INDEX_8BIT
+		LZ_INDEX_8BIT,
+		NONE
 	};
 	
 	SpellObject(ifstreamext& fr,std::vector<Sprite*>& sprite_list,vector<AnimPNM*>& pnm_list,uint8_t* palette);

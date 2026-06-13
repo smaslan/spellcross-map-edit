@@ -129,11 +129,18 @@ FormConfig::FormConfig(wxWindow* parent,wxWindowID id,SpellConfig *config,const 
 	Bind(wxEVT_COMMAND_CHOICE_SELECTED,&FormConfig::OnSelectPath,this,wxID_CH_SPELLCD_PATH);
 	Bind(wxEVT_COMMAND_CHOICE_SELECTED,&FormConfig::OnSelectPath,this,wxID_CH_MOD_PATH);
 
-
 	FillPathHistory(chSpellPath, config->spell_path_hist, config->spell_path);
 	FillPathHistory(chSpellcdPath,config->spell_cd_path_hist, config->spell_cd_path);
 	FillPathHistory(chModPath,config->spell_mod_path_hist, config->spell_mod_path);
 	cbHideMapLoadWarnings->SetValue(config->hide_map_warnings);
+
+	// assign button shortcuts
+	std::vector<wxAcceleratorEntry> entries;
+	entries.emplace_back(wxACCEL_NORMAL,WXK_RETURN,wxID_BTN_OK);
+	entries.emplace_back(wxACCEL_NORMAL,WXK_ESCAPE,wxID_BTN_OK);
+	wxAcceleratorTable accel(entries.size(),entries.data());
+	this->SetAcceleratorTable(accel);
+
 }
 
 // destructor
@@ -280,7 +287,7 @@ void FormConfig::OnSelectPath(wxCommandEvent& event)
 		choice = chModPath;
 		title = "Select Spellcross mod folder";
 	}
-	if(choice->GetStringSelection() == cstr_path_browse || id == wxID_BTN_SPELLCD_PATH || id == wxID_BTN_SPELL_PATH)
+	if(choice->GetStringSelection() == cstr_path_browse || id == wxID_BTN_SPELLCD_PATH || id == wxID_BTN_SPELL_PATH || id == wxID_BTN_MOD_PATH)
 	{
 		// browse new path
 		auto def_path = GetPathChoiceLastPath(choice);

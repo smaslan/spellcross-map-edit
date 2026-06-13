@@ -815,8 +815,8 @@ AnimPNM* SpellGraphics::GetPNM(std::string &name)
 }
 AnimPNM* SpellGraphics::GetPNM(const char* name)
 {
-	for(auto & pnm : m_pnms)
-		if(strcmp(pnm->name,name) == 0)
+	for(auto &pnm : m_pnms)
+		if(iequals(pnm->name.c_str(),name))
 			return(pnm);
 	return(NULL);
 }

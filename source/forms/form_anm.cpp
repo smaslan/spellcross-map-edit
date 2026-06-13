@@ -513,14 +513,14 @@ void FormANM::SelectTerrain()
 		{
 			// from common.fs
 			for(auto& pnm: m_spell_data->gres.m_pnms)
-				if(wildcmp(filter.c_str(),pnm->name))
+				if(wildcmp(filter,pnm->name))
 					lbList->Append(pnm->name);
 		}
 		else
 		{
 			// from selected terrain
 			for(auto& pnm: terr->pnms)
-				if(wildcmp(filter.c_str(),pnm->name))
+				if(wildcmp(filter,pnm->name))
 					lbList->Append(pnm->name);
 		}
 	}

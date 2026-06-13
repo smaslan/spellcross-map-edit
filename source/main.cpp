@@ -4,7 +4,7 @@
 // Top level functions, wxWidgets GUI.
 // 
 // This code is part of Spellcross Map Editor project.
-// (c) 2021-2025, Stanislav Maslan, s.maslan@seznam.cz
+// (c) 2021-2026, Stanislav Maslan, s.maslan@seznam.cz
 // url: https://github.com/smaslan/spellcross-map-edit
 // Distributed under MIT license, https://opensource.org/licenses/MIT.
 //=============================================================================
@@ -458,10 +458,12 @@ MainFrame::MainFrame(SpellConfig* config, SpellMap *&map, SpellData *&spelldata)
     menuBar->Append(menuHelp, "&Help");
     SetMenuBar(menuBar);
     
-    CreateStatusBar(8);
-    const int ss_w[] = {45,45,45,60,100,100,100,-1};
-    SetStatusWidths(8,ss_w);
+    
+    std::vector<int> sbar_w = {45,45,45,60,100,100,100,350,120,-1};
+    CreateStatusBar(sbar_w.size());
+    SetStatusWidths(sbar_w.size(),sbar_w.data());
     SetStatusText("");
+    UpdateMapStatus();
       
     // tick timer
     m_timer.SetOwner(this);
@@ -672,8 +674,64 @@ void MainFrame::OnConfig(wxCommandEvent& event)
 // }
 void MainFrame::StatusStringCallback(std::string info)
 {
-    SetStatusText(info,7);
+    SetStatusTextLast(info);
 }
+// set status text to last status field
+void MainFrame::SetStatusTextLast(std::string text)
+{
+    SetStatusText(text,GetStatusBar()->GetFieldsCount() - 1);
+}
+// set status to units field
+void MainFrame::SetStatusTextUnits(std::string text)
+{
+    SetStatusText(text,7);
+}
+void MainFrame::SetStatusTextUnits(SpellMap *map)
+{
+    if(!map)
+        map = spell_map;
+    if(!map || !map->IsLoaded())
+    {
+        SetStatusTextUnits("");
+        return;
+    }
+    auto &events = map->events->GetEvents();
+    int start = 0;
+    int spawn = 0;
+    for(auto &evt: events)
+    {
+        if(evt->isMissionStart())
+            start += evt->units.size();
+        else
+            spawn += evt->units.size();
+    }
+    SetStatusTextUnits(string_format("Units: {MissionStart: %d, Static-enemy: %d, Spawn: %d}", start, map->units.size(), spawn));
+}
+// set status to events field
+void MainFrame::SetStatusTextEvents(std::string text)
+{
+    SetStatusText(text,8);
+}
+void MainFrame::SetStatusTextEvents(SpellMap* map)
+{
+    if(!map)
+        map = spell_map;
+    if(!map || !map->IsLoaded())
+    {
+        SetStatusTextUnits("");
+        return;
+    }
+    auto& events = map->events->GetEvents();    
+    SetStatusTextEvents(string_format("Events: %d",events.size()));
+}
+// update map status (units, events, etc.)
+void MainFrame::UpdateMapStatus(SpellMap* map)
+{
+    SetStatusTextUnits(map);
+    SetStatusTextEvents(map);
+}
+
+
 
 void MainFrame::OnClose(wxCloseEvent& ev)
 {
@@ -896,6 +954,8 @@ void MainFrame::OnClose(wxCloseEvent& ev)
     }
     else
         ev.Skip();
+
+    UpdateMapStatus();
 }
 
 
@@ -1239,6 +1299,8 @@ void MainFrame::OnOpenMap(wxCommandEvent& event)
     LoadToolsetRibbon();
     // repaint
     Refresh();
+
+    UpdateMapStatus();
 }
 
 // save map data files
@@ -1328,6 +1390,8 @@ void MainFrame::OnNewMap(wxCommandEvent& event)
     OnViewLayer(event);
     // reload toolset ribbon
     LoadToolsetRibbon();
+
+    UpdateMapStatus();
 }
 
 // set gamma correction
@@ -1743,8 +1807,8 @@ void MainFrame::OnExportAllMapsRender(wxCommandEvent& event)
     // for each map file
     for(int fid = 0; fid < maps_list.Count(); fid++)
     {        
-        auto map_path = maps_list[fid];
-        SetStatusText(string_format("Exporting map %d of %d: \"%ls\"...",fid+1,maps_list.Count(),map_path.ToStdWstring().c_str()),7);
+        auto map_path = maps_list[fid];        
+        SetStatusTextLast(string_format("Exporting map %d of %d: \"%ls\"...",fid+1,maps_list.Count(),map_path.ToStdWstring().c_str()));
 
         // try load map
         SpellMap map;
@@ -1782,7 +1846,7 @@ void MainFrame::OnExportAllMapsRender(wxCommandEvent& event)
         buf->GetSubBitmap(wxRect(x_crop_left, y_crop_top, pic_x - x_crop_left - x_crop_right, pic_y - y_crop_top - y_crop_bot)).SaveFile(png_path.wstring(),wxBITMAP_TYPE_PNG);
         delete buf;
     }
-    SetStatusText(string_format("Exporting %d maps done!",maps_list.Count()),7);
+    SetStatusTextLast(string_format("Exporting %d maps done!",maps_list.Count()));
 }
 
 
@@ -2070,6 +2134,8 @@ void MainFrame::OnCanvasPopupSelect(wxCommandEvent& event)
             form_sounds->Show();
         }
     }
+
+    UpdateMapStatus();
 }
 
 
@@ -2579,6 +2645,7 @@ void MainFrame::OnCanvasLMouseDown(wxMouseEvent& event)
         }
     }
 
+    UpdateMapStatus();
     canvas->Refresh();
 }
 
@@ -2621,6 +2688,9 @@ void MainFrame::OnCanvasLMouseUp(wxMouseEvent& event)
     }
     m_drag_sel_start.Clear();
     spell_map->scroller.ResizeSelection(0);
+
+    UpdateMapStatus();
+    canvas->Refresh();
 }
 
 // on canvas mouse enter
@@ -2717,7 +2787,7 @@ void MainFrame::OnCanvasMouseMove(wxMouseEvent& event)
     SetStatusText(wxString::Format(wxT("L2: %s"),spell_map->GetL2tileName()),5);
     //int height, flags, code;
     auto [flags,height,code] = spell_map->GetTileFlags();
-    SetStatusText(wxString::Format(wxT("(0x%02X)"),code),6);
+    SetStatusText(wxString::Format(wxT("(0x%02X)"),code),6);    
 
     auto sel_evt = spell_map->GetSelectEvent();
     auto* unit = spell_map->GetSelectedUnit();

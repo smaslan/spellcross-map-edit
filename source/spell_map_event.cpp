@@ -723,7 +723,7 @@ int SpellMapEvents::AddSpecialEvent(SpellData *data, SpellDEF* def, SpellDefCmd*
 			unit->unit = data->units->GetUnit(unit_type_id);
 			if(!unit->unit)
 			{
-				last_error = string_format("Unknown unit type is '%d' in command '%s'!",unit->unit->type_id,evcmd->full_command.c_str());
+				last_error = string_format("Unknown unit type is '%d' in command '%s'!",unit_type_id,evcmd->full_command.c_str());
 				delete event_data;
 				delete unit;
 				if(is_new_event)
@@ -834,19 +834,19 @@ int SpellMapEvents::AddSpecialEvent(SpellData *data, SpellDEF* def, SpellDefCmd*
 				return(1);
 			}
 
-			// try to find text in string list
+			// try to find video
 			auto vid_name = evcmd->parameters->at(0);
 			auto vid_list = data->videos->GetNames(vid_name);
 			if(vid_list.empty())
 			{
 				last_error = string_format("Animation '%s' in command '%s' not found in loaded resources!",vid_name.c_str(),evcmd->full_command.c_str());
-				delete event_data;
+				/*delete event_data;
 				if(is_new_event)
 				{
 					events.pop_back();
 					delete evt;
 				}
-				return(1);
+				return(1);*/
 			}
 			evt->video = vid_name;
 		}

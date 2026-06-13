@@ -2,7 +2,7 @@
 // Spellcross sprite data handling routines.
 // 
 // This code is part of Spellcross Map Editor project.
-// (c) 2021-2025, Stanislav Maslan, s.maslan@seznam.cz
+// (c) 2021-2026, Stanislav Maslan, s.maslan@seznam.cz
 // url: https://github.com/smaslan/spellcross-map-edit
 // Distributed under MIT license, https://opensource.org/licenses/MIT.
 //=============================================================================
@@ -42,6 +42,7 @@ using namespace std;
 // make empty sprite
 Sprite::Sprite()
 {
+	is_dummy = true;
 	x_ofs = 0;
 	y_ofs = 0;
 	x_size = 0;
@@ -61,6 +62,12 @@ Sprite::Sprite()
 
 	tool_class = 0;
 	tool_group = 0;
+}
+
+// sopy another sprite
+Sprite::Sprite(Sprite& source)
+{
+	*this = source;	
 }
 
 // destroy sprite
@@ -97,6 +104,8 @@ int Sprite::MaskHasTransp(uint8_t *mask)
 // get tile slope letter
 char Sprite::GetSlope()
 {
+	if(name.size() < 3)
+		return('A');
 	return(name[2]);
 }
 // set sprite index
@@ -221,6 +230,9 @@ int Sprite::Decode(uint8_t* src, const char* name)
 
 	// try init wall sprite parameters
 	InitWallParams();
+
+	// mark sprite as valid
+	is_dummy = false;
 
 	// return bytes consumed from the source
 	return(src - source_start);
@@ -389,8 +401,9 @@ wxBitmap *Sprite::Render(uint8_t *pal, double gamma, int bmp_x_size, int bmp_y_s
 	// allocate render buffer for indexed image
 	int surf_x = tmp_x;
 	int surf_y = 0 + tmp_y + 0;
-	uint8_t* buf = new uint8_t[surf_x*surf_y];
-	uint8_t* buf_end = &buf[surf_x*surf_y];
+	std::vector<uint8_t> buffer(surf_x*surf_y);
+	uint8_t* buf = buffer.data();
+	uint8_t* buf_end = buf + buffer.size();
 	// render origin
 	int org_x = (tmp_x - x_size)/2;
 	int org_y = (tmp_y - y_size)/2;
@@ -434,10 +447,7 @@ wxBitmap *Sprite::Render(uint8_t *pal, double gamma, int bmp_x_size, int bmp_y_s
 		}
 		p.OffsetY(data,1);
 	}
-
-	// loose local buffer
-	delete[] buf;
-
+	
 	bool scale = (bmp_x_size < tmp_x || bmp_y_size < tmp_y) || !no_zoom;
 	if (bmp_x_size >= 0 && bmp_y_size >= 0 && scale)
 	{
@@ -841,13 +851,14 @@ int AnimL1::Decode(uint8_t* data, char* name)
 //=============================================================================
 AnimPNM::AnimPNM()
 {
-	name[0] = '\0';	
+	is_dummy = true;
+	name.clear();
 	frames.clear();
 }
 
 AnimPNM::~AnimPNM()
 {
-	name[0] = '\0';
+	name.clear();
 	// loose frames
 	for (unsigned k = 0; k < frames.size(); k++)
 		delete frames[k];
@@ -1150,7 +1161,10 @@ int AnimPNM::Decode(uint8_t* data, const char* name)
 	this->y_max = ymax;
 
 	// store animation name
-	strcpy_s(this->name, sizeof(this->name), name);
+	this->name = name;
+
+	// validate PNM
+	is_dummy = false;
 
 	return(0);
 }
@@ -2164,6 +2178,11 @@ int Terrain::InitSpriteContext(std::filesystem::path &path)
 	// get context tile list size
 	uint32_t count = fr.read_u32();
 
+	// find highest sprite ID
+	int last_spr_index = 0;
+	for(auto &spr: sprites)
+		last_spr_index = max(last_spr_index,spr->GetIndex());
+
 	// read tile names
 	vector<int> list;
 	list.reserve(count);
@@ -2177,10 +2196,21 @@ int Terrain::InitSpriteContext(std::filesystem::path &path)
 		
 		// try to find its index in terrain list
 		Sprite *spr = GetSprite(tile_name);
+		if(!spr)
+		{
+			// make placeholder sprite
+			auto dummy = GetSprite("DUMMY");
+			if(dummy)
+				spr = new Sprite(*dummy);
+			else
+				spr = new Sprite();
+			spr->SetIndex(++last_spr_index);
+			spr->name = tile_name;
+			spr->is_dummy = true;
+			sprites.push_back(spr);
+		}
 		spr_list.push_back(spr);
-		int id = -1;
-		if(spr)
-			id = spr->GetIndex();
+		int id = spr->GetIndex();
 		list.push_back(id);
 	}
 
@@ -2270,6 +2300,13 @@ int Terrain::InitSpriteContext(std::filesystem::path &path)
 
 		// try to find its index in terrain list
 		auto pnm = GetPNM(tile_name);
+		if(!pnm)
+		{
+			// make dummy PNM placeholder
+			pnm = new AnimPNM();
+			pnm->name = name;
+			pnms.push_back(pnm);
+		}
 		pnm_list[k] = pnm;
 	}
 
@@ -2429,23 +2466,32 @@ int Terrain::SaveSpriteContext(wstring& path)
 	{
 		char name[MAX_SPRITE_NAME+1];
 		memset(name,'\0',sizeof(name));
-		strncpy(name,pnm->name,sizeof(name));
+		strncpy(name,pnm->name.c_str(),sizeof(name));
 		name[MAX_SPRITE_NAME] = '\0';
 		fw.write(name,sizeof(name));
 	}
 
-	// store objects count
-	fw.write((uint32_t)objects.size());
-
+	// skip objects count
+	auto fpos_obj_count = fw.tellp();
+	int obj_count = 0;
+	fw.write((int32_t)obj_count);	
+	
 	// store common palette for object glyphs
 	fw.write((char*)&pal,256*3);
 
 	// for each object:
 	for(auto const & obj : objects)
 	{
+		if(obj->is_virtual)
+			continue;
 		// write object data
 		obj->WriteToFile(fw);
+		obj_count++;
 	}
+
+	// store objects count
+	fw.seekp(fpos_obj_count);
+	fw.write((int32_t)obj_count);
 
 	// close file
 	fw.close();
@@ -3263,11 +3309,9 @@ AnimL1* Terrain::GetANM(const char* name)
 // get L4 animation (PNM) pointer by its name
 AnimPNM* Terrain::GetPNM(const char* name)
 {
-	for (unsigned k = 0; k < this->pnms.size(); k++)
-	{
-		if (_strcmpi(this->pnms[k]->name, name) == 0)
-			return(this->pnms[k]);
-	}
+	for(auto &pnm: pnms)
+		if(iequals(pnm->name.c_str(), name))
+			return(pnm);
 	return(NULL);
 }
 AnimPNM* Terrain::GetPNM(std::string name)
@@ -3300,6 +3344,7 @@ SpellObject::SpellObject(vector<MapXY> &xy,vector<Sprite*> &L1_list,vector<Sprit
 	surf_y = 0;
 	tool_class = 0;
 	tool_group = 0;
+	is_virtual = false;
 
 	// find reference tile (bottom right)
 	MapXY ref(1<<30, 1<<30);	
@@ -3443,16 +3488,20 @@ int SpellObject::RenderObjectGlyph()
 	x_size += x_ref;	
 
 	// allocate render buffer for indexed image
+	int pad_y = 80;
 	surf_x = x_size;
-	surf_y = 0 + y_size + 0;		
+	surf_y = pad_y + y_size + pad_y;
 	// render origin
 	int org_x = x_ref;
-	int org_y = 0;
+	int org_y = pad_y;
 
 	// make and clear image buffer
 	pic.clear();
-	pic.assign(surf_x*surf_y,230);
-	pic_end = pic.data() + pic.size();
+	uint8_t* pic_end;
+
+	std::vector<uint8_t> buf;
+	buf.assign(surf_x*surf_y,230);
+	auto buf_end = buf.data() + buf.size();
 
 	// L1 render:
 	for(int tid = 0;tid < sprite_pos.size(); tid++)
@@ -3467,7 +3516,7 @@ int SpellObject::RenderObjectGlyph()
 		int ref_y = org_y + sy*24;
 
 		// render tile		
-		spr->Render(pic,ref_x,ref_y,surf_x);
+		spr->Render(buf,ref_x,ref_y,surf_x);
 	}
 	// L2 render:
 	for(int tid = 0;tid < sprite_pos.size(); tid++)
@@ -3484,10 +3533,11 @@ int SpellObject::RenderObjectGlyph()
 
 		// apply L1 y-offset
 		Sprite* L1 = L1_sprites[tid];
-		sy += L1->y_ofs;
+		if(L1)
+			sy += L1->y_ofs;
 
 		// render tile		
-		spr->Render(pic,ref_x,ref_y,surf_x);
+		spr->Render(buf,ref_x,ref_y,surf_x);
 	}
 	// render PNMs
 	for(int tid = 0;tid < sprite_pos.size(); tid++)
@@ -3498,15 +3548,58 @@ int SpellObject::RenderObjectGlyph()
 		int ref_x = org_x + sx*80 + ((sy&1)?0:40);
 		int ref_y = org_y + sy*24;
 
+		// apply L1 y-offset
+		Sprite* L1 = L1_sprites[tid];
+		if(L1)
+			sy += L1->y_ofs;
+
 		for(auto& pnm: L4_list)
 			if(pnm.x_pos == sx && pnm.y_pos == sy)
 			{
 				// get frame
 				Sprite* frame = pnm.anim->frames[0];
+
+				/*int mxx = (pnm->x_pos - xs_ofs)*80 + pnm->x_ofs + ((((pnm->y_pos - ys_ofs*2) & 1) != 0) ? 0 : 40);
+				int myy = (pnm->y_pos - ys_ofs * 2) * 24 + pnm->y_ofs - y_elev*18 + MSYOFS + 50;*/
+				ref_x += pnm.x_ofs;
+				ref_y += pnm.y_ofs;
+
 				// render sprite
-				frame->Render(pic.data(),pic_end,ref_x,ref_y,surf_x);
+				frame->Render(buf.data(),buf_end,ref_x,ref_y,surf_x);
 			}
 	}
+
+	auto y_min = (std::find_if(buf.begin(),buf.end(),[](uint8_t x) {return(x != 230);}) - buf.begin())/surf_x;
+	auto y_max = surf_y - (std::find_if(buf.rbegin(),buf.rend(),[](uint8_t x) {return(x != 230);}) - buf.rbegin())/surf_x;
+
+	int x_min = 0;
+	int x_max = surf_x;
+	/*int x_min = surf_x;
+	int x_max = 0;
+	for(auto y = y_min; y <= y_max; y++)
+	{
+		auto line = buf.begin() + y*surf_x;
+		int x_start = std::find_if(line,line + surf_x,[](uint8_t x) {return(x != 230);}) - line;
+		x_min = min(x_min, x_start);		
+		int x_end = std::find_if(line + x_start,line + surf_x,[](uint8_t x) {return(x == 230);}) - line;
+		x_max = max(x_max, x_end);
+	}*/
+
+	int surf_x_orig = surf_x;
+	surf_y = y_max - y_min + 1;
+	surf_x = x_max - x_min;
+	pic.assign(surf_x*surf_y, 230);
+	int y_dst = 0;
+	for(int y = y_min; y <= y_max; y++)
+	{
+		auto src = buf.data() + y*surf_x_orig + x_min;
+		auto dst = pic.data() + y_dst*surf_x;
+		memcpy(dst, src, surf_x);
+		y_dst++;
+	}
+
+	
+	
 
 	return(0);
 }
@@ -3753,7 +3846,10 @@ int SpellObject::WriteToFile(ofstreamext &fw)
 	for(int k = 0;k < L1_sprites.size(); k++)
 	{	
 		// write L1 sprite index
-		fw.write((uint32_t)L1_sprites[k]->GetIndex());
+		int32_t L1_id = -1;
+		if(L1_sprites[k])
+			L1_id = L1_sprites[k]->GetIndex();
+		fw.write((int32_t)L1_id);
 
 		// write L2 sprite index
 		fw.write((int32_t)((L2_sprites[k])?(L2_sprites[k]->GetIndex()):(-1)));
@@ -3790,8 +3886,8 @@ int SpellObject::WriteToFile(ofstreamext &fw)
 	if(pic.empty())
 		RenderObjectGlyph();
 
-	// store format ID
-	uint32_t format = GLYPH_FORMAT::LZ_INDEX_8BIT;
+	// store format ID (do not save glyph - will render on load time)
+	uint32_t format = GLYPH_FORMAT::NONE;
 	fw.write((uint32_t)format);
 
 	// write pic size
@@ -3834,6 +3930,7 @@ SpellObject::SpellObject(ifstreamext& fr, vector<Sprite*> &sprite_list, vector<A
 	surf_y = 0;
 	tool_class = 0;
 	tool_group = 0;
+	is_virtual = false;
 
 	// read description string	
 	description = fr.read_str_p16();
@@ -3856,29 +3953,33 @@ SpellObject::SpellObject(ifstreamext& fr, vector<Sprite*> &sprite_list, vector<A
 	for(int k = 0;k < tile_count; k++)
 	{
 		// read L1 sprite index
-		uint32_t id1 = fr.read_u32();
-		if(id1 >= sprite_list.size())
+		int id1 = fr.read_i32();
+		if(id1 >= (int)sprite_list.size())
 			return;		
-		Sprite *spr = sprite_list[id1];
+		Sprite* spr = NULL;
+		if(id1 >= 0)
+			spr = sprite_list[id1];
 		L1_sprites.push_back(spr);
 
 		// set object flag to all tiles
-		auto sflags = spr->GetFlags();
-		sflags |= Sprite::LandFlags::IS_OBJECT;
-		spr->SetFlags(sflags);
+		if(spr)
+		{
+			auto sflags = spr->GetFlags();
+			sflags |= Sprite::LandFlags::IS_OBJECT;
+			spr->SetFlags(sflags);
+		}
 
 		// read L2 sprite index
-		uint32_t id2 = fr.read_u32();
-		if(id2 == 0xFFFFFFFFu)
+		int id2 = fr.read_i32();
+		if(id2 < 0)
 			L2_sprites.push_back(NULL);
-		else if(id2 >= sprite_list.size())
+		else if(id2 >= (int)sprite_list.size())
 			return;
 		else
-		L2_sprites.push_back(sprite_list[id2]);		
+			L2_sprites.push_back(sprite_list[id2]);		
 
 		// read flags
-		uint32_t flag;
-		fr.read((char*)&flag,sizeof(uint8_t));
+		uint32_t flag = fr.read_u8();
 		flags.push_back(flag);
 		
 		// read tile relative position [x,y]
@@ -3925,7 +4026,6 @@ SpellObject::SpellObject(ifstreamext& fr, vector<Sprite*> &sprite_list, vector<A
 	{
 		// read 8bit indexed image data
 		pic.resize(surf_x*surf_y);
-		pic_end = pic.data() + pic.size();
 		fr.read((char*)pic.data(),surf_x*surf_y);
 	}
 	else if(format == GLYPH_FORMAT::LZ_INDEX_8BIT)
@@ -3942,8 +4042,12 @@ SpellObject::SpellObject(ifstreamext& fr, vector<Sprite*> &sprite_list, vector<A
 			// image data wrong size
 			pic.clear();
 		}
-		pic_end = pic.data() + pic.size();
 	}
+	else
+	{
+		// render new glyph
+		RenderObjectGlyph();
+	}	
 
 }
 
@@ -4124,6 +4228,7 @@ int Terrain::AddSpecialTools()
 		auto obj = AddObject(posxy,L1_list,L2_list,flag_list,pnm_list,(uint8_t*)pal,tool_names[k]);
 		if(!obj)
 			return(1);
+		obj->is_virtual = true;
 		obj->SetToolClass(ts_id + 1);
 		obj->SetToolClassGroup(tool_id + 1);
 	}	
@@ -4581,7 +4686,8 @@ std::vector<Sprite*> Terrain::GetToolSprites(SpellTool &tool)
 	for(auto const& sid : sprites)
 	{
 		if(sid->GetToolClass() == tool_id + 1 &&
-			sid->GetToolClassGroup() == item_id + 1)
+			sid->GetToolClassGroup() == item_id + 1 &&
+			!sid->is_dummy)
 		{
 			// matching sprite class 
 			list.push_back(sid);

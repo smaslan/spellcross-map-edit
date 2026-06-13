@@ -4,7 +4,7 @@
 // Top level functions, wxWidgets GUI.
 // 
 // This code is part of Spellcross Map Editor project.
-// (c) 2021-2025, Stanislav Maslan, s.maslan@seznam.cz
+// (c) 2021-2026, Stanislav Maslan, s.maslan@seznam.cz
 // url: https://github.com/smaslan/spellcross-map-edit
 // Distributed under MIT license, https://opensource.org/licenses/MIT.
 //=============================================================================
@@ -181,6 +181,13 @@ private:
     void OnToolPageClick(wxRibbonBarEvent& event);
     SpellTool GetToolSelection();
     void LoadToolsetRibbon(Terrain* terr = NULL);
+    
+    void SetStatusTextLast(std::string text);
+    void SetStatusTextUnits(std::string text);
+    void SetStatusTextUnits(SpellMap *map=NULL);
+    void SetStatusTextEvents(std::string text);
+    void SetStatusTextEvents(SpellMap* map=NULL);
+    void UpdateMapStatus(SpellMap *map=NULL);
 
     // canvas stuff:
     void OnThreadCanvas(wxThreadEvent& event);
@@ -199,8 +206,7 @@ private:
     MapXY m_drag_sel_start;
     
     // map render buffer
-    wxBitmap m_buffer;
-    
+    wxBitmap m_buffer;    
     wxPanel* canvas;
     wxMenu* menuView;    
     wxBoxSizer* sizer;

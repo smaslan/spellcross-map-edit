@@ -408,9 +408,13 @@ MapLayer4::MapLayer4(AnimPNM* pnm, int x_pos, int y_pos, int x_ofs, int y_ofs, i
 	this->frame_ofs = 0;
 	this->frame_limit = 0;
 	if(pnm)
-	{
-		this->frame_ofs = frame_ofs;
-		this->frame_limit = (frame_limit<0)?(pnm->frames.size()):(frame_limit);
+	{		
+		this->frame_limit = pnm->frames.size();
+		if(frame_limit >= 0)
+			this->frame_limit = frame_limit;
+		this->frame_limit = min(this->frame_limit,pnm->frames.size());
+		if(this->frame_limit)
+			this->frame_ofs = frame_ofs % this->frame_limit;
 	}	
 }
 MapLayer4::~MapLayer4()
@@ -1782,7 +1786,7 @@ int SpellMap::SaveDTA(std::wstring path)
 		// write non terminated 8 char names
 		char name[8];
 		memset(name,'\0',sizeof(name));
-		strncpy(name,pnm->name,sizeof(name));
+		strncpy(name,pnm->name.c_str(),sizeof(name));
 		fw.write(name,sizeof(name));
 	}
 
@@ -4295,9 +4299,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 			else if(!use_view_mask && pos == cursor && wHighlight_obj)
 				fil = terrain->filter.goldpal; // highlight animation
 			else if(!use_view_mask && pnm->Compare(pnm_selection) && sel_blink_state)
-				fil = terrain->filter.goldpal; // highlight selected animation
-			
-			
+				fil = terrain->filter.goldpal; // highlight selected animation						
 
 			// L1 elevation
 			int y_elev = tiles[mxy].elev;

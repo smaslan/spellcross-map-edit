@@ -616,7 +616,7 @@ bool FormSprite::SpriteDropTarget::OnDropText(wxCoord x,wxCoord y,const wxString
 
 void FormSprite::OnDragSpriteEnd(wxTreeEvent& evt)
 {
-	statBar->SetStatusText("end drag: ",0);
+	//statBar->SetStatusText("end drag: ",0);
 }
 
 
@@ -1047,6 +1047,10 @@ void FormSprite::OnSelectClick(wxCommandEvent& event)
 		m_sprite = terr->GetSprite(sprite_id);
 	else
 		m_sprite = NULL;
+	
+	// clear dummy selection
+	if(m_sprite && m_sprite->is_dummy)
+		m_sprite = NULL;
 
 	Close();
 }
@@ -1409,6 +1413,8 @@ void FormSprite::SetFlags()
 			typestr = string_format("Land Type: %c (%d)",sprite->land_type + 'A' - 1,sprite->land_type);
 		else
 			typestr = "Land Type: Object";
+		if(sprite->is_dummy)
+			typestr += ", place-holder sprite not present in currently loaded data!";
 		statBar->SetStatusText(typestr,1);
 	}
 
@@ -1608,7 +1614,10 @@ wxString FormSprite::OnGetItemText(long item)
 	auto spr = terr->GetSprite(item);
 	if(!spr)
 		return("");
-	return(spr->name);
+	auto name = spr->name;
+	if(spr->is_dummy)
+		name += " *";
+	return(name);
 }
 
 int FormSprite::OnGetItemImage(long item)
