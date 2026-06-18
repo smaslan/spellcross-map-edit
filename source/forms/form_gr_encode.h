@@ -102,7 +102,9 @@ public:
 	std::string format;
 	int x_size;
 	int y_size;
+	int x_offset;
 	int y_offset;
+	int land_type;
 	int shadow_color[3];
 	bool is_transparent;
 
@@ -112,6 +114,7 @@ public:
 	bool isLoaded();
 	bool isPNM() {return(format == "PNM");};
 	bool isUnitsFSU() { return(format == "UNITS.FSU"); };
+	bool isDTA() { return(format == "DTA"); };
 };
 
 

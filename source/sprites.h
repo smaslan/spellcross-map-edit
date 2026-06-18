@@ -140,6 +140,8 @@ class Sprite
 		void Render(uint8_t* buffer, uint8_t* buf_end, int buf_x, int buf_y, int x_size, uint8_t* filter=NULL);
 		wxBitmap* Render(uint8_t* pal,double gamma=1.3, int x_size=-1, int y_size=-1, bool no_zoom=true);
 		int Decode(uint8_t* data,const char* name);
+		static int SaveSprite(std::filesystem::path path,std::vector<uint8_t>& buffer,int x_buf_size,int x_offset,int y_offset,int land_type);
+		int ExportInfo(std::filesystem::path path,std::filesystem::path image_name,SpellPalette& palette);
 		void GetTileModel(TFxyz* vert, int* face=NULL, int* face_count=NULL,int triangle_faces=false);
 		int GetTileEdge(int edge,TFxyz* vert);
 		TFxyz ProjectVertex(TFxyz *vert);
@@ -411,6 +413,8 @@ public:
 
 	// vritual tool created on startup not to be stored to context file
 	bool is_virtual;
+	// all object components are available in loaded data
+	bool is_valid;
 	
 	enum GLYPH_FORMAT{		
 		INDEX_8BIT = 0,

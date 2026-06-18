@@ -1534,6 +1534,8 @@ int SpellData::GenerateSpecialTiles()
 				}
 			}
 		}
+
+		
 		
 	}
 
@@ -1595,14 +1597,13 @@ void SpellPalette::Clear()
 // place chunk of data to palette with offset (0 - 255)
 int SpellPalette::Insert(std::vector<uint8_t>& data,std::string name,int offset,int count)
 {
-	if(data.size() % 3 || data.size()/3 + offset > 256)
+	if(!count)
+		count = data.size()/3;
+	if(3*count > data.size())
 		return(1);
 	if(count && offset + count > 256)
 		return(1);
-	if(count > data.size()/3)
-		return(1);
-	if(!count)
-		count = data.size()/3;
+	
 	memcpy(m_pal.data() + offset*3,data.data(),count*3);
 	memset(m_used.data() + offset,1,count);
 	
@@ -1610,7 +1611,7 @@ int SpellPalette::Insert(std::vector<uint8_t>& data,std::string name,int offset,
 	SpellPalette::Chunk chunk;
 	chunk.name = name;
 	chunk.offset = offset;
-	chunk.size = data.size()/3;
+	chunk.size = count;
 	m_chunks.push_back(chunk);
 		
 	return(0);
@@ -1766,14 +1767,12 @@ int SpellPalette::SaveInfo(std::filesystem::path path)
 		info += info_make_section(chunk.name,cinf);
 	}
 	
-	// try open file
-	ofstreamext fw(path,ios::out | ios::binary | ios::trunc);
-	if(!fw.is_open())
-		return(1);
-	fw.write((const char*)info.data(),info.size());
-	fw.close();
-
-	return(0);
+	// save file only if differs from existing
+	std::string info_old;
+	loadstr(path,info_old);
+	if(info_old == info)
+		return(0);
+	return(savestr(path,info));
 }
 
 // load palette from info file

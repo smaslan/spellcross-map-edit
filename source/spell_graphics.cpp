@@ -311,13 +311,13 @@ int SpellGraphicItem::ExportInfo(wstring path, wstring image_name)
 	info += string_format("colors:: ");	
 	info += palette->GetRangeString();
 	info += string_format("\n");
-
-	// try open file
-	ofstream fw(path,ios::out | ios::trunc);
-	if(!fw.is_open())
-		return(1);
-	fw.write(info.c_str(), info.size());
-	fw.close();
+	
+	// save file only if differs from existing
+	std::string info_old;
+	loadstr(path,info_old);
+	if(info_old == info)
+		return(0);
+	return(savestr(path,info));
 
 	return(0);
 }

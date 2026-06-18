@@ -1,4 +1,4 @@
-///////////////////////////////////////////////////////////////////////////
+﻿///////////////////////////////////////////////////////////////////////////
 // C++ code generated with wxFormBuilder (version 3.10.1-0-g8feb16b3)
 // http://www.wxformbuilder.org/
 //
@@ -7,6 +7,7 @@
 
 #pragma once
 
+// <wxFormsBuilder-include> - Section auto-inserted from 'forms.h' class 'FormSprite' on 2026-06-15 18:18:58
 #include <wx/artprov.h>
 #include <wx/xrc/xmlres.h>
 #include <wx/string.h>
@@ -19,18 +20,31 @@
 #include <wx/colour.h>
 #include <wx/settings.h>
 #include <wx/stattext.h>
-#include <wx/listbox.h>
+#include <wx/textctrl.h>
 #include <wx/sizer.h>
+#include <wx/listbox.h>
 #include <wx/panel.h>
 #include <wx/statbox.h>
-#include <wx/statline.h>
-#include <wx/choice.h>
-#include <wx/frame.h>
 #include <wx/slider.h>
 #include <wx/checkbox.h>
-#include <wx/textctrl.h>
+#include <wx/choice.h>
+#include <wx/statline.h>
 #include <wx/treectrl.h>
-#include <wx/listctrl.h>
+#include <wx/statusbr.h>
+#include <wx/frame.h>
+#include <wx/button.h>
+#include <wx/dialog.h>
+#include <wx/spinctrl.h>
+#include <wx/timer.h>
+#include <wx/propgrid/propgrid.h>
+#include <wx/propgrid/advprops.h>
+#include <wx/notebook.h>
+#include <wx/radiobut.h>
+#include <wx/scrolbar.h>
+#include <wx/bmpbuttn.h>
+
+// </wxFormsBuilder-include> - Section auto-inserted from 'forms.h' class 'FormSprite' on 2026-06-15 18:18:58
+
 #include <wx/dnd.h>
 
 #include <wx_other.h>
@@ -65,10 +79,12 @@ class FormSprite : public wxFrame
 		Terrain *m_terrain;
 		Sprite *m_sprite;
 		bool m_was_set;
+		std::vector<Sprite*> m_sprite_list;
 
 		void OnClose(wxCloseEvent& ev);
 		void OnCloseClick(wxCommandEvent& event);
 		void OnSelectClick(wxCommandEvent& event);
+		void OnExportClick(wxCommandEvent& event);
 		void OnTerrainChange(wxCommandEvent& event);
 		void OnSelectSpriteAlt(wxCommandEvent& event);
 		void OnSelectSpriteBtn(wxCommandEvent& event);
@@ -134,9 +150,11 @@ class FormSprite : public wxFrame
 		static constexpr int TERR_ID0 = 990;
 
 	protected:
+		// <wxFormsBuilder> - Section auto-inserted from 'forms.h' class 'FormSprite' on 2026-06-15 18:18:58
 		enum
 		{
 			wxID_BTN_SAVE = 5999,
+			wxID_BTN_SAVE_ALL,
 			wxID_BTN_SELECT,
 			wxID_BTN_CLOSE,
 			wxID_BTN_SEL_Q1,
@@ -156,6 +174,7 @@ class FormSprite : public wxFrame
 			wxID_MM_NEW_TOOL,
 			wxID_MM_REMOVE_TOOL,
 			wxID_MM_EDIT_TOOLSET,
+			wxID_TXT_FILTER,
 			wxID_LBOX_SPRITES,
 			wxID_TXT_ALT,
 			wxID_LBOX_ALT,
@@ -185,12 +204,14 @@ class FormSprite : public wxFrame
 			wxID_CB_TOOL_GLYPH,
 			wxID_TREE_OBJECTS,
 		};
-
+		
 		wxMenuBar* mMenu;
 		wxMenu* mnuFile;
 		wxMenu* mnuTerr;
 		wxMenu* mnuEdit;
 		wxMenu* mnuTools;
+		wxStaticText* m_staticText130;
+		wxTextCtrl* txtFilter;
 		wxStaticText* txtSpriteList;
 		wxListCtrlVirtual* lboxSprites;
 		wxStaticText* txtAltList;
@@ -235,6 +256,8 @@ class FormSprite : public wxFrame
 		wxCheckBox* cbToolGlyph;
 		wxTreeCtrl* treeCtrlObjects;
 		wxStatusBar* statBar;
+
+		// </wxFormsBuilder> - Section auto-inserted from 'forms.h' class 'FormSprite' on 2026-06-15 18:18:58
 
 		wxTreeItemId m_drag_item;
 		class TreeNode : wxTreeItemData {

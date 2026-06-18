@@ -445,6 +445,19 @@ wxThread::ExitCode ProcTh::Entry()
 					continue;
 				}
 			}
+			else if(info.isDTA())
+			{
+				// sprite DTA
+				auto err = Sprite::SaveSprite(save_path,gres->pixels,gres->x_size,info.x_offset,info.y_offset,info.land_type);
+				if(err)
+				{
+					m_config.mutex->lock();
+					if(!m_config.list->empty())
+						m_config.failed_list->push_back(path.filename().string());
+					m_config.mutex->unlock();
+					continue;
+				}
+			}
 			else
 			{
 				// general graphic resource
@@ -615,8 +628,13 @@ int SpellGresInfo::LoadInfo(std::wstring path)
 	is_transparent = std::atoi(info_get_string(info,"transparent").c_str());
 	format = info_get_string(info,"format");
 	
+	auto x_offset_str = info_get_string(info,"xoffset");
+	x_offset = std::atoi(x_offset_str.c_str());
 	auto y_offset_str = info_get_string(info,"yoffset");
 	y_offset = std::atoi(y_offset_str.c_str());
+
+	auto landtype_str = info_get_string(info,"landtype");
+	land_type = std::atoi(landtype_str.c_str());
 
 	auto shadow_color_str = info_get_string(info,"shadow_color");
 	auto shadow_colors_list = get_text_lines(shadow_color_str,true,',');
@@ -654,7 +672,7 @@ int FormGResEncoder::LoadResource(std::wstring path,int frame_id)
 
 	// pick frame of animation?
 	bool is_pnm = m_info.isPNM();
-	if(is_pnm && frame_id < 0 || frame_id >= m_info.img_names.size())
+	if(is_pnm && (frame_id < 0 || frame_id >= m_info.img_names.size()))
 		return(1);
 	auto img_name = m_info.img_name;
 	if(is_pnm && frame_id >= 0)

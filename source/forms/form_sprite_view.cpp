@@ -1,4 +1,4 @@
-///////////////////////////////////////////////////////////////////////////
+﻿///////////////////////////////////////////////////////////////////////////
 // C++ code generated with wxFormBuilder (version 3.10.1-0-g8feb16b3)
 // http://www.wxformbuilder.org/
 //
@@ -12,6 +12,7 @@
 #include "other.h"
 
 #include <wx/filedlg.h>
+#include <wx/dirdlg.h>
 #include <wx/msgdlg.h>
 
 
@@ -26,360 +27,378 @@ FormSprite::FormSprite( wxWindow* parent,SpellData* spell_data,wxWindowID id, co
 	
 	
 	// === AUTO GENERATED STUFF STARTS HERE ===
+	// <wxFormsBuilder> - Section auto-inserted from 'forms.cpp' class 'FormSprite' on 2026-06-15 18:18:58
+	this->SetSizeHints( wxSize( 1050,700 ), wxDefaultSize );
+	this->SetBackgroundColour( wxSystemSettings::GetColour( wxSYS_COLOUR_BTNFACE ) );
 	
-	this->SetSizeHints(wxSize(1050,700),wxDefaultSize);
-	this->SetBackgroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_BTNFACE));
-
-	mMenu = new wxMenuBar(0);
+	mMenu = new wxMenuBar( 0 );
 	mnuFile = new wxMenu();
 	wxMenuItem* btnSave;
-	btnSave = new wxMenuItem(mnuFile,wxID_BTN_SAVE,wxString(wxT("Save sprite")) + wxT('\t') + wxT("Ctrl+S"),wxEmptyString,wxITEM_NORMAL);
-	mnuFile->Append(btnSave);
-
+	btnSave = new wxMenuItem( mnuFile, wxID_BTN_SAVE, wxString( wxT("Save sprite") ) + wxT('\t') + wxT("Ctrl+S"), wxEmptyString, wxITEM_NORMAL );
+	mnuFile->Append( btnSave );
+	
+	wxMenuItem* btnSaveAll;
+	btnSaveAll = new wxMenuItem( mnuFile, wxID_BTN_SAVE_ALL, wxString( wxT("Export all sprites") ) + wxT('\t') + wxT("Ctrl+Shift+S"), wxEmptyString, wxITEM_NORMAL );
+	mnuFile->Append( btnSaveAll );
+	
 	mnuFile->AppendSeparator();
-
+	
 	wxMenuItem* btnSelect;
-	btnSelect = new wxMenuItem(mnuFile,wxID_BTN_SELECT,wxString(wxT("Select and Close")) + wxT('\t') + wxT("Enter"),wxEmptyString,wxITEM_NORMAL);
-	mnuFile->Append(btnSelect);
-
+	btnSelect = new wxMenuItem( mnuFile, wxID_BTN_SELECT, wxString( wxT("Select and Close") ) + wxT('\t') + wxT("Enter"), wxEmptyString, wxITEM_NORMAL );
+	mnuFile->Append( btnSelect );
+	
 	wxMenuItem* btnClose;
-	btnClose = new wxMenuItem(mnuFile,wxID_BTN_CLOSE,wxString(wxT("Close")) + wxT('\t') + wxT("Esc"),wxEmptyString,wxITEM_NORMAL);
-	mnuFile->Append(btnClose);
-
-	mMenu->Append(mnuFile,wxT("File"));
-
+	btnClose = new wxMenuItem( mnuFile, wxID_BTN_CLOSE, wxString( wxT("Close") ) + wxT('\t') + wxT("Esc"), wxEmptyString, wxITEM_NORMAL );
+	mnuFile->Append( btnClose );
+	
+	mMenu->Append( mnuFile, wxT("File") );
+	
 	mnuTerr = new wxMenu();
-	mMenu->Append(mnuTerr,wxT("Terrain"));
-
+	mMenu->Append( mnuTerr, wxT("Terrain") );
+	
 	mnuEdit = new wxMenu();
 	wxMenuItem* btnSelQ1;
-	btnSelQ1 = new wxMenuItem(mnuEdit,wxID_BTN_SEL_Q1,wxString(wxT("Select edge Q1")) + wxT('\t') + wxT("F1"),wxEmptyString,wxITEM_NORMAL);
-	mnuEdit->Append(btnSelQ1);
-
+	btnSelQ1 = new wxMenuItem( mnuEdit, wxID_BTN_SEL_Q1, wxString( wxT("Select edge Q1") ) + wxT('\t') + wxT("F1"), wxEmptyString, wxITEM_NORMAL );
+	mnuEdit->Append( btnSelQ1 );
+	
 	wxMenuItem* btnSelQ2;
-	btnSelQ2 = new wxMenuItem(mnuEdit,wxID_BTN_SEL_Q2,wxString(wxT("Select edge Q2")) + wxT('\t') + wxT("F2"),wxEmptyString,wxITEM_NORMAL);
-	mnuEdit->Append(btnSelQ2);
-
+	btnSelQ2 = new wxMenuItem( mnuEdit, wxID_BTN_SEL_Q2, wxString( wxT("Select edge Q2") ) + wxT('\t') + wxT("F2"), wxEmptyString, wxITEM_NORMAL );
+	mnuEdit->Append( btnSelQ2 );
+	
 	wxMenuItem* btnSelQ3;
-	btnSelQ3 = new wxMenuItem(mnuEdit,wxID_BTN_SEL_Q3,wxString(wxT("Select edge Q3")) + wxT('\t') + wxT("F3"),wxEmptyString,wxITEM_NORMAL);
-	mnuEdit->Append(btnSelQ3);
-
+	btnSelQ3 = new wxMenuItem( mnuEdit, wxID_BTN_SEL_Q3, wxString( wxT("Select edge Q3") ) + wxT('\t') + wxT("F3"), wxEmptyString, wxITEM_NORMAL );
+	mnuEdit->Append( btnSelQ3 );
+	
 	wxMenuItem* btnSelQ4;
-	btnSelQ4 = new wxMenuItem(mnuEdit,wxID_BTN_SEL_Q4,wxString(wxT("Select edge Q4")) + wxT('\t') + wxT("F4"),wxEmptyString,wxITEM_NORMAL);
-	mnuEdit->Append(btnSelQ4);
-
+	btnSelQ4 = new wxMenuItem( mnuEdit, wxID_BTN_SEL_Q4, wxString( wxT("Select edge Q4") ) + wxT('\t') + wxT("F4"), wxEmptyString, wxITEM_NORMAL );
+	mnuEdit->Append( btnSelQ4 );
+	
 	mnuEdit->AppendSeparator();
-
+	
 	wxMenuItem* btnNext;
-	btnNext = new wxMenuItem(mnuEdit,wxID_BTN_NEXT,wxString(wxT("Next sprite")) + wxT('\t') + wxT("]"),wxEmptyString,wxITEM_NORMAL);
-	mnuEdit->Append(btnNext);
-
+	btnNext = new wxMenuItem( mnuEdit, wxID_BTN_NEXT, wxString( wxT("Next sprite") ) + wxT('\t') + wxT("]"), wxEmptyString, wxITEM_NORMAL );
+	mnuEdit->Append( btnNext );
+	
 	wxMenuItem* btnPrev;
-	btnPrev = new wxMenuItem(mnuEdit,wxID_BTN_PREV,wxString(wxT("Previous sprite")) + wxT('\t') + wxT("["),wxEmptyString,wxITEM_NORMAL);
-	mnuEdit->Append(btnPrev);
-
+	btnPrev = new wxMenuItem( mnuEdit, wxID_BTN_PREV, wxString( wxT("Previous sprite") ) + wxT('\t') + wxT("["), wxEmptyString, wxITEM_NORMAL );
+	mnuEdit->Append( btnPrev );
+	
 	mnuEdit->AppendSeparator();
-
+	
 	wxMenuItem* btnSetKnownParams;
-	btnSetKnownParams = new wxMenuItem(mnuEdit,wxID_BTN_SET_KNOWS,wxString(wxT("Set parameters of known sprites")),wxEmptyString,wxITEM_NORMAL);
-	mnuEdit->Append(btnSetKnownParams);
-
+	btnSetKnownParams = new wxMenuItem( mnuEdit, wxID_BTN_SET_KNOWS, wxString( wxT("Set parameters of known sprites") ) , wxEmptyString, wxITEM_NORMAL );
+	mnuEdit->Append( btnSetKnownParams );
+	
 	wxMenuItem* btnGenWallCont;
-	btnGenWallCont = new wxMenuItem(mnuEdit,wxID_BTN_GEN_WALL_CONT,wxString(wxT("Generate wall neighbors")),wxEmptyString,wxITEM_NORMAL);
-	mnuEdit->Append(btnGenWallCont);
-
+	btnGenWallCont = new wxMenuItem( mnuEdit, wxID_BTN_GEN_WALL_CONT, wxString( wxT("Generate wall neighbors") ) , wxEmptyString, wxITEM_NORMAL );
+	mnuEdit->Append( btnGenWallCont );
+	
 	wxMenuItem* btnClearContext;
-	btnClearContext = new wxMenuItem(mnuEdit,wxID_BTN_CLR_CONTEXT,wxString(wxT("Clear tile context")),wxEmptyString,wxITEM_NORMAL);
-	mnuEdit->Append(btnClearContext);
-
+	btnClearContext = new wxMenuItem( mnuEdit, wxID_BTN_CLR_CONTEXT, wxString( wxT("Clear tile context") ) , wxEmptyString, wxITEM_NORMAL );
+	mnuEdit->Append( btnClearContext );
+	
 	wxMenuItem* btnClearAllContext;
-	btnClearAllContext = new wxMenuItem(mnuEdit,wxID_BTN_CLR_ALL_CONTEXT,wxString(wxT("Clear all tiles context")),wxEmptyString,wxITEM_NORMAL);
-	mnuEdit->Append(btnClearAllContext);
-
+	btnClearAllContext = new wxMenuItem( mnuEdit, wxID_BTN_CLR_ALL_CONTEXT, wxString( wxT("Clear all tiles context") ) , wxEmptyString, wxITEM_NORMAL );
+	mnuEdit->Append( btnClearAllContext );
+	
 	wxMenuItem* btnBuildContext;
-	btnBuildContext = new wxMenuItem(mnuEdit,wxID_EDIT_TILE_CONTEXT_AUTO,wxString(wxT("Update tiles' context")),wxT("Auto generate tile context from edge class data. Not it may take some time!"),wxITEM_NORMAL);
-	mnuEdit->Append(btnBuildContext);
-
+	btnBuildContext = new wxMenuItem( mnuEdit, wxID_EDIT_TILE_CONTEXT_AUTO, wxString( wxT("Update tiles' context") ) , wxT("Auto generate tile context from edge class data. Not it may take some time!"), wxITEM_NORMAL );
+	mnuEdit->Append( btnBuildContext );
+	
 	wxMenuItem* btnAutoShadeFlags;
-	btnAutoShadeFlags = new wxMenuItem(mnuEdit,wxID_BTN_AUTO_SHADING,wxString(wxT("Auto set shading flags")),wxT("This will try to automatically decode sprite names such as PL???_?? and set the edge/corner shading flags."),wxITEM_NORMAL);
-	mnuEdit->Append(btnAutoShadeFlags);
-
+	btnAutoShadeFlags = new wxMenuItem( mnuEdit, wxID_BTN_AUTO_SHADING, wxString( wxT("Auto set shading flags") ) , wxT("This will try to automatically decode sprite names such as PL???_?? and set the edge/corner shading flags."), wxITEM_NORMAL );
+	mnuEdit->Append( btnAutoShadeFlags );
+	
 	wxMenuItem* btnSaveContext;
-	btnSaveContext = new wxMenuItem(mnuEdit,wxID_BTN_SAVE_CONTEXT,wxString(wxT("Save context data")),wxT("Save this terrain's sprite context data to a file. "),wxITEM_NORMAL);
-	mnuEdit->Append(btnSaveContext);
-
-	mMenu->Append(mnuEdit,wxT("Edit"));
-
+	btnSaveContext = new wxMenuItem( mnuEdit, wxID_BTN_SAVE_CONTEXT, wxString( wxT("Save context data") ) , wxT("Save this terrain's sprite context data to a file. "), wxITEM_NORMAL );
+	mnuEdit->Append( btnSaveContext );
+	
+	mMenu->Append( mnuEdit, wxT("Edit") );
+	
 	mnuTools = new wxMenu();
 	wxMenuItem* mmNewToolset;
-	mmNewToolset = new wxMenuItem(mnuTools,wxID_MM_NEW_TOOLSET,wxString(wxT("New Toolset")) + wxT('\t') + wxT("Ctrl+N"),wxEmptyString,wxITEM_NORMAL);
-	mnuTools->Append(mmNewToolset);
-
+	mmNewToolset = new wxMenuItem( mnuTools, wxID_MM_NEW_TOOLSET, wxString( wxT("New Toolset") ) + wxT('\t') + wxT("Ctrl+N"), wxEmptyString, wxITEM_NORMAL );
+	mnuTools->Append( mmNewToolset );
+	
 	wxMenuItem* mmNewTool;
-	mmNewTool = new wxMenuItem(mnuTools,wxID_MM_NEW_TOOL,wxString(wxT("New Tool")) + wxT('\t') + wxT("Ctrl+T"),wxEmptyString,wxITEM_NORMAL);
-	mnuTools->Append(mmNewTool);
-
+	mmNewTool = new wxMenuItem( mnuTools, wxID_MM_NEW_TOOL, wxString( wxT("New Tool") ) + wxT('\t') + wxT("Ctrl+T"), wxEmptyString, wxITEM_NORMAL );
+	mnuTools->Append( mmNewTool );
+	
 	wxMenuItem* mmRemoveTool;
-	mmRemoveTool = new wxMenuItem(mnuTools,wxID_MM_REMOVE_TOOL,wxString(wxT("Remove Tool(set)")) + wxT('\t') + wxT("Delete"),wxEmptyString,wxITEM_NORMAL);
-	mnuTools->Append(mmRemoveTool);
-
+	mmRemoveTool = new wxMenuItem( mnuTools, wxID_MM_REMOVE_TOOL, wxString( wxT("Remove Tool(set)") ) + wxT('\t') + wxT("Delete"), wxEmptyString, wxITEM_NORMAL );
+	mnuTools->Append( mmRemoveTool );
+	
 	wxMenuItem* mmEditToolset;
-	mmEditToolset = new wxMenuItem(mnuTools,wxID_MM_EDIT_TOOLSET,wxString(wxT("Edit Toolset")) + wxT('\t') + wxT("Ctrl+E"),wxEmptyString,wxITEM_NORMAL);
-	mnuTools->Append(mmEditToolset);
-
-	mMenu->Append(mnuTools,wxT("Tools"));
-
-	this->SetMenuBar(mMenu);
-
+	mmEditToolset = new wxMenuItem( mnuTools, wxID_MM_EDIT_TOOLSET, wxString( wxT("Edit Toolset") ) + wxT('\t') + wxT("Ctrl+E"), wxEmptyString, wxITEM_NORMAL );
+	mnuTools->Append( mmEditToolset );
+	
+	mMenu->Append( mnuTools, wxT("Tools") );
+	
+	this->SetMenuBar( mMenu );
+	
 	wxBoxSizer* bSizer1;
-	bSizer1 = new wxBoxSizer(wxHORIZONTAL);
-
+	bSizer1 = new wxBoxSizer( wxHORIZONTAL );
+	
 	wxBoxSizer* sizerSpriteList;
-	sizerSpriteList = new wxBoxSizer(wxVERTICAL);
-
-	txtSpriteList = new wxStaticText(this,wxID_ANY,wxT("Sprite list:"),wxDefaultPosition,wxDefaultSize,0);
-	txtSpriteList->Wrap(-1);
-	sizerSpriteList->Add(txtSpriteList,0,wxLEFT|wxTOP,5);
-
-	lboxSprites = new wxListCtrlVirtual(this,wxID_LBOX_SPRITES,wxDefaultPosition,wxSize(120,-1),wxLC_NO_HEADER|wxLC_REPORT|wxLC_SINGLE_SEL|wxLC_VIRTUAL|wxALWAYS_SHOW_SB|wxVSCROLL);
-	sizerSpriteList->Add(lboxSprites,1,wxEXPAND|wxBOTTOM|wxLEFT,5);
-
-
-	bSizer1->Add(sizerSpriteList,0,wxEXPAND|wxRIGHT,5);
-
+	sizerSpriteList = new wxBoxSizer( wxVERTICAL );
+	
+	m_staticText130 = new wxStaticText( this, wxID_ANY, wxT("Wildcard filter (*?):"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText130->Wrap( -1 );
+	sizerSpriteList->Add( m_staticText130, 0, wxTOP|wxRIGHT|wxLEFT, 5 );
+	
+	txtFilter = new wxTextCtrl( this, wxID_TXT_FILTER, wxT("*"), wxDefaultPosition, wxDefaultSize, 0 );
+	sizerSpriteList->Add( txtFilter, 0, wxEXPAND|wxLEFT, 5 );
+	
+	txtSpriteList = new wxStaticText( this, wxID_ANY, wxT("Sprite list:"), wxDefaultPosition, wxDefaultSize, 0 );
+	txtSpriteList->Wrap( -1 );
+	sizerSpriteList->Add( txtSpriteList, 0, wxLEFT|wxTOP, 5 );
+	
+	lboxSprites = new wxListCtrlVirtual(this,wxID_LBOX_SPRITES,wxDefaultPosition,wxSize(130,-1),wxLC_NO_HEADER|wxLC_REPORT|wxLC_SINGLE_SEL|wxLC_VIRTUAL|wxALWAYS_SHOW_SB|wxVSCROLL);
+	sizerSpriteList->Add( lboxSprites, 1, wxBOTTOM|wxLEFT|wxEXPAND, 5 );
+	
+	
+	bSizer1->Add( sizerSpriteList, 0, wxEXPAND|wxRIGHT, 5 );
+	
 	wxBoxSizer* bSizer241;
-	bSizer241 = new wxBoxSizer(wxVERTICAL);
-
-	txtAltList = new wxStaticText(this,wxID_TXT_ALT,wxT("Alternatives:"),wxDefaultPosition,wxDefaultSize,0);
-	txtAltList->Wrap(-1);
-	bSizer241->Add(txtAltList,0,wxTOP|wxLEFT,5);
-
-	lboxAlt = new wxListBox(this,wxID_LBOX_ALT,wxDefaultPosition,wxSize(120,-1),0,NULL,0|wxALWAYS_SHOW_SB|wxVSCROLL);
-	bSizer241->Add(lboxAlt,1,wxBOTTOM|wxLEFT|wxRIGHT,5);
-
-
-	bSizer1->Add(bSizer241,0,wxEXPAND,5);
-
+	bSizer241 = new wxBoxSizer( wxVERTICAL );
+	
+	txtAltList = new wxStaticText( this, wxID_TXT_ALT, wxT("Alternatives:"), wxDefaultPosition, wxDefaultSize, 0 );
+	txtAltList->Wrap( -1 );
+	bSizer241->Add( txtAltList, 0, wxTOP|wxLEFT, 5 );
+	
+	lboxAlt = new wxListBox( this, wxID_LBOX_ALT, wxDefaultPosition, wxSize( 120,-1 ), 0, NULL, 0|wxALWAYS_SHOW_SB|wxVSCROLL );
+	bSizer241->Add( lboxAlt, 1, wxBOTTOM|wxLEFT|wxRIGHT, 5 );
+	
+	
+	bSizer1->Add( bSizer241, 0, wxEXPAND, 5 );
+	
 	wxBoxSizer* bSizer4;
-	bSizer4 = new wxBoxSizer(wxVERTICAL);
-
-
-	bSizer4->Add(0,0,0,wxALL|wxEXPAND,4);
-
+	bSizer4 = new wxBoxSizer( wxVERTICAL );
+	
+	
+	bSizer4->Add( 0, 0, 0, wxALL|wxEXPAND, 4 );
+	
 	wxStaticBoxSizer* sizerCanvas;
-	sizerCanvas = new wxStaticBoxSizer(new wxStaticBox(this,wxID_ANY,wxT(" Sprite(s) view:")),wxVERTICAL);
-
-	canvas = new wxPanel(sizerCanvas->GetStaticBox(),wxID_ANY,wxDefaultPosition,wxDefaultSize,wxTAB_TRAVERSAL);
-	sizerCanvas->Add(canvas,1,wxEXPAND | wxALL,5);
-
-
-	bSizer4->Add(sizerCanvas,1,wxALL|wxEXPAND,5);
-
-	txtGamma = new wxStaticText(this,wxID_ANY,wxT("Set gamma correction:"),wxDefaultPosition,wxDefaultSize,0);
-	txtGamma->Wrap(-1);
-	bSizer4->Add(txtGamma,0,wxLEFT|wxTOP,5);
-
-	slideGamma = new wxSlider(this,wxID_SLIDE_GAMMA,1300,500,2000,wxDefaultPosition,wxDefaultSize,wxSL_HORIZONTAL);
-	bSizer4->Add(slideGamma,0,wxEXPAND|wxLEFT|wxRIGHT|wxTOP,1);
-
-	cbZoom = new wxCheckBox(this,wxID_CB_ZOOM,wxT("Zoom 2x"),wxDefaultPosition,wxDefaultSize,0);
-	bSizer4->Add(cbZoom,0,wxALL,5);
-
-
-	bSizer1->Add(bSizer4,1,wxEXPAND,5);
-
+	sizerCanvas = new wxStaticBoxSizer( new wxStaticBox( this, wxID_ANY, wxT(" Sprite(s) view:") ), wxVERTICAL );
+	
+	canvas = new wxPanel( sizerCanvas->GetStaticBox(), wxID_ANY, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL );
+	sizerCanvas->Add( canvas, 1, wxEXPAND | wxALL, 5 );
+	
+	
+	bSizer4->Add( sizerCanvas, 1, wxALL|wxEXPAND, 5 );
+	
+	txtGamma = new wxStaticText( this, wxID_ANY, wxT("Set gamma correction:"), wxDefaultPosition, wxDefaultSize, 0 );
+	txtGamma->Wrap( -1 );
+	bSizer4->Add( txtGamma, 0, wxLEFT|wxTOP, 5 );
+	
+	slideGamma = new wxSlider( this, wxID_SLIDE_GAMMA, 1300, 500, 2000, wxDefaultPosition, wxDefaultSize, wxSL_HORIZONTAL );
+	bSizer4->Add( slideGamma, 0, wxEXPAND|wxLEFT|wxRIGHT|wxTOP, 1 );
+	
+	cbZoom = new wxCheckBox( this, wxID_CB_ZOOM, wxT("Zoom 2x"), wxDefaultPosition, wxDefaultSize, 0 );
+	bSizer4->Add( cbZoom, 0, wxALL, 5 );
+	
+	
+	bSizer1->Add( bSizer4, 1, wxEXPAND, 5 );
+	
 	wxBoxSizer* bSizer3;
-	bSizer3 = new wxBoxSizer(wxVERTICAL);
-
-	m_staticText2 = new wxStaticText(this,wxID_ANY,wxT("Neighboring sprites:"),wxDefaultPosition,wxDefaultSize,0);
-	m_staticText2->Wrap(-1);
-	bSizer3->Add(m_staticText2,0,wxLEFT|wxTOP,5);
-
-	lboxNeighbor = new wxListBox(this,wxID_LBOX_NEIGHBOR,wxDefaultPosition,wxSize(120,-1),0,NULL,0|wxVSCROLL);
-	bSizer3->Add(lboxNeighbor,1,wxBOTTOM,5);
-
-	m_staticText3 = new wxStaticText(this,wxID_ANY,wxT("Side:"),wxDefaultPosition,wxDefaultSize,0);
-	m_staticText3->Wrap(-1);
-	bSizer3->Add(m_staticText3,0,0,5);
-
-	wxString chbSideChoices[] ={wxT("Q1"), wxT("Q2"), wxT("Q3"), wxT("Q4")};
-	int chbSideNChoices = sizeof(chbSideChoices) / sizeof(wxString);
-	chbSide = new wxChoice(this,wxID_CH_SIDE,wxDefaultPosition,wxDefaultSize,chbSideNChoices,chbSideChoices,0);
-	chbSide->SetSelection(0);
-	bSizer3->Add(chbSide,0,wxBOTTOM|wxEXPAND,5);
-
-
-	bSizer1->Add(bSizer3,0,wxEXPAND,5);
-
-	sizerFlags = new wxStaticBoxSizer(new wxStaticBox(this,wxID_ANY,wxT(" Tile properties:")),wxVERTICAL);
-
-	cbUseAsGlyph = new wxCheckBox(sizerFlags->GetStaticBox(),wxID_CB_USE_AS_GLYPH,wxT("Use as class glyph"),wxDefaultPosition,wxDefaultSize,0);
-	sizerFlags->Add(cbUseAsGlyph,0,wxTOP|wxRIGHT|wxLEFT,5);
-
-	cbFaultCont = new wxCheckBox(sizerFlags->GetStaticBox(),wxID_CB_FAULTY,wxT("Faulty context"),wxDefaultPosition,wxDefaultSize,0);
-	sizerFlags->Add(cbFaultCont,0,wxLEFT|wxRIGHT|wxTOP,5);
-
-	m_staticline2 = new wxStaticLine(sizerFlags->GetStaticBox(),wxID_ANY,wxDefaultPosition,wxDefaultSize,wxLI_HORIZONTAL);
-	sizerFlags->Add(m_staticline2,0,wxEXPAND | wxALL,5);
-
-	sizerTerrFlags = new wxBoxSizer(wxVERTICAL);
-
-	m_checkBox49 = new wxCheckBox(sizerFlags->GetStaticBox(),wxID_ANY,wxT("Check Me!"),wxDefaultPosition,wxDefaultSize,0);
-	sizerTerrFlags->Add(m_checkBox49,0,wxALL,5);
-
-
-	sizerFlags->Add(sizerTerrFlags,1,wxEXPAND,0);
-
-
-	bSizer1->Add(sizerFlags,0,wxEXPAND|wxLEFT|wxTOP,5);
-
+	bSizer3 = new wxBoxSizer( wxVERTICAL );
+	
+	m_staticText2 = new wxStaticText( this, wxID_ANY, wxT("Neighboring sprites:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText2->Wrap( -1 );
+	bSizer3->Add( m_staticText2, 0, wxLEFT|wxTOP, 5 );
+	
+	lboxNeighbor = new wxListBox( this, wxID_LBOX_NEIGHBOR, wxDefaultPosition, wxSize( 120,-1 ), 0, NULL, 0|wxVSCROLL );
+	bSizer3->Add( lboxNeighbor, 1, wxBOTTOM, 5 );
+	
+	m_staticText3 = new wxStaticText( this, wxID_ANY, wxT("Side:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText3->Wrap( -1 );
+	bSizer3->Add( m_staticText3, 0, 0, 5 );
+	
+	wxArrayString chbSideChoices;
+	chbSide = new wxChoice( this, wxID_CH_SIDE, wxDefaultPosition, wxDefaultSize, chbSideChoices, 0 );
+	chbSide->SetSelection( 0 );
+	bSizer3->Add( chbSide, 0, wxBOTTOM|wxEXPAND, 5 );
+	
+	
+	bSizer1->Add( bSizer3, 0, wxEXPAND, 5 );
+	
+	sizerFlags = new wxStaticBoxSizer( new wxStaticBox( this, wxID_ANY, wxT(" Tile properties:") ), wxVERTICAL );
+	
+	cbUseAsGlyph = new wxCheckBox( sizerFlags->GetStaticBox(), wxID_CB_USE_AS_GLYPH, wxT("Use as class glyph"), wxDefaultPosition, wxDefaultSize, 0 );
+	sizerFlags->Add( cbUseAsGlyph, 0, wxTOP|wxRIGHT|wxLEFT, 5 );
+	
+	cbFaultCont = new wxCheckBox( sizerFlags->GetStaticBox(), wxID_CB_FAULTY, wxT("Faulty context"), wxDefaultPosition, wxDefaultSize, 0 );
+	sizerFlags->Add( cbFaultCont, 0, wxLEFT|wxRIGHT|wxTOP, 5 );
+	
+	m_staticline2 = new wxStaticLine( sizerFlags->GetStaticBox(), wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLI_HORIZONTAL );
+	sizerFlags->Add( m_staticline2, 0, wxEXPAND | wxALL, 5 );
+	
+	sizerTerrFlags = new wxBoxSizer( wxVERTICAL );
+	
+	m_checkBox49 = new wxCheckBox( sizerFlags->GetStaticBox(), wxID_ANY, wxT("Check Me!"), wxDefaultPosition, wxDefaultSize, 0 );
+	sizerTerrFlags->Add( m_checkBox49, 0, wxALL, 5 );
+	
+	
+	sizerFlags->Add( sizerTerrFlags, 1, wxEXPAND, 0 );
+	
+	
+	bSizer1->Add( sizerFlags, 0, wxEXPAND|wxLEFT|wxTOP, 5 );
+	
 	wxBoxSizer* bSizer10;
-	bSizer10 = new wxBoxSizer(wxVERTICAL);
-
+	bSizer10 = new wxBoxSizer( wxVERTICAL );
+	
 	wxStaticBoxSizer* sbSizer3;
-	sbSizer3 = new wxStaticBoxSizer(new wxStaticBox(this,wxID_ANY,wxT("Tile Params:")),wxVERTICAL);
-
-	sbSizer3->SetMinSize(wxSize(300,-1));
+	sbSizer3 = new wxStaticBoxSizer( new wxStaticBox( this, wxID_ANY, wxT("Tile Params:") ), wxVERTICAL );
+	
+	sbSizer3->SetMinSize( wxSize( 300,-1 ) );
 	wxBoxSizer* bSizer21;
-	bSizer21 = new wxBoxSizer(wxHORIZONTAL);
-
-	m_staticText5 = new wxStaticText(sbSizer3->GetStaticBox(),wxID_ANY,wxT("Q1 class:"),wxDefaultPosition,wxDefaultSize,0);
-	m_staticText5->Wrap(-1);
-	bSizer21->Add(m_staticText5,0,wxLEFT|wxTOP,5);
-
+	bSizer21 = new wxBoxSizer( wxHORIZONTAL );
+	
+	m_staticText5 = new wxStaticText( sbSizer3->GetStaticBox(), wxID_ANY, wxT("Q1 class:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText5->Wrap( -1 );
+	bSizer21->Add( m_staticText5, 0, wxLEFT|wxTOP, 5 );
+	
 	wxArrayString chbQ1classChoices;
-	chbQ1class = new wxChoice(sbSizer3->GetStaticBox(),wxID_CHB_Q1_CLASS,wxDefaultPosition,wxDefaultSize,chbQ1classChoices,0);
-	chbQ1class->SetSelection(0);
-	bSizer21->Add(chbQ1class,1,wxEXPAND|wxLEFT|wxRIGHT,5);
-
-	cbQ1nofilt = new wxCheckBox(sbSizer3->GetStaticBox(),wxID_CB_Q1_NOFILT,wxT("Don't filter"),wxDefaultPosition,wxDefaultSize,0);
-	bSizer21->Add(cbQ1nofilt,0,wxALL,5);
-
-
-	sbSizer3->Add(bSizer21,1,wxEXPAND,5);
-
+	chbQ1class = new wxChoice( sbSizer3->GetStaticBox(), wxID_CHB_Q1_CLASS, wxDefaultPosition, wxDefaultSize, chbQ1classChoices, 0 );
+	chbQ1class->SetSelection( 0 );
+	bSizer21->Add( chbQ1class, 1, wxEXPAND|wxLEFT|wxRIGHT, 5 );
+	
+	cbQ1nofilt = new wxCheckBox( sbSizer3->GetStaticBox(), wxID_CB_Q1_NOFILT, wxT("Don't filter"), wxDefaultPosition, wxDefaultSize, 0 );
+	bSizer21->Add( cbQ1nofilt, 0, wxALL, 5 );
+	
+	
+	sbSizer3->Add( bSizer21, 1, wxEXPAND, 5 );
+	
 	wxBoxSizer* bSizer22;
-	bSizer22 = new wxBoxSizer(wxHORIZONTAL);
-
-	m_staticText6 = new wxStaticText(sbSizer3->GetStaticBox(),wxID_ANY,wxT("Q2 class:"),wxDefaultPosition,wxDefaultSize,0);
-	m_staticText6->Wrap(-1);
-	bSizer22->Add(m_staticText6,0,wxLEFT|wxTOP,5);
-
+	bSizer22 = new wxBoxSizer( wxHORIZONTAL );
+	
+	m_staticText6 = new wxStaticText( sbSizer3->GetStaticBox(), wxID_ANY, wxT("Q2 class:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText6->Wrap( -1 );
+	bSizer22->Add( m_staticText6, 0, wxLEFT|wxTOP, 5 );
+	
 	wxArrayString chbQ2classChoices;
-	chbQ2class = new wxChoice(sbSizer3->GetStaticBox(),wxID_CHB_Q2_CLASS,wxDefaultPosition,wxDefaultSize,chbQ2classChoices,0);
-	chbQ2class->SetSelection(0);
-	bSizer22->Add(chbQ2class,1,wxEXPAND|wxLEFT|wxRIGHT,5);
-
-	cbQ2nofilt = new wxCheckBox(sbSizer3->GetStaticBox(),wxID_CB_Q2_NOFILT,wxT("Don't filter"),wxDefaultPosition,wxDefaultSize,0);
-	bSizer22->Add(cbQ2nofilt,0,wxALL,5);
-
-
-	sbSizer3->Add(bSizer22,1,wxEXPAND,5);
-
+	chbQ2class = new wxChoice( sbSizer3->GetStaticBox(), wxID_CHB_Q2_CLASS, wxDefaultPosition, wxDefaultSize, chbQ2classChoices, 0 );
+	chbQ2class->SetSelection( 0 );
+	bSizer22->Add( chbQ2class, 1, wxEXPAND|wxLEFT|wxRIGHT, 5 );
+	
+	cbQ2nofilt = new wxCheckBox( sbSizer3->GetStaticBox(), wxID_CB_Q2_NOFILT, wxT("Don't filter"), wxDefaultPosition, wxDefaultSize, 0 );
+	bSizer22->Add( cbQ2nofilt, 0, wxALL, 5 );
+	
+	
+	sbSizer3->Add( bSizer22, 1, wxEXPAND, 5 );
+	
 	wxBoxSizer* bSizer23;
-	bSizer23 = new wxBoxSizer(wxHORIZONTAL);
-
-	m_staticText7 = new wxStaticText(sbSizer3->GetStaticBox(),wxID_ANY,wxT("Q3 class:"),wxDefaultPosition,wxDefaultSize,0);
-	m_staticText7->Wrap(-1);
-	bSizer23->Add(m_staticText7,0,wxLEFT|wxTOP,5);
-
+	bSizer23 = new wxBoxSizer( wxHORIZONTAL );
+	
+	m_staticText7 = new wxStaticText( sbSizer3->GetStaticBox(), wxID_ANY, wxT("Q3 class:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText7->Wrap( -1 );
+	bSizer23->Add( m_staticText7, 0, wxLEFT|wxTOP, 5 );
+	
 	wxArrayString chbQ3classChoices;
-	chbQ3class = new wxChoice(sbSizer3->GetStaticBox(),wxID_CHB_Q3_CLASS,wxDefaultPosition,wxDefaultSize,chbQ3classChoices,0);
-	chbQ3class->SetSelection(0);
-	bSizer23->Add(chbQ3class,1,wxEXPAND|wxLEFT|wxRIGHT,5);
-
-	cbQ3nofilt = new wxCheckBox(sbSizer3->GetStaticBox(),wxID_CB_Q3_NOFILT,wxT("Don't filter"),wxDefaultPosition,wxDefaultSize,0);
-	bSizer23->Add(cbQ3nofilt,0,wxALL,5);
-
-
-	sbSizer3->Add(bSizer23,1,wxEXPAND,5);
-
+	chbQ3class = new wxChoice( sbSizer3->GetStaticBox(), wxID_CHB_Q3_CLASS, wxDefaultPosition, wxDefaultSize, chbQ3classChoices, 0 );
+	chbQ3class->SetSelection( 0 );
+	bSizer23->Add( chbQ3class, 1, wxEXPAND|wxLEFT|wxRIGHT, 5 );
+	
+	cbQ3nofilt = new wxCheckBox( sbSizer3->GetStaticBox(), wxID_CB_Q3_NOFILT, wxT("Don't filter"), wxDefaultPosition, wxDefaultSize, 0 );
+	bSizer23->Add( cbQ3nofilt, 0, wxALL, 5 );
+	
+	
+	sbSizer3->Add( bSizer23, 1, wxEXPAND, 5 );
+	
 	wxBoxSizer* bSizer24;
-	bSizer24 = new wxBoxSizer(wxHORIZONTAL);
-
-	m_staticText8 = new wxStaticText(sbSizer3->GetStaticBox(),wxID_ANY,wxT("Q4 class:"),wxDefaultPosition,wxDefaultSize,0);
-	m_staticText8->Wrap(-1);
-	bSizer24->Add(m_staticText8,0,wxLEFT|wxTOP,5);
-
+	bSizer24 = new wxBoxSizer( wxHORIZONTAL );
+	
+	m_staticText8 = new wxStaticText( sbSizer3->GetStaticBox(), wxID_ANY, wxT("Q4 class:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText8->Wrap( -1 );
+	bSizer24->Add( m_staticText8, 0, wxLEFT|wxTOP, 5 );
+	
 	wxArrayString chbQ4classChoices;
-	chbQ4class = new wxChoice(sbSizer3->GetStaticBox(),wxID_CHB_Q4_CLASS,wxDefaultPosition,wxDefaultSize,chbQ4classChoices,0);
-	chbQ4class->SetSelection(0);
-	bSizer24->Add(chbQ4class,1,wxEXPAND|wxLEFT|wxRIGHT,5);
-
-	cbQ4nofilt = new wxCheckBox(sbSizer3->GetStaticBox(),wxID_CB_Q4_NOFILT,wxT("Don't filter"),wxDefaultPosition,wxDefaultSize,0);
-	bSizer24->Add(cbQ4nofilt,0,wxALL,5);
-
-
-	sbSizer3->Add(bSizer24,1,wxEXPAND,5);
-
-	txtShadeEdge = new wxStaticText(sbSizer3->GetStaticBox(),wxID_ANY,wxT("Shaded edges:"),wxDefaultPosition,wxDefaultSize,0);
-	txtShadeEdge->Wrap(-1);
-	sbSizer3->Add(txtShadeEdge,0,wxLEFT|wxRIGHT|wxTOP,5);
-
+	chbQ4class = new wxChoice( sbSizer3->GetStaticBox(), wxID_CHB_Q4_CLASS, wxDefaultPosition, wxDefaultSize, chbQ4classChoices, 0 );
+	chbQ4class->SetSelection( 0 );
+	bSizer24->Add( chbQ4class, 1, wxEXPAND|wxLEFT|wxRIGHT, 5 );
+	
+	cbQ4nofilt = new wxCheckBox( sbSizer3->GetStaticBox(), wxID_CB_Q4_NOFILT, wxT("Don't filter"), wxDefaultPosition, wxDefaultSize, 0 );
+	bSizer24->Add( cbQ4nofilt, 0, wxALL, 5 );
+	
+	
+	sbSizer3->Add( bSizer24, 1, wxEXPAND, 5 );
+	
+	txtShadeEdge = new wxStaticText( sbSizer3->GetStaticBox(), wxID_ANY, wxT("Shaded edges:"), wxDefaultPosition, wxDefaultSize, 0 );
+	txtShadeEdge->Wrap( -1 );
+	sbSizer3->Add( txtShadeEdge, 0, wxLEFT|wxRIGHT|wxTOP, 5 );
+	
 	wxGridSizer* gSizer1;
-	gSizer1 = new wxGridSizer(2,4,0,0);
-
-	cbShadeQ1 = new wxCheckBox(sbSizer3->GetStaticBox(),wxID_CB_SHADE_Q1,wxT("Q1"),wxDefaultPosition,wxDefaultSize,wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER);
-	gSizer1->Add(cbShadeQ1,0,wxALL,5);
-
-	cbShadeQ2 = new wxCheckBox(sbSizer3->GetStaticBox(),wxID_CB_SHADE_Q2,wxT("Q2"),wxDefaultPosition,wxDefaultSize,wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER);
-	gSizer1->Add(cbShadeQ2,0,wxALL,5);
-
-	cbShadeQ3 = new wxCheckBox(sbSizer3->GetStaticBox(),wxID_CB_SHADE_Q3,wxT("Q3"),wxDefaultPosition,wxDefaultSize,wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER);
-	gSizer1->Add(cbShadeQ3,0,wxALL,5);
-
-	cbShadeQ4 = new wxCheckBox(sbSizer3->GetStaticBox(),wxID_CB_SHADE_Q4,wxT("Q4"),wxDefaultPosition,wxDefaultSize,wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER);
-	gSizer1->Add(cbShadeQ4,0,wxALL,5);
-
-	cbShadeC1 = new wxCheckBox(sbSizer3->GetStaticBox(),wxID_CB_SHADE_C1,wxT("C1"),wxDefaultPosition,wxDefaultSize,wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER);
-	gSizer1->Add(cbShadeC1,0,wxALL,5);
-
-	cbShadeC2 = new wxCheckBox(sbSizer3->GetStaticBox(),wxID_CB_SHADE_C2,wxT("C2"),wxDefaultPosition,wxDefaultSize,wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER);
-	gSizer1->Add(cbShadeC2,0,wxALL,5);
-
-	cbShadeC3 = new wxCheckBox(sbSizer3->GetStaticBox(),wxID_CB_SHADE_C3,wxT("C3"),wxDefaultPosition,wxDefaultSize,wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER);
-	gSizer1->Add(cbShadeC3,0,wxALL,5);
-
-	cbShadeC4 = new wxCheckBox(sbSizer3->GetStaticBox(),wxID_CB_SHADE_C4,wxT("C4"),wxDefaultPosition,wxDefaultSize,wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER);
-	gSizer1->Add(cbShadeC4,0,wxALL,5);
-
-
-	sbSizer3->Add(gSizer1,0,0,5);
-
-	txtFlags = new wxStaticText(sbSizer3->GetStaticBox(),wxID_ANY,wxT("Map tile flags:"),wxDefaultPosition,wxDefaultSize,0);
-	txtFlags->Wrap(-1);
-	sbSizer3->Add(txtFlags,0,wxLEFT|wxRIGHT|wxTOP,5);
-
-	editMapFlags = new wxTextCtrl(sbSizer3->GetStaticBox(),wxID_EDIT_MAP_TILE_FLAGS,wxEmptyString,wxDefaultPosition,wxDefaultSize,wxTE_PROCESS_ENTER);
-	sbSizer3->Add(editMapFlags,0,wxBOTTOM|wxLEFT|wxRIGHT,5);
-
-
-	bSizer10->Add(sbSizer3,0,wxLEFT|wxTOP|wxEXPAND,5);
-
+	gSizer1 = new wxGridSizer( 2, 4, 0, 0 );
+	
+	cbShadeQ1 = new wxCheckBox( sbSizer3->GetStaticBox(), wxID_CB_SHADE_Q1, wxT("Q1"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER );
+	gSizer1->Add( cbShadeQ1, 0, wxALL, 5 );
+	
+	cbShadeQ2 = new wxCheckBox( sbSizer3->GetStaticBox(), wxID_CB_SHADE_Q2, wxT("Q2"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER );
+	gSizer1->Add( cbShadeQ2, 0, wxALL, 5 );
+	
+	cbShadeQ3 = new wxCheckBox( sbSizer3->GetStaticBox(), wxID_CB_SHADE_Q3, wxT("Q3"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER );
+	gSizer1->Add( cbShadeQ3, 0, wxALL, 5 );
+	
+	cbShadeQ4 = new wxCheckBox( sbSizer3->GetStaticBox(), wxID_CB_SHADE_Q4, wxT("Q4"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER );
+	gSizer1->Add( cbShadeQ4, 0, wxALL, 5 );
+	
+	cbShadeC1 = new wxCheckBox( sbSizer3->GetStaticBox(), wxID_CB_SHADE_C1, wxT("C1"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER );
+	gSizer1->Add( cbShadeC1, 0, wxALL, 5 );
+	
+	cbShadeC2 = new wxCheckBox( sbSizer3->GetStaticBox(), wxID_CB_SHADE_C2, wxT("C2"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER );
+	gSizer1->Add( cbShadeC2, 0, wxALL, 5 );
+	
+	cbShadeC3 = new wxCheckBox( sbSizer3->GetStaticBox(), wxID_CB_SHADE_C3, wxT("C3"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER );
+	gSizer1->Add( cbShadeC3, 0, wxALL, 5 );
+	
+	cbShadeC4 = new wxCheckBox( sbSizer3->GetStaticBox(), wxID_CB_SHADE_C4, wxT("C4"), wxDefaultPosition, wxDefaultSize, wxCHK_3STATE|wxCHK_ALLOW_3RD_STATE_FOR_USER );
+	gSizer1->Add( cbShadeC4, 0, wxALL, 5 );
+	
+	
+	sbSizer3->Add( gSizer1, 0, 0, 5 );
+	
+	txtFlags = new wxStaticText( sbSizer3->GetStaticBox(), wxID_ANY, wxT("Map tile flags:"), wxDefaultPosition, wxDefaultSize, 0 );
+	txtFlags->Wrap( -1 );
+	sbSizer3->Add( txtFlags, 0, wxLEFT|wxRIGHT|wxTOP, 5 );
+	
+	editMapFlags = new wxTextCtrl( sbSizer3->GetStaticBox(), wxID_EDIT_MAP_TILE_FLAGS, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxTE_PROCESS_ENTER );
+	sbSizer3->Add( editMapFlags, 0, wxBOTTOM|wxLEFT|wxRIGHT, 5 );
+	
+	
+	bSizer10->Add( sbSizer3, 0, wxLEFT|wxTOP|wxEXPAND, 5 );
+	
 	wxStaticBoxSizer* sbSizer6;
-	sbSizer6 = new wxStaticBoxSizer(new wxStaticBox(this,wxID_ANY,wxT("Object/class/tools sorting:")),wxVERTICAL);
-
-	cbToolGlyph = new wxCheckBox(sbSizer6->GetStaticBox(),wxID_CB_TOOL_GLYPH,wxT("Use as tool glyph"),wxDefaultPosition,wxDefaultSize,0);
+	sbSizer6 = new wxStaticBoxSizer( new wxStaticBox( this, wxID_ANY, wxT("Object/class/tools sorting:") ), wxVERTICAL );
+	
+	cbToolGlyph = new wxCheckBox( sbSizer6->GetStaticBox(), wxID_CB_TOOL_GLYPH, wxT("Use as tool glyph"), wxDefaultPosition, wxDefaultSize, 0 );
 	cbToolGlyph->SetValue(true);
-	sbSizer6->Add(cbToolGlyph,0,wxALL,5);
-
-	treeCtrlObjects = new wxTreeCtrl(sbSizer6->GetStaticBox(),wxID_TREE_OBJECTS,wxDefaultPosition,wxDefaultSize,wxTR_DEFAULT_STYLE|wxTR_EDIT_LABELS|wxTR_HIDE_ROOT|wxTR_SINGLE|wxALWAYS_SHOW_SB|wxVSCROLL);
-	sbSizer6->Add(treeCtrlObjects,1,wxALL|wxEXPAND,5);
-
-
-	bSizer10->Add(sbSizer6,1,wxEXPAND|wxLEFT|wxTOP,5);
-
-
-	bSizer1->Add(bSizer10,0,wxEXPAND,5);
-
-
-	this->SetSizer(bSizer1);
+	sbSizer6->Add( cbToolGlyph, 0, wxALL, 5 );
+	
+	treeCtrlObjects = new wxTreeCtrl( sbSizer6->GetStaticBox(), wxID_TREE_OBJECTS, wxDefaultPosition, wxDefaultSize, wxTR_DEFAULT_STYLE|wxTR_EDIT_LABELS|wxTR_HIDE_ROOT|wxTR_SINGLE|wxALWAYS_SHOW_SB|wxVSCROLL );
+	sbSizer6->Add( treeCtrlObjects, 1, wxALL|wxEXPAND, 5 );
+	
+	
+	bSizer10->Add( sbSizer6, 1, wxEXPAND|wxLEFT|wxTOP, 5 );
+	
+	
+	bSizer1->Add( bSizer10, 0, wxEXPAND, 5 );
+	
+	
+	this->SetSizer( bSizer1 );
 	this->Layout();
-	statBar = this->CreateStatusBar(1,wxSTB_SIZEGRIP,wxID_ANY);
+	statBar = this->CreateStatusBar( 1, wxSTB_SIZEGRIP, wxID_ANY );
+	
+	this->Centre( wxBOTH );
+	
 
-	this->Centre(wxBOTH);
-
+	// </wxFormsBuilder> - Section auto-inserted from 'forms.cpp' class 'FormSprite' on 2026-06-15 18:18:58
 	// === AUTO GENERATED STUFF ENDS HERE ===
+
+	chbSide->Append("Q1");
+	chbSide->Append("Q2");
+	chbSide->Append("Q3");
+	chbSide->Append("Q4");
+	chbSide->Select(0);
 
 	/*lboxSprites = new wxListCtrlVirtual(this,wxID_LBOX_SPRITES,wxDefaultPosition,wxSize(120,-1),wxLC_NO_HEADER|wxLC_REPORT|wxLC_SINGLE_SEL|wxLC_VIRTUAL|wxALWAYS_SHOW_SB|wxVSCROLL);
 	sizerSpriteList->Add(lboxSprites,1,wxBOTTOM|wxEXPAND|wxLEFT,5);*/
@@ -433,6 +452,8 @@ FormSprite::FormSprite( wxWindow* parent,SpellData* spell_data,wxWindowID id, co
 	Bind(wxEVT_CLOSE_WINDOW, &FormSprite::OnClose, this, this->m_windowId);
 	Bind(wxEVT_MENU,&FormSprite::OnCloseClick, this, wxID_BTN_CLOSE);
 	Bind(wxEVT_MENU,&FormSprite::OnSelectClick,this,wxID_BTN_SELECT);
+	Bind(wxEVT_MENU,&FormSprite::OnExportClick,this,wxID_BTN_SAVE);
+	Bind(wxEVT_MENU,&FormSprite::OnExportClick,this,wxID_BTN_SAVE_ALL);
 	Bind(wxEVT_MENU,&FormSprite::OnSelectSpriteBtn,this,wxID_BTN_NEXT);
 	Bind(wxEVT_MENU,&FormSprite::OnSelectSpriteBtn,this,wxID_BTN_PREV);
 	Bind(wxEVT_MENU,&FormSprite::OnGenerateWallContext,this,wxID_BTN_GEN_WALL_CONT);
@@ -447,7 +468,7 @@ FormSprite::FormSprite( wxWindow* parent,SpellData* spell_data,wxWindowID id, co
 	Bind(wxEVT_MENU,&FormSprite::OnSelectEdgeBtn,this,wxID_BTN_SEL_Q3);
 	Bind(wxEVT_MENU,&FormSprite::OnSelectEdgeBtn,this,wxID_BTN_SEL_Q4);	
 
-
+	Bind(wxEVT_COMMAND_TEXT_UPDATED,&FormSprite::OnTerrainChange,this,wxID_TXT_FILTER);
 	Bind(wxEVT_COMMAND_LIST_ITEM_SELECTED,&FormSprite::OnSelectSpriteAlt,this,wxID_LBOX_SPRITES);
 	Bind(wxEVT_COMMAND_LISTBOX_SELECTED,&FormSprite::OnSelectSpriteAlt,this,wxID_LBOX_ALT);
 	Bind(wxEVT_COMMAND_LISTBOX_SELECTED,&FormSprite::OnSelectNeighbor,this,wxID_LBOX_NEIGHBOR);
@@ -558,8 +579,14 @@ FormSprite::~FormSprite()
 
 // begin sprite drag from sprite list
 void FormSprite::OnDragSprite(wxListEvent& event)
-{
-	auto text = lboxSprites->GetItemText(event.GetIndex(),0);
+{		
+	auto id = lboxSprites->GetNextItem(-1,wxLIST_NEXT_ALL,wxLIST_STATE_SELECTED);
+	if(id < 0)
+		return;
+	if(id >= m_sprite_list.size())
+		return;
+	Sprite *spr = m_sprite_list[id];
+	auto text = spr->name;
 	//statBar->SetStatusText("drag: " + text,0);
 	
 	wxTextDataObject tdo(text);
@@ -928,14 +955,19 @@ void FormSprite::OnTreeSelectionChanged(wxTreeEvent& evt)
 
 	// is node
 	auto terr = FindTerrain();
-	sprite_id = terr->GetSpriteID(obj->m_spr);
+	//sprite_id = terr->GetSpriteID(obj->m_spr);
 
-	if(sprite_id < lboxSprites->GetItemCount())
+	auto spr = std::find(m_sprite_list.begin(), m_sprite_list.end(), obj->m_spr);
+	if(spr == m_sprite_list.end())
 	{
-		lboxSprites->SetItemState(sprite_id,wxLIST_STATE_SELECTED,wxLIST_STATE_SELECTED);	
-		if(!lboxSprites->IsVisible(sprite_id))
-			lboxSprites->EnsureVisible(sprite_id);
+		evt.Skip();
+		return;
 	}
+	sprite_id = spr - m_sprite_list.begin();
+
+	lboxSprites->SetItemState(sprite_id,wxLIST_STATE_SELECTED,wxLIST_STATE_SELECTED);	
+	if(!lboxSprites->IsVisible(sprite_id))
+		lboxSprites->EnsureVisible(sprite_id);
 	
 	SelectQuad();
 	SetFlags();
@@ -994,18 +1026,19 @@ void FormSprite::SetSprite(Terrain *terr, Sprite *spr)
 			break;
 		}
 	}
+	txtFilter->SetValue("*");
 	SelectTerrain();
 
 	if(!spr)
 		return;
 
 	// select sprite in list
-	auto spr_id = lboxSprites->FindItem(-1,spr->name);
-	if(spr_id >= 0)
-	{
-		lboxSprites->SetItemState(spr_id,wxLIST_STATE_SELECTED,wxLIST_STATE_SELECTED);
-		lboxSprites->EnsureVisible(spr_id);
-	}
+	auto spr_pos = std::find(m_sprite_list.begin(),m_sprite_list.end(),spr);
+	if(spr_pos == m_sprite_list.end())
+		return;
+	int spr_id = spr_pos - m_sprite_list.begin();
+	lboxSprites->SetItemState(spr_id,wxLIST_STATE_SELECTED,wxLIST_STATE_SELECTED);
+	lboxSprites->EnsureVisible(spr_id);
 
 	wxCommandEvent evt;
 	OnSelectSpriteAlt(evt);
@@ -1075,6 +1108,92 @@ bool FormSprite::wasSet()
 
 
 
+// export sprite(s)
+void FormSprite::OnExportClick(wxCommandEvent& event)
+{
+	std::vector<Sprite*> list;
+	if(event.GetId() == wxID_BTN_SAVE_ALL)
+	{		
+		// all exports
+		list = m_sprite_list;
+	}
+	else if(event.GetId() == wxID_BTN_SAVE)
+	{
+		// export selected
+		if(!lboxSprites->GetItemCount())
+			return;
+		int id = lboxSprites->GetNextItem(-1,wxLIST_NEXT_ALL,wxLIST_STATE_SELECTED);
+		if(id < 0 || id >= m_sprite_list.size())
+			return;
+		list.push_back(m_sprite_list[id]);
+	}
+	if(list.empty())
+		return;
+	bool is_single = list.size() == 1;
+
+	// split path to folder and file
+	std::filesystem::path export_dir = spell_data->export_path;
+	std::filesystem::path png_name = "";
+	if(is_single)
+	{	
+		// single file
+		wstring dir = export_dir;
+		wstring name = std::filesystem::path(list[0]->name).concat(".png");
+		wxFileDialog saveFileDialog(this,_("Export Spellcross sprite image"),dir,name,"Sprite image (*.png)|*.png",wxFD_SAVE|wxFD_OVERWRITE_PROMPT);
+		if(saveFileDialog.ShowModal() == wxID_CANCEL)
+			return;
+		auto path = std::filesystem::path(saveFileDialog.GetPath().ToStdWstring());
+		export_dir = path.parent_path();
+		png_name = path.filename();
+		spell_data->export_path = export_dir;
+	}
+	else
+	{
+		// multiple
+		wxDirDialog saveDirDialog(this,"Export Spellcross sprite images", export_dir.wstring(), wxDD_DIR_MUST_EXIST);
+		if(saveDirDialog.ShowModal() == wxID_CANCEL)
+			return;
+		export_dir = saveDirDialog.GetPath().ToStdWstring();
+		spell_data->export_path = export_dir;
+
+		// rather ask for permission
+		wxMessageDialog msg(NULL,"Files in the selected folder might be overwritten! Continue?","Export glyphs",wxYES_NO | wxNO_DEFAULT | wxICON_QUESTION);
+		if(msg.ShowModal() != wxID_YES)
+			return;
+	}
+
+	Terrain* terr = FindTerrain();
+
+	// build common terrain palette
+	SpellPalette pal("MAP.PAL");
+	std::vector<uint8_t> pal_data(256*3);
+	memcpy(pal_data.data(),&terr->pal[0][0],128*3);		
+	pal.Insert(pal_data,"MAP.PAL",0,128);
+	memcpy(pal_data.data(),&terr->pal[240][0],10*3);
+	pal.Insert(pal_data,"CYCLE.PAL",240,10);
+	// export palette
+	auto pal_path = export_dir / "map.palinfo";
+	std::string pal_name = pal_path.filename().string();
+	pal.SaveInfo(pal_path);
+
+	// for each sprite
+	for(auto &item: list)
+	{
+		if(!is_single)
+			png_name = std::filesystem::path(item->name).concat(".png");
+		auto png_path = export_dir / png_name;
+		SetStatusText(string_format("Exporting %d of %d: %ls",&item - list.data() + 1, list.size(), png_path.wstring().c_str()));
+
+		// generate info meta file
+		auto info_path = export_dir / png_name.stem().concat(".info");
+		item->ExportInfo(info_path, png_name, pal);
+		
+		// export bitmap
+		auto bmp = item->Render((uint8_t*)terr->pal, 1.0);
+		bmp->SaveFile(png_path.wstring(),wxBITMAP_TYPE_PNG);
+		delete bmp;
+	}
+}
 
 
 
@@ -1508,9 +1627,9 @@ void FormSprite::OnSelectSpriteAlt(wxCommandEvent& event)
 	{
 		// main list selected		
 		auto id = lboxSprites->GetNextItem(-1,wxLIST_NEXT_ALL,wxLIST_STATE_SELECTED);
-		if(id >= 0)
+		if(id >= 0 && id < m_sprite_list.size())
 		{			
-			sprite_id = id;
+			sprite_id = m_sprite_list[id]->GetIndex();
 		}
 	}	
 	if(sprite_id >= 0)
@@ -1583,8 +1702,14 @@ void FormSprite::SelectTerrain()
 	
 	// loose old sprites list
 	lboxSprites->ClearAll();
-	
-	
+
+	// prepare list of spites matching filter
+	auto filter = txtFilter->GetValue().ToStdString();
+	m_sprite_list.clear();
+	for(auto &spr: terr->sprites)
+		if(wildcmp(filter,spr->name))
+			m_sprite_list.push_back(spr);
+		
 	lboxSprites->SetClientData(terr);
 
 	// update title
@@ -1594,7 +1719,7 @@ void FormSprite::SelectTerrain()
 	//lboxSprites->report
 	lboxSprites->Freeze();
 	lboxSprites->AppendColumn("list",wxLIST_FORMAT_LEFT,wxLIST_AUTOSIZE);
-	lboxSprites->SetItemCount(terr->GetSpriteCount());
+	lboxSprites->SetItemCount(m_sprite_list.size());
 	lboxSprites->SetColumnWidth(0,wxLIST_AUTOSIZE_USEHEADER);
 	
 	// select default
@@ -1611,7 +1736,9 @@ wxString FormSprite::OnGetItemText(long item)
 	auto terr = (Terrain*)lboxSprites->GetClientData();
 	if(!terr)
 		return("");
-	auto spr = terr->GetSprite(item);
+	if(item >= m_sprite_list.size())
+		return("");
+	auto spr = m_sprite_list[item];
 	if(!spr)
 		return("");
 	auto name = spr->name;
@@ -1625,7 +1752,9 @@ int FormSprite::OnGetItemImage(long item)
 	auto terr = (Terrain*)lboxSprites->GetClientData();
 	if(!terr)
 		return(-1);
-	auto spr = terr->GetSprite(item);
+	if(item >= m_sprite_list.size())
+		return(-1);
+	auto spr = m_sprite_list[item];
 	if(!spr)
 		return(-1);
 	if(spr->land_type == 0)

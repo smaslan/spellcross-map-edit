@@ -4283,6 +4283,8 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 		for (i = 0; i < L4.size(); i++)
 		{
 			MapLayer4* pnm = &L4[i];
+			if(pnm->anim->is_dummy)
+				continue;
 
 			// skip if not in visible area
 			if (pnm->x_pos < xs_ofs || pnm->x_pos >= (xs_ofs + xs_size) || pnm->y_pos < ys_ofs * 2 || pnm->y_pos >= (ys_ofs * 2 + ys_size))
