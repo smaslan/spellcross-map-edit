@@ -1,4 +1,4 @@
-///////////////////////////////////////////////////////////////////////////
+﻿///////////////////////////////////////////////////////////////////////////
 // C++ code generated with wxFormBuilder (version 4.2.1-0-g80c4cb6)
 // http://www.wxformbuilder.org/
 //
@@ -10,6 +10,7 @@
 #include <wx/dirdlg.h>
 #include <wx/msgdlg.h>
 #include <filesystem>
+#include "wx_other.h"
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -17,159 +18,187 @@ FormText::FormText( wxWindow* parent,SpellData* spell_data,wxWindowID id, const 
 {
 	m_spell_data = spell_data;
 
-	// === AUTO GENERATED START ===	
-
-	this->SetSizeHints(wxDefaultSize,wxDefaultSize);
-	this->SetBackgroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_BTNFACE));
-
-	m_menubar13 = new wxMenuBar(0);
-	m_menu24 = new wxMenu();
-	wxMenuItem* mmExit;
-	mmExit = new wxMenuItem(m_menu24,wxID_MM_EXIT,wxString(wxT("Exit")),wxEmptyString,wxITEM_NORMAL);
-	m_menu24->Append(mmExit);
-
+	// === AUTO GENERATED START ===
+	// <wxFormsBuilder> - Section auto-inserted from 'forms.cpp' class 'FormText' on 2026-06-19 22:08:22
+	this->SetSizeHints( wxDefaultSize, wxDefaultSize );
+	this->SetBackgroundColour( wxSystemSettings::GetColour( wxSYS_COLOUR_BTNFACE ) );
+	
+	m_menubar13 = new wxMenuBar( 0 );
+	mFile = new wxMenu();
+	wxMenuItem* mmNew;
+	mmNew = new wxMenuItem( mFile, wxID_MM_NEW, wxString( wxT("New Resource") ) + wxT('\t') + wxT("Ctrl+N"), wxEmptyString, wxITEM_NORMAL );
+	mFile->Append( mmNew );
+	
 	wxMenuItem* mmSave;
-	mmSave = new wxMenuItem(m_menu24,wxID_MM_SAVE,wxString(wxT("Export Resource")) + wxT('\t') + wxT("Ctrl+S"),wxEmptyString,wxITEM_NORMAL);
-	m_menu24->Append(mmSave);
-
+	mmSave = new wxMenuItem( mFile, wxID_MM_SAVE, wxString( wxT("Export Resource") ) + wxT('\t') + wxT("Ctrl+S"), wxEmptyString, wxITEM_NORMAL );
+	mFile->Append( mmSave );
+	
 	wxMenuItem* mmSaveAll;
-	mmSaveAll = new wxMenuItem(m_menu24,wxID_MM_SAVE_ALL,wxString(wxT("Export All")),wxEmptyString,wxITEM_NORMAL);
-	m_menu24->Append(mmSaveAll);
-
-	m_menubar13->Append(m_menu24,wxT("File"));
-
-	m_menu25 = new wxMenu();
+	mmSaveAll = new wxMenuItem( mFile, wxID_MM_SAVE_ALL, wxString( wxT("Export All") ) , wxEmptyString, wxITEM_NORMAL );
+	mFile->Append( mmSaveAll );
+	
+	mFile->AppendSeparator();
+	
+	wxMenuItem* mmExit;
+	mmExit = new wxMenuItem( mFile, wxID_MM_EXIT, wxString( wxT("Exit") ) , wxEmptyString, wxITEM_NORMAL );
+	mFile->Append( mmExit );
+	
+	m_menubar13->Append( mFile, wxT("File") );
+	
+	mEdit = new wxMenu();
 	wxMenuItem* mmRestore;
-	mmRestore = new wxMenuItem(m_menu25,wxID_MM_RESTORE,wxString(wxT("Revert chagnes")) + wxT('\t') + wxT("Ctrl+R"),wxEmptyString,wxITEM_NORMAL);
-	m_menu25->Append(mmRestore);
-
+	mmRestore = new wxMenuItem( mEdit, wxID_MM_RESTORE, wxString( wxT("Revert chagnes") ) + wxT('\t') + wxT("Ctrl+R"), wxEmptyString, wxITEM_NORMAL );
+	mEdit->Append( mmRestore );
+	
 	wxMenuItem* mmApplyChanges;
-	mmApplyChanges = new wxMenuItem(m_menu25,wxID_MM_APPLY,wxString(wxT("Save changes")) + wxT('\t') + wxT("Ctrl+Enter"),wxEmptyString,wxITEM_NORMAL);
-	m_menu25->Append(mmApplyChanges);
-
-	m_menubar13->Append(m_menu25,wxT("Edit"));
-
-	this->SetMenuBar(m_menubar13);
-
-	sbar = this->CreateStatusBar(1,wxSTB_SIZEGRIP,wxID_SBAR);
+	mmApplyChanges = new wxMenuItem( mEdit, wxID_MM_APPLY, wxString( wxT("Save changes") ) + wxT('\t') + wxT("Ctrl+Enter"), wxEmptyString, wxITEM_NORMAL );
+	mEdit->Append( mmApplyChanges );
+	
+	m_menubar13->Append( mEdit, wxT("Edit") );
+	
+	this->SetMenuBar( m_menubar13 );
+	
+	sbar = this->CreateStatusBar( 1, wxSTB_SIZEGRIP, wxID_SBAR );
 	wxBoxSizer* bSizer105;
-	bSizer105 = new wxBoxSizer(wxVERTICAL);
-
+	bSizer105 = new wxBoxSizer( wxVERTICAL );
+	
 	wxBoxSizer* bSizer106;
-	bSizer106 = new wxBoxSizer(wxHORIZONTAL);
-
+	bSizer106 = new wxBoxSizer( wxHORIZONTAL );
+	
 	wxBoxSizer* bSizer107;
-	bSizer107 = new wxBoxSizer(wxVERTICAL);
-
-	m_staticText106 = new wxStaticText(this,wxID_ANY,wxT("Source:"),wxDefaultPosition,wxDefaultSize,0);
-	m_staticText106->Wrap(-1);
-	bSizer107->Add(m_staticText106,0,wxTOP|wxRIGHT|wxLEFT,5);
-
+	bSizer107 = new wxBoxSizer( wxVERTICAL );
+	
+	m_staticText106 = new wxStaticText( this, wxID_ANY, wxT("Source:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText106->Wrap( -1 );
+	bSizer107->Add( m_staticText106, 0, wxTOP|wxRIGHT|wxLEFT, 5 );
+	
 	wxArrayString chSourceChoices;
-	chSource = new wxChoice(this,wxID_CH_SOURCE,wxDefaultPosition,wxDefaultSize,chSourceChoices,0);
-	chSource->SetSelection(0);
-	bSizer107->Add(chSource,0,wxBOTTOM|wxLEFT|wxRIGHT|wxEXPAND,5);
-
-	m_staticText107 = new wxStaticText(this,wxID_ANY,wxT("Filter (wildcard: ?*):"),wxDefaultPosition,wxDefaultSize,0);
-	m_staticText107->Wrap(-1);
-	bSizer107->Add(m_staticText107,0,wxRIGHT|wxLEFT,5);
-
-	txtFilter = new wxTextCtrl(this,wxID_TXT_WILD,wxT("*"),wxDefaultPosition,wxDefaultSize,0);
-	bSizer107->Add(txtFilter,0,wxBOTTOM|wxLEFT|wxRIGHT|wxEXPAND,5);
-
-	m_staticText108 = new wxStaticText(this,wxID_ANY,wxT("Resources:"),wxDefaultPosition,wxDefaultSize,0);
-	m_staticText108->Wrap(-1);
-	bSizer107->Add(m_staticText108,0,wxRIGHT|wxLEFT,5);
-
-	listResources = new wxListBox(this,wxID_LIST_RESOURCES,wxDefaultPosition,wxSize(180,-1),0,NULL,0);
-	bSizer107->Add(listResources,1,wxBOTTOM|wxLEFT|wxRIGHT,5);
-
-
-	bSizer106->Add(bSizer107,0,wxEXPAND,5);
-
-	m_staticline39 = new wxStaticLine(this,wxID_ANY,wxDefaultPosition,wxDefaultSize,wxLI_VERTICAL);
-	bSizer106->Add(m_staticline39,0,wxEXPAND|wxTOP,5);
-
+	chSource = new wxChoice( this, wxID_CH_SOURCE, wxDefaultPosition, wxDefaultSize, chSourceChoices, 0 );
+	chSource->SetSelection( 0 );
+	bSizer107->Add( chSource, 0, wxBOTTOM|wxLEFT|wxRIGHT|wxEXPAND, 5 );
+	
+	m_staticText107 = new wxStaticText( this, wxID_ANY, wxT("Filter (wildcard: ?*):"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText107->Wrap( -1 );
+	bSizer107->Add( m_staticText107, 0, wxRIGHT|wxLEFT, 5 );
+	
+	txtFilter = new wxTextCtrl( this, wxID_TXT_WILD, wxT("*"), wxDefaultPosition, wxDefaultSize, 0 );
+	bSizer107->Add( txtFilter, 0, wxBOTTOM|wxLEFT|wxRIGHT|wxEXPAND, 5 );
+	
+	m_staticText108 = new wxStaticText( this, wxID_ANY, wxT("Resources:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText108->Wrap( -1 );
+	bSizer107->Add( m_staticText108, 0, wxRIGHT|wxLEFT, 5 );
+	
+	listResources = new wxListBox( this, wxID_LIST_RESOURCES, wxDefaultPosition, wxSize( 180,-1 ), 0, NULL, 0 );
+	bSizer107->Add( listResources, 1, wxBOTTOM|wxLEFT|wxRIGHT, 5 );
+	
+	m_staticText131 = new wxStaticText( this, wxID_ANY, wxT("Resource name:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText131->Wrap( -1 );
+	bSizer107->Add( m_staticText131, 0, wxRIGHT|wxLEFT, 5 );
+	
+	txtName = new wxTextCtrl( this, wxID_TXT_NAME, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0 );
+	bSizer107->Add( txtName, 0, wxBOTTOM|wxRIGHT|wxLEFT|wxEXPAND, 5 );
+	
+	
+	bSizer106->Add( bSizer107, 0, wxEXPAND, 5 );
+	
+	m_staticline39 = new wxStaticLine( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLI_VERTICAL );
+	bSizer106->Add( m_staticline39, 0, wxEXPAND|wxTOP, 5 );
+	
 	wxBoxSizer* bSizer108;
-	bSizer108 = new wxBoxSizer(wxVERTICAL);
-
-	m_staticText109 = new wxStaticText(this,wxID_ANY,wxT("Source text:"),wxDefaultPosition,wxDefaultSize,0);
-	m_staticText109->Wrap(-1);
-	bSizer108->Add(m_staticText109,0,wxTOP|wxRIGHT|wxLEFT,5);
-
-	textEdit = new wxTextCtrl(this,wxID_TXT_EDIT,wxEmptyString,wxDefaultPosition,wxSize(400,-1),wxTE_MULTILINE);
-	bSizer108->Add(textEdit,1,wxEXPAND|wxBOTTOM|wxRIGHT|wxLEFT,5);
-
-	m_staticText111 = new wxStaticText(this,wxID_ANY,wxT("Target window:"),wxDefaultPosition,wxDefaultSize,0);
-	m_staticText111->Wrap(-1);
-	bSizer108->Add(m_staticText111,0,wxRIGHT|wxLEFT,5);
-
+	bSizer108 = new wxBoxSizer( wxVERTICAL );
+	
+	m_staticText109 = new wxStaticText( this, wxID_ANY, wxT("Source text:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText109->Wrap( -1 );
+	bSizer108->Add( m_staticText109, 0, wxTOP|wxRIGHT|wxLEFT, 5 );
+	
+	textEdit = new wxTextCtrl( this, wxID_TXT_EDIT, wxEmptyString, wxDefaultPosition, wxSize( 400,-1 ), wxTE_MULTILINE );
+	bSizer108->Add( textEdit, 1, wxEXPAND|wxBOTTOM|wxRIGHT|wxLEFT, 5 );
+	
+	m_staticText111 = new wxStaticText( this, wxID_ANY, wxT("Target window:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText111->Wrap( -1 );
+	bSizer108->Add( m_staticText111, 0, wxRIGHT|wxLEFT, 5 );
+	
 	wxArrayString chTargetChoices;
-	chTarget = new wxChoice(this,wxID_CH_TARGET,wxDefaultPosition,wxDefaultSize,chTargetChoices,0);
-	chTarget->SetSelection(0);
-	bSizer108->Add(chTarget,0,wxBOTTOM|wxRIGHT|wxLEFT|wxEXPAND,5);
-
-	m_staticText114 = new wxStaticText(this,wxID_ANY,wxT("Text align mode:"),wxDefaultPosition,wxDefaultSize,0);
-	m_staticText114->Wrap(-1);
-	bSizer108->Add(m_staticText114,0,wxRIGHT|wxLEFT,5);
-
+	chTarget = new wxChoice( this, wxID_CH_TARGET, wxDefaultPosition, wxDefaultSize, chTargetChoices, 0 );
+	chTarget->SetSelection( 0 );
+	bSizer108->Add( chTarget, 0, wxBOTTOM|wxRIGHT|wxLEFT|wxEXPAND, 5 );
+	
+	m_staticText114 = new wxStaticText( this, wxID_ANY, wxT("Text align mode:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText114->Wrap( -1 );
+	bSizer108->Add( m_staticText114, 0, wxRIGHT|wxLEFT, 5 );
+	
 	wxArrayString chAlignChoices;
-	chAlign = new wxChoice(this,wxID_CH_ALIGN,wxDefaultPosition,wxDefaultSize,chAlignChoices,0);
-	chAlign->SetSelection(0);
-	bSizer108->Add(chAlign,0,wxBOTTOM|wxRIGHT|wxLEFT|wxEXPAND,5);
-
-
-	bSizer106->Add(bSizer108,0,wxEXPAND,5);
-
-	m_staticline40 = new wxStaticLine(this,wxID_ANY,wxDefaultPosition,wxDefaultSize,wxLI_VERTICAL);
-	bSizer106->Add(m_staticline40,0,wxEXPAND|wxTOP,5);
-
+	chAlign = new wxChoice( this, wxID_CH_ALIGN, wxDefaultPosition, wxDefaultSize, chAlignChoices, 0 );
+	chAlign->SetSelection( 0 );
+	bSizer108->Add( chAlign, 0, wxBOTTOM|wxRIGHT|wxLEFT|wxEXPAND, 5 );
+	
+	
+	bSizer106->Add( bSizer108, 0, wxEXPAND, 5 );
+	
+	m_staticline40 = new wxStaticLine( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLI_VERTICAL );
+	bSizer106->Add( m_staticline40, 0, wxEXPAND|wxTOP, 5 );
+	
 	wxBoxSizer* bSizer109;
-	bSizer109 = new wxBoxSizer(wxVERTICAL);
-
-	m_staticText110 = new wxStaticText(this,wxID_ANY,wxT("Render:"),wxDefaultPosition,wxDefaultSize,0);
-	m_staticText110->Wrap(-1);
-	bSizer109->Add(m_staticText110,0,wxTOP|wxRIGHT|wxLEFT,5);
-
+	bSizer109 = new wxBoxSizer( wxVERTICAL );
+	
+	m_staticText110 = new wxStaticText( this, wxID_ANY, wxT("Render:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText110->Wrap( -1 );
+	bSizer109->Add( m_staticText110, 0, wxTOP|wxRIGHT|wxLEFT, 5 );
+	
 	wxBoxSizer* bSizer110;
-	bSizer110 = new wxBoxSizer(wxHORIZONTAL);
-
-	canvasText = new wxPanel(this,wxID_CANVAS_TEXT,wxDefaultPosition,wxDefaultSize,wxFULL_REPAINT_ON_RESIZE|wxTAB_TRAVERSAL);
-	bSizer110->Add(canvasText,1,wxEXPAND | wxALL,5);
-
-	scrollText = new wxScrollBar(this,wxID_SCROLL_TEXT,wxDefaultPosition,wxDefaultSize,wxSB_VERTICAL);
-	bSizer110->Add(scrollText,0,wxEXPAND|wxALL,5);
-
-
-	bSizer109->Add(bSizer110,1,wxEXPAND,5);
-
-
-	bSizer106->Add(bSizer109,1,wxEXPAND,5);
-
-
-	bSizer105->Add(bSizer106,1,wxEXPAND,5);
-
-	m_staticline38 = new wxStaticLine(this,wxID_ANY,wxDefaultPosition,wxDefaultSize,wxLI_HORIZONTAL);
-	bSizer105->Add(m_staticline38,0,wxEXPAND | wxALL,5);
-
-	m_staticText105 = new wxStaticText(this,wxID_ANY,wxT("Font preview:"),wxDefaultPosition,wxDefaultSize,0);
-	m_staticText105->Wrap(-1);
-	bSizer105->Add(m_staticText105,0,wxLEFT,5);
-
-	canvasFont = new wxPanel(this,wxID_CANVAS_FONT,wxDefaultPosition,wxSize(-1,80),wxFULL_REPAINT_ON_RESIZE|wxTAB_TRAVERSAL);
-	bSizer105->Add(canvasFont,0,wxBOTTOM|wxEXPAND|wxLEFT|wxRIGHT,5);
-
-
-	this->SetSizer(bSizer105);
+	bSizer110 = new wxBoxSizer( wxHORIZONTAL );
+	
+	canvasText = new wxPanel( this, wxID_CANVAS_TEXT, wxDefaultPosition, wxDefaultSize, wxFULL_REPAINT_ON_RESIZE|wxTAB_TRAVERSAL );
+	bSizer110->Add( canvasText, 1, wxEXPAND | wxALL, 5 );
+	
+	scrollText = new wxScrollBar( this, wxID_SCROLL_TEXT, wxDefaultPosition, wxDefaultSize, wxSB_VERTICAL );
+	bSizer110->Add( scrollText, 0, wxEXPAND|wxALL, 5 );
+	
+	
+	bSizer109->Add( bSizer110, 1, wxEXPAND, 5 );
+	
+	
+	bSizer106->Add( bSizer109, 1, wxEXPAND, 5 );
+	
+	
+	bSizer105->Add( bSizer106, 1, wxEXPAND, 5 );
+	
+	m_staticline38 = new wxStaticLine( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLI_HORIZONTAL );
+	bSizer105->Add( m_staticline38, 0, wxEXPAND | wxALL, 5 );
+	
+	m_staticText105 = new wxStaticText( this, wxID_ANY, wxT("Font preview:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText105->Wrap( -1 );
+	bSizer105->Add( m_staticText105, 0, wxLEFT, 5 );
+	
+	canvasFont = new wxPanel( this, wxID_CANVAS_FONT, wxDefaultPosition, wxSize( -1,80 ), wxFULL_REPAINT_ON_RESIZE|wxTAB_TRAVERSAL );
+	bSizer105->Add( canvasFont, 0, wxBOTTOM|wxEXPAND|wxLEFT|wxRIGHT, 5 );
+	
+	
+	this->SetSizer( bSizer105 );
 	this->Layout();
+	
+	this->Centre( wxBOTH );
+	
 
-	this->Centre(wxBOTH);
-
+	// </wxFormsBuilder> - Section auto-inserted from 'forms.cpp' class 'FormText' on 2026-06-19 22:08:22
 	// === AUTO GENERATED END ===
 
+	wxIcon appIcon;
+	appIcon.LoadFile("IDI_ICON2",wxBITMAP_TYPE_ICO_RESOURCE);
+	if(appIcon.IsOk())
+		SetIcon(appIcon);
+
+	AssignSVGresourceToMenu(mFile,wxID_MM_EXIT,"IDR_EXIT");
+	AssignSVGresourceToMenu(mFile,wxID_MM_NEW,"IDR_NEW");
+	AssignSVGresourceToMenu(mFile,wxID_MM_SAVE,"IDR_SAVE");
+	AssignSVGresourceToMenu(mFile,wxID_MM_SAVE_ALL,"IDR_SAVE");
+	AssignSVGresourceToMenu(mEdit,wxID_MM_APPLY,"IDR_SAVE");
+	AssignSVGresourceToMenu(mEdit,wxID_MM_RESTORE,"IDR_RELOAD");
+	
 	Bind(wxEVT_MENU,&FormText::OnCloseClick,this,wxID_MM_EXIT);
 	Bind(wxEVT_MENU,&FormText::OnChangeResource,this,wxID_MM_RESTORE);
 	Bind(wxEVT_MENU,&FormText::OnChangeApply,this,wxID_MM_APPLY);
+	Bind(wxEVT_MENU,&FormText::OnNew,this,wxID_MM_NEW);
 	Bind(wxEVT_MENU,&FormText::OnSave,this,wxID_MM_SAVE);
 	Bind(wxEVT_MENU,&FormText::OnSaveAll,this,wxID_MM_SAVE_ALL);
 	Bind(wxEVT_COMMAND_TEXT_UPDATED,&FormText::OnChangeFilter,this,wxID_TXT_WILD);
@@ -219,9 +248,10 @@ FormText::FormText( wxWindow* parent,SpellData* spell_data,wxWindowID id, const 
 	// make alignment menu	
 	chAlign->Freeze();
 	chAlign->Clear();
-	chAlign->Append("Left",new SpellTextLines::WrapMode(SpellTextLines::WrapMode::LEFT));
-	chAlign->Append("Center",new SpellTextLines::WrapMode(SpellTextLines::WrapMode::CENTER));
-	chAlign->Append("Stretch",new SpellTextLines::WrapMode(SpellTextLines::WrapMode::STRETCH));
+	static std::vector<SpellTextLines::WrapMode> c_align_modes = {SpellTextLines::WrapMode::LEFT, SpellTextLines::WrapMode::CENTER, SpellTextLines::WrapMode::STRETCH};
+	chAlign->Append("Left",&c_align_modes[0]);
+	chAlign->Append("Center",&c_align_modes[1]);
+	chAlign->Append("Stretch",&c_align_modes[2]);
 	chAlign->Thaw();
 }
 
@@ -317,6 +347,7 @@ void FormText::OnChangeFilter(wxCommandEvent& event)
 void FormText::FillResources()
 {
 	auto src_name = chSource->GetString(chSource->GetSelection());
+	auto item_name = txtName->GetValue();
 		
 	listResources->Freeze();
 	listResources->Clear();
@@ -348,6 +379,8 @@ void FormText::FillResources()
 		}
 	}
 	listResources->Thaw();
+	if(!item_name.empty())
+		listResources->SetStringSelection(item_name);
 }
 
 // change resource
@@ -378,10 +411,16 @@ void FormText::OnChangeApply(wxCommandEvent& event)
 	auto win = GetTextWindow(m_text_org);
 	if(!win)
 		return;
-
+	
+	auto win_sel = chTarget->GetSelection();
+	auto win_type = win->panel;
+	if(win_sel >= 0)
+		win_type = m_windows[win_sel].panel;	
+	
 	// update text
 	if(m_text_org->UpdateText(m_text.text, win->x_size, m_spell_data->font))
 		return;
+	m_text_org->text_panel = win_type;
 	m_text.raw_text = m_text_org->raw_text;
 }
 
@@ -408,6 +447,31 @@ FormText::SpellWindow *FormText::GetTextWindow(SpellTextRec *text)
 }
 
 
+// create new resource
+void FormText::OnNew(wxCommandEvent& event)
+{
+	auto name = txtName->GetValue().ToStdString();
+	auto text = GetText(name);
+	if(text)
+	{
+		wxMessageBox(string_format("Text resource name \"%s\" already present! Use different name.",name.c_str()),"Creating new text resource",wxICON_EXCLAMATION);
+		return;
+	}	
+	if(name.empty() || std::filesystem::path(name).stem().string().length() > 8)
+	{
+		wxMessageBox(string_format("Text resource name \"%s\" not valid! Must be valid DOS name of maximum 8.3 size.",name.c_str()),"Creating new text resource",wxICON_EXCLAMATION);
+		return;
+	}
+	text = CreateText(name);
+	if(!text)
+	{
+		wxMessageBox(string_format("Creating text resource name \"%s\" failed!",name.c_str()),"Creating new text resource",wxICON_EXCLAMATION);
+		return;
+	}	
+	OnChangeApply(event);
+	FillResources();
+}
+
 
 // change resource
 void FormText::OnChangeResource(wxCommandEvent& event)
@@ -415,6 +479,8 @@ void FormText::OnChangeResource(wxCommandEvent& event)
 	// clear old one
 	m_text = SpellTextRec();
 	m_text_org = NULL;
+
+	txtName->Clear();
 
 	// get new one
 	auto text = GetText();
@@ -424,6 +490,7 @@ void FormText::OnChangeResource(wxCommandEvent& event)
 	// make local work copy
 	m_text = *text;
 
+	txtName->SetValue(text->name);
 	textEdit->SetValue(m_text.text);
 
 	auto src_name = chSource->GetStringSelection();
@@ -446,53 +513,6 @@ void FormText::OnChangeResource(wxCommandEvent& event)
 			break;
 		}
 	}
-
-	// try to auto select target panel based on text resource name
-	/*for(int k = 0; k < m_windows.size(); k++)
-	{
-		auto window = &m_windows[k];
-		if(window->panel != text->text_panel)
-			continue;		
-		chTarget->Select(k);
-
-		// select align mode
-		for(int k = 0; k < chAlign->GetCount(); k++)
-		{
-			auto data = (SpellTextLines::WrapMode*)chAlign->GetClientData(k);
-			if(data && *data == window->align)
-			{
-				chAlign->Select(k);
-				break;
-			}
-		}
-		break;		
-	}*/
-
-	// try to auto select target panel based on text resource name
-	/*[&] {
-		for(int k = 0; k < m_windows.size(); k++)
-		{
-			auto window = &m_windows[k];
-			if(window->source != src_name)
-				continue;
-			for(auto &wild: window->wild)
-				if(wildcmp(wild.c_str(), text->name.c_str()))
-				{
-					chTarget->Select(k);
-					// select align mode
-					for(int k = 0; k < chAlign->GetCount(); k++)
-					{
-						auto data = (SpellTextLines::WrapMode*)chAlign->GetClientData(k);
-						if(data && *data == window->align)
-						{
-							chAlign->Select(k);
-							break;
-						}							
-					}
-					return;
-				}
-		}
-	}();*/
 
 	PrepareText();
 }
@@ -521,6 +541,29 @@ SpellTextRec *FormText::GetText(std::string name)
 			if(item->info_text && item->info_text->name.compare(name) == 0)
 				return(item->info_text);
 		}
+	}
+	return(NULL);
+}
+
+SpellTextRec* FormText::CreateText(std::string name)
+{
+	auto src_name = chSource->GetStringSelection();
+	if(src_name == "TEXTS.FS")
+	{
+		auto text = m_spell_data->texts->AddText(name);
+		m_spell_data->texts->Sort();
+		return(text);
+	}
+	else if(src_name == "RESEARCH.FS")
+	{
+		auto text = m_spell_data->research_texts->AddText(name);
+		m_spell_data->research_texts->Sort();
+		return(text);
+	}
+	else if(src_name == "INFO.FS")
+	{
+		// not implemented
+		return(NULL);
 	}
 	return(NULL);
 }

@@ -47,7 +47,7 @@ public:
 class SpellTextRec
 {
 public:
-    enum class TextPanel { DEFAULT, MESSAGE,UNIT_INFO,BM_RESEARCH_PANEL,BM_RESEARCH_INFO,BM_MISSION };
+    enum class TextPanel : int { DEFAULT, MESSAGE,UNIT_INFO,BM_RESEARCH_PANEL,BM_RESEARCH_INFO,BM_MISSION };
 
     bool modified;
     std::string name;
@@ -81,6 +81,7 @@ public:
     SpellTexts(FSarchive *fs,SpellLang lang,SpellTextRec::TextPanel panel=SpellTextRec::TextPanel::DEFAULT,SpellSounds *sounds=NULL);
     ~SpellTexts();
     SpellTextRec* AddText(std::string name,std::string raw_text="",SpellLang lang=SpellLang::CZE,SpellTextRec::TextPanel panel=SpellTextRec::TextPanel::DEFAULT,SpellSample * narration=NULL,bool is_placeholder=false);
+    int Sort();
     int RemovePlaceholders();
     SpellTextRec* GetText(int index);
     SpellTextRec* GetText(const char* name);

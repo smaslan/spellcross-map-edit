@@ -20,7 +20,7 @@
 FormTextEdit::FormTextEdit(wxWindow* parent,wxWindowID id,const wxString& title,const wxPoint& pos,const wxSize& size,long style) : wxFrame(parent,id,title,pos,size,style)
 {
 	// === AUTO GENERATOR START ===
-	// <wxFormsBuilder> - Section auto-inserted from 'forms.cpp' class 'FormTextEdit' on 2026-05-17 15:16:44
+	// <wxFormsBuilder> - Section auto-inserted from 'forms.cpp' class 'FormTextEdit' on 2026-06-19 16:20:39
 	this->SetSizeHints( wxDefaultSize, wxDefaultSize );
 	this->SetBackgroundColour( wxSystemSettings::GetColour( wxSYS_COLOUR_MENU ) );
 	
@@ -41,6 +41,10 @@ FormTextEdit::FormTextEdit(wxWindow* parent,wxWindowID id,const wxString& title,
 	mmLeftSave = new wxMenuItem( mLeft, wxID_MM_LEFT_SAVE, wxString( wxT("Save") ) + wxT('\t') + wxT("Ctrl+S"), wxEmptyString, wxITEM_NORMAL );
 	mLeft->Append( mmLeftSave );
 	
+	wxMenuItem* mmLeftSaveAs;
+	mmLeftSaveAs = new wxMenuItem( mLeft, wxID_MM_LEFT_SAVE_AS, wxString( wxT("Save as") ) + wxT('\t') + wxT("Ctrl+Shift+S"), wxEmptyString, wxITEM_NORMAL );
+	mLeft->Append( mmLeftSaveAs );
+	
 	m_menubar14->Append( mLeft, wxT("Left") );
 	
 	mRight = new wxMenu();
@@ -51,6 +55,10 @@ FormTextEdit::FormTextEdit(wxWindow* parent,wxWindowID id,const wxString& title,
 	wxMenuItem* mmRightSave;
 	mmRightSave = new wxMenuItem( mRight, wxID_MM_RIGHT_SAVE, wxString( wxT("Save") ) + wxT('\t') + wxT("Alt+S"), wxEmptyString, wxITEM_NORMAL );
 	mRight->Append( mmRightSave );
+	
+	wxMenuItem* mmRightSaveAs;
+	mmRightSaveAs = new wxMenuItem( mRight, wxID_MM_RIGHT_SAVE_AS, wxString( wxT("Save as") ) + wxT('\t') + wxT("Ctrl+Shift+S"), wxEmptyString, wxITEM_NORMAL );
+	mRight->Append( mmRightSaveAs );
 	
 	m_menubar14->Append( mRight, wxT("Right") );
 	
@@ -181,7 +189,7 @@ FormTextEdit::FormTextEdit(wxWindow* parent,wxWindowID id,const wxString& title,
 	this->Centre( wxBOTH );
 	
 
-	// </wxFormsBuilder> - Section auto-inserted from 'forms.cpp' class 'FormTextEdit' on 2026-05-17 15:16:44
+	// </wxFormsBuilder> - Section auto-inserted from 'forms.cpp' class 'FormTextEdit' on 2026-06-19 16:20:39
 	// === AUTO GENERATOR END ===
 
 	wxIcon appIcon;
@@ -194,6 +202,8 @@ FormTextEdit::FormTextEdit(wxWindow* parent,wxWindowID id,const wxString& title,
 	AssignSVGresourceToMenu(mRight,wxID_MM_RIGHT_OPEN,"IDR_OPEN3");
 	AssignSVGresourceToMenu(mLeft,wxID_MM_LEFT_SAVE,"IDR_SAVE");
 	AssignSVGresourceToMenu(mRight,wxID_MM_RIGHT_SAVE,"IDR_SAVE");
+	AssignSVGresourceToMenu(mLeft,wxID_MM_LEFT_SAVE_AS,"IDR_SAVE");
+	AssignSVGresourceToMenu(mRight,wxID_MM_RIGHT_SAVE_AS,"IDR_SAVE");
 
 	auto op_sz = FromDIP(wxSize(32,32));
 	btnToLeft->SetBitmap(LoadSVGiconsBundle("IDR_MOVE_LEFT").GetBitmap(op_sz));
@@ -207,6 +217,8 @@ FormTextEdit::FormTextEdit(wxWindow* parent,wxWindowID id,const wxString& title,
 	Bind(wxEVT_COMMAND_MENU_SELECTED,&FormTextEdit::OnOpenClick,this,wxID_MM_RIGHT_OPEN);
 	Bind(wxEVT_COMMAND_MENU_SELECTED,&FormTextEdit::OnSaveText,this,wxID_MM_LEFT_SAVE);
 	Bind(wxEVT_COMMAND_MENU_SELECTED,&FormTextEdit::OnSaveText,this,wxID_MM_RIGHT_SAVE);
+	Bind(wxEVT_COMMAND_MENU_SELECTED,&FormTextEdit::OnSaveText,this,wxID_MM_LEFT_SAVE_AS);
+	Bind(wxEVT_COMMAND_MENU_SELECTED,&FormTextEdit::OnSaveText,this,wxID_MM_RIGHT_SAVE_AS);
 	Bind(wxEVT_COMMAND_TEXT_UPDATED,&FormTextEdit::OnChangeFilter,this,wxID_TXT_LEFT_FILTER);
 	Bind(wxEVT_COMMAND_TEXT_UPDATED,&FormTextEdit::OnChangeFilter,this,wxID_TXT_RIGHT_FILTER);
 	Bind(wxEVT_COMMAND_LISTBOX_SELECTED,&FormTextEdit::OnChangeSource,this,wxID_LIST_LEFT);
@@ -346,12 +358,15 @@ void FormTextEdit::OnSaveText(wxCommandEvent& event)
 	wxTextCtrl* text;
 	wxChoice* lang;
 	std::filesystem::path dir;
-	if(event.GetId() == wxID_MM_LEFT_SAVE)
+	auto id = event.GetId();
+	bool is_left = false;
+	if(id == wxID_MM_LEFT_SAVE || id == wxID_MM_LEFT_SAVE_AS)
 	{
 		list = listLeft;
 		text = txtLeft;
 		lang = chLeftEncoding;
 		dir = m_dir_left;
+		is_left = true;
 	}
 	else
 	{
@@ -359,7 +374,9 @@ void FormTextEdit::OnSaveText(wxCommandEvent& event)
 		text = txtRight;
 		lang = chRightEncoding;
 		dir = m_dir_right;
+		is_left = false;
 	}
+	bool save_as = id == wxID_MM_LEFT_SAVE_AS || id == wxID_MM_RIGHT_SAVE_AS;
 
 	std::wstring wstr = text->GetValue().ToStdWstring();
 	std::string str;
@@ -370,6 +387,26 @@ void FormTextEdit::OnSaveText(wxCommandEvent& event)
 		str = wstring2string(wstr);
 		
 	auto path = dir / list->GetStringSelection().ToStdWstring();
+	if(save_as)
+	{
+		// show save dialog
+		wxFileDialog saveFileDialog(this,_("Save text resource"),dir.wstring(),"","Text resource (*.*)|*.*",
+			wxFD_SAVE|wxFD_OVERWRITE_PROMPT);
+		if(saveFileDialog.ShowModal() == wxID_CANCEL)
+			return;
+		path = saveFileDialog.GetPath().ToStdWstring();
+		if(path.stem().wstring().length() > 8)
+		{
+			wxMessageBox("Text resource file name must be in dos format 8.3 characters!","Saving text resource",wxICON_ERROR);
+			return;
+		}
+	}
 	savestr(path,str);
+
+	if(save_as)
+	{
+		event.SetId((is_left)?wxID_TXT_LEFT_FILTER:wxID_TXT_RIGHT_FILTER);
+		OnChangeFilter(event);
+	}
 }
 

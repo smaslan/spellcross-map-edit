@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
+
+<svg
+   xmlns:ns="&amp;ns_sfw;"
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   fill="#000000"
+   version="1.1"
+   id="Layer_1"
+   width="800px"
+   height="800px"
+   viewBox="0 0 24 24"
+   enable-background="new 0 0 24 24"
+   xml:space="preserve"
+   inkscape:version="0.91 r13725"
+   sodipodi:docname="undo.svg"><defs
+   id="defs21" /><sodipodi:namedview
+   pagecolor="#ffffff"
+   bordercolor="#666666"
+   borderopacity="1"
+   objecttolerance="10"
+   gridtolerance="10"
+   guidetolerance="10"
+   inkscape:pageopacity="0"
+   inkscape:pageshadow="2"
+   inkscape:window-width="671"
+   inkscape:window-height="480"
+   id="namedview19"
+   showgrid="false"
+   inkscape:zoom="0.295"
+   inkscape:cx="400"
+   inkscape:cy="396.61017"
+   inkscape:window-x="0"
+   inkscape:window-y="0"
+   inkscape:window-maximized="0"
+   inkscape:current-layer="Layer_1" />
+<metadata
+   id="metadata3">
+	<ns:sfw>
+		<ns:slices>
+
+</ns:slices>
+		<ns:sliceSourceBounds
+   width="505"
+   height="984"
+   bottomLeftOrigin="true"
+   x="0"
+   y="-552">
+
+</ns:sliceSourceBounds>
+	</ns:sfw>
+<rdf:RDF><cc:Work
+     rdf:about=""><dc:format>image/svg+xml</dc:format><dc:type
+       rdf:resource="http://purl.org/dc/dcmitype/StillImage" /><dc:title></dc:title></cc:Work></rdf:RDF></metadata>
+<g
+   id="g5"
+   transform="matrix(-1,0,0,1,24,0)">
+	<g
+   id="g7">
+		<g
+   id="g9">
+			<path
+   d="M 14,21 C 13.9,21 13.7,21 13.6,20.9 13.2,20.8 13,20.4 13,20 l 0,-5 c 0,-0.6 0.4,-1 1,-1 0.6,0 1,0.4 1,1 L 15,17.8 21.5,12 15,6.2 15,9 c 0,0.6 -0.4,1 -1,1 -0.6,0 -1,-0.4 -1,-1 L 13,4 C 13,3.6 13.2,3.2 13.6,3.1 14,2.9 14.4,3 14.7,3.3 l 9,8 c 0.2,0.2 0.3,0.5 0.3,0.7 0,0.2 -0.1,0.6 -0.3,0.7 l -9,8 C 14.5,20.9 14.2,21 14,21 Z"
+   id="path11"
+   inkscape:connector-curvature="0" />
+		</g>
+	</g>
+	<g
+   id="g13">
+		<g
+   id="g15">
+			<path
+   d="M 1,21 C 0.9,21 0.9,21 0.8,21 0.3,20.9 0,20.5 0,20 0,8.1 13.9,8 14,8 c 0.6,0 1,0.4 1,1 0,0.6 -0.4,1 -1,1 -0.4,0 -9.5,0.1 -11.6,6.9 2,-1.4 5.5,-2.9 11.6,-2.9 0.6,0 1,0.4 1,1 0,0.6 -0.4,1 -1,1 C 3.9,16 1.9,20.3 1.9,20.4 1.8,20.8 1.4,21 1,21 Z"
+   id="path17"
+   inkscape:connector-curvature="0" />
+		</g>
+	</g>
+</g>
+</svg>

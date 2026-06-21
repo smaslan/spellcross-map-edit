@@ -27,14 +27,14 @@ FormSprite::FormSprite( wxWindow* parent,SpellData* spell_data,wxWindowID id, co
 	
 	
 	// === AUTO GENERATED STUFF STARTS HERE ===
-	// <wxFormsBuilder> - Section auto-inserted from 'forms.cpp' class 'FormSprite' on 2026-06-15 18:18:58
+	// <wxFormsBuilder> - Section auto-inserted from 'forms.cpp' class 'FormSprite' on 2026-06-20 09:37:22
 	this->SetSizeHints( wxSize( 1050,700 ), wxDefaultSize );
 	this->SetBackgroundColour( wxSystemSettings::GetColour( wxSYS_COLOUR_BTNFACE ) );
 	
 	mMenu = new wxMenuBar( 0 );
 	mnuFile = new wxMenu();
 	wxMenuItem* btnSave;
-	btnSave = new wxMenuItem( mnuFile, wxID_BTN_SAVE, wxString( wxT("Save sprite") ) + wxT('\t') + wxT("Ctrl+S"), wxEmptyString, wxITEM_NORMAL );
+	btnSave = new wxMenuItem( mnuFile, wxID_BTN_SAVE, wxString( wxT("Export sprite") ) + wxT('\t') + wxT("Ctrl+S"), wxEmptyString, wxITEM_NORMAL );
 	mnuFile->Append( btnSave );
 	
 	wxMenuItem* btnSaveAll;
@@ -391,7 +391,7 @@ FormSprite::FormSprite( wxWindow* parent,SpellData* spell_data,wxWindowID id, co
 	this->Centre( wxBOTH );
 	
 
-	// </wxFormsBuilder> - Section auto-inserted from 'forms.cpp' class 'FormSprite' on 2026-06-15 18:18:58
+	// </wxFormsBuilder> - Section auto-inserted from 'forms.cpp' class 'FormSprite' on 2026-06-20 09:37:22
 	// === AUTO GENERATED STUFF ENDS HERE ===
 
 	chbSide->Append("Q1");
@@ -416,6 +416,30 @@ FormSprite::FormSprite( wxWindow* parent,SpellData* spell_data,wxWindowID id, co
 	appIcon.LoadFile("IDI_ICON_SPR",wxBITMAP_TYPE_ICO_RESOURCE);
 	if(appIcon.IsOk())
 		SetIcon(appIcon);
+
+	AssignSVGresourceToMenu(mnuFile,wxID_BTN_CLOSE,"IDR_EXIT");
+	AssignSVGresourceToMenu(mnuFile,wxID_BTN_SELECT,"IDR_OK");
+	AssignSVGresourceToMenu(mnuFile,wxID_BTN_SAVE,"IDR_SAVE");
+	AssignSVGresourceToMenu(mnuFile,wxID_BTN_SAVE_ALL,"IDR_SAVE");	
+	AssignSVGresourceToMenu(mnuEdit,wxID_BTN_SEL_Q1,"IDR_DIR_NE");
+	AssignSVGresourceToMenu(mnuEdit,wxID_BTN_SEL_Q2,"IDR_DIR_NW");
+	AssignSVGresourceToMenu(mnuEdit,wxID_BTN_SEL_Q3,"IDR_DIR_SW");
+	AssignSVGresourceToMenu(mnuEdit,wxID_BTN_SEL_Q4,"IDR_DIR_SE");
+	AssignSVGresourceToMenu(mnuEdit,wxID_BTN_SAVE_CONTEXT,"IDR_SAVE");
+	AssignSVGresourceToMenu(mnuEdit,wxID_BTN_NEXT,"IDR_RIGHT");
+	AssignSVGresourceToMenu(mnuEdit,wxID_BTN_PREV,"IDR_LEFT");
+	AssignSVGresourceToMenu(mnuEdit,wxID_BTN_GEN_WALL_CONT,"IDR_RELOAD");
+	AssignSVGresourceToMenu(mnuEdit,wxID_BTN_AUTO_SHADING,"IDR_RELOAD");
+	AssignSVGresourceToMenu(mnuEdit,wxID_BTN_SET_KNOWS,"IDR_RELOAD");
+	AssignSVGresourceToMenu(mnuEdit,wxID_EDIT_TILE_CONTEXT_AUTO,"IDR_RELOAD");
+	AssignSVGresourceToMenu(mnuEdit,wxID_BTN_CLR_CONTEXT,"IDR_CLEAR");
+	AssignSVGresourceToMenu(mnuEdit,wxID_BTN_CLR_ALL_CONTEXT,"IDR_CLEAR");	
+	AssignSVGresourceToMenu(mnuTools,wxID_MM_NEW_TOOL,"IDR_NEW");
+	AssignSVGresourceToMenu(mnuTools,wxID_MM_NEW_TOOLSET,"IDR_NEW");
+	AssignSVGresourceToMenu(mnuTools,wxID_MM_REMOVE_TOOL,"IDR_CLEAR");
+	AssignSVGresourceToMenu(mnuTools,wxID_MM_EDIT_TOOLSET,"IDR_EDIT");
+	
+	
 
 
 	// no sprite selected yet

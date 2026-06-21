@@ -377,6 +377,18 @@ SpellTextRec* SpellTexts::AddText(std::string name,std::string raw_text,SpellLan
     return(txt);
 }
 
+// sort resources by name
+int comp_txt_name(const SpellTextRec* a,const SpellTextRec* b)
+{    
+    return(_strcmpi(b->name.c_str(),a->name.c_str()) > 0);
+}
+int SpellTexts::Sort()
+{
+    std::sort(list.begin(), list.end(), comp_txt_name);
+    return(0);
+}
+
+
 // remove placeholder resources
 int SpellTexts::RemovePlaceholders()
 {

@@ -7,7 +7,7 @@
 
 #pragma once
 
-// <wxFormsBuilder-include> - Section auto-inserted from 'forms.h' class 'FormANM' on 2026-06-07 15:15:52
+// <wxFormsBuilder-include> - Section auto-inserted from 'forms.h' class 'FormANM' on 2026-06-20 10:21:33
 #include <wx/artprov.h>
 #include <wx/xrc/xmlres.h>
 #include <wx/string.h>
@@ -20,6 +20,7 @@
 #include <wx/colour.h>
 #include <wx/settings.h>
 #include <wx/stattext.h>
+#include <wx/textctrl.h>
 #include <wx/sizer.h>
 #include <wx/listbox.h>
 #include <wx/panel.h>
@@ -28,7 +29,6 @@
 #include <wx/checkbox.h>
 #include <wx/choice.h>
 #include <wx/statline.h>
-#include <wx/textctrl.h>
 #include <wx/treectrl.h>
 #include <wx/statusbr.h>
 #include <wx/frame.h>
@@ -43,7 +43,7 @@
 #include <wx/scrolbar.h>
 #include <wx/bmpbuttn.h>
 
-// </wxFormsBuilder-include> - Section auto-inserted from 'forms.h' class 'FormANM' on 2026-06-07 15:15:52
+// </wxFormsBuilder-include> - Section auto-inserted from 'forms.h' class 'FormANM' on 2026-06-20 10:21:33
 
 #include <tuple>
 
@@ -67,6 +67,7 @@ class FormANM : public wxFrame
 		bool m_anm_was_set;
 		bool m_is_pnm;
 		bool m_is_common;
+		bool m_ok;
 
 		wxTimer m_timer;
 
@@ -89,7 +90,7 @@ class FormANM : public wxFrame
 		
 	protected:
 		
-		// <wxFormsBuilder> - Section auto-inserted from 'forms.h' class 'FormANM' on 2026-06-07 15:15:52
+		// <wxFormsBuilder> - Section auto-inserted from 'forms.h' class 'FormANM' on 2026-06-20 10:21:33
 		enum
 		{
 			wxID_MM_EXPRT = 5999,
@@ -110,8 +111,8 @@ class FormANM : public wxFrame
 			wxID_CB_ZOOM,
 		};
 		
-		wxMenuBar* m_menubar10;
-		wxMenu* m_menu19;
+		wxMenuBar* mnu;
+		wxMenu* mnuFile;
 		wxMenu* mmTerrain;
 		wxStaticText* m_staticText117;
 		wxChoice* chSource;
@@ -131,7 +132,7 @@ class FormANM : public wxFrame
 		wxSlider* slideGamma;
 		wxCheckBox* cbZoom;
 
-		// </wxFormsBuilder> - Section auto-inserted from 'forms.h' class 'FormANM' on 2026-06-07 15:15:52
+		// </wxFormsBuilder> - Section auto-inserted from 'forms.h' class 'FormANM' on 2026-06-20 10:21:33
 
 	public:
 

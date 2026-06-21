@@ -133,6 +133,14 @@ FormObjects::FormObjects( wxWindow* parent,SpellData* spell_data,wxWindowID id, 
 	if(appIcon.IsOk())
 		SetIcon(appIcon);
 
+	AssignSVGresourceToMenu(mnuFile,wxID_MM_CLOSE,"IDR_EXIT");
+	AssignSVGresourceToMenu(mnuFile,wxID_MM_SAVE_OBJECTS,"IDR_SAVE");
+	AssignSVGresourceToMenu(mnuEdit,wxID_MM_REMOVE,"IDR_CLEAR");
+	AssignSVGresourceToMenu(mnuEdit,wxID_MM_RENAME,"IDR_EDIT");
+	AssignSVGresourceToMenu(mnuEdit,wxID_MM_NEW_CLASS,"IDR_NEW");
+	AssignSVGresourceToMenu(mnuEdit,wxID_MM_NEW_TOOL,"IDR_NEW");
+	AssignSVGresourceToMenu(mnuEdit,wxID_MM_EDIT_TOOLSET,"IDR_EDIT");
+
 	//wxInitAllImageHandlers();
 	imlist = new wxImageList(16,16);
 	wxBitmap img;

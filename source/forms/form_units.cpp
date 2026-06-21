@@ -378,6 +378,10 @@ FormUnits::FormUnits( wxWindow* parent, wxWindowID id, const wxString& title, co
 	btnHPmax->SetBitmap(LoadSVGiconsBundle("IDR_UP").GetBitmap(op_sz));
 	btnHPmax->SetBitmapMargins(5,0);
 
+	AssignSVGresourceToMenu(mmFile,wxID_MM_EXIT,"IDR_EXIT");
+	AssignSVGresourceToMenu(mmFile,wxID_MM_SAVE_AUX,"IDR_SAVE");	
+	AssignSVGresourceToMenu(mmEdit,wxID_MM_SET,"IDR_OK");
+
 	sbar->SetDoubleBuffered(true);
 	
 	// unit ID is read only

@@ -6,9 +6,11 @@
 ///////////////////////////////////////////////////////////////////////////
 
 #include "form_about.h"
-#include <chrono>
+#include <wx/msgdlg.h>
+#include "other.h"
+/*#include <chrono>
 #include <iomanip>
-#include <sstream>
+#include <sstream>*/
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -131,6 +133,7 @@ FormAbout::FormAbout( wxWindow* parent, wxWindowID id, const wxString& title, co
 
 
 	Bind(wxEVT_COMMAND_BUTTON_CLICKED,&FormAbout::OnClose,this,wxID_BTN_OK);
+	Bind(wxEVT_TEXT_URL,&FormAbout::OnURL,this,wxID_TXT_URL);
 
 	// assign button shortcuts
 	std::vector<wxAcceleratorEntry> entries;
@@ -139,11 +142,7 @@ FormAbout::FormAbout( wxWindow* parent, wxWindowID id, const wxString& title, co
 	wxAcceleratorTable accel(entries.size(),entries.data());
 	this->SetAcceleratorTable(accel);
 
-	/*std::chrono::system_clock::time_point now = std::chrono::system_clock::now();
-	std::time_t currentTime = std::chrono::system_clock::to_time_t(now);
-	std::stringstream ver;
-	ver << std::put_time(std::localtime(&currentTime),"%Y-%m-%d %H:%M:%S");	*/	
-	txtVersion->SetValue("V0.90, build: " __DATE__);
+	txtVersion->SetValue("V1.00, build: " __DATE__);
 
 	auto desc = "Very experimental editor for Spellcross map files and collection of Spellcross data loaders and viewers.\nNote current version is in progress, unfinished and very buggy.";
 	txtDesc->SetValue(desc);
@@ -157,4 +156,20 @@ FormAbout::~FormAbout()
 void FormAbout::OnClose(wxCommandEvent& event)
 {
 	EndModal(wxID_OK);
+}
+
+// on URL click
+void FormAbout::OnURL(wxTextUrlEvent& event)
+{
+	auto mouse = event.GetMouseEvent();
+	if(!mouse.LeftDown())
+		return;
+	auto url = txtURL->GetValue();
+	auto hinst = ShellExecute(NULL,L"open",url.c_str(),NULL,NULL,SW_SHOWNORMAL);
+	if((int)hinst <= 32)
+	{
+		// failed
+		wxMessageDialog dial(this,string_format("Cannot open URL:\n%ls:\n\nOperation might be blocked by system setup (security policy). ",url.c_str()),_("Opening project URL ..."),wxICON_ERROR);
+		dial.ShowModal();
+	}
 }

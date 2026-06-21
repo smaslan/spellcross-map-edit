@@ -409,15 +409,15 @@ class SpellMap
 		int x_size;
 		int y_size;
 		// terrain
-		char terrain_name[14];
+		std::string terrain_name;
 		Terrain* terrain;
 		SpellData* spelldata;
 		// layers:
 		vector<MapSprite> tiles; // terrain tiles map (L1+L2)
-		vector<MapLayer3> L3; // ANM list
-		vector<MapLayer4> L4; // PNM list	
-		vector<MapXY> L5;
-		vector<MapXY> L6;
+		vector<MapLayer3> anms; // ANM list
+		vector<MapLayer4> pnms; // PNM list	
+		vector<MapXY> counter_attack_post_enemy; // counter attack enemy
+		vector<MapXY> counter_attack_post_player; // counter attack player		
 		vector<MapXY> start; // start tiles list
 		vector<MapXY> escape; // escape tiles list
 		vector<MapXY> target; // target tiles list
@@ -436,6 +436,26 @@ class SpellMap
 		// local palette (after gamma correction)
 		uint8_t pal[256][3];
 
+
+		class HistoryState
+		{
+		public:
+			vector<MapSprite> tiles; // terrain tiles map (L1+L2)
+			vector<MapLayer3> anms; // ANM list
+			vector<MapLayer4> pnms; // PNM list	
+			vector<MapXY> counter_attack_post_enemy; // counter attack enemy
+			vector<MapXY> counter_attack_post_player; // counter attack player		
+			vector<MapXY> start; // start tiles list
+			vector<MapXY> escape; // escape tiles list
+			vector<MapXY> target; // target tiles list			
+			vector<uint8_t> select; // selection flags array
+			vector<MapUnit*> units; // units layer array
+		};
+		std::vector<std::unique_ptr<HistoryState>> history;
+		int history_pos;
+		int HistoryPush();
+		int HistoryPop(bool redo = false);
+		bool HistoryCanPop(bool redo = false);
 		
 
 		class MissionParams

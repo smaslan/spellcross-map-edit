@@ -174,6 +174,7 @@ private:
     void OnEditMissionParams(wxCommandEvent& event);
     void OnExportMapRender(wxCommandEvent& event);
     void OnExportAllMapsRender(wxCommandEvent& event);
+    void OnHistory(wxCommandEvent& event);
 
     void OnToolBtnClick(wxRibbonButtonBarEvent& event);
     void OnToolBtnDropClick(wxRibbonButtonBarEvent& event);
@@ -188,6 +189,9 @@ private:
     void SetStatusTextEvents(std::string text);
     void SetStatusTextEvents(SpellMap* map=NULL);
     void UpdateMapStatus(SpellMap *map=NULL);
+
+    void HistoryCheck();
+    void HistoryPush();
 
     // canvas stuff:
     void OnThreadCanvas(wxThreadEvent& event);
@@ -208,7 +212,8 @@ private:
     // map render buffer
     wxBitmap m_buffer;    
     wxPanel* canvas;
-    wxMenu* menuView;    
+    wxMenu* menuView;
+    wxMenu* menuEdit;
     wxBoxSizer* sizer;
     wxRibbonBar* ribbonBar = NULL;
     
@@ -402,6 +407,8 @@ enum
     ID_ViewGRes,
     ID_EncodeGRes,
     ID_UnitViewDbg,
+    ID_HistoryUndo,
+    ID_HistoryRedo,
     ID_EditMissionParams,
     ID_EditUnit,
     ID_EditEvent,

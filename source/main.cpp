@@ -188,7 +188,7 @@ bool MyApp::OnInit()
         else if(!m_config.hide_map_warnings && !spell_map->GetLastError().empty())
             wxMessageBox(string_format("Loading Spellcross map file ended with warning(s):\n%s",spell_map->GetLastError().c_str()),"Warning",wxICON_WARNING);
     }
-    spell_map->SetGamma(1.3);
+    spell_map->SetGamma(ini.GetDoubleValue("STATE","gamme",1.3));
 
     // sound effects/midi volumes
     spell_data->sounds->channels->SetVolume(0.01*ini.GetLongValue("STATE","sound_volume",50));
@@ -235,14 +235,16 @@ bool MyApp::OnInit()
 int MyApp::OnExit()
 {
     if(spell_map)
-    {
-        
+    {        
         // store last path
         if(!spell_map->GetTopPath().empty())
             ini.SetValue("STATE","last_map",wstring2string(spell_map->GetTopPath()).c_str());
         
         // map warnings
         ini.SetBoolValue("STATE","hide_map_load_warnings",m_config.hide_map_warnings);
+
+        // gamma correction
+        ini.SetDoubleValue("STATE","gamme",spell_map->GetGamma());
     }
 
     // last export path
@@ -362,7 +364,7 @@ MainFrame::MainFrame(SpellConfig* config, SpellMap *&map, SpellData *&spelldata)
     menuView->FindItem(ID_ViewHUD)->Check(spell_map->GetHUDstate());
     menuView->Append(ID_UnitViewDbg,"Enable unit view debug mode\tCtrl+D","",wxITEM_CHECK);    
     menuView->Append(wxID_ANY,"","",wxITEM_SEPARATOR);
-    menuView->Append(ID_SetGamma,"Set gamma","",wxITEM_NORMAL);    
+    menuView->Append(ID_SetGamma,"Set gamma","",wxITEM_NORMAL);
 
     // Layer selection submenu for copy/paste editor
     wxMenu* menuLayer = new wxMenu;
@@ -375,7 +377,10 @@ MainFrame::MainFrame(SpellConfig* config, SpellMap *&map, SpellData *&spelldata)
     menuLayer->Append(ID_SelectLayPNM,"Layer 4 - PNM animations\tCtrl+F4","",wxITEM_CHECK);
     menuLayer->FindItem(ID_SelectLayPNM)->Check(true);
     // edit menu
-    wxMenu* menuEdit = new wxMenu;
+    menuEdit = new wxMenu;
+    menuEdit->Append(ID_HistoryUndo,"Undo\tCtrl+Z","",wxITEM_NORMAL);
+    menuEdit->Append(ID_HistoryRedo,"Redo\tCtrl+Y","",wxITEM_NORMAL);
+    menuEdit->Append(wxID_ANY,"","",wxITEM_SEPARATOR);
     menuEdit->Append(ID_EditMissionParams,"Edit mission parameters","",wxITEM_NORMAL);
     menuEdit->Append(wxID_ANY,"","",wxITEM_SEPARATOR);
     menuEdit->AppendSubMenu(menuLayer,"Select layer(s)","");
@@ -403,6 +408,8 @@ MainFrame::MainFrame(SpellConfig* config, SpellMap *&map, SpellData *&spelldata)
     menuEdit->Append(ID_CreateNewObject,"Create new object\tCtrl+Shift+O","",wxITEM_NORMAL);
     menuEdit->Append(wxID_ANY,"","",wxITEM_SEPARATOR);
     menuEdit->Append(ID_AddUnit,"Add unit\tCtrl+Shift+U","",wxITEM_NORMAL);
+    AssignSVGresourceToMenu(menuEdit,ID_HistoryUndo,"IDR_UNDO");
+    AssignSVGresourceToMenu(menuEdit,ID_HistoryRedo,"IDR_REDO");
     AssignSVGresourceToMenu(menuEdit,ID_EditMissionParams,"IDR_EDIT");
     AssignSVGresourceToMenu(menuEdit,ID_CopyBuf,"IDR_COPY");
     AssignSVGresourceToMenu(menuEdit,ID_CutBuf,"IDR_CUT");
@@ -445,6 +452,19 @@ MainFrame::MainFrame(SpellConfig* config, SpellMap *&map, SpellData *&spelldata)
     menuTools->Append(ID_UpdateSprContextMaps,"Update tile context from ALL maps","",wxITEM_NORMAL);
     menuTools->Append(ID_GenDMAobjects,"Generate DMAx_xxx objects from this map","",wxITEM_NORMAL);
     menuTools->Append(ID_GenDMAobjectsMaps,"Generate DMAx_xxx objects from ALL maps","",wxITEM_NORMAL);
+    AssignSVGresourceToMenu(menuTools,ID_ViewSprites,"IDR_LAY_SPRITE");
+    AssignSVGresourceToMenu(menuTools,ID_ViewAnms,"IDR_LAY_ANM");
+    AssignSVGresourceToMenu(menuTools,ID_ViewPnms,"IDR_LAY_PNM");
+    AssignSVGresourceToMenu(menuTools,ID_SoundsViewer,"IDR_SPEAKER");
+    AssignSVGresourceToMenu(menuTools,ID_ViewPal,"IDR_LAY_PAL");
+    AssignSVGresourceToMenu(menuTools,ID_ViewGRes,"IDR_IMAGE_VIEW");
+    AssignSVGresourceToMenu(menuTools,ID_EncodeGRes,"IDR_IMAGE_EDIT");
+    AssignSVGresourceToMenu(menuTools,ID_TextEdit,"IDR_LAY_TEXT");
+    AssignSVGresourceToMenu(menuTools,ID_TextEditRaw,"IDR_LAY_TEXT_RAW");
+    AssignSVGresourceToMenu(menuTools,ID_EditUnit,"IDR_LAY_UNIT");
+    AssignSVGresourceToMenu(menuTools,ID_EditEvent,"IDR_EVENT_TIME");
+    AssignSVGresourceToMenu(menuTools,ID_ViewVideo,"IDR_VIDEO");
+    AssignSVGresourceToMenu(menuTools,ID_ViewMIDI,"IDR_MUSIC");
     
         
     // Help menu
@@ -577,6 +597,8 @@ MainFrame::MainFrame(SpellConfig* config, SpellMap *&map, SpellData *&spelldata)
     Bind(wxEVT_MENU,&MainFrame::OnGenDMAobjects,this,ID_GenDMAobjects);
     Bind(wxEVT_MENU,&MainFrame::OnGenDMAobjectsMaps,this,ID_GenDMAobjectsMaps);
     
+    Bind(wxEVT_MENU,&MainFrame::OnHistory,this,ID_HistoryUndo);
+    Bind(wxEVT_MENU,&MainFrame::OnHistory,this,ID_HistoryRedo);
     Bind(wxEVT_MENU,&MainFrame::OnEditMissionParams,this,ID_EditMissionParams);
     Bind(wxEVT_MENU,&MainFrame::OnCopyBuf,this,ID_CopyBuf);
     Bind(wxEVT_MENU,&MainFrame::OnCopyBuf,this,ID_CutBuf);
@@ -594,6 +616,8 @@ MainFrame::MainFrame(SpellConfig* config, SpellMap *&map, SpellData *&spelldata)
 
     spell_map->SetMessageInterface(bind(&MainFrame::ShowMessage,this,placeholders::_1,placeholders::_2,placeholders::_3), bind(&MainFrame::CheckMessageState,this));    
     
+    HistoryCheck();
+
     // main sizer 
     /*auto sizer2 = new wxBoxSizer(wxVERTICAL);
 
@@ -1297,13 +1321,14 @@ void MainFrame::OnOpenMap(wxCommandEvent& event)
         wxMessageBox(string_format("Loading Spellcross map file ended with warning(s):\n%s",spell_map->GetLastError().c_str()),"Warning",wxICON_WARNING);
     
     // reset layers visibility
-    spell_map->SetGamma(1.30);
+    //spell_map->SetGamma(1.30);
     OnViewLayer(event);
     // reload toolset ribbon
     LoadToolsetRibbon();
     // repaint
     Refresh();
 
+    HistoryCheck();
     UpdateMapStatus();
 }
 
@@ -1390,11 +1415,12 @@ void MainFrame::OnNewMap(wxCommandEvent& event)
     auto ee = form.GetElev();
     spell_map->Create(spell_data, form.GetTerrain().c_str(), xx,yy, ee);
     // reset layers visibility
-    spell_map->SetGamma(1.30);
+    //spell_map->SetGamma(1.30);
     OnViewLayer(event);
     // reload toolset ribbon
     LoadToolsetRibbon();
 
+    HistoryCheck();
     UpdateMapStatus();
 }
 
@@ -1954,6 +1980,43 @@ void MainFrame::OnAddUnit(wxCommandEvent& event)
 }
 
 
+// on history undo/redo
+void MainFrame::OnHistory(wxCommandEvent& event)
+{
+    if(!spell_map->IsLoaded())
+        return;
+    spell_map->HistoryPop(event.GetId() == ID_HistoryRedo);
+    HistoryCheck();
+    canvas->Refresh();
+}
+// update history undo/redo buttons state
+void MainFrame::HistoryCheck()
+{
+    bool has_undo = false;
+    bool has_redo = false;
+    if(spell_map->IsLoaded())
+    {
+        has_undo = spell_map->HistoryCanPop(false);
+        has_redo = spell_map->HistoryCanPop(true);
+    }
+
+    auto mm = menuEdit->FindItem(ID_HistoryUndo);
+    if(mm)
+        mm->Enable(has_undo);
+    mm = menuEdit->FindItem(ID_HistoryRedo);
+    if(mm)
+        mm->Enable(has_redo);
+}
+// push map state to history
+void MainFrame::HistoryPush()
+{
+    if(!spell_map->IsLoaded())
+        return;
+    spell_map->HistoryPush();
+    HistoryCheck();
+}
+
+
 
 // unit popup menu
 void MainFrame::OnCanvasPopupSelect(wxCommandEvent& event)
@@ -2381,10 +2444,11 @@ void MainFrame::OnClearBuf(wxCommandEvent& event)
 void MainFrame::OnPasteBuf(wxCommandEvent& event)
 {
     if(!spell_map->IsLoaded())
-        return;
+        return;    
 
     auto pos = spell_map->GetSelection();
-    spell_map->PasteBuffer(spell_map->tiles,spell_map->L3,spell_map->L4,spell_map->start,spell_map->escape,spell_map->target,spell_map->L6,spell_map->L5,pos);
+    spell_map->PasteBuffer(spell_map->tiles,spell_map->anms,spell_map->pnms,spell_map->start,spell_map->escape,spell_map->target,spell_map->counter_attack_post_player,spell_map->counter_attack_post_enemy,pos);    
+    HistoryPush();
 
     // optional cycling of tool items
     /*if(spell_tool.isTool())
@@ -2408,6 +2472,7 @@ void MainFrame::OnChangeElevation(wxCommandEvent& event)
         spell_map->LockMap();
         spell_map->EditElev(step);
         spell_map->ReleaseMap();
+        HistoryPush();
         Refresh();
     }
 }
@@ -2436,7 +2501,7 @@ void MainFrame::OnDeleteSel(wxCommandEvent& event)
     std::vector<MapXY> list;
     list = spell_map->GetPersistSelections();
     if(list.empty())
-        list = spell_map->GetSelections();
+        list = spell_map->GetSelections();    
 
     SpellMap::Layers layers;
     layers.lay1 = false;
@@ -2447,10 +2512,12 @@ void MainFrame::OnDeleteSel(wxCommandEvent& event)
     int rem_count = spell_map->DeleteSelObjects(list,layers);
     if(!rem_count)
     {
-        // nothing removed, maybe remove unit?        
-        spell_map->RemoveUnit(spell_map->GetCursorUnit(),true);
+        // nothing removed, maybe remove unit?
+        rem_count = !spell_map->RemoveUnit(spell_map->GetCursorUnit(),true);
     }
     spell_map->ReleaseMap();
+    if(rem_count)
+        HistoryPush();
     Refresh();
 }
 
@@ -2483,17 +2550,19 @@ void MainFrame::OnCanvasLMouseDown(wxMouseEvent& event)
 
         if(event.ShiftDown() && spell_tool.isActive() && xy_list.size() && xy_list[0].IsSelected())
         {
-            // auto tile mapping
+            // auto tile mapping            
             spell_map->EditClass(xy_list,&spell_tool,bind(&MainFrame::StatusStringCallback,this,placeholders::_1));
+            HistoryPush();
         }
         else if(spell_map->isCopyBufferFull())
         {
-            // something in copy buffer
+            // something in copy buffer            
             auto pos = spell_map->GetSelection();
-            spell_map->PasteBuffer(spell_map->tiles,spell_map->L3,spell_map->L4,spell_map->start,spell_map->escape,spell_map->target,spell_map->L6,spell_map->L5,pos);
+            spell_map->PasteBuffer(spell_map->tiles,spell_map->anms,spell_map->pnms,spell_map->start,spell_map->escape,spell_map->target,spell_map->counter_attack_post_player,spell_map->counter_attack_post_enemy,pos);
             // optional cycling of tool items
             if(event.ControlDown() && spell_tool.isTool())
                 spell_map->SetBuffer(spell_tool,+1);
+            HistoryPush();
             Refresh();
         }
         else
@@ -2667,13 +2736,14 @@ void MainFrame::OnCanvasLMouseUp(wxMouseEvent& event)
     {
         if(event.ShiftDown())
         {
-            // auto tile mapping
+            // auto tile mapping            
             spell_map->EditClass(xy_list,&spell_tool,bind(&MainFrame::StatusStringCallback,this,placeholders::_1));
+            HistoryPush();
             Refresh();
         }
         else if(spell_map->isCopyBufferFull())
         {
-            // something in copy buffer
+            // something in copy buffer            
             //spell_map->SetBuffer(spell_tool);
             auto pos_list = spell_map->GetSelections();
             // remove reference item because it was already placed by mouse-down event
@@ -2684,9 +2754,10 @@ void MainFrame::OnCanvasLMouseUp(wxMouseEvent& event)
             {
                 if(event.ControlDown())
                     spell_map->SetBuffer(spell_tool,0);
-                spell_map->PasteBuffer(spell_map->tiles,spell_map->L3,spell_map->L4,spell_map->start,spell_map->escape,spell_map->target,spell_map->L6,spell_map->L5,pos,false);
+                spell_map->PasteBuffer(spell_map->tiles,spell_map->anms,spell_map->pnms,spell_map->start,spell_map->escape,spell_map->target,spell_map->counter_attack_post_player,spell_map->counter_attack_post_enemy,pos,false);
             }
             //spell_map->SetBuffer(spell_tool);
+            HistoryPush();
             Refresh();
         }
     }
@@ -3224,14 +3295,14 @@ FormGamma::FormGamma(wxFrame* parent,SpellMap* map,wxWindowID id) :wxDialog(pare
     spell_map = map;
 
     // make slider
-    slider = new wxSlider(this,wxID_ANY,1300,500,2000);
+    slider = new wxSlider(this,wxID_ANY,spell_map->GetGamma()*1000,500,2000);
     wxBoxSizer* sizer = new wxBoxSizer(wxHORIZONTAL);
     sizer->Add(slider,1,wxEXPAND|wxALL);
     this->SetSizer(sizer);
     this->SetAutoLayout(true); 
     this->Center();
     this->Bind(wxEVT_CHAR_HOOK,&FormGamma::OnExit,this);
-    SetMinSize(wxSize(300,-1));
+    SetMinSize(wxSize(400,-1));
     this->Fit();
     
     Bind(wxEVT_COMMAND_SLIDER_UPDATED,&FormGamma::OnChangeGamma, this);
@@ -3252,7 +3323,7 @@ void FormGamma::OnClose(wxCloseEvent& ev)
 }
 void FormGamma::OnExit(wxKeyEvent& event)
 {
-    if(event.GetKeyCode()==WXK_ESCAPE)
+    if(event.GetKeyCode()==WXK_ESCAPE || event.GetKeyCode()==WXK_RETURN || event.GetKeyCode()==WXK_NUMPAD_ENTER)
         this->Close();
     else
         event.Skip();

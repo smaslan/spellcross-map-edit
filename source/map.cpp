@@ -480,6 +480,9 @@ SpellMap::SpellMap()
 
 	SetDefaultRenderFilter(NULL);
 	SetRenderFilter(NULL);
+
+	history.clear();
+	history_pos = -1;
 }
 
 SpellMap::~SpellMap()
@@ -573,10 +576,10 @@ void SpellMap::Close()
 
 	// loose layer data
 	tiles.clear();
-	L3.clear();
-	L4.clear();
-	L5.clear();
-	L6.clear();
+	anms.clear();
+	pnms.clear();
+	counter_attack_post_player.clear();
+	counter_attack_post_enemy.clear();
 	// loose start/ciel
 	start.clear();
 	escape.clear();
@@ -640,6 +643,9 @@ void SpellMap::Close()
 	if(spelldata)
 		spelldata->texts->RemovePlaceholders();
 	spelldata = NULL;
+
+	history.clear();
+	history_pos = -1;
 
 	// unlock map
 	ResumeUnitRanging(true);
@@ -728,6 +734,9 @@ int SpellMap::Create(SpellData* spelldata, const char *terr_name, int x, int y, 
 	is_valid = true;
 	ResumeUnitRanging(true);
 	ReleaseMap();
+
+	// make initial history record
+	HistoryPush();
 
 	return(0);
 }
@@ -861,15 +870,17 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 	data += 2;
 
 	// get map terrain name
-	std::memset((void*)this->terrain_name, '\0', sizeof(this->terrain_name));
-	std::memcpy((void*)this->terrain_name, data, 13);
+	char terr_name[14];
+	std::memset((void*)terr_name, '\0', sizeof(terr_name));
+	std::memcpy((void*)terr_name, data, 13);
+	terrain_name = terr_name;
 	data += 13;
 
 	// try to get terrain data pointer
-	this->terrain = spelldata->GetTerrain(this->terrain_name);
+	this->terrain = spelldata->GetTerrain(terrain_name.c_str());
 	if (!this->terrain)
 	{
-		last_error = string_format("Map DTA files references unknown terrain '%s'!",this->terrain_name);
+		last_error = string_format("Map DTA files references unknown terrain '%s'!",terrain_name.c_str());
 		if(def)
 			delete def;
 		Close();
@@ -1037,7 +1048,7 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 			int L3_items = *(int32_t*)data; data += 4;
 		
 			// for each item:
-			L3.reserve(L3_items);
+			anms.reserve(L3_items);
 			for (int k = 0; k < L3_items; k++)
 			{
 				// initial frame offset
@@ -1061,7 +1072,7 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 						
 				// put new animation entry to list
 				//MapLayer3* anim = new MapLayer3(anims[aid], x_pos, y_pos, frame_ofs, frame_limit);
-				L3.emplace_back(anims[aid],x_pos,y_pos,frame_ofs,frame_limit);
+				anms.emplace_back(anims[aid],x_pos,y_pos,frame_ofs,frame_limit);
 						
 			}
 
@@ -1137,7 +1148,7 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 
 			// put new animation entry to list
 			//MapLayer4* pnim = new MapLayer4(pnims[pid], x_pos, y_pos, x_ofs, y_ofs, frame_ofs, frame_limit);
-			L4.emplace_back(pnims[pid],x_pos,y_pos,x_ofs,y_ofs,frame_ofs,frame_limit);
+			pnms.emplace_back(pnims[pid],x_pos,y_pos,x_ofs,y_ofs,frame_ofs,frame_limit);
 		}
 
 	}
@@ -1153,7 +1164,7 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 	for(int k = 0; k < L5_count; k++)
 	{
 		int pxy = *(uint16_t*)data; data += 2;
-		L5.push_back(MapXY(pxy% x_size,pxy / x_size));
+		counter_attack_post_enemy.push_back(MapXY(pxy% x_size,pxy / x_size));
 	}
 
 
@@ -1167,7 +1178,7 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 	for(int k = 0; k < L6_count; k++)
 	{
 		int pxy = *(uint16_t*)data; data += 2;
-		L6.push_back(MapXY(pxy% x_size,pxy / x_size));
+		counter_attack_post_player.push_back(MapXY(pxy% x_size,pxy / x_size));
 	}
 	
 	//////////////////////////
@@ -1578,6 +1589,9 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 
 	// map should be valid from this point
 	is_valid = true;
+
+	// make initial history record
+	HistoryPush();
 		
 	// done
 	return(0);
@@ -1701,7 +1715,7 @@ int SpellMap::SaveDTA(std::wstring path)
 
 	// prepare L3 list of used sprites, write names
 	std::vector<AnimL1*> L3_list;
-	for(auto anm: L3)
+	for(auto anm: anms)
 	{
 		// check sprite presence in the list, eventually add new
 		auto sid = std::find(L3_list.begin(),L3_list.end(),anm.anim);
@@ -1732,10 +1746,10 @@ int SpellMap::SaveDTA(std::wstring path)
 
 	// write ANM items count in map
 	if(L3_count)
-		fw.write((uint32_t)L3.size());
+		fw.write((uint32_t)anms.size());
 
 	// write ANM items in map
-	for(auto anm: L3)
+	for(auto anm: anms)
 	{
 		// check sprite presence in the list, eventually add new
 		auto sid = std::find(L3_list.begin(),L3_list.end(),anm.anim);
@@ -1761,7 +1775,7 @@ int SpellMap::SaveDTA(std::wstring path)
 
 	// prepare L4 list of used sprites, write names
 	std::vector<AnimPNM*> L4_list;
-	for(auto pnm: L4)
+	for(auto pnm: pnms)
 	{		
 		// check sprite presence in the list, eventually add new
 		auto sid = std::find(L4_list.begin(),L4_list.end(),pnm.anim);
@@ -1792,10 +1806,10 @@ int SpellMap::SaveDTA(std::wstring path)
 
 	// write PNM items count in map
 	if(L4_count)
-		fw.write((uint32_t)L4.size());
+		fw.write((uint32_t)pnms.size());
 
 	// write PNM items in map
-	for(auto pnm: L4)
+	for(auto pnm: pnms)
 	{
 		// check sprite presence in the list, eventually add new
 		auto sid = std::find(L4_list.begin(),L4_list.end(),pnm.anim);
@@ -1823,14 +1837,14 @@ int SpellMap::SaveDTA(std::wstring path)
 
 	
 	// write mystery L5 items
-	fw.write((uint32_t)L5.size());
-	for(auto pos: L5)
+	fw.write((uint32_t)counter_attack_post_enemy.size());
+	for(auto pos: counter_attack_post_enemy)
 		fw.write((uint16_t)ConvXY(pos));
 
 
 	// write mystery L6 items
-	fw.write((uint32_t)L6.size());
-	for(auto pos: L6)
+	fw.write((uint32_t)counter_attack_post_player.size());
+	for(auto pos: counter_attack_post_player)
 		fw.write((uint16_t)ConvXY(pos));
 	
 
@@ -2089,6 +2103,97 @@ int SpellMap::SaveDEF(std::wstring path)
 
 	return(0);
 }
+
+
+
+
+// push map state to history buffer
+int SpellMap::HistoryPush()
+{	
+	if(history_pos >= (int)history.size())
+		history_pos = (int)history.size() - 1;
+	
+	// remove everything above current history position
+	if(history.size() && (int)history.size() - history_pos > 1)
+		history.erase(history.begin() + (history_pos + 1), history.end());
+	history_pos = (int)history.size() - 1;
+
+	LockMap();
+
+	// make new entry
+	history.push_back(std::make_unique<HistoryState>());
+	auto &hist = history.back();
+	history_pos = (int)history.size() - 1;
+
+	// save state
+	hist->tiles = tiles;
+	hist->anms = anms;
+	hist->pnms = pnms;
+	hist->select = select;
+	hist->start = start;
+	hist->escape = escape;
+	hist->target = target;
+	hist->counter_attack_post_enemy = counter_attack_post_enemy;
+	hist->counter_attack_post_player = counter_attack_post_player;
+
+	/*for(auto &unit: units)
+		hist->units.push_back(new MapUnit(*unit));*/
+
+	ReleaseMap();
+
+	return(0);
+}
+
+// pop map state from history buffer
+int SpellMap::HistoryPop(bool redo)
+{
+	if(history_pos >= (int)history.size())
+		history_pos = (int)history.size() - 1;
+	if(history_pos < 0)
+		return(1);
+
+	if(redo)
+		history_pos++;
+	else if(history_pos > 0)
+		history_pos--;
+	if(history_pos >= (int)history.size() || history_pos < 0)
+	{
+		history_pos = min(max(history_pos,-1), (int)history.size() - 1);
+		return(1);
+	}
+	
+	LockMap();
+
+	auto& hist = history[history_pos];
+	
+	// restore state
+	tiles = hist->tiles;
+	anms = hist->anms;
+	pnms = hist->pnms;
+	select = hist->select;
+	start = hist->start;
+	escape = hist->escape;
+	target = hist->target;
+	counter_attack_post_enemy = hist->counter_attack_post_enemy;
+	counter_attack_post_player = hist->counter_attack_post_player;	
+	
+	ReleaseMap();
+
+	return(0);
+}
+// can history be poped?
+bool SpellMap::HistoryCanPop(bool redo)
+{
+	if(redo)
+		return(((int)history.size() - history_pos) > 1);
+	return(history_pos > 0);
+}
+
+
+
+
+
+
 
 
 // convert x,y to combined tile position
@@ -2780,7 +2885,7 @@ void SpellMap::CopyBuffer(std::vector<MapXY>& posxy,SpellMap::Layers layers)
 		MapLayer3 tile_anm = MapLayer3(NULL,pos.x,pos.y);
 		if(layers.anm)
 		{
-			for(auto &anm: L3)
+			for(auto &anm: anms)
 			{
 				if(anm.x_pos == posxy[k].x && anm.y_pos == posxy[k].y)
 				{
@@ -2795,7 +2900,7 @@ void SpellMap::CopyBuffer(std::vector<MapXY>& posxy,SpellMap::Layers layers)
 		MapLayer4 tile_pnm = MapLayer4(NULL,pos.x,pos.y);
 		if(layers.pnm)
 		{
-			for(auto& pnm: L4)
+			for(auto& pnm: pnms)
 			{
 				if(pnm.x_pos == posxy[k].x && pnm.y_pos == posxy[k].y)
 				{
@@ -2852,7 +2957,7 @@ void SpellMap::PasteBuffer(std::vector<MapSprite>& tiles, std::vector<MapLayer3>
 
 	LockMap();
 	HaltUnitRanging(true);
-
+	
 	MapXY sel = posxy;
 	// center of object
 	int ref_x = 0;
@@ -3416,7 +3521,7 @@ vector<MapLayer4> SpellMap::GetPNMs(vector<MapXY>& selection)
 	vector<MapLayer4> list;
 	for(auto &pos: selection)
 	{
-		for(auto &pnm: L4)
+		for(auto &pnm: pnms)
 			if(pnm.x_pos == pos.x && pnm.y_pos == pos.y)
 			{
 				list.push_back(pnm);
@@ -3541,7 +3646,7 @@ MapLayer3* SpellMap::CheckANM(MapXY* pos)
 	auto posxy = GetSelection();
 	if(pos)
 		posxy = *pos;		
-	for(auto &anm: L3)
+	for(auto &anm: anms)
 		if(anm.x_pos == posxy.x && anm.y_pos == posxy.y)
 			return(&anm);
 	return(NULL);
@@ -3553,10 +3658,10 @@ int SpellMap::RemoveANM(MapXY* pos)
 	auto posxy = GetSelection();
 	if(pos)
 		posxy = *pos;	
-	for(int k = 0; k < L3.size(); k++)
-		if(L3[k].x_pos == posxy.x && L3[k].y_pos == posxy.y)
+	for(int k = 0; k < anms.size(); k++)
+		if(anms[k].x_pos == posxy.x && anms[k].y_pos == posxy.y)
 		{			
-			L3.erase(L3.begin() + k);
+			anms.erase(anms.begin() + k);
 			ReleaseMap();
 			return(0);
 		}
@@ -3579,7 +3684,7 @@ int SpellMap::PlaceANM(MapXY *pos, AnimL1 *anm)
 
 	// add new ANM
 	LockMap();
-	L3.emplace_back(anm,posxy.x,posxy.y,rand()%anm->frames.size(),anm->frames.size());
+	anms.emplace_back(anm,posxy.x,posxy.y,rand()%anm->frames.size(),anm->frames.size());
 	ReleaseMap();
 
 	return(0);
@@ -3591,7 +3696,7 @@ void SpellMap::SelectANM(MapLayer3* anm)
 	if(!anm && anm_selection)
 		anm_selection->in_placement = false;
 	anm_selection = NULL;
-	for(auto& item: L3)
+	for(auto& item: anms)
 		if(&item == anm)
 			anm_selection = anm;
 	ReleaseMap();
@@ -3600,7 +3705,7 @@ void SpellMap::SelectANM(MapLayer3* anm)
 MapLayer3* SpellMap::SelectedANM()
 {
 	LockMap();
-	for(auto& anm: L3)
+	for(auto& anm: anms)
 		if(&anm == anm_selection)
 		{
 			ReleaseMap();
@@ -3619,7 +3724,7 @@ int SpellMap::MoveANM(MapLayer3* anm,MapXY pos)
 		return(1);
 
 	// do not allow overlap with other PNM
-	for(auto& item: L3)
+	for(auto& item: anms)
 		if(item.x_pos == pos.x && item.y_pos == pos.y)
 			return(1);
 
@@ -3637,7 +3742,7 @@ MapLayer4* SpellMap::CheckPNM(MapXY* pos)
 	auto posxy = GetSelection();
 	if(pos)
 		posxy = *pos;
-	for(auto& pnm: L4)
+	for(auto& pnm: pnms)
 		if(pnm.x_pos == posxy.x && pnm.y_pos == posxy.y)
 			return(&pnm);
 	return(NULL);
@@ -3649,11 +3754,11 @@ int SpellMap::RemovePNM(MapXY* pos)
 	auto posxy = GetSelection();
 	if(pos)
 		posxy = *pos;
-	for(int k = 0; k < L4.size(); k++)
-		if(L4[k].x_pos == posxy.x && L4[k].y_pos == posxy.y)
+	for(int k = 0; k < pnms.size(); k++)
+		if(pnms[k].x_pos == posxy.x && pnms[k].y_pos == posxy.y)
 		{
 			pnm_selection = NULL;
-			L4.erase(L4.begin() + k);
+			pnms.erase(pnms.begin() + k);
 			ReleaseMap();
 			return(0);
 		}
@@ -3676,7 +3781,7 @@ int SpellMap::PlacePNM(MapXY* pos,AnimPNM* pnm,int x_ofs,int y_ofs)
 
 	// add new PNM
 	LockMap();
-	L4.emplace_back(pnm,posxy.x,posxy.y,x_ofs,y_ofs,rand()%pnm->frames.size(),pnm->frames.size());
+	pnms.emplace_back(pnm,posxy.x,posxy.y,x_ofs,y_ofs,rand()%pnm->frames.size(),pnm->frames.size());
 	ReleaseMap();
 
 	return(0);
@@ -3688,7 +3793,7 @@ void SpellMap::SelectPNM(MapLayer4* pnm)
 	if(!pnm && pnm_selection)
 		pnm_selection->in_placement = false;
 	pnm_selection = NULL;
-	for(auto& item: L4)
+	for(auto& item: pnms)
 		if(&item == pnm)
 			pnm_selection = pnm;
 	ReleaseMap();
@@ -3697,7 +3802,7 @@ void SpellMap::SelectPNM(MapLayer4* pnm)
 MapLayer4* SpellMap::SelectedPNM()
 {
 	LockMap();
-	for(auto& pnm: L4)
+	for(auto& pnm: pnms)
 		if(&pnm == pnm_selection)
 		{
 			ReleaseMap();
@@ -3716,7 +3821,7 @@ int SpellMap::MovePNM(MapLayer4* pnm,MapXY pos)
 		return(1);
 
 	// do not allow overlap with other PNM
-	for(auto& item: L4)
+	for(auto& item: pnms)
 		if(item.x_pos == pos.x && item.y_pos == pos.y)
 			return(1);
 
@@ -3979,13 +4084,13 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 
 	// make local copies of layers so tools and clipboard can override'em (not very effective solution)
 	std::vector<MapSprite> tiles = this->tiles;
-	std::vector<MapLayer3> L3 = this->L3;
-	std::vector<MapLayer4> L4 = this->L4;
+	std::vector<MapLayer3> anms = this->anms;
+	std::vector<MapLayer4> pnms = this->pnms;
 	std::vector<MapXY> start = this->start;
 	std::vector<MapXY> escape = this->escape;
 	std::vector<MapXY> targets = this->target;
-	std::vector<MapXY> counter_attack_start_os = this->L5;
-	std::vector<MapXY> counter_attack_start_alinace = this->L6;
+	std::vector<MapXY> counter_attack_start_os = this->counter_attack_post_enemy;
+	std::vector<MapXY> counter_attack_start_alinace = this->counter_attack_post_player;
 	
 
 	// edit tool pre-processing:
@@ -4007,7 +4112,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 	if(msel.size())
 	{
 		// override layers by clipboard buffer
-		PasteBuffer(tiles,L3,L4,start,escape,targets,counter_attack_start_alinace,counter_attack_start_os,msel[0]);
+		PasteBuffer(tiles,anms,pnms,start,escape,targets,counter_attack_start_alinace,counter_attack_start_os,msel[0]);
 	}
 
 	int use_view_mask = game_mode || units_view_debug_mode;
@@ -4090,9 +4195,9 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 	// --- Render Layer 3 - ANM animations ---
 	if (wL3)
 	{
-		for (i = 0; i < L3.size(); i++)
+		for (i = 0; i < anms.size(); i++)
 		{
-			MapLayer3* anm = &L3[i];
+			MapLayer3* anm = &anms[i];
 
 			// skip if not in visible area
 			if (anm->x_pos < xs_ofs || anm->x_pos >= (xs_ofs + xs_size) || anm->y_pos < ys_ofs * 2 || anm->y_pos >= (ys_ofs * 2 + ys_size))
@@ -4280,9 +4385,9 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 	// --- Render Layer 4 - PNM animations ---
 	if (wL4)
 	{			
-		for (i = 0; i < L4.size(); i++)
+		for (i = 0; i < pnms.size(); i++)
 		{
-			MapLayer4* pnm = &L4[i];
+			MapLayer4* pnm = &pnms[i];
 			if(pnm->anim->is_dummy)
 				continue;
 
@@ -7832,9 +7937,9 @@ int SpellMap::Tick()
 		std::memcpy((void*)&pal[249][0], (void*)&water[0][0], 1 * 3);
 
 		// animate L3 animations
-		for (int k = 0; k < L3.size(); k++)
+		for (int k = 0; k < anms.size(); k++)
 		{
-			MapLayer3 *anm = &L3[k];
+			MapLayer3 *anm = &anms[k];
 			// cycle through frames
 			anm->frame_ofs++;
 			if (anm->frame_ofs >= anm->frame_limit)
@@ -7842,9 +7947,9 @@ int SpellMap::Tick()
 		}
 
 		// animate L4 animations
-		for (int k = 0; k < L4.size(); k++)
+		for (int k = 0; k < pnms.size(); k++)
 		{
-			MapLayer4* pnm = &L4[k];
+			MapLayer4* pnm = &pnms[k];
 			// cycle through frames
 			pnm->frame_ofs++;
 			if (pnm->frame_ofs >= pnm->frame_limit)

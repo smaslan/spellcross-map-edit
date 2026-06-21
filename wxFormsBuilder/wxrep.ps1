@@ -65,7 +65,7 @@ if($wxforms_source_path -match '\.h$')
     $file = replace-tagged-section $file 'wxFormsBuilder-include' $head $note
     
     $head = Get-Content $wxforms_source_path -Raw -Encoding UTF8
-    $found = $head -match '(?s).*class\s+%CLASS%.+?\n(\s*enum.*?)\s+public:'.replace('%CLASS%',$class_name)
+    $found = $head -match '(?s).*class\s+%CLASS%\s*:.+?\n(\s*enum.*?)\s+public:'.replace('%CLASS%',$class_name)
     if(!$found) {
         Write-Error 'class not found in wxform_path!' 
     }

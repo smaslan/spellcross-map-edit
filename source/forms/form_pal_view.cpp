@@ -8,6 +8,7 @@
 #include "form_pal_view.h"
 #include "sprites.h"
 #include "other.h"
+#include "wx_other.h"
 
 //#include <filesystem>
 #include <wx/stdpaths.h>
@@ -164,6 +165,9 @@ FormPalView::FormPalView(wxWindow* parent,SpellData* spell_data,wxWindowID id,co
 	if(appIcon.IsOk())
 		SetIcon(appIcon);
 
+	AssignSVGresourceToMenu(mmFile,wxID_MM_CLOSE,"IDR_EXIT");
+	AssignSVGresourceToMenu(mmFile,wxID_MM_SAVE_PALINFO,"IDR_SAVE");
+
 	// generate terrain menu content
 	for(int k = 0;k<spell_data->GetTerrainCount();k++)
 	{
@@ -298,8 +302,10 @@ void FormPalView::ListFilters()
 		mmFilter->Check(FILTER_ID0, true);
 
 	mmFilter->Append(wxID_ANY,wxEmptyString,wxEmptyString,wxITEM_SEPARATOR);
-	mmFilter->Append(FILTER_ID0 + terr->filter.list.size(),wxString("Save New Filter"),wxEmptyString,wxITEM_NORMAL);
-	Bind(wxEVT_MENU,&FormPalView::OnSaveFilterFile,this,FILTER_ID0 + terr->filter.list.size());
+	auto wx_id_save_filter = FILTER_ID0 + terr->filter.list.size();
+	mmFilter->Append(wx_id_save_filter,wxString("Save New Filter"),wxEmptyString,wxITEM_NORMAL);
+	AssignSVGresourceToMenu(mmFilter,wx_id_save_filter,"IDR_SAVE");	
+	Bind(wxEVT_MENU,&FormPalView::OnSaveFilterFile,this,wx_id_save_filter);
 }
 
 // on change palette list filter

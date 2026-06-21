@@ -7,7 +7,7 @@
 
 #pragma once
 
-// <wxFormsBuilder-include> - Section auto-inserted from 'forms.h' class 'FormTextEdit' on 2026-05-17 15:16:44
+// <wxFormsBuilder-include> - Section auto-inserted from 'forms.h' class 'FormTextEdit' on 2026-06-19 16:20:39
 #include <wx/artprov.h>
 #include <wx/xrc/xmlres.h>
 #include <wx/string.h>
@@ -20,6 +20,7 @@
 #include <wx/colour.h>
 #include <wx/settings.h>
 #include <wx/stattext.h>
+#include <wx/textctrl.h>
 #include <wx/sizer.h>
 #include <wx/listbox.h>
 #include <wx/panel.h>
@@ -28,7 +29,6 @@
 #include <wx/checkbox.h>
 #include <wx/choice.h>
 #include <wx/statline.h>
-#include <wx/textctrl.h>
 #include <wx/treectrl.h>
 #include <wx/statusbr.h>
 #include <wx/frame.h>
@@ -43,7 +43,7 @@
 #include <wx/scrolbar.h>
 #include <wx/bmpbuttn.h>
 
-// </wxFormsBuilder-include> - Section auto-inserted from 'forms.h' class 'FormTextEdit' on 2026-05-17 15:16:44
+// </wxFormsBuilder-include> - Section auto-inserted from 'forms.h' class 'FormTextEdit' on 2026-06-19 16:20:39
 
 #include <filesystem>
 
@@ -70,14 +70,16 @@ private:
 
 protected:
 	
-	// <wxFormsBuilder> - Section auto-inserted from 'forms.h' class 'FormTextEdit' on 2026-05-17 15:16:44
+	// <wxFormsBuilder> - Section auto-inserted from 'forms.h' class 'FormTextEdit' on 2026-06-19 16:20:39
 	enum
 	{
 		wxID_MM_EXIT = 5999,
 		wxID_MM_LEFT_OPEN,
 		wxID_MM_LEFT_SAVE,
+		wxID_MM_LEFT_SAVE_AS,
 		wxID_MM_RIGHT_OPEN,
 		wxID_MM_RIGHT_SAVE,
+		wxID_MM_RIGHT_SAVE_AS,
 		wxID_TXT_LEFT_FILTER,
 		wxID_LIST_LEFT,
 		wxID_CB_LEFT_ENCODING,
@@ -117,7 +119,7 @@ protected:
 	wxTextCtrl* txtRight;
 	wxStatusBar* sbar;
 
-	// </wxFormsBuilder> - Section auto-inserted from 'forms.h' class 'FormTextEdit' on 2026-05-17 15:16:44
+	// </wxFormsBuilder> - Section auto-inserted from 'forms.h' class 'FormTextEdit' on 2026-06-19 16:20:39
 
 public:
 

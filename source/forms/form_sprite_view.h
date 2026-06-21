@@ -7,7 +7,7 @@
 
 #pragma once
 
-// <wxFormsBuilder-include> - Section auto-inserted from 'forms.h' class 'FormSprite' on 2026-06-15 18:18:58
+// <wxFormsBuilder-include> - Section auto-inserted from 'forms.h' class 'FormSprite' on 2026-06-20 09:37:23
 #include <wx/artprov.h>
 #include <wx/xrc/xmlres.h>
 #include <wx/string.h>
@@ -43,7 +43,7 @@
 #include <wx/scrolbar.h>
 #include <wx/bmpbuttn.h>
 
-// </wxFormsBuilder-include> - Section auto-inserted from 'forms.h' class 'FormSprite' on 2026-06-15 18:18:58
+// </wxFormsBuilder-include> - Section auto-inserted from 'forms.h' class 'FormSprite' on 2026-06-20 09:37:23
 
 #include <wx/dnd.h>
 
@@ -150,7 +150,7 @@ class FormSprite : public wxFrame
 		static constexpr int TERR_ID0 = 990;
 
 	protected:
-		// <wxFormsBuilder> - Section auto-inserted from 'forms.h' class 'FormSprite' on 2026-06-15 18:18:58
+		// <wxFormsBuilder> - Section auto-inserted from 'forms.h' class 'FormSprite' on 2026-06-20 09:37:23
 		enum
 		{
 			wxID_BTN_SAVE = 5999,
@@ -257,7 +257,7 @@ class FormSprite : public wxFrame
 		wxTreeCtrl* treeCtrlObjects;
 		wxStatusBar* statBar;
 
-		// </wxFormsBuilder> - Section auto-inserted from 'forms.h' class 'FormSprite' on 2026-06-15 18:18:58
+		// </wxFormsBuilder> - Section auto-inserted from 'forms.h' class 'FormSprite' on 2026-06-20 09:37:23
 
 		wxTreeItemId m_drag_item;
 		class TreeNode : wxTreeItemData {

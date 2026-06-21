@@ -8,6 +8,7 @@
 #include "form_events.h"
 #include "sprites.h"
 #include "other.h"
+#include "wx_other.h"
 
 //#include <filesystem>
 #include <wx/stdpaths.h>
@@ -268,6 +269,9 @@ FormEvent::FormEvent(wxWindow* parent,SpellData* spell_data,wxWindowID id,const 
 	appIcon.LoadFile("IDI_ICON2",wxBITMAP_TYPE_ICO_RESOURCE);
 	if(appIcon.IsOk())
 		SetIcon(appIcon);
+
+	AssignSVGresourceToMenu(mmFile,wxID_MM_EXIT,"IDR_EXIT");
+	AssignSVGresourceToMenu(mmFile,wxID_MM_OK,"IDR_OK");	
 
 	// fill event types list
 	SpellMapEventRec map_ev((SpellMap*)NULL);

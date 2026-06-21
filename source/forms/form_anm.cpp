@@ -6,6 +6,7 @@
 ///////////////////////////////////////////////////////////////////////////
 
 #include "form_anm.h"
+#include "wx_other.h"
 #include "wx/filedlg.h"
 
 ///////////////////////////////////////////////////////////////////////////
@@ -13,32 +14,32 @@
 FormANM::FormANM(wxWindow* parent,SpellData* spell_data,bool is_pnm,wxWindowID id, const wxString& title, const wxPoint& pos, const wxSize& size, long style ) : wxFrame( parent, id, title, pos, size, style )
 {		
 	// === AUTO GENERATED STUFF STARTS HERE ===
-	// <wxFormsBuilder> - Section auto-inserted from 'forms.cpp' class 'FormANM' on 2026-06-07 15:15:52
+	// <wxFormsBuilder> - Section auto-inserted from 'forms.cpp' class 'FormANM' on 2026-06-20 10:21:33
 	this->SetSizeHints( wxSize( 700,500 ), wxDefaultSize );
 	this->SetBackgroundColour( wxSystemSettings::GetColour( wxSYS_COLOUR_MENU ) );
 	
-	m_menubar10 = new wxMenuBar( 0 );
-	m_menu19 = new wxMenu();
+	mnu = new wxMenuBar( 0 );
+	mnuFile = new wxMenu();
 	wxMenuItem* mmExport;
-	mmExport = new wxMenuItem( m_menu19, wxID_MM_EXPRT, wxString( wxT("Export") ) + wxT('\t') + wxT("Ctrl+S"), wxEmptyString, wxITEM_NORMAL );
-	m_menu19->Append( mmExport );
+	mmExport = new wxMenuItem( mnuFile, wxID_MM_EXPRT, wxString( wxT("Export") ) + wxT('\t') + wxT("Ctrl+S"), wxEmptyString, wxITEM_NORMAL );
+	mnuFile->Append( mmExport );
 	
-	m_menu19->AppendSeparator();
+	mnuFile->AppendSeparator();
 	
 	wxMenuItem* mmSelect;
-	mmSelect = new wxMenuItem( m_menu19, wxID_MM_SELECT, wxString( wxT("Select and Close") ) + wxT('\t') + wxT("Enter"), wxEmptyString, wxITEM_NORMAL );
-	m_menu19->Append( mmSelect );
+	mmSelect = new wxMenuItem( mnuFile, wxID_MM_SELECT, wxString( wxT("Select and Close") ) + wxT('\t') + wxT("Enter"), wxEmptyString, wxITEM_NORMAL );
+	mnuFile->Append( mmSelect );
 	
 	wxMenuItem* mmClose;
-	mmClose = new wxMenuItem( m_menu19, wxID_MM_CLOSE, wxString( wxT("Close") ) + wxT('\t') + wxT("Esc"), wxEmptyString, wxITEM_NORMAL );
-	m_menu19->Append( mmClose );
+	mmClose = new wxMenuItem( mnuFile, wxID_MM_CLOSE, wxString( wxT("Close") ) + wxT('\t') + wxT("Esc"), wxEmptyString, wxITEM_NORMAL );
+	mnuFile->Append( mmClose );
 	
-	m_menubar10->Append( m_menu19, wxT("File") );
+	mnu->Append( mnuFile, wxT("File") );
 	
 	mmTerrain = new wxMenu();
-	m_menubar10->Append( mmTerrain, wxT("Terrain") );
+	mnu->Append( mmTerrain, wxT("Terrain") );
 	
-	this->SetMenuBar( m_menubar10 );
+	this->SetMenuBar( mnu );
 	
 	wxBoxSizer* bSizer77;
 	bSizer77 = new wxBoxSizer( wxHORIZONTAL );
@@ -149,7 +150,7 @@ FormANM::FormANM(wxWindow* parent,SpellData* spell_data,bool is_pnm,wxWindowID i
 	this->Centre( wxBOTH );
 	
 
-	// </wxFormsBuilder> - Section auto-inserted from 'forms.cpp' class 'FormANM' on 2026-06-07 15:15:52
+	// </wxFormsBuilder> - Section auto-inserted from 'forms.cpp' class 'FormANM' on 2026-06-20 10:21:33
 	// === AUTO GENERATED STUFF STARTS HERE ===
 
 	// set icon
@@ -157,6 +158,10 @@ FormANM::FormANM(wxWindow* parent,SpellData* spell_data,bool is_pnm,wxWindowID i
 	appIcon.LoadFile("IDI_ICON_SPR",wxBITMAP_TYPE_ICO_RESOURCE);
 	if(appIcon.IsOk())
 		SetIcon(appIcon);
+
+	AssignSVGresourceToMenu(mnuFile,wxID_MM_CLOSE,"IDR_EXIT");
+	AssignSVGresourceToMenu(mnuFile,wxID_MM_SELECT,"IDR_OK");
+	AssignSVGresourceToMenu(mnuFile,wxID_MM_EXPRT,"IDR_SAVE");
 
 	// back ref to spellcross data
 	m_spell_data = spell_data;
@@ -167,6 +172,7 @@ FormANM::FormANM(wxWindow* parent,SpellData* spell_data,bool is_pnm,wxWindowID i
 	m_pnm = NULL;
 	m_anm_was_set = false;
 	m_is_pnm = is_pnm;
+	m_ok = false;
 
 	
 	Bind(wxEVT_CLOSE_WINDOW,&FormANM::OnClose,this,this->m_windowId);
@@ -236,6 +242,8 @@ FormANM::FormANM(wxWindow* parent,SpellData* spell_data,bool is_pnm,wxWindowID i
 	m_timer.SetOwner(this);
 	this->Connect(wxEVT_TIMER,wxTimerEventHandler(FormANM::OnTimer),NULL,this);
 	m_timer.Start(100);
+
+	
 }
 
 // destructor
@@ -246,6 +254,15 @@ FormANM::~FormANM()
 // on form close
 void FormANM::OnClose(wxCloseEvent& ev)
 {
+	if(m_is_pnm && m_is_common)
+		m_pnm = NULL;
+	if(!m_ok)
+	{
+		m_terrain = NULL;
+		m_anim = NULL;
+		m_pnm = NULL;
+	}
+
 	wxPostEvent(GetParent(),ev);
 	ev.Skip();
 	Destroy();
@@ -255,9 +272,7 @@ void FormANM::OnClose(wxCloseEvent& ev)
 void FormANM::OnCloseClick(wxCommandEvent& event)
 {
 	// no exit anim selection
-	m_terrain = NULL;
-	m_anim = NULL;
-	m_pnm = NULL;
+	m_ok = false;
 	Close();
 }
 
@@ -265,8 +280,7 @@ void FormANM::OnCloseClick(wxCommandEvent& event)
 void FormANM::OnSelectClick(wxCommandEvent& event)
 {
 	// exit anim selection
-	if(m_is_pnm && m_is_common)
-		m_pnm = NULL;
+	m_ok = true;
 	Close();
 }
 

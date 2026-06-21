@@ -33,6 +33,8 @@ class FormAbout : public wxDialog
 {
 	private:
 
+		void OnURL(wxTextUrlEvent& event);
+
 	protected:
 		enum
 		{

@@ -2461,7 +2461,7 @@ int Terrain::InitSpriteContext(std::filesystem::path &path)
 		{
 			// make dummy PNM placeholder
 			pnm = new AnimPNM();
-			pnm->name = name;
+			pnm->name = tile_name;
 			pnms.push_back(pnm);
 		}
 		pnm_list[k] = pnm;
