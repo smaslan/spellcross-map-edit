@@ -787,6 +787,7 @@ void MainFrame::OnClose(wxCloseEvent& ev)
             {
                 // edit existing sprite
                 spell_map->EditTileSprite(spr,&spell_pos);
+                HistoryPush();
             }
             else
             {
@@ -814,6 +815,7 @@ void MainFrame::OnClose(wxCloseEvent& ev)
                 {
                     // edit existing map anim
                     spell_map->PlaceANM(&spell_pos,anm);
+                    HistoryPush();
                 }
                 else
                 {
@@ -827,6 +829,7 @@ void MainFrame::OnClose(wxCloseEvent& ev)
                 {
                     // edit existing map anim
                     spell_map->PlacePNM(&spell_pos,pnm,x_ofs,y_ofs);
+                    HistoryPush();
                 }
                 else
                 {
@@ -849,8 +852,9 @@ void MainFrame::OnClose(wxCloseEvent& ev)
         {
             if(was_edit)
             {
-                // edit existing map anim
+                // edit existing sound
                 spell_map->SoundEdit(snd,snd_type,&spell_pos);
+                HistoryPush();
             }
             else
             {
@@ -921,6 +925,7 @@ void MainFrame::OnClose(wxCloseEvent& ev)
         {
             // update current unit:
             spell_map->SortUnits();
+            HistoryPush();
             canvas->Refresh();
         }        
         form_units->Destroy();
@@ -929,6 +934,7 @@ void MainFrame::OnClose(wxCloseEvent& ev)
     {
         // event editor closed        
         spell_map->SortUnits();
+        HistoryPush(); // ###todo: this should be done only if something changed?
         canvas->Refresh();
         form_events->Destroy();
     }
@@ -2034,6 +2040,7 @@ void MainFrame::OnCanvasPopupSelect(wxCommandEvent& event)
         spell_map->ExtractUnit(cur_unit);
         spell_map->events->AddMissionStartUnit(cur_unit,probab);
         spell_map->SortUnits();
+        HistoryPush();
     }
     else if(menu_id == ID_POP_REM_MISSIONSTART)
     {
@@ -2041,30 +2048,35 @@ void MainFrame::OnCanvasPopupSelect(wxCommandEvent& event)
         cur_unit->creator_event->ExtractUnit(cur_unit);        
         spell_map->AddUnit(cur_unit);
         spell_map->SortUnits();
+        HistoryPush();
     }
     else if(menu_id == ID_POP_ADD_SEEUNIT)
     {
         // try add SeeUnit() event
         spell_map->events->AddSeeUnitEvent(cur_unit);
         spell_map->SortUnits();
+        HistoryPush();
     }
     else if(menu_id == ID_POP_ADD_DESTROY_UNIT)
     {
         // try add DestroyUnit() objective
         spell_map->events->AddUnitObjective(cur_unit,SpellMapEventRec::EvtTypes::EVT_DESTROY_UNIT);
         spell_map->SortUnits();
+        HistoryPush();
     }
     else if(menu_id == ID_POP_ADD_SAVE_UNIT)
     {
         // try add SaveUnit() objective
         spell_map->events->AddUnitObjective(cur_unit,SpellMapEventRec::EvtTypes::EVT_SAVE_UNIT);
         spell_map->SortUnits();
+        HistoryPush();
     }
     else if(menu_id == ID_POP_ADD_TRANSPORT_UNIT)
     {
         // try add TransportUnit() objective
         spell_map->events->AddUnitObjective(cur_unit,SpellMapEventRec::EvtTypes::EVT_TRANSPORT_UNIT);
         spell_map->SortUnits();
+        HistoryPush();
     }
     else if(menu_id == ID_POP_REM_SEEUNIT || menu_id == ID_POP_REM_DESTROY_UNIT || menu_id == ID_POP_REM_SAVE_UNIT || menu_id == ID_POP_REM_TRANSPORT_UNIT)
     {
@@ -2072,23 +2084,27 @@ void MainFrame::OnCanvasPopupSelect(wxCommandEvent& event)
         std::map<int,SpellMapEventRec::EvtTypes> types = {{ID_POP_REM_SEEUNIT,SpellMapEventRec::EvtTypes::EVT_SEE_UNIT},{ID_POP_REM_DESTROY_UNIT,SpellMapEventRec::EvtTypes::EVT_DESTROY_UNIT},{ID_POP_REM_SAVE_UNIT,SpellMapEventRec::EvtTypes::EVT_SAVE_UNIT},{ID_POP_REM_TRANSPORT_UNIT,SpellMapEventRec::EvtTypes::EVT_TRANSPORT_UNIT}};
         auto evt = cur_unit->GetTrigEvent(types.at(menu_id));
         spell_map->events->EraseEvent(evt);
+        HistoryPush();
     }
     else if(menu_id == ID_POP_ADD_SEE_PLACE)
     {
         // try create SeePlace event        
         spell_map->events->AddSeePlaceEvent(spell_pos);
+        HistoryPush();
     }
     else if(menu_id == ID_POP_REM_SEE_PLACE)
     {
         // try remove SeePlace event        
         auto evt = spell_map->events->CheckEvent(SpellMapEventRec::EvtTypes::EVT_SEE_PLACE,&spell_pos);
         spell_map->events->EraseEvent(evt);
+        HistoryPush();
     }
     else if(menu_id == ID_POP_ADD_SPAWN_UNIT)
     {
         // try add/remove unit to event
         auto cur_evt = spell_map->GetSelectEvent();
         spell_map->UpdateEventUnit(cur_evt,cur_unit);
+        HistoryPush();
     }
     else if(menu_id == ID_POP_EDIT_EVENT)
     {
@@ -2113,11 +2129,13 @@ void MainFrame::OnCanvasPopupSelect(wxCommandEvent& event)
     {
         // remove unit
         spell_map->RemoveUnit(cur_unit,true);
+        HistoryPush();
     }
     else if(menu_id == ID_POP_REM_OBJ)
     {
         // remove object tile        
         spell_map->RemoveObj();
+        HistoryPush();
         Refresh();
     }
     else if(menu_id == ID_POP_EDIT_TERR)
@@ -2151,6 +2169,7 @@ void MainFrame::OnCanvasPopupSelect(wxCommandEvent& event)
     {
         // remove ANM tile
         spell_map->RemoveANM();
+        HistoryPush();
     }
     else if(menu_id == ID_POP_EDIT_ANM)
     {
@@ -2167,6 +2186,7 @@ void MainFrame::OnCanvasPopupSelect(wxCommandEvent& event)
     {
         // remove PNM animation
         spell_map->RemovePNM();
+        HistoryPush();
     }
     else if(menu_id == ID_POP_EDIT_PNM)
     {
@@ -2186,7 +2206,8 @@ void MainFrame::OnCanvasPopupSelect(wxCommandEvent& event)
     else if(menu_id == ID_POP_REM_SOUND)
     {
         // remove sound
-        spell_map->SoundRemove();        
+        spell_map->SoundRemove();
+        HistoryPush();
     }
     else if(menu_id == ID_POP_EDIT_SOUND)
     {
@@ -2599,6 +2620,8 @@ void MainFrame::OnCanvasLMouseDown(wxMouseEvent& event)
                 {
                     // move ANM
                     sel_anm->in_placement = !sel_anm->in_placement;
+                    if(!sel_anm->in_placement)
+                        HistoryPush();
                 }
                 else if(wAnms && cur_anm)
                 {
@@ -2609,6 +2632,8 @@ void MainFrame::OnCanvasLMouseDown(wxMouseEvent& event)
                 {
                     // move PNM
                     sel_pnm->in_placement = !sel_pnm->in_placement;
+                    if(!sel_pnm->in_placement)
+                        HistoryPush();
                 }
                 else if(wPnms && cur_pnm)
                 {
@@ -2625,6 +2650,8 @@ void MainFrame::OnCanvasLMouseDown(wxMouseEvent& event)
                         spell_map->sounds->UpdateMaps();
                     }
                     sel_sound->in_placement = !sel_sound->in_placement;
+                    if(!sel_sound->in_placement)
+                        HistoryPush();
                 }
                 else if(wSound && cur_sound)
                 {
@@ -2635,6 +2662,7 @@ void MainFrame::OnCanvasLMouseDown(wxMouseEvent& event)
                 {
                     // try add/remove unit to event
                     spell_map->UpdateEventUnit(sel_evt, cur_unit);
+                    HistoryPush();
                 }
                 else if(wEvents && sel_evt && sel_evt->position == select_pos)
                 {
@@ -2642,6 +2670,8 @@ void MainFrame::OnCanvasLMouseDown(wxMouseEvent& event)
                     if(sel_unit)
                         sel_unit->in_placement = false;
                     sel_evt->in_placement = !sel_evt->in_placement;
+                    if(!sel_evt->in_placement)
+                        HistoryPush();
                 }
                 else if(wEvents && cur_evt && !cur_evt->isMissionStart())
                 {
@@ -2690,6 +2720,8 @@ void MainFrame::OnCanvasLMouseDown(wxMouseEvent& event)
                         spell_map->SelectUnit(new_unit);
                     }
 
+                    if(!sel_unit->in_placement)
+                        HistoryPush();
                 }
                 else if(cur_unit)
                 {

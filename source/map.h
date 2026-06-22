@@ -449,7 +449,15 @@ class SpellMap
 			vector<MapXY> escape; // escape tiles list
 			vector<MapXY> target; // target tiles list			
 			vector<uint8_t> select; // selection flags array
+			
 			vector<MapUnit*> units; // units layer array
+			int unit_sel; // unit selection
+
+			SpellMapEventsList events;
+			int event_sel; // selected event (order id)
+			int event_unit_sel; // selected unit id (if any)
+
+			~HistoryState();
 		};
 		std::vector<std::unique_ptr<HistoryState>> history;
 		int history_pos;

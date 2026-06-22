@@ -2106,6 +2106,17 @@ int SpellMap::SaveDEF(std::wstring path)
 
 
 
+// history state cleanup
+SpellMap::HistoryState::~HistoryState()
+{
+	for(auto &unit: units)
+		delete unit;
+	units.clear();
+
+	for(auto &evt: events)
+		delete evt;
+	events.clear();
+}
 
 // push map state to history buffer
 int SpellMap::HistoryPush()
@@ -2135,9 +2146,32 @@ int SpellMap::HistoryPush()
 	hist->target = target;
 	hist->counter_attack_post_enemy = counter_attack_post_enemy;
 	hist->counter_attack_post_player = counter_attack_post_player;
-
-	/*for(auto &unit: units)
-		hist->units.push_back(new MapUnit(*unit));*/
+	
+	// make copy of units
+	hist->unit_sel = -1;
+	for(auto &unit: units)
+	{
+		if(/*!unit->in_placement && */unit == unit_selection)
+			hist->unit_sel = unit->id;
+		//if(!unit->in_placement)
+			hist->units.push_back(new MapUnit(*unit));
+	}
+	
+	// make copy of events	
+	hist->event_sel = -1;
+	hist->event_unit_sel = -1;
+	for(auto evt: events->GetEvents())
+	{
+		if(evt == selected_event)
+			hist->event_sel = events->GetEventID(evt);
+		for(auto &unit: evt->units)
+			if(unit.unit == unit_selection)
+			{
+				hist->event_unit_sel = unit.unit->id;
+				break;
+			}
+		hist->events.push_back(new SpellMapEventRec(evt));
+	}
 
 	ReleaseMap();
 
@@ -2175,7 +2209,34 @@ int SpellMap::HistoryPop(bool redo)
 	escape = hist->escape;
 	target = hist->target;
 	counter_attack_post_enemy = hist->counter_attack_post_enemy;
-	counter_attack_post_player = hist->counter_attack_post_player;	
+	counter_attack_post_player = hist->counter_attack_post_player;
+
+	// restore static units
+	RemoveAllUnits();	
+	unit_selection = NULL;
+	for(auto& unit: hist->units)
+	{		
+		units.push_back(new MapUnit(*unit));
+		auto new_unit = units.back();
+		if(new_unit->id == hist->unit_sel)
+			unit_selection = new_unit;
+	}
+	
+	// restore events
+	events->ClearEvents();
+	selected_event = NULL;
+	for(auto& evt : hist->events)
+	{
+		auto new_evt = events->AddEvent(new SpellMapEventRec(evt));
+		for(auto& unit: new_evt->units)
+			if(unit.unit->id == hist->event_unit_sel)
+				unit_selection = unit.unit;
+	}
+	if(hist->event_sel)
+		selected_event = events->GetEvent(hist->event_sel);
+	events->RelinkUnits();
+
+	SortUnits();
 	
 	ReleaseMap();
 
