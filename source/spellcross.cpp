@@ -1128,7 +1128,7 @@ int SpellData::LoadInfoGraphics(FSarchive* fs,std::function<void(std::string)> s
 					break;
 				// load it
 				pal = AddPalette(pal_name);
-				pal->Insert(pal_data);
+				pal->Insert(pal_data,pal_name);
 			}
 			else
 				pal = GetPalette(item.palette);

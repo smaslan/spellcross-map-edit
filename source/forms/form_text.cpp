@@ -562,8 +562,10 @@ SpellTextRec* FormText::CreateText(std::string name)
 	}
 	else if(src_name == "INFO.FS")
 	{
-		// not implemented
-		return(NULL);
+		// not implemented - place to texts
+		auto text = m_spell_data->texts->AddText(name);
+		m_spell_data->texts->Sort();
+		return(text);
 	}
 	return(NULL);
 }

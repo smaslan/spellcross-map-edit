@@ -2173,6 +2173,13 @@ int SpellMap::HistoryPush()
 		hist->events.push_back(new SpellMapEventRec(evt));
 	}
 
+	// copy map sounds list	
+	hist->sounds = sounds->sounds;	
+	hist->sound_sel = -1;
+	for(auto &snd: sounds->sounds)
+		if(&snd == sound_selection)
+			hist->sound_sel = &snd - sounds->sounds.data();
+	
 	ReleaseMap();
 
 	return(0);
@@ -2232,9 +2239,18 @@ int SpellMap::HistoryPop(bool redo)
 			if(unit.unit->id == hist->event_unit_sel)
 				unit_selection = unit.unit;
 	}
-	if(hist->event_sel)
+	if(hist->event_sel >= 0)
 		selected_event = events->GetEvent(hist->event_sel);
 	events->RelinkUnits();
+
+	// restore map sounds list	
+	sounds->ClearSounds();
+	sounds->sounds = hist->sounds;
+	sound_selection = NULL;
+	if(hist->sound_sel >= 0)
+		sound_selection = &sounds->sounds[hist->sound_sel];
+	sounds->InitSounds();
+	sounds->UpdateMaps();
 
 	SortUnits();
 	

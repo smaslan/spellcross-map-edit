@@ -1010,6 +1010,14 @@ MapSound::MapSound(MapXY pos,SpellSample* sample,MapSound::SoundType type)
     m_is_loop = type != MapSound::SoundType::RANDOM;
     in_placement = false;
 }
+/*MapSound::MapSound(MapSound& sound)
+{
+    m_pos = sound.m_pos;
+    m_sample = sound.m_sample;
+    m_is_loop = sound.m_is_loop;
+    in_placement = false;
+}*/
+
 const char* MapSound::GetName()
 {
     if(!m_sample)

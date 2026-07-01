@@ -140,6 +140,7 @@ public:
 	};
 			
 	MapSound(MapXY pos, SpellSample *sample,SoundType type);
+	//MapSound(MapSound &sound);
 	SoundType GetType() {return(m_is_loop?(MapSound::SoundType::LOOP):(MapSound::SoundType::RANDOM));};
 	bool isLoop() {return(m_is_loop);};
 	bool isRandom() { return(!m_is_loop); };
@@ -429,8 +430,6 @@ class SpellMap
 		// map events
 		SpellMapEvents *events;
 		// map sounds
-		//vector<MapSound> sounds;
-		// looping sounds
 		MapSounds *sounds;
 
 		// local palette (after gamma correction)
@@ -448,7 +447,7 @@ class SpellMap
 			vector<MapXY> start; // start tiles list
 			vector<MapXY> escape; // escape tiles list
 			vector<MapXY> target; // target tiles list			
-			vector<uint8_t> select; // selection flags array
+			vector<uint8_t> select; // selection flags array			
 			
 			vector<MapUnit*> units; // units layer array
 			int unit_sel; // unit selection
@@ -456,6 +455,9 @@ class SpellMap
 			SpellMapEventsList events;
 			int event_sel; // selected event (order id)
 			int event_unit_sel; // selected unit id (if any)
+
+			vector<MapSound> sounds; // map sounds list
+			int sound_sel; // selected sound id
 
 			~HistoryState();
 		};
