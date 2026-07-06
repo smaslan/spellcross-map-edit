@@ -407,7 +407,7 @@ std::string SpellMapEvents::GetLastError()
 int SpellMapEvents::AddMissionObjective(SpellData* data,SpellDEF* def,SpellDefCmd* cmd)
 {
 	last_error = "";
-	if(cmd->parameters->size() < 1)
+	if(cmd->parameters.size() < 1)
 	{
 		// failed - not enough parameters
 		last_error = string_format("Wrong params count in command '%s'!",cmd->full_command.c_str());
@@ -429,7 +429,7 @@ int SpellMapEvents::AddMissionObjective(SpellData* data,SpellDEF* def,SpellDefCm
 	int event_type = SpellMapEventRec::EvtTypes::EVT_VOID;
 	auto *ptype = &types[0];
 	while(ptype->name)
-		if(strcmp(ptype->name,cmd->parameters->at(0).c_str()) == 0)
+		if(strcmp(ptype->name,cmd->parameters.at(0).c_str()) == 0)
 		{
 			event_type = ptype->type;
 			break;
@@ -439,7 +439,7 @@ int SpellMapEvents::AddMissionObjective(SpellData* data,SpellDEF* def,SpellDefCm
 	if(event_type == SpellMapEventRec::EvtTypes::EVT_VOID)
 	{
 		// type unknown
-		last_error = string_format("Unknown MissionObjective type '%s' in command '%s'!",cmd->parameters->at(0).c_str(),cmd->full_command.c_str());
+		last_error = string_format("Unknown MissionObjective type '%s' in command '%s'!",cmd->parameters.at(0).c_str(),cmd->full_command.c_str());
 		return(1);
 	}		
 
@@ -449,7 +449,7 @@ int SpellMapEvents::AddMissionObjective(SpellData* data,SpellDEF* def,SpellDefCm
 	int unit_index = -1;
 	if(event_type == SpellMapEventRec::EvtTypes::EVT_TRANSPORT_UNIT || event_type == SpellMapEventRec::EvtTypes::EVT_SAVE_UNIT || event_type == SpellMapEventRec::EvtTypes::EVT_DESTROY_UNIT)
 	{
-		if(cmd->parameters->size() != 3)
+		if(cmd->parameters.size() != 3)
 		{
 			// failed - not enough parameters
 			last_error = string_format("Wrong params count in command '%s'!",cmd->full_command.c_str());
@@ -457,14 +457,14 @@ int SpellMapEvents::AddMissionObjective(SpellData* data,SpellDEF* def,SpellDefCm
 		}
 
 		// target unit index
-		unit_index = stoi(cmd->parameters->at(1));
+		unit_index = stoi(cmd->parameters.at(1));
 
 		// objective label
-		label = char2wstringCP895(cmd->parameters->at(2).c_str());
+		label = char2wstringCP895(cmd->parameters.at(2).c_str());
 	}
 	else if(event_type == SpellMapEventRec::EvtTypes::EVT_DESTROY_ALL)
 	{
-		if(cmd->parameters->size() != 2)
+		if(cmd->parameters.size() != 2)
 		{
 			// failed - not enough parameters
 			last_error = string_format("Wrong params count in command '%s'!",cmd->full_command.c_str());
@@ -472,11 +472,11 @@ int SpellMapEvents::AddMissionObjective(SpellData* data,SpellDEF* def,SpellDefCm
 		}
 
 		// objective label
-		label = char2wstringCP895(cmd->parameters->at(1).c_str());
+		label = char2wstringCP895(cmd->parameters.at(1).c_str());
 	}
 	else if(event_type == SpellMapEventRec::EvtTypes::EVT_DESTROY_OBJ || event_type == SpellMapEventRec::EvtTypes::EVT_SEE_PLACE)
 	{
-		if(cmd->parameters->size() != 3)
+		if(cmd->parameters.size() != 3)
 		{
 			// failed - not enough parameters
 			last_error = string_format("Wrong params count in command '%s'!",cmd->full_command.c_str());
@@ -484,7 +484,7 @@ int SpellMapEvents::AddMissionObjective(SpellData* data,SpellDEF* def,SpellDefCm
 		}
 
 		// event position		
-		int xy = stoi(cmd->parameters->at(1));
+		int xy = stoi(cmd->parameters.at(1));
 		target_position = ConvXY(xy);
 		if(!target_position.IsSelected())
 		{
@@ -493,13 +493,13 @@ int SpellMapEvents::AddMissionObjective(SpellData* data,SpellDEF* def,SpellDefCm
 		}
 		
 		// objective label
-		label = char2wstringCP895(cmd->parameters->at(2).c_str());
+		label = char2wstringCP895(cmd->parameters.at(2).c_str());
 	}
 
 	// make new object-event
 	SpellMapEventRec *evt = new SpellMapEventRec(map);
 	evt->evt_type = event_type;
-	evt->type_name = cmd->parameters->at(0);
+	evt->type_name = cmd->parameters.at(0);
 	evt->label = label;
 	evt->position = target_position;
 	evt->probability = 100;
@@ -521,16 +521,16 @@ int SpellMapEvents::AddSpecialEvent(SpellData *data, SpellDEF* def, SpellDefCmd*
 	int unit_index = -1;
 	int is_new_event = false;
 	last_error = "";
-	if(cmd->parameters->size() < 1)
+	if(cmd->parameters.size() < 1)
 	{
 		last_error = string_format("Wrong params count in command '%s'!",cmd->full_command.c_str());
 		return(1);
 	}
-	if(cmd->parameters->at(0).compare("SeePlace") == 0)
+	if(cmd->parameters.at(0).compare("SeePlace") == 0)
 	{
 		// AddSpecialEvent(SeePlace, target_position, event_data_index, event_probability)
 		event_type = SpellMapEventRec::EVT_SEE_PLACE;
-		if(cmd->parameters->size() != 4)
+		if(cmd->parameters.size() != 4)
 		{
 			// failed - not enough parameters
 			last_error = string_format("Wrong params count in command '%s'!",cmd->full_command.c_str());
@@ -538,7 +538,7 @@ int SpellMapEvents::AddSpecialEvent(SpellData *data, SpellDEF* def, SpellDefCmd*
 		}
 
 		// event position		
-		int xy = stoi(cmd->parameters->at(1));
+		int xy = stoi(cmd->parameters.at(1));
 		target_position = ConvXY(xy);
 		if(!target_position.IsSelected())
 		{
@@ -547,19 +547,19 @@ int SpellMapEvents::AddSpecialEvent(SpellData *data, SpellDEF* def, SpellDefCmd*
 		}
 		
 		// event index
-		event_data_index = stoi(cmd->parameters->at(2));
+		event_data_index = stoi(cmd->parameters.at(2));
 
 		// probability
-		event_probability = stoi(cmd->parameters->at(3));
+		event_probability = stoi(cmd->parameters.at(3));
 
 		// try find another matching event
 		evt = FindEvent(SpellMapEventRec::EVT_SEE_PLACE, event_probability, target_position);
 	}
-	else if(cmd->parameters->at(0).compare("MissionStart") == 0)
+	else if(cmd->parameters.at(0).compare("MissionStart") == 0)
 	{
 		// AddSpecialEvent(MissionStart, event_data_index, event_probability)
 		event_type = SpellMapEventRec::EVT_MISSION_START;
-		if(cmd->parameters->size() != 3)
+		if(cmd->parameters.size() != 3)
 		{
 			// failed - not enough parameters
 			last_error = string_format("Wrong params count in command '%s'!",cmd->full_command.c_str());
@@ -567,19 +567,19 @@ int SpellMapEvents::AddSpecialEvent(SpellData *data, SpellDEF* def, SpellDefCmd*
 		}
 
 		// event index
-		event_data_index = stoi(cmd->parameters->at(1));
+		event_data_index = stoi(cmd->parameters.at(1));
 
 		// probability
-		event_probability = stoi(cmd->parameters->at(2));
+		event_probability = stoi(cmd->parameters.at(2));
 
 		// try find another matching event
 		evt = FindEvent(SpellMapEventRec::EVT_MISSION_START,event_probability);
 	}
-	else if(cmd->parameters->at(0).compare("SeeUnit") == 0)
+	else if(cmd->parameters.at(0).compare("SeeUnit") == 0)
 	{
 		// AddSpecialEvent(SeeUnit, unit_index, event_data_index, event_probability)
 		event_type = SpellMapEventRec::EVT_SEE_UNIT;
-		if(cmd->parameters->size() != 4)
+		if(cmd->parameters.size() != 4)
 		{
 			// failed - not enough parameters
 			last_error = string_format("Wrong params count in command '%s'!",cmd->full_command.c_str());
@@ -587,13 +587,13 @@ int SpellMapEvents::AddSpecialEvent(SpellData *data, SpellDEF* def, SpellDefCmd*
 		}
 
 		// unit to see index
-		unit_index = stoi(cmd->parameters->at(1));
+		unit_index = stoi(cmd->parameters.at(1));
 
 		// event index
-		event_data_index = stoi(cmd->parameters->at(2));
+		event_data_index = stoi(cmd->parameters.at(2));
 
 		// probability
-		event_probability = stoi(cmd->parameters->at(3));
+		event_probability = stoi(cmd->parameters.at(3));
 
 		// try find another matching event
 		evt = FindEvent(SpellMapEventRec::EVT_SEE_UNIT,event_probability,unit_index);
@@ -601,7 +601,7 @@ int SpellMapEvents::AddSpecialEvent(SpellData *data, SpellDEF* def, SpellDefCmd*
 	else
 	{
 		// unknown or not implemented
-		last_error = string_format("Unknown event type '%s' in command '%s'!",cmd->parameters->at(0).c_str(),cmd->full_command.c_str());
+		last_error = string_format("Unknown event type '%s' in command '%s'!",cmd->parameters.at(0).c_str(),cmd->full_command.c_str());
 		return(1);
 	}	
 	if(event_probability > 100)
@@ -623,7 +623,7 @@ int SpellMapEvents::AddSpecialEvent(SpellData *data, SpellDEF* def, SpellDefCmd*
 	
 	
 	// event type name
-	evt->type_name = cmd->parameters->at(0);
+	evt->type_name = cmd->parameters.at(0);
 	
 
 	// try parse event data
@@ -651,7 +651,7 @@ int SpellMapEvents::AddSpecialEvent(SpellData *data, SpellDEF* def, SpellDefCmd*
 		if(evcmd->name.compare("AddSpecialUnit") == 0)
 		{
 			// --- AddSpecialUnit(unit_order, unit_id, position, experience, man_count, name) ---				
-			if(evcmd->parameters->size() != 6)
+			if(evcmd->parameters.size() != 6)
 			{
 				// failed - not enough parameters
 				last_error = string_format("Wrong params count in command '%s'!",evcmd->full_command.c_str());
@@ -671,37 +671,37 @@ int SpellMapEvents::AddSpecialEvent(SpellData *data, SpellDEF* def, SpellDefCmd*
 			unit->id = -1;
 
 			// decode unit type
-			if(evcmd->parameters->at(0).compare("EnemyUnit") == 0)
+			if(evcmd->parameters.at(0).compare("EnemyUnit") == 0)
 			{
 				unit->spec_type = MapUnitType::EnemyUnit;
 				unit->is_enemy = 1;
 			}
-			else if(evcmd->parameters->at(0).compare("MissionUnit") == 0)
+			else if(evcmd->parameters.at(0).compare("MissionUnit") == 0)
 			{
 				unit->spec_type = MapUnitType::MissionUnit;
 			}
-			else if(evcmd->parameters->at(0).compare("ArmyUnit") == 0)
+			else if(evcmd->parameters.at(0).compare("ArmyUnit") == 0)
 			{
 				unit->spec_type = MapUnitType::ArmyUnit;
 			}
-			else if(evcmd->parameters->at(0).compare("SpecUnit1") == 0)
+			else if(evcmd->parameters.at(0).compare("SpecUnit1") == 0)
 			{
 				unit->spec_type = MapUnitType::SpecUnit;
 				unit->id = 48; // this idiocy is original Spellcross hard defined designation for SpecUnit1
 			}
-			else if(evcmd->parameters->at(0).compare("SpecUnit2") == 0)
+			else if(evcmd->parameters.at(0).compare("SpecUnit2") == 0)
 			{
 				unit->spec_type = MapUnitType::SpecUnit;
 				unit->id = 49; // this idiocy is original Spellcross hard defined designation for SpecUnit2
 			}
-			else if(evcmd->parameters->at(0).compare("VoluntUnit") == 0)
+			else if(evcmd->parameters.at(0).compare("VoluntUnit") == 0)
 			{
 				unit->spec_type = MapUnitType::VoluntUnit;
 			}
 			else
 			{
 				// unknown unit type				
-				last_error = string_format("Unknown special unit type '%s' in command '%s'!",evcmd->parameters->at(0).c_str(),evcmd->full_command.c_str());
+				last_error = string_format("Unknown special unit type '%s' in command '%s'!",evcmd->parameters.at(0).c_str(),evcmd->full_command.c_str());
 				delete unit;
 				delete event_data;
 				if(is_new_event)
@@ -717,7 +717,7 @@ int SpellMapEvents::AddSpecialEvent(SpellData *data, SpellDEF* def, SpellDefCmd*
 				unit->id = GetNextID();
 
 			// unit type index			
-			int unit_type_id = stoi(evcmd->parameters->at(1));
+			int unit_type_id = stoi(evcmd->parameters.at(1));
 
 			// try fetch unit record from spelldata
 			unit->unit = data->units->GetUnit(unit_type_id);
@@ -735,7 +735,7 @@ int SpellMapEvents::AddSpecialEvent(SpellData *data, SpellDEF* def, SpellDefCmd*
 			}
 
 			// desired unit position
-			int xy = stoi(evcmd->parameters->at(2));
+			int xy = stoi(evcmd->parameters.at(2));
 			unit->coor = ConvXY(xy);
 			if(!unit->coor.IsSelected())
 			{
@@ -751,10 +751,10 @@ int SpellMapEvents::AddSpecialEvent(SpellData *data, SpellDEF* def, SpellDefCmd*
 			}
 			
 			// experience level
-			unit->InitExperience(stoi(evcmd->parameters->at(3)));
+			unit->InitExperience(stoi(evcmd->parameters.at(3)));
 
 			// man count (health)
-			unit->man = min(stoi(evcmd->parameters->at(4)),unit->unit->cnt);
+			unit->man = min(stoi(evcmd->parameters.at(4)),unit->unit->cnt);
 
 			// unit active (to change in game mode)
 			unit->is_active = 0;
@@ -763,9 +763,9 @@ int SpellMapEvents::AddSpecialEvent(SpellData *data, SpellDEF* def, SpellDefCmd*
 			unit->creator_event = evt;
 			
 			// copy unit name
-			unit->name = "";
-			auto& custom_name = evcmd->parameters->at(5);
-			if(custom_name.size() && custom_name.compare("-")!=0)
+			unit->name = L"";
+			auto custom_name = char2wstringCP895(evcmd->parameters.at(5).c_str());
+			if(custom_name.size() && custom_name != L"-")
 				unit->name = custom_name;
 
 			// default action points
@@ -778,13 +778,68 @@ int SpellMapEvents::AddSpecialEvent(SpellData *data, SpellDEF* def, SpellDefCmd*
 			unit->is_event = true;			
 			unit->is_active = evt->isMissionStart();
 
+			// try to parse randomizer
+			unit->randomize_mode = MapUnit::RandomizeMode::OFF;
+			unit->randomize_units.clear();
+			if(evcmd->sub_name == "Randomize")
+			{
+				if(evcmd->sub_params.size() == 1 && iequals(evcmd->sub_params[0],"OFF"))
+				{
+					// disabled
+					unit->randomize_mode = MapUnit::RandomizeMode::OFF;
+				}
+				else if(evcmd->sub_params.size() == 1 && iequals(evcmd->sub_params[0],"AUTO"))
+				{
+					// auto mode (defined globally for the map)
+					unit->randomize_mode = MapUnit::RandomizeMode::AUTO;
+				}
+				else if(!evcmd->sub_params.empty())
+				{
+					// explicit list of unit codes
+					unit->randomize_mode = MapUnit::RandomizeMode::EXPLICIT;
+					for(auto& unit_id_str: evcmd->sub_params)
+					{
+						char* send;
+						auto unit_type_id = std::strtol(unit_id_str.c_str(),&send,10);
+						auto rand_unit = data->units->GetUnit(unit_type_id);
+						if(!rand_unit || send == unit_id_str.c_str())
+						{
+							last_error = string_format("Unknown unit type '%s' parameter in command '%s'!",unit_id_str.c_str(),evcmd->sub_full_command.c_str());
+							delete event_data;
+							delete unit;
+							if(is_new_event)
+							{
+								events.pop_back();
+								delete evt;
+							}
+							return(1);
+						}
+						unit->randomize_units.push_back(unit_type_id);
+					}
+				}
+				else
+				{
+					// invalid parameters
+					last_error = string_format("Unit randomizer command '%s' parameters not recognized for main command '%s'!",evcmd->sub_full_command.c_str(),evcmd->full_command.c_str());
+					delete event_data;
+					delete unit;
+					if(is_new_event)
+					{
+						events.pop_back();
+						delete evt;
+					}
+					return(1);
+				}
+			}
+
+
 			// add unit to list
 			evt->units.emplace_back(unit);
 		}
 		else if(evcmd->name.compare("EventText") == 0)
 		{
 			// --- EventText(text_fs_name) ---
-			if(evcmd->parameters->size() != 1)
+			if(evcmd->parameters.size() != 1)
 			{
 				last_error = string_format("Wrong params count in command '%s'!",evcmd->full_command.c_str());
 				delete event_data;
@@ -797,7 +852,7 @@ int SpellMapEvents::AddSpecialEvent(SpellData *data, SpellDEF* def, SpellDefCmd*
 			}
 			
 			// try to find text in string list
-			auto text_name = evcmd->parameters->at(0);
+			auto text_name = evcmd->parameters.at(0);
 			auto text = data->texts->GetText(text_name);
 			if(!text)
 			{
@@ -822,7 +877,7 @@ int SpellMapEvents::AddSpecialEvent(SpellData *data, SpellDEF* def, SpellDefCmd*
 		else if(evcmd->name.compare("PlayCANAnimation") == 0)
 		{
 			// --- PlayCANAnimation(video_name) ---
-			if(evcmd->parameters->size() != 1)
+			if(evcmd->parameters.size() != 1)
 			{
 				last_error = string_format("Wrong params count in command '%s'!",evcmd->full_command.c_str());
 				delete event_data;
@@ -835,7 +890,7 @@ int SpellMapEvents::AddSpecialEvent(SpellData *data, SpellDEF* def, SpellDefCmd*
 			}
 
 			// try to find video
-			auto vid_name = evcmd->parameters->at(0);
+			auto vid_name = evcmd->parameters.at(0);
 			auto vid_list = data->videos->GetNames(vid_name);
 			if(vid_list.empty())
 			{
@@ -948,7 +1003,7 @@ std::tuple<std::string, std::string> SpellMapEventRec::FormatDEFrecord(int *init
 				data += string_format("EventData(%d) {\n",(*initial_id)++);
 				for(auto& unit: units)
 				{
-					std::string name = unit.unit->name;
+					std::string name = wstring2stringCP895(unit.unit->name);
 					if(name.empty())
 						name = "-";
 					std::string spec_type_str = unit.unit->spec_type.GetString();
@@ -956,8 +1011,27 @@ std::tuple<std::string, std::string> SpellMapEventRec::FormatDEFrecord(int *init
 						spec_type_str = "SpecUnit1";
 					else if(unit.unit->spec_type == MapUnitType::Values::SpecUnit && unit.unit->id == 49)
 						spec_type_str = "SpecUnit2";
-					data += string_format("    ;%s\n",unit.unit->unit->name.c_str());
-					data += string_format("    AddSpecialUnit(%s,%d,%d,%02d,%d,%s)\n",spec_type_str.c_str(),unit.unit->unit->type_id,map->ConvXY(unit.unit->coor),unit.unit->experience_init,unit.unit->man,name.c_str());
+					data += string_format("    ;%ls\n",unit.unit->unit->name.c_str());
+					data += string_format("    AddSpecialUnit(%s,%d,%d,%02d,%d,%s)",spec_type_str.c_str(),unit.unit->unit->type_id,map->ConvXY(unit.unit->coor),unit.unit->experience_init,unit.unit->man,name.c_str());
+
+					// append randomizer setup
+					if(unit.unit->randomize_mode == MapUnit::RandomizeMode::OFF)
+						data += ",Randomize(off)";
+					else if(unit.unit->randomize_mode == MapUnit::RandomizeMode::AUTO)
+						data += ",Randomize(auto)";
+					else if(unit.unit->randomize_mode == MapUnit::RandomizeMode::EXPLICIT)
+					{
+						data += ",Randomize(";
+						for(int k = 0; k < unit.unit->randomize_units.size(); k++)
+						{
+							data += string_format("%d",unit.unit->randomize_units[k]);
+							if(k + 1 < unit.unit->randomize_units.size())
+								data += ",";
+						}
+						data += ")";
+					}
+					data += "\n";
+
 				}
 				data += string_format("}\n\n");
 			}

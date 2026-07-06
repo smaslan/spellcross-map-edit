@@ -355,7 +355,8 @@ private:
         ID_POP_EDIT_PNM,
         ID_POP_REM_PNM,
         ID_POP_EDIT_SOUND,
-        ID_POP_REM_SOUND
+        ID_POP_REM_SOUND,
+        ID_POP_UNIT_TO_SEE_PLACE
     };
 
     // maximum size of minimap panel

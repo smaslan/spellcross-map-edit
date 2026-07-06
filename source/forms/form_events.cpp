@@ -336,7 +336,10 @@ FormEvent::FormEvent(wxWindow* parent,SpellData* spell_data,wxWindowID id,const 
 	Bind(wxEVT_COMMAND_SPINCTRL_UPDATED,&FormEvent::OnEditParams,this,wxID_SPIN_XPOS);
 	Bind(wxEVT_COMMAND_SPINCTRL_UPDATED,&FormEvent::OnEditParams,this,wxID_SPIN_YPOS);
 	Bind(wxEVT_COMMAND_SPINCTRL_UPDATED,&FormEvent::OnEditParams,this,wxID_SPIN_TRIG_UNIT);
-	Bind(wxEVT_COMMAND_CHOICE_SELECTED,&FormEvent::OnEditParams,this,wxID_CAN_ANIM);
+	Bind(wxEVT_COMMAND_CHOICE_SELECTED,&FormEvent::OnEditParams,this,wxID_CAN_ANIM);	
+	
+	Bind(wxEVT_COMMAND_TEXT_UPDATED,&FormEvent::OnEditParams,this,wxID_TXT_OBJ_DESC);
+	//Bind(wxEVT_COMMAND_TEXT_ENTER,&FormEvent::OnEditParams,this,wxID_TXT_OBJ_DESC);
 
 }
 
@@ -800,8 +803,9 @@ void FormEvent::OnEditParams(wxCommandEvent& event)
 	else
 	{
 		spell_event->label = L"";
-		txtObjectiveDesc->SetValue("");
+		//txtObjectiveDesc->SetValue("");
 		txtObjectiveDesc->Enable(false);
+		//txtObjectiveDesc->Clear();		
 	}
 		
 

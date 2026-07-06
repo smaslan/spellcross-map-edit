@@ -4,6 +4,7 @@
 #include "spellcross.h"
 #include "other.h"
 #include "spell_units.h"
+#include "spell_def.h"
 
 // forward refs
 class SpellMap;

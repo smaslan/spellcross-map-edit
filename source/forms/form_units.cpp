@@ -17,7 +17,7 @@
 FormUnits::FormUnits( wxWindow* parent, wxWindowID id, const wxString& title, const wxPoint& pos, const wxSize& size, long style ) : wxFrame( parent, id, title, pos, size, style )
 {
 	// === AUTO GENERATED START ===	
-	// <wxFormsBuilder> - Section auto-inserted from 'forms.cpp' class 'FormUnits' on 2026-05-24 09:14:40
+	// <wxFormsBuilder> - Section auto-inserted from 'forms.cpp' class 'FormUnits' on 2026-07-06 13:37:31
 	this->SetSizeHints( wxDefaultSize, wxDefaultSize );
 	this->SetBackgroundColour( wxSystemSettings::GetColour( wxSYS_COLOUR_MENU ) );
 	
@@ -62,6 +62,13 @@ FormUnits::FormUnits( wxWindow* parent, wxWindowID id, const wxString& title, co
 	szList = new wxBoxSizer( wxVERTICAL );
 	
 	szList->SetMinSize( wxSize( 180,-1 ) );
+	m_staticText132 = new wxStaticText( this, wxID_ANY, wxT("Search unit:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText132->Wrap( -1 );
+	szList->Add( m_staticText132, 0, wxTOP|wxRIGHT|wxLEFT, 5 );
+	
+	txtSearch = new wxTextCtrl( this, wxID_TXT_SEARCH, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0 );
+	szList->Add( txtSearch, 0, wxEXPAND|wxRIGHT|wxLEFT, 5 );
+	
 	m_staticText32 = new wxStaticText( this, wxID_ANY, wxT("Units list:"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_staticText32->Wrap( -1 );
 	szList->Add( m_staticText32, 0, wxTOP|wxRIGHT|wxLEFT, 5 );
@@ -80,6 +87,7 @@ FormUnits::FormUnits( wxWindow* parent, wxWindowID id, const wxString& title, co
 	wxBoxSizer* szProps;
 	szProps = new wxBoxSizer( wxVERTICAL );
 	
+	szProps->SetMinSize( wxSize( 250,-1 ) );
 	m_staticText35 = new wxStaticText( this, wxID_ANY, wxT("Unit icon:"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_staticText35->Wrap( -1 );
 	szProps->Add( m_staticText35, 0, wxTOP|wxRIGHT|wxLEFT, 5 );
@@ -87,16 +95,14 @@ FormUnits::FormUnits( wxWindow* parent, wxWindowID id, const wxString& title, co
 	icon_canvas = new wxPanel( this, wxID_CANVAS_ICON, wxDefaultPosition, wxDefaultSize, wxFULL_REPAINT_ON_RESIZE|wxTAB_TRAVERSAL );
 	icon_canvas->SetMaxSize( wxSize( -1,100 ) );
 	
-	szProps->Add( icon_canvas, 1, wxEXPAND|wxALL, 5 );
+	szProps->Add( icon_canvas, 1, wxEXPAND|wxBOTTOM|wxRIGHT|wxLEFT, 5 );
 	
 	m_staticText34 = new wxStaticText( this, wxID_ANY, wxT("Properties:"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_staticText34->Wrap( -1 );
 	szProps->Add( m_staticText34, 0, wxTOP|wxRIGHT|wxLEFT, 5 );
 	
 	props = new wxPropertyGrid(this, wxID_PROPS, wxDefaultPosition, wxDefaultSize, wxPG_DEFAULT_STYLE);
-	props->SetMinSize( wxSize( 200,-1 ) );
-	
-	szProps->Add( props, 1, wxBOTTOM|wxRIGHT|wxLEFT, 5 );
+	szProps->Add( props, 1, wxBOTTOM|wxRIGHT|wxLEFT|wxEXPAND, 5 );
 	
 	m_staticline13 = new wxStaticLine( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLI_HORIZONTAL );
 	szProps->Add( m_staticline13, 0, wxEXPAND | wxALL, 5 );
@@ -365,7 +371,7 @@ FormUnits::FormUnits( wxWindow* parent, wxWindowID id, const wxString& title, co
 	this->Centre( wxBOTH );
 	
 
-	// </wxFormsBuilder> - Section auto-inserted from 'forms.cpp' class 'FormUnits' on 2026-05-24 09:14:40
+	// </wxFormsBuilder> - Section auto-inserted from 'forms.cpp' class 'FormUnits' on 2026-07-06 13:37:31
 	// === AUTO GENERATED END ===
 
 	// set icon
@@ -399,6 +405,7 @@ FormUnits::FormUnits( wxWindow* parent, wxWindowID id, const wxString& title, co
 	Bind(wxEVT_MENU,&FormUnits::OnCloseClick,this,wxID_MM_SET);
 
 	Bind(wxEVT_COMMAND_LISTBOX_SELECTED,&FormUnits::OnSelectUnit,this,wxID_LB_UNITS);
+	Bind(wxEVT_COMMAND_TEXT_UPDATED,&FormUnits::OnSearchUnit,this,wxID_TXT_SEARCH);
 	Bind(wxEVT_COMMAND_LISTBOX_SELECTED,&FormUnits::OnSelectArt,this,wxID_LB_ART);
 
 	// icon canvas stuff
@@ -441,7 +448,8 @@ FormUnits::FormUnits( wxWindow* parent, wxWindowID id, const wxString& title, co
 	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormUnits::OnChangeGrpFrame,this,wxID_CB_GRP_ORG);
 	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormUnits::OnChangeGrpFrame,this,wxID_CB_GRP_FIRE_ORG);
 	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormUnits::OnChangeGrpFrame,this,wxID_CB_GRP_FIRE_CENTER);
-	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormUnits::OnChangeGrpFrame,this,wxID_CB_GRP_FIRE_ORG_MEAN);
+	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormUnits::OnChangeGrpFrame,this,wxID_CB_GRP_FIRE_ORG_MEAN);	
+	Bind(wxEVT_PG_CHANGED,&FormUnits::OnUnitPropChange,this,wxID_PROPS);
 
 	Bind(wxEVT_COMMAND_CHOICE_SELECTED,&FormUnits::OnSelectSpecUnit,this,wxID_UNIT_TYPE);
 	Bind(wxEVT_COMMAND_BUTTON_CLICKED,&FormUnits::OnHPmaxClick,this,wxID_BTN_HP_MAX);
@@ -519,8 +527,14 @@ void FormUnits::SetSpellData(SpellData* spelldata)
 	// fill units list
 	lboxUnits->Freeze();
 	lboxUnits->Clear();
+	m_units_list.clear();
+	int unit_type = 0;	
 	for(auto & unit : m_spell_data->units->GetUnits())
-		lboxUnits->Append(string_format("#%02d: %s ",lboxUnits->GetCount(),unit->name.c_str()));
+	{
+		auto str = string_format("#%02d: %ls",lboxUnits->GetCount(),unit->name.c_str());
+		lboxUnits->Append(str);
+		m_units_list.insert({unit_type++,str});
+	}
 	lboxUnits->Thaw();
 	if(lboxUnits->GetCount())
 		lboxUnits->Select(0);
@@ -556,6 +570,36 @@ void FormUnits::SetMapUnit(MapUnit *unit, SpellMap* map, MapUnitTemplate *unit_t
 	
 	m_unit = unit;
 	SelectUnit(unit);
+}
+
+
+bool caseInsensitiveCharCompare(wchar_t a,wchar_t b)
+{
+	return(tolower(a) == tolower(b));
+}
+bool caseInsensitiveSubstringSearch(wstring& str,wstring& substr)
+{
+	auto it	= std::search(str.begin(),str.end(),substr.begin(),substr.end(),caseInsensitiveCharCompare);
+	return(it != str.end());
+}
+
+// on unit search change
+void FormUnits::OnSearchUnit(wxCommandEvent& event)
+{
+	if(!m_spell_data)
+		return;
+
+	auto key = txtSearch->GetValue().ToStdWstring();
+	for(int k = 0; k < lboxUnits->GetCount(); k++)
+	{
+		auto name = lboxUnits->GetString(k).ToStdWstring();
+		if(caseInsensitiveSubstringSearch(name,key))
+		{
+			lboxUnits->Select(k);
+			OnSelectUnit(event);
+			return;
+		}
+	}
 }
 
 // on unit selection change
@@ -598,6 +642,8 @@ void FormUnits::SelectUnit(MapUnit *unit,bool unit_change)
 	auto *unit_rec = m_spell_data->units->GetUnit(sel);
 	
 
+	
+
 	// show some properties
 	props->Freeze();
 	props->Clear();
@@ -609,6 +655,13 @@ void FormUnits::SelectUnit(MapUnit *unit,bool unit_change)
 	props->Append(new wxStringProperty(wxT("Air attack"),wxT(""),string_format("%d",unit_rec->attack_air)));
 	props->Append(new wxStringProperty(wxT("Objects attack"),wxT(""),string_format("%d",unit_rec->attack_objects)));
 	props->Append(new wxStringProperty(wxT("Man count"),wxT(""),string_format("%d",unit_rec->cnt)));
+	
+	if(unit)
+	{
+		props->Append(new wxEnumPropertyExt(wxT("Randomizer mode"),wxT(""),MapToPGenumChoices(MapUnit::c_randomizer_modes),(int*)&unit->randomize_mode));
+		props->Append(new wxMultiChoicePropertyExt(wxT("Randomizer units"),wxT(""),MapToPGenumChoices(m_units_list),&unit->randomize_units));
+	}
+
 	props->Thaw();	
 	props->FitColumns();
 
@@ -630,7 +683,7 @@ void FormUnits::SelectUnit(MapUnit *unit,bool unit_change)
 	slideXP->SetValue(xp);
 
 	// show map unit name
-	string name = "";
+	wstring name = L"";
 	if(m_unit)
 		name = m_unit->name;
 	txtName->SetValue(name);
@@ -786,6 +839,28 @@ void FormUnits::SelectUnit(MapUnit *unit,bool unit_change)
 	if(chbGrpType->GetCount() && chbGrpType->GetSelection() < 0 || chbGrpType->GetSelection() >= chbGrpType->GetCount())
 		chbGrpType->Select(0);
 	ChangeGrpResource();
+}
+
+// edit unit properties
+void FormUnits::OnUnitPropChange(wxPropertyGridEvent& event)
+{
+	auto pgrid = (wxPropertyGrid*)event.GetEventObject();
+	if(!pgrid)
+		return;
+
+	auto prop = event.GetProperty();
+	auto obj = (wxPGobj*)prop->GetClientObject();
+	/*if(event.GetPropertyName() == "state")
+	{
+		auto prop = (wxEnumProperty*)event.GetProperty();
+		terr->flags = prop->GetValue().GetLong();
+	}*/
+	if(obj)
+	{
+		obj->Update(prop);
+	}
+
+	
 }
 
 // edit unit params

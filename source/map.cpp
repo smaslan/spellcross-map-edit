@@ -647,6 +647,8 @@ void SpellMap::Close()
 	history.clear();
 	history_pos = -1;
 
+	unit_randomizer.Clear();
+
 	// unlock map
 	ResumeUnitRanging(true);
 	ReleaseMap();
@@ -788,7 +790,7 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 			if(cmd->name.compare("MissionMap") == 0)
 			{
 				// --- *.MAP file definition ---				
-				if(cmd->parameters->size() != 1)
+				if(cmd->parameters.size() != 1)
 				{
 					last_error = string_format("Wrong parameters count in command '%s'!",cmd->full_command.c_str());
 					delete def;
@@ -797,7 +799,7 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 				}
 
 				// make map path				
-				dta_path = (std::filesystem::path(map_path).parent_path() / std::filesystem::path(cmd->parameters->at(0))).wstring() + ".DTA";
+				dta_path = (std::filesystem::path(map_path).parent_path() / std::filesystem::path(cmd->parameters.at(0))).wstring() + ".DTA";
 				break;
 			}
 		}
@@ -1306,9 +1308,9 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 			if (cmd->name.compare("AddStartSquare") == 0)
 			{
 				// --- AddStartSquare(s) ---				
-				for (int p = 0; p < cmd->parameters->size(); p++)
+				for (int p = 0; p < cmd->parameters.size(); p++)
 				{					
-					int xy = stoi(cmd->parameters->at(p));
+					int xy = stoi(cmd->parameters.at(p));
 					MapXY coor;				
 					coor.y = (xy / x_size);
 					coor.x = xy - coor.y * x_size;
@@ -1326,9 +1328,9 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 			else if (cmd->name.compare("AddEscapeSquare") == 0)
 			{
 				// --- AddStartSquare(s) ---				
-				for (int p = 0; p < cmd->parameters->size(); p++)
+				for (int p = 0; p < cmd->parameters.size(); p++)
 				{
-					int xy = stoi(cmd->parameters->at(p));
+					int xy = stoi(cmd->parameters.at(p));
 					MapXY coor;
 					coor.y = (xy / x_size);
 					coor.x = xy - coor.y * x_size;
@@ -1346,9 +1348,9 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 			else if(cmd->name.compare("AddTargetSquare") == 0)
 			{
 				// --- AddTargetSquare(s) ---				
-				for(int p = 0; p < cmd->parameters->size(); p++)
+				for(int p = 0; p < cmd->parameters.size(); p++)
 				{
-					int xy = stoi(cmd->parameters->at(p));
+					int xy = stoi(cmd->parameters.at(p));
 					MapXY coor;
 					coor.y = (xy / x_size);
 					coor.x = xy - coor.y * x_size;
@@ -1366,7 +1368,7 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 			else if (cmd->name.compare("AddUnit") == 0)
 			{
 				// --- AddUnit(unit_order, unit_id, position, experience, man_count, unit_behave, name) ---				
-				if(cmd->parameters->size() != 7)
+				if(cmd->parameters.size() != 7)
 				{
 					// failed - not enough parameters
 					last_error = string_format("Wrong parameter count in command '%s'!",cmd->full_command.c_str());
@@ -1384,10 +1386,10 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 				unit->spec_type = MapUnitType::Values::EnemyUnit;
 
 				// unit index within map (identifier)
-				unit->id = stoi(cmd->parameters->at(0));
+				unit->id = stoi(cmd->parameters.at(0));
 
 				// unit type index
-				int unit_type_id = stoi(cmd->parameters->at(1));
+				int unit_type_id = stoi(cmd->parameters.at(1));
 				
 				// try fetch unit record from spelldata
 				unit->unit = spelldata->units->GetUnit(unit_type_id);
@@ -1402,31 +1404,33 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 				}
 
 				// position
-				int xy = stoi(cmd->parameters->at(2));
+				int xy = stoi(cmd->parameters.at(2));
 				unit->coor.y = (xy / x_size);
 				unit->coor.x = xy - unit->coor.y * x_size;
 				if(!unit->coor.IsSelected())
 				{
 					last_error = string_format("Unit position %d out of valid range in command '%s'!",xy,cmd->full_command.c_str());
 					delete mission_data;
+					delete unit;
 					delete def;
 					Close();
 					return(1);
 				}
 
 				// experience
-				unit->InitExperience(stoi(cmd->parameters->at(3)));
+				unit->InitExperience(stoi(cmd->parameters.at(3)));
 
 				// man count
-				unit->man = min(stoi(cmd->parameters->at(4)),unit->unit->cnt);
+				unit->man = min(stoi(cmd->parameters.at(4)),unit->unit->cnt);
 				
 
 				// unit behaviour type
-				unit->behave = cmd->parameters->at(5).c_str();
+				unit->behave = cmd->parameters.at(5).c_str();
 				if(unit->behave == MapUnitType::Unknown)
 				{
-					last_error = string_format("Unit behaviour '%s' not recognized in command '%s'!",cmd->parameters->at(5).c_str(),cmd->full_command.c_str());
+					last_error = string_format("Unit behaviour '%s' not recognized in command '%s'!",cmd->parameters.at(5).c_str(),cmd->full_command.c_str());
 					delete mission_data;
+					delete unit;
 					delete def;
 					Close();
 					return(1);
@@ -1436,9 +1440,9 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 				unit->is_active = 1;
 				
 				// copy unit name
-				unit->name = "";
-				auto & custom_name = cmd->parameters->at(6);
-				if(custom_name.size() && custom_name.compare("-")!=0)
+				unit->name = L"";
+				auto custom_name = char2wstringCP895(cmd->parameters.at(6).c_str());
+				if(!custom_name.empty() && custom_name != L"-")
 					unit->name = custom_name;
 
 				// initial action points
@@ -1448,6 +1452,54 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 				unit->commander_id = 0;
 				unit->is_commander = false;
 				unit->morale = 100;
+
+				// try to parse randomizer
+				unit->randomize_mode = MapUnit::RandomizeMode::OFF;
+				unit->randomize_units.clear();
+				if(cmd->sub_name == "Randomize")
+				{					
+					if(cmd->sub_params.size() == 1 && iequals(cmd->sub_params[0],"OFF"))
+					{
+						// disabled
+						unit->randomize_mode = MapUnit::RandomizeMode::OFF;
+					}
+					else if(cmd->sub_params.size() == 1 && iequals(cmd->sub_params[0],"AUTO"))
+					{
+						// auto mode (defined globally for the map)
+						unit->randomize_mode = MapUnit::RandomizeMode::AUTO;
+					}
+					else if(!cmd->sub_params.empty())
+					{
+						// explicit list of unit codes
+						unit->randomize_mode = MapUnit::RandomizeMode::EXPLICIT;
+						for(auto &unit_id_str: cmd->sub_params)
+						{
+							char *send;							
+							auto unit_type_id = std::strtol(unit_id_str.c_str(),&send,10);
+							auto rand_unit = spelldata->units->GetUnit(unit_type_id);
+							if(!rand_unit || send == unit_id_str.c_str())
+							{
+								last_error = string_format("Unknown unit type '%s' parameter in command '%s'!",unit_id_str.c_str(),cmd->sub_full_command.c_str());
+								delete mission_data;
+								delete unit;
+								delete def;
+								Close();
+								return(1);
+							}
+							unit->randomize_units.push_back(unit_type_id);
+						}
+					}
+					else
+					{
+						// invalid parameters
+						last_error = string_format("Unit randomizer command '%s' parameters not recognized for main command '%s'!",cmd->sub_full_command.c_str(),cmd->full_command.c_str());
+						delete mission_data;
+						delete unit;
+						delete def;
+						Close();
+						return(1);
+					}
+				}
 
 				// add unit to list
 				units.push_back(unit);
@@ -1490,6 +1542,18 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 			{
 				// placeholder to not generate errors
 			}
+			else if(cmd->name.compare("AutoRandomizeRule") == 0)
+			{
+				// --- AutoRandomize(ref_unit,rand_units_list): automatic units randomization for Spellcross Mod Launcher								
+				if(unit_randomizer.AddRule(cmd, spelldata->units))
+				{
+					last_error = unit_randomizer.last_error;
+					delete mission_data;
+					delete def;
+					Close();
+					return(1);
+				}
+			}
 			else
 			{
 				// unknown stuff in MissionData
@@ -1521,7 +1585,7 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 			{
 				if(cmd->name.compare(cmd_list[k]) == 0)
 				{
-					if(cmd->parameters->size() != 1)
+					if(cmd->parameters.size() != 1)
 					{
 						last_error = string_format("%s command not found in MissionParameters section in map DEF file!",cmd_list[k].c_str());
 						delete mission_params;
@@ -1529,7 +1593,7 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 						Close();
 						return(1);
 					}
-					*cmd_dest[k] = cmd->parameters->at(0);
+					*cmd_dest[k] = cmd->parameters.at(0);
 					if(!spelldata->texts->GetText(*cmd_dest[k]))
 					{
 						// resource not found - ignore because first mission has invalid record...
@@ -2004,13 +2068,34 @@ int SpellMap::SaveDEF(std::wstring path)
 	auto map_name = wstring2string(std::wstring(filesystem::path(map_path).stem()));
 	mission_data += "    MissionMap(" + map_name + ")\n";
 
+	// put auto unit randomizer setup
+	mission_data += unit_randomizer.MakeRulesDEF("    ");
+
 	// list of static enemy units
 	for(auto unit: units)
 	{
-		std::string name = unit->name;
+		std::string name = wstring2stringCP895(unit->name);
 		if(name.empty())
 			name = "-";
-		mission_data += string_format("    AddUnit(%d,%d,%d,%d,%d,%s,%s)\n", unit->id, unit->unit->type_id, ConvXY(unit->coor), unit->experience_init, unit->man, unit->behave.GetString().c_str(), name.c_str());
+		mission_data += string_format("    AddUnit(%d,%d,%d,%d,%d,%s,%s)", unit->id, unit->unit->type_id, ConvXY(unit->coor), unit->experience_init, unit->man, unit->behave.GetString().c_str(), name.c_str());
+		
+		// append randomizer setup
+		if(unit->randomize_mode == MapUnit::RandomizeMode::OFF)
+			mission_data += ",Randomize(off)";
+		else if(unit->randomize_mode == MapUnit::RandomizeMode::AUTO)
+			mission_data += ",Randomize(auto)";
+		else if(unit->randomize_mode == MapUnit::RandomizeMode::EXPLICIT)
+		{
+			mission_data += ",Randomize(";
+			for(int k = 0; k < unit->randomize_units.size(); k++)
+			{
+				mission_data += string_format("%d",unit->randomize_units[k]);
+				if(k + 1 < unit->randomize_units.size())
+					mission_data += ",";
+			}
+			mission_data += ")";
+		}
+		mission_data += "\n";
 	}
 			
 	// place events in this order:
@@ -2128,8 +2213,9 @@ int SpellMap::HistoryPush()
 	if(history.size() && (int)history.size() - history_pos > 1)
 		history.erase(history.begin() + (history_pos + 1), history.end());
 	history_pos = (int)history.size() - 1;
-
+	
 	LockMap();
+	HaltUnitRanging(true);
 
 	// make new entry
 	history.push_back(std::make_unique<HistoryState>());
@@ -2180,6 +2266,7 @@ int SpellMap::HistoryPush()
 		if(&snd == sound_selection)
 			hist->sound_sel = &snd - sounds->sounds.data();
 	
+	ResumeUnitRanging();
 	ReleaseMap();
 
 	return(0);
@@ -2204,6 +2291,7 @@ int SpellMap::HistoryPop(bool redo)
 	}
 	
 	LockMap();
+	HaltUnitRanging(true);
 
 	auto& hist = history[history_pos];
 	
@@ -2254,6 +2342,7 @@ int SpellMap::HistoryPop(bool redo)
 
 	SortUnits();
 	
+	ResumeUnitRanging();
 	ReleaseMap();
 
 	return(0);
@@ -6247,10 +6336,10 @@ int SpellMap::RenderHUD(uint8_t *buf,uint8_t* buf_end,int buf_x_size,MapXY *curs
 	
 		// render unit name
 		// pos a: 95,25   size: 137,16
-		string name = unit->name;
+		wstring name = unit->name;
 		if(name.empty())
 			name = unit->unit->name; // show default unit name if no explicit provided
-		font->Render(buf,buf_end,buf_x_size,hud_left+px_ref+95,hud_top+28,137,16,name,232,254,SpellFont::DIAG2);
+		font->Render(buf,buf_end,buf_x_size,hud_left+px_ref+95,hud_top+28,137,16,wstring2stringCP895(name),232,254,SpellFont::DIAG2);
 
 		// render unit ID
 		if(!isGameMode())

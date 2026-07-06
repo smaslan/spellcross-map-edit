@@ -141,7 +141,7 @@ SpellUnits::SpellUnits(uint8_t* data,int dlen,FSUarchive* fsu,FSarchive* fs_info
 #define rdu32(rdu32_r) ((int)*((unsigned int*)(rdu32_r)))
 
 		// unit name
-		unit->name = get_char_str(rec + 0x00,27);
+		unit->name = char2wstringCP895(get_char_str(rec + 0x00,27).c_str());
 
 		// unit info resource
 		unit->info = get_char_str(rec + 0x1C,8);
@@ -1028,16 +1028,16 @@ UnitBonuses::UnitBonuses(string bonuses_def)
 
 		for(auto& par : bonus->GetData())
 		{
-			if(par->parameters->empty())
+			if(par->parameters.empty())
 				continue;
 			if(!par->name.compare("Attack"))
-				list[k].attack = std::stoi(par->parameters->at(0));
+				list[k].attack = std::stoi(par->parameters.at(0));
 			else if(!par->name.compare("AttackPT"))
-				list[k].attack_count = std::stoi(par->parameters->at(0));
+				list[k].attack_count = std::stoi(par->parameters.at(0));
 			else if(!par->name.compare("Move"))
-				list[k].move = std::stoi(par->parameters->at(0));
+				list[k].move = std::stoi(par->parameters.at(0));
 			else if(!par->name.compare("Defence"))
-				list[k].defence = std::stoi(par->parameters->at(0));
+				list[k].defence = std::stoi(par->parameters.at(0));
 		}
 
 		delete bonus;
@@ -1057,6 +1057,11 @@ UnitBonus* UnitBonuses::GetBonus(int level)
 //=============================================================================
 // Map Unit object stuff
 //=============================================================================
+const std::map<int,std::string> MapUnit::c_randomizer_modes = {
+	{MapUnit::RandomizeMode::OFF,"Off"},
+	{MapUnit::RandomizeMode::AUTO,"Auto"},
+	{MapUnit::RandomizeMode::EXPLICIT,"Explicit"}};
+
 MapUnit::MapUnit(SpellMap *map)
 {
 	this->map = map;
@@ -1591,9 +1596,9 @@ int MapUnit::RenderPreview(uint8_t* buffer,uint8_t* buf_end,int buf_x_size)
 
 	// title (pos = 4,3, size = 137,16)
 	int title_color = (is_enemy)?212:232;
-	std::string unit_name = name;
+	std::string unit_name = wstring2stringCP895(name);
 	if(unit_name.empty())
-		unit_name = unit->name;
+		unit_name = wstring2stringCP895(unit->name);
 	spell_data->font->Render(buffer, buf_end, buf_x_size, 4,3, 137,16, unit_name,title_color, 254, SpellFont::FontShadow::DIAG3);
 
 	// icon (pos = 82,23)

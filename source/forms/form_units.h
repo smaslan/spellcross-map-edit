@@ -10,7 +10,7 @@
 #include "spellcross.h"
 #include "map.h"
 
-// <wxFormsBuilder-include> - Section auto-inserted from 'forms.h' class 'FormUnits' on 2026-05-24 09:14:41
+// <wxFormsBuilder-include> - Section auto-inserted from 'forms.h' class 'FormUnits' on 2026-07-06 13:37:31
 #include <wx/artprov.h>
 #include <wx/xrc/xmlres.h>
 #include <wx/string.h>
@@ -23,6 +23,7 @@
 #include <wx/colour.h>
 #include <wx/settings.h>
 #include <wx/stattext.h>
+#include <wx/textctrl.h>
 #include <wx/sizer.h>
 #include <wx/listbox.h>
 #include <wx/panel.h>
@@ -31,7 +32,6 @@
 #include <wx/checkbox.h>
 #include <wx/choice.h>
 #include <wx/statline.h>
-#include <wx/textctrl.h>
 #include <wx/treectrl.h>
 #include <wx/statusbr.h>
 #include <wx/frame.h>
@@ -46,7 +46,7 @@
 #include <wx/scrolbar.h>
 #include <wx/bmpbuttn.h>
 
-// </wxFormsBuilder-include> - Section auto-inserted from 'forms.h' class 'FormUnits' on 2026-05-24 09:14:41
+// </wxFormsBuilder-include> - Section auto-inserted from 'forms.h' class 'FormUnits' on 2026-07-06 13:37:31
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -60,6 +60,7 @@ class FormUnits : public wxFrame
 		void OnClose(wxCloseEvent& ev);
 		void OnCloseClick(wxCommandEvent& event);
 		void OnSaveAuxClick(wxCommandEvent& event);
+		void OnSearchUnit(wxCommandEvent& event);
 		void OnSelectUnit(wxCommandEvent& event);
 		void OnSelectSpecUnit(wxCommandEvent& event);
 		void OnSelectArt(wxCommandEvent& event);
@@ -68,6 +69,7 @@ class FormUnits : public wxFrame
 		void OnCopyGrpOriginsClick(wxCommandEvent& event);
 		void OnHPmaxClick(wxCommandEvent& event);
 		
+		void OnUnitPropChange(wxPropertyGridEvent& event);
 		void OnPaintGrp(wxPaintEvent& event);
 		void OnGrpCanvasLMouseDown(wxMouseEvent& event);
 		void OnGrpCanvasMouseMove(wxMouseEvent& event);
@@ -86,6 +88,7 @@ class FormUnits : public wxFrame
 		MapUnitTemplate m_unit_template_default;
 		bool m_update;
 		bool m_new_unit;
+		std::map<int,std::string> m_units_list;
 
 		vector<uint8_t> m_grpbuf;
 		int m_grp_x;
@@ -119,7 +122,7 @@ class FormUnits : public wxFrame
 
 	protected:
 		
-		// <wxFormsBuilder> - Section auto-inserted from 'forms.h' class 'FormUnits' on 2026-05-24 09:14:41
+		// <wxFormsBuilder> - Section auto-inserted from 'forms.h' class 'FormUnits' on 2026-07-06 13:37:31
 		enum
 		{
 			wxID_SB = 5999,
@@ -128,6 +131,7 @@ class FormUnits : public wxFrame
 			wxID_MM_COPY_GRP_ORG,
 			wxID_MM_PASTE_GRP_ORG,
 			wxID_MM_SET,
+			wxID_TXT_SEARCH,
 			wxID_LB_UNITS,
 			wxID_CANVAS_ICON,
 			wxID_PROPS,
@@ -163,6 +167,8 @@ class FormUnits : public wxFrame
 		wxMenuBar* mmenu;
 		wxMenu* mmFile;
 		wxMenu* mmEdit;
+		wxStaticText* m_staticText132;
+		wxTextCtrl* txtSearch;
 		wxStaticText* m_staticText32;
 		wxListBox* lboxUnits;
 		wxStaticLine* m_staticline9;
@@ -220,11 +226,11 @@ class FormUnits : public wxFrame
 		wxCheckBox* cbGrpFireMean;
 		wxCheckBox* cbGrpFireCenter;
 
-		// </wxFormsBuilder> - Section auto-inserted from 'forms.h' class 'FormUnits' on 2026-05-24 09:14:41
+		// </wxFormsBuilder> - Section auto-inserted from 'forms.h' class 'FormUnits' on 2026-07-06 13:37:31
 
 	public:
 
-		FormUnits(wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = wxT("Units viewer"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 1100,720 ),
+		FormUnits(wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = wxT("Units viewer"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 1200,800 ),
 			long style = wxDEFAULT_FRAME_STYLE|wxTAB_TRAVERSAL|wxFRAME_FLOAT_ON_PARENT);
 		~FormUnits();
 

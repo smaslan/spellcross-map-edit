@@ -180,6 +180,12 @@
     <ClCompile Include="forms\form_text_edit.cpp">
       <Filter>Source Files\forms</Filter>
     </ClCompile>
+    <ClCompile Include="spell_randomizer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="spell_def.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="fs_archive.h">
@@ -397,6 +403,12 @@
     </ClInclude>
     <ClInclude Include="forms\form_text_edit.h">
       <Filter>Header Files\forms</Filter>
+    </ClInclude>
+    <ClInclude Include="spell_randomizer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="spell_def.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

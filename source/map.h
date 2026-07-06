@@ -25,6 +25,7 @@
 #include "map_types.h"
 #include "spell_hud_buttons.h"
 #include "spell_map_event.h"
+#include "spell_randomizer.h"
 
 #include "wx/dcbuffer.h"
 
@@ -431,6 +432,8 @@ class SpellMap
 		SpellMapEvents *events;
 		// map sounds
 		MapSounds *sounds;
+		// units randomizer
+		UnitRandomizer unit_randomizer;
 
 		// local palette (after gamma correction)
 		uint8_t pal[256][3];

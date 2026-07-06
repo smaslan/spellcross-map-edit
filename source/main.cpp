@@ -1960,29 +1960,22 @@ void MainFrame::OnAddUnit(wxCommandEvent& event)
 {
     if(!spell_map->IsLoaded())
         return;
+    if(FindWindowById(ID_UNITS_WIN))
+        return;
 
-    if(!FindWindowById(ID_UNITS_WIN))
+    // loose unit in placement?
+    auto* unit = spell_map->GetSelectedUnit();
+    if(unit && unit->in_placement && unit->not_placed_yet)
     {
-        // make new unit        
-        /*MapUnit *new_unit = spell_map->CreateUnit();
-        spell_map->SelectUnit(new_unit);
-        new_unit->in_placement = true;
-        new_unit->is_active = true;*/               
-
-        form_units = new FormUnits(this,ID_UNITS_WIN);
-        form_units->SetSpellData(spell_data);
-        form_units->SetMapUnit(NULL, spell_map, &m_spell_unit_template);
-        form_units->Show();
+        spell_map->RemoveUnit(unit,true);
+        spell_map->SelectUnit(NULL);
+        UpdateMapStatus();
     }
 
-
-    /*auto *unit = spell_map->GetSelectedUnit();
-    if(unit)
-    {
-        // start unit movement
-        unit->in_placement = true;
-    }*/
-    
+    form_units = new FormUnits(this,ID_UNITS_WIN);
+    form_units->SetSpellData(spell_data);
+    form_units->SetMapUnit(NULL, spell_map, &m_spell_unit_template);
+    form_units->Show();    
 }
 
 
@@ -2012,6 +2005,8 @@ void MainFrame::HistoryCheck()
     mm = menuEdit->FindItem(ID_HistoryRedo);
     if(mm)
         mm->Enable(has_redo);
+    
+    UpdateMapStatus();
 }
 // push map state to history
 void MainFrame::HistoryPush()
@@ -2097,6 +2092,14 @@ void MainFrame::OnCanvasPopupSelect(wxCommandEvent& event)
         // try remove SeePlace event        
         auto evt = spell_map->events->CheckEvent(SpellMapEventRec::EvtTypes::EVT_SEE_PLACE,&spell_pos);
         spell_map->events->EraseEvent(evt);
+        HistoryPush();
+    }
+    else if(menu_id == ID_POP_UNIT_TO_SEE_PLACE)
+    {
+        // try move unit to new SeePlace event        
+        auto evt = spell_map->events->AddSeePlaceEvent(spell_pos);
+        spell_map->SelectEvent(evt);        
+        spell_map->UpdateEventUnit(evt,cur_unit);
         HistoryPush();
     }
     else if(menu_id == ID_POP_ADD_SPAWN_UNIT)
@@ -2317,6 +2320,10 @@ void MainFrame::OnCanvasRMouse(wxMouseEvent& event)
             if(cur_unit && cur_unit->GetTrigEvent(SpellMapEventRec::EvtTypes::EVT_SEE_UNIT))
             {
                 menu.Append(ID_POP_REM_SEEUNIT,"Remove SeeUnit event");
+            }            
+            if(!spell_map->events->CheckEvent(SpellMapEventRec::EvtTypes::EVT_SEE_PLACE,&cur_pos) && cur_unit && !cur_unit->is_event)
+            {
+                menu.Append(ID_POP_UNIT_TO_SEE_PLACE,"Move unit to new SeePlace event");
             }
             if(!spell_map->events->CheckEvent(SpellMapEventRec::EvtTypes::EVT_SEE_PLACE,&cur_pos))
             {

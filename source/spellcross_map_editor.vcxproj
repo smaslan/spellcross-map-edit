@@ -62,8 +62,10 @@
     <ClCompile Include="other.cpp" />
     <ClCompile Include="riff_loader.cpp" />
     <ClCompile Include="RtAudio.cpp" />
+    <ClCompile Include="spell_def.cpp" />
     <ClCompile Include="spell_filter.cpp" />
     <ClCompile Include="spell_midi.cpp" />
+    <ClCompile Include="spell_randomizer.cpp" />
     <ClCompile Include="spell_texts.cpp" />
     <ClCompile Include="spell_graphics.cpp" />
     <ClCompile Include="spellcross.cpp" />
@@ -127,6 +129,8 @@
     <ClInclude Include="forms\form_video_box.h" />
     <ClInclude Include="fsu_archive.h" />
     <ClInclude Include="fs_archive.h" />
+    <ClInclude Include="spell_def.h" />
+    <ClInclude Include="spell_randomizer.h" />
     <ClInclude Include="wx_other.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="riff_loader.h" />

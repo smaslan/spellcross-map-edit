@@ -17,6 +17,7 @@
 #include <vector>
 #include <string>
 #include <tuple>
+#include <map>
 
 //using namespace std;
 
@@ -57,7 +58,7 @@ class SpellUnitRec
 		int type_id;
 		
 		// name
-		std::string name;
+		std::wstring name;
 
 		// attack
 		int attack_light;
@@ -469,10 +470,23 @@ public:
 		AIR,
 		OBJECT
 	};
+
+	// randomization mode
+	enum RandomizeMode : int
+	{
+		OFF = 0,
+		AUTO = 1,
+		EXPLICIT
+	};
 	
 	// back ref to map
 	SpellMap* map;
-		
+
+	// randomizer setup
+	static const std::map<int,std::string> c_randomizer_modes;
+	RandomizeMode randomize_mode;
+	std::vector<int> randomize_units;
+			
 	// unit idnetifier index within map
 	int id;
 	// unit type ID
@@ -492,7 +506,7 @@ public:
 	// unit behaviour (non-event enemy units)
 	MapUnitType behave;
 	// custom name
-	std::string name;
+	std::wstring name;
 	// commander id or zero	
 	int commander_id;
 	int is_commander;
