@@ -202,3 +202,162 @@ int UnitRandomizer::SortRules()
 	std::sort(rules.begin(), rules.end(),comp_rules);
 	return(0);
 }
+
+// get randomizer rule for unit type
+UnitRandomizerRule* UnitRandomizer::GetRule(int type_id)
+{
+	for(auto &rule: rules)
+		if(rule.ref_unit == type_id)
+			return(&rule);
+	return(NULL);
+}
+
+
+// randomize unit in map file
+int UnitRandomizer::RandomizeMap(std::string& def, SpellUnits* units,std::string& error)
+{	
+	error = "";
+	if(!units)
+		return(1);
+
+	// parse to lines
+	auto lines = get_text_lines(def);
+
+	// leave because it's not mission DEF but no error
+	if(lines.empty() || !lines[0].starts_with("MissionData"))
+		return(0);
+	
+	std::srand(time(0));
+
+	// randomizer rules
+	UnitRandomizer rules;
+
+	// process all lines
+	for(auto &line: lines)
+	{
+
+		if(line.starts_with("AutoRandomizeRule"))
+		{
+			SpellDefCmd cmd(line);
+			if(!cmd.valid)
+			{
+				// invalid command
+				error = "Possibly somehow incomplete command AutoRandomizeRule()?";
+				return(1);
+			}
+			if(rules.AddRule(&cmd,units))
+			{
+				// invalid command
+				error = string_format("Possibly invalid command %s. %s",cmd.full_command.c_str(),rules.last_error.c_str());
+				return(1);
+			}
+			continue;
+		}
+		if(line.starts_with("AddUnit") || line.starts_with("AddSpecialUnit"))
+		{
+			SpellDefCmd cmd(line);
+			if(!cmd.valid)
+			{
+				// invalid command
+				error = "Possibly somehow incomplete command AddUnit() or AddSpecialUnit()?";
+				return(1);
+			}						
+			if((cmd.name == "AddUnit" && cmd.parameters.size() != 7) || (cmd.name == "AddSpecialUnit" && cmd.parameters.size() != 6))
+			{
+				// invalid params count
+				error = "Wrong parameters count for command AddUnit() or AddSpecialUnit().";
+				return(1);
+			}
+
+			// check eventual sub-command
+			if(!cmd.sub_valid)
+				continue;
+			if(cmd.sub_name != "Randomize")
+			{
+				// unknown sub-command
+				error = string_format("Unknown sub-command \"%s\" for command AddUnit() or AddSpecialUnit().",cmd.sub_name.c_str());
+				return(1);
+			}
+
+			// check original unit type
+			int orig_unit_type = std::atoi(cmd.parameters[1].c_str());
+			auto orig_unit = units->GetUnit(orig_unit_type);
+			if(!orig_unit)
+			{
+				// unknown unit type
+				error = string_format("Unknown unit type for command \"%s\".",cmd.full_command.c_str());
+				return(1);
+			}
+
+			// get original health
+			double health = (double)std::atoi(cmd.parameters[4].c_str()) / (double)orig_unit->cnt;
+
+
+			std::vector<int> rand_list;
+			if(cmd.sub_params.size() == 1 && iequals(cmd.sub_params[0],"OFF"))
+			{
+				// disabled
+				continue;
+			}
+			else if(cmd.sub_params.size() == 1 && iequals(cmd.sub_params[0],"AUTO"))
+			{
+				// auto mode (defined globally for the map)
+
+				// try fetch randomizer rule
+				auto rule = rules.GetRule(orig_unit_type);
+				if(!rule)
+					continue;
+				rand_list = rule->rand_units;
+
+			}
+			else if(!cmd.sub_params.empty())
+			{
+				// explicit list of unit codes				
+				for(auto& unit_id_str: cmd.sub_params)
+				{
+					char* send;
+					auto unit_type_id = std::strtol(unit_id_str.c_str(),&send,10);
+					auto rand_unit = units->GetUnit(unit_type_id);
+					if(!rand_unit || send == unit_id_str.c_str())
+					{
+						// invalid unit
+						error = string_format("Unknown unit type \"%s\" in randomizer for command \"%s\".",unit_id_str.c_str(),cmd.sub_full_command.c_str());
+						return(1);
+					}
+					rand_list.push_back(unit_type_id);
+				}
+			}
+			else
+				continue;
+			if(rand_list.empty())
+				continue;
+			
+			// randomize unit type			
+			int rand_id = std::rand() % rand_list.size();
+			auto unit_id = rand_list[rand_id];
+			auto unit = units->GetUnit(unit_id);
+			if(!unit)
+			{
+				// random unit ID not found
+				error = string_format("Unknown unit type %d in randomizer for command \"%s\".",unit_id,cmd.sub_full_command.c_str());
+				return(1);
+			}
+			// fix health
+			int unit_health = std::max((int)(std::min(health,1.0)*(double)unit->cnt),1);
+			
+			// rebuild unit command
+			cmd.parameters[1] = string_format("%d",unit_id);
+			cmd.parameters[4] = string_format("%d",unit_health);
+			line = cmd.name + "(" + merge_text_lines(cmd.parameters,",") + ")";
+
+			continue;
+		}
+
+	}
+
+	// merge modified lines
+	def = merge_text_lines(lines);
+
+	return(0);
+}
+

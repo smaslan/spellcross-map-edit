@@ -11,17 +11,21 @@
 #define _HAS_STD_BYTE 0
 
 #include "spell_units.h"
+#ifndef MINIMAL_SPELL_UNITS
+#include "fs_archive.h"
+#include "fsu_archive.h"
 #include "spellcross.h"
-#include "spell_map_event.h"
-#include "spell_texts.h"
 #include "map.h"
+#endif
+#include "other.h"
+#include <algorithm>
 #include <sstream>
 #include <vector>
 #include <stdexcept>
 #include <random>
-#include <algorithm>
 
-using namespace std;
+
+//using namespace std;
 
 // default resource content
 SpellUnitRec::SpellUnitRec()
@@ -118,7 +122,7 @@ SpellUnits::SpellUnits(uint8_t* data,int dlen,FSUarchive* fsu,FSarchive* fs_info
 	else
 	{
 		// unknown
-		throw runtime_error("Cannot identify game version of JEDNOTKY.DEF file with units definitions! It has wrong size. Must be multiple of 206 or 207 bytes.");
+		throw std::runtime_error("Cannot identify game version of JEDNOTKY.DEF file with units definitions! It has wrong size. Must be multiple of 206 or 207 bytes.");
 	}
 	
 	// --- for each unit:
@@ -347,30 +351,32 @@ SpellUnits::SpellUnits(uint8_t* data,int dlen,FSUarchive* fsu,FSarchive* fs_info
 		for(int e = 0; e < 12; e++)
 			unit->exp_limits[e] = unit->CalcExperiencePts(e);
 
+#ifndef MINIMAL_SPELL_UNITS
+
 		// --- assign FSU resources:
 		if(fsu)
 		{
 			unit->gr_base = fsu->GetResource(unit->gra);
 			if(!unit->gr_base)
-				throw runtime_error(string_format("Main FSU graphic resource \"%s\" not found for unit \"%s\"!",unit->gra.c_str(),unit->name.c_str()));
+				throw std::runtime_error(string_format("Main FSU graphic resource \"%s\" not found for unit \"%s\"!",unit->gra.c_str(),unit->name.c_str()));
 			unit->gr_aux = fsu->GetResource(unit->grb);
 			if(!unit->grb.empty() && !unit->gr_aux)
-				throw runtime_error(string_format("Aux FSU graphic resource \"%s\" not found for unit \"%s\"!",unit->grb.c_str(),unit->name.c_str()));
+				throw std::runtime_error(string_format("Aux FSU graphic resource \"%s\" not found for unit \"%s\"!",unit->grb.c_str(),unit->name.c_str()));
 			unit->gr_attack_light = fsu->GetResource(unit->anim_atack_light_name);
 			if(!unit->anim_atack_light_name.empty() && !unit->gr_attack_light)
-				throw runtime_error(string_format("Light attack FSU graphic resource \"%s\" not found for unit \"%s\"!",unit->anim_atack_light_name.c_str(),unit->name.c_str()));
+				throw std::runtime_error(string_format("Light attack FSU graphic resource \"%s\" not found for unit \"%s\"!",unit->anim_atack_light_name.c_str(),unit->name.c_str()));
 			unit->gr_attack_armor = fsu->GetResource(unit->anim_atack_armor_name);
 			if(!unit->anim_atack_armor_name.empty() && !unit->gr_attack_armor)
-				throw runtime_error(string_format("Armored attack FSU graphic resource \"%s\" not found for unit \"%s\"!",unit->anim_atack_armor_name.c_str(),unit->name.c_str()));
+				throw std::runtime_error(string_format("Armored attack FSU graphic resource \"%s\" not found for unit \"%s\"!",unit->anim_atack_armor_name.c_str(),unit->name.c_str()));
 			unit->gr_attack_air = fsu->GetResource(unit->anim_atack_air_name);
 			if(!unit->anim_atack_air_name.empty() && !unit->gr_attack_air)
-				throw runtime_error(string_format("Air attack FSU graphic resource \"%s\" not found for unit \"%s\"!",unit->anim_atack_air_name.c_str(),unit->name.c_str()));
+				throw std::runtime_error(string_format("Air attack FSU graphic resource \"%s\" not found for unit \"%s\"!",unit->anim_atack_air_name.c_str(),unit->name.c_str()));
 			unit->gr_action = fsu->GetResource(unit->action_fsu_name);
 			if(!unit->action_fsu_name.empty() && !unit->gr_action)
-				throw runtime_error(string_format("Special action FSU graphic resource \"%s\" not found for unit \"%s\"!",unit->action_fsu_name.c_str(),unit->name.c_str()));
+				throw std::runtime_error(string_format("Special action FSU graphic resource \"%s\" not found for unit \"%s\"!",unit->action_fsu_name.c_str(),unit->name.c_str()));
 			unit->gr_die = fsu->GetResource(unit->die_anim_name);
 			if(!unit->die_anim_name.empty() && !unit->gr_die)
-				throw runtime_error(string_format("Die action FSU graphic resource \"%s\" not found for unit \"%s\"!",unit->die_anim_name.c_str(),unit->name.c_str()));
+				throw std::runtime_error(string_format("Die action FSU graphic resource \"%s\" not found for unit \"%s\"!",unit->die_anim_name.c_str(),unit->name.c_str()));
 		}
 
 		// load unit info text
@@ -505,6 +511,8 @@ SpellUnits::SpellUnits(uint8_t* data,int dlen,FSUarchive* fsu,FSarchive* fs_info
 
 		// store BONUSES.DEF link
 		unit->bonuses = bonuses;
+
+#endif
 		
 	}
 }
@@ -588,6 +596,12 @@ int SpellUnitRec::isSingleMan()
 {
 	return(cnt == 1);
 }
+int SpellUnitRec::GetMaxHealth()
+{
+	if(isSingleMan())
+		return(100);
+	return(cnt);
+}
 // calculate base experience points for given exp. level 1-12 (use for precalculation only)
 int SpellUnitRec::CalcExperiencePts(int level)
 {
@@ -597,19 +611,19 @@ int SpellUnitRec::CalcExperiencePts(int level)
 		return(0);
 	double a = (double)exp_min;
 	double b = log(200.0*exp_max/exp_min)/log(12);
-	level = min(max(level,0),11);
+	level = std::min(std::max(level,0),11);
 	int points = (int)(a*pow((double)level,b));
 	return(points);
 }
 // get base experience points for given exp. level 1-12
 int SpellUnitRec::GetExperiencePts(int level)
 {
-	return(exp_limits[min(max(level-1,0),11)]);
+	return(exp_limits[std::min(std::max(level-1,0),11)]);
 }
 // get base experience points for next of given exp. level 1-12
 int SpellUnitRec::GetNextExperiencePts(int level)
 {
-	return(exp_limits[min(max(level,0),11)]);
+	return(exp_limits[std::min(std::max(level,0),11)]);
 }
 
 // uses projectile when shooting to target unit (or NULL to object)?
@@ -736,6 +750,8 @@ std::vector<std::unique_ptr<SpellUnitRec>> &SpellUnits::GetUnits()
 	return(units);
 }
 
+
+#ifndef MINIMAL_SPELL_UNITS
 
 // render unit (complete, i.e. group of man or tank with turret) and stick for air units:
 //   frame - animation frame if applicable
@@ -2109,3 +2125,5 @@ MapUnitTemplate::MapUnitTemplate()
 	behave = MapUnitType::Values::NormalUnit;
 	is_event = true;
 }
+
+#endif

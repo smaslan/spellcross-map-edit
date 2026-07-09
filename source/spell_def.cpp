@@ -27,6 +27,58 @@ SpellDefCmd::SpellDefCmd(std::string command, std::string params, std::string co
 	if(!params.empty())
 		this->parameters = get_text_lines(params,true,',');
 }
+// faster parser of full command line without whitespaces
+SpellDefCmd::SpellDefCmd(std::string line)
+{
+	valid = false;
+	full_command = line;
+	if(line.empty() || line[0] == ';')
+		return;
+
+	// params list start
+	auto param = line.find('(');
+	if(param == std::string::npos || param < 1)
+		return;
+
+	// command name
+	name = line.substr(0, param);
+
+	// params list end
+	auto param_end = line.find(')',param);
+	if(param_end == std::string::npos)
+		return;
+
+	// parse command parameters
+	auto params = line.substr(param + 1, param_end - param - 1);
+	parameters = get_text_lines(params,true,',');
+	full_command = name + "(" + params + ")";
+	valid = true;
+
+	// check eventual sub-command
+	auto sub_cmd_start = line.find(',',param_end);
+	if(sub_cmd_start == std::string::npos || sub_cmd_start + 1 >= line.length())
+		return;
+
+	// params list start
+	param = line.find('(', sub_cmd_start + 1);
+	if(param == std::string::npos || param < sub_cmd_start + 2)
+		return;
+
+	// sub-command name
+	sub_name = line.substr(sub_cmd_start + 1, param - sub_cmd_start - 1);
+
+	// params list end
+	param_end = line.find(')',sub_cmd_start);
+	if(param_end == std::string::npos)
+		return;
+
+	// parse command parameters
+	params = line.substr(param + 1,param_end - param - 1);
+	sub_params = get_text_lines(params,true,',');		
+	sub_full_command = sub_name + "(" + params + ")";
+	sub_valid = true;
+	
+}
 SpellDefCmd::~SpellDefCmd()
 {	
 }
@@ -59,7 +111,7 @@ SpellDefCmd* SpellDefSection::operator[](int index)
 	return(list[index]);
 }
 // get all sections
-vector<SpellDefCmd*>& SpellDefSection::GetData()
+std::vector<SpellDefCmd*>& SpellDefSection::GetData()
 {
 	return(list);
 }
@@ -67,11 +119,11 @@ vector<SpellDefCmd*>& SpellDefSection::GetData()
 
 
 // construct from file
-SpellDEF::SpellDEF(wstring &path)
+SpellDEF::SpellDEF(std::wstring &path)
 {
 	// try open file
 	if (loadstr(std::filesystem::path(path),data))
-		throw runtime_error("Cannot open DEF file!");
+		throw std::runtime_error("Cannot open DEF file!");
 }
 // construct from data buffer
 SpellDEF::SpellDEF(uint8_t* data, int size)
@@ -80,7 +132,7 @@ SpellDEF::SpellDEF(uint8_t* data, int size)
 	std::memcpy((void*)this->data.data(), (void*)data, size);
 }
 // construct from string
-SpellDEF::SpellDEF(string &str)
+SpellDEF::SpellDEF(std::string &str)
 {
 	data = str;
 }
@@ -105,7 +157,7 @@ SpellDefSection *SpellDEF::GetSection(std::string section)
 			first_row = &line - lines.data() + 1;
 		if(first_row >= 0 && line.starts_with("}"))
 		{
-			last_row = &line - lines.data() - 1;
+			last_row = &line - lines.data();
 			break;
 		}		
 	}

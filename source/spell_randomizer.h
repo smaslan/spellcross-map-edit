@@ -11,6 +11,8 @@
 
 #include "spell_def.h"
 
+class SpellUnits;
+
 class UnitRandomizerRule{
 public:
     int ref_unit;
@@ -19,17 +21,22 @@ public:
 };
 
 class UnitRandomizer{
-    public:
-        std::string last_error;
-        std::vector<UnitRandomizerRule> rules;
+public:
+    std::string last_error;
+    std::vector<UnitRandomizerRule> rules;
         
-        UnitRandomizer();
-        void Clear();
-        int AddRule(SpellDefCmd* cmd, SpellUnits* units);
-        int AddRule(SpellUnits* units,int &new_pos);
-        int RemoveRule(int pos);
-        int CheckRules();
-        int SortRules();
-        std::string MakeRulesDEF(std::string indent="");
+    UnitRandomizer();
+    void Clear();
+    int AddRule(SpellDefCmd* cmd, SpellUnits* units);
+    int AddRule(SpellUnits* units,int &new_pos);
+    int RemoveRule(int pos);
+    int CheckRules();
+    int SortRules();
+    std::string MakeRulesDEF(std::string indent="");
+    UnitRandomizerRule *GetRule(int type_id);
+
+    // map randomizer
+    static int RandomizeMap(std::string &def, SpellUnits *units, std::string &error);
 };
+
 

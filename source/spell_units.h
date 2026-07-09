@@ -9,15 +9,15 @@
 //=============================================================================
 #pragma once
 
-#include "fsu_archive.h"
-#include "sprites.h"
-#include "spell_graphics.h"
-#include "spell_sound.h"
-//#include "spell_map_event.h"
+#include "map_types.h"
+#include <memory>
 #include <vector>
 #include <string>
 #include <tuple>
 #include <map>
+
+#include "fs_archive.h"
+#include "fsu_archive.h"
 
 //using namespace std;
 
@@ -25,7 +25,19 @@
 class SpellMapEventRec;
 class MapSprite;
 class SpellMap;
-
+class SpellTextRec;
+class SpellSound;
+class SpellAttackSound;
+class FSU_resource;
+class SpellGraphicItem;
+class SpellProjectile;
+class AnimPNM;
+class Sprite;
+//class FSUarchive;
+//class FSarchive;
+class SpellGraphics;
+class SpellSounds;
+class Terrain;
 
 class UnitBonus
 {
@@ -42,14 +54,12 @@ public:
 class UnitBonuses
 {
 private:
-	vector<UnitBonus> list;
+	std::vector<UnitBonus> list;
 
 public:
-	UnitBonuses(string bonuses_def);
+	UnitBonuses(std::string bonuses_def);
 	UnitBonus* GetBonus(int level);
 };
-
-class SpellTextRec;
 
 class SpellUnitRec
 {
@@ -198,7 +208,7 @@ class SpellUnitRec
 
 		SpellUnitRec();
 		~SpellUnitRec();
-		tuple<int,int> Render(uint8_t* buffer, uint8_t* buf_end, int buf_x_pos, int buf_y_pos, int buf_x_size,
+		std::tuple<int,int> Render(uint8_t* buffer, uint8_t* buf_end, int buf_x_pos, int buf_y_pos, int buf_x_size,
 			uint8_t* filter,uint8_t* shadow_filter, Sprite *sprt,int man, int azim,int azim_turret, int frame,FSU_resource* fsu_anim=NULL, int flight_alt=100);
 
 		/*vector<string> GetArtList(FSarchive* info_fs);
@@ -224,7 +234,8 @@ class SpellUnitRec
 		int isFireSensitive();
 		int isFireHealed();
 		int hasFireAttack();
-		int isSingleMan();		
+		int isSingleMan();
+		int GetMaxHealth();
 		int CalcExperiencePts(int level=1);
 		int GetExperiencePts(int level=1);
 		int GetNextExperiencePts(int level=1);
@@ -307,7 +318,7 @@ private:
 	std::vector<std::unique_ptr<SpellUnitRec>> units;
 
 public:	
-	SpellUnits(uint8_t* data, int dlen, FSUarchive *fsu, FSarchive* fs_info, SpellGraphics *graphics,SpellGraphics* info_graphics,SpellSounds* sounds,UnitBonuses *bonuses);
+	SpellUnits(uint8_t* data, int dlen, FSUarchive *fsu=NULL, FSarchive* fs_info=NULL, SpellGraphics *graphics=NULL,SpellGraphics* info_graphics=NULL,SpellSounds* sounds=NULL,UnitBonuses *bonuses=NULL);
 	~SpellUnits();
 	int Count();
 	SpellUnitRec* GetUnit(int uid);
@@ -561,7 +572,7 @@ public:
 	
 
 	// unit rendering state
-	vector<AStarNode> move_nodes;
+	std::vector<AStarNode> move_nodes;
 	MOVE_STATE move_state;
 	int move_step;
 	int isMoving() { return(move_state != MOVE_STATE::IDLE); };
@@ -602,16 +613,10 @@ public:
 	std::vector<int> view_map;
 	std::vector<int> attack_map;
 
-	
-	
-		
-	
-
-
 	FSU_resource* GetShotAnim(MapUnit* target=NULL,int* frame_stop=NULL);
 	AnimPNM* GetTargetHitPNM(MapUnit* target=NULL);
 	AnimPNM* GetFirePNM(MapUnit* target=NULL);
-	tuple<int,int> GetFirePNMorigin(MapUnit* target,double azimuth);
+	std::tuple<int,int> GetFirePNMorigin(MapUnit* target,double azimuth);
 
 	int AreSoundsDone();
 	int PlayReport();

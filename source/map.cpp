@@ -412,7 +412,7 @@ MapLayer4::MapLayer4(AnimPNM* pnm, int x_pos, int y_pos, int x_ofs, int y_ofs, i
 		this->frame_limit = pnm->frames.size();
 		if(frame_limit >= 0)
 			this->frame_limit = frame_limit;
-		this->frame_limit = min(this->frame_limit,pnm->frames.size());
+		this->frame_limit = std::min(this->frame_limit,(int)pnm->frames.size());
 		if(this->frame_limit)
 			this->frame_ofs = frame_ofs % this->frame_limit;
 	}	

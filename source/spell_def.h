@@ -7,21 +7,8 @@
 //=============================================================================
 #pragma once
 
-#include "windows.h"
-#include "cstdint"
 #include <vector>
-#include <list>
 #include <string>
-#include "fs_archive.h"
-#include "fsu_archive.h"
-#include "sprites.h"
-#include "spell_units.h"
-#include "spell_font.h"
-#include "spell_graphics.h"
-#include "spell_sound.h"
-#include "spell_midi.h"
-#include "spell_texts.h"
-#include "spell_video.h"
 
 //using namespace std;
 
@@ -33,19 +20,22 @@ class SpellDefCmd
 		std::vector<std::string> parameters;
 		std::string comment;
 		std::string full_command;
+		bool valid;
 
 		std::string sub_name;
 		std::vector<std::string> sub_params;
 		std::string sub_full_command;
+		bool sub_valid;
 
 		SpellDefCmd(std::string command, std::string params, std::string comment);
+		SpellDefCmd(std::string line);
 		~SpellDefCmd();
 };
 
 class SpellDefSection
 {
 private:
-	vector<SpellDefCmd*> list;
+	std::vector<SpellDefCmd*> list;
 
 public:
 	SpellDefSection();
@@ -54,17 +44,17 @@ public:
 	void Add(SpellDefCmd* cmd);
 	int Size();
 	SpellDefCmd* operator[](int index);
-	vector<SpellDefCmd*> &GetData();
+	std::vector<SpellDefCmd*> &GetData();
 };
 
 class SpellDEF
 {
 	private: 
-		string data;
+		std::string data;
 
 	public:
-		SpellDEF(string &str);
-		SpellDEF(wstring &path);
+		SpellDEF(std::string &str);
+		SpellDEF(std::wstring &path);
 		SpellDEF(uint8_t *data, int size);
 		~SpellDEF();
 
