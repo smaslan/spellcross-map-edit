@@ -628,13 +628,11 @@ int SpellMapEvents::AddSpecialEvent(SpellData *data, SpellDEF* def, SpellDefCmd*
 
 	// try parse event data
 	string event_data_header = "EventData(" + std::to_string(event_data_index) + ")";
-	SpellDefSection* event_data = def->GetSection(event_data_header);
+	std::unique_ptr<SpellDefSection> event_data(def->GetSection(event_data_header));
 	if(!event_data)
 	{
 		// not found
 		last_error = string_format("Cannot found '%s' section in map DEF file!",event_data_header.c_str());
-		if(event_data)
-			delete event_data;
 		if(is_new_event)
 		{
 			events.pop_back();
@@ -655,7 +653,6 @@ int SpellMapEvents::AddSpecialEvent(SpellData *data, SpellDEF* def, SpellDefCmd*
 			{
 				// failed - not enough parameters
 				last_error = string_format("Wrong params count in command '%s'!",evcmd->full_command.c_str());
-				delete event_data;
 				if(is_new_event)
 				{
 					events.pop_back();
@@ -703,7 +700,6 @@ int SpellMapEvents::AddSpecialEvent(SpellData *data, SpellDEF* def, SpellDefCmd*
 				// unknown unit type				
 				last_error = string_format("Unknown special unit type '%s' in command '%s'!",evcmd->parameters.at(0).c_str(),evcmd->full_command.c_str());
 				delete unit;
-				delete event_data;
 				if(is_new_event)
 				{
 					events.pop_back();
@@ -724,7 +720,6 @@ int SpellMapEvents::AddSpecialEvent(SpellData *data, SpellDEF* def, SpellDefCmd*
 			if(!unit->unit)
 			{
 				last_error = string_format("Unknown unit type is '%d' in command '%s'!",unit_type_id,evcmd->full_command.c_str());
-				delete event_data;
 				delete unit;
 				if(is_new_event)
 				{
@@ -740,7 +735,6 @@ int SpellMapEvents::AddSpecialEvent(SpellData *data, SpellDEF* def, SpellDefCmd*
 			if(!unit->coor.IsSelected())
 			{
 				last_error = string_format("Unit position %d out of valid range in command '%s'!",xy,evcmd->full_command.c_str());
-				delete event_data;
 				delete unit;
 				if(is_new_event)
 				{
@@ -805,7 +799,6 @@ int SpellMapEvents::AddSpecialEvent(SpellData *data, SpellDEF* def, SpellDefCmd*
 						if(!rand_unit || send == unit_id_str.c_str())
 						{
 							last_error = string_format("Unknown unit type '%s' parameter in command '%s'!",unit_id_str.c_str(),evcmd->sub_full_command.c_str());
-							delete event_data;
 							delete unit;
 							if(is_new_event)
 							{
@@ -821,7 +814,6 @@ int SpellMapEvents::AddSpecialEvent(SpellData *data, SpellDEF* def, SpellDefCmd*
 				{
 					// invalid parameters
 					last_error = string_format("Unit randomizer command '%s' parameters not recognized for main command '%s'!",evcmd->sub_full_command.c_str(),evcmd->full_command.c_str());
-					delete event_data;
 					delete unit;
 					if(is_new_event)
 					{
@@ -842,7 +834,6 @@ int SpellMapEvents::AddSpecialEvent(SpellData *data, SpellDEF* def, SpellDefCmd*
 			if(evcmd->parameters.size() != 1)
 			{
 				last_error = string_format("Wrong params count in command '%s'!",evcmd->full_command.c_str());
-				delete event_data;
 				if(is_new_event)
 				{
 					events.pop_back();
@@ -863,7 +854,6 @@ int SpellMapEvents::AddSpecialEvent(SpellData *data, SpellDEF* def, SpellDefCmd*
 				last_error += string_format("Text '%s' in command '%s' not found in loaded resources!",text_name.c_str(),evcmd->full_command.c_str());
 				if(!text)
 				{
-					delete event_data;
 					if(is_new_event)
 					{
 						events.pop_back();
@@ -880,7 +870,6 @@ int SpellMapEvents::AddSpecialEvent(SpellData *data, SpellDEF* def, SpellDefCmd*
 			if(evcmd->parameters.size() != 1)
 			{
 				last_error = string_format("Wrong params count in command '%s'!",evcmd->full_command.c_str());
-				delete event_data;
 				if(is_new_event)
 				{
 					events.pop_back();
@@ -906,7 +895,6 @@ int SpellMapEvents::AddSpecialEvent(SpellData *data, SpellDEF* def, SpellDefCmd*
 			evt->video = vid_name;
 		}
 	}
-	delete event_data;
 
 	return(0);
 }

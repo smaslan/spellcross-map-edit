@@ -24,6 +24,7 @@ SOFTWARE.
 #define INCLUDE_CXXMIDI_GUTS_PLAYER_BASE_HPP_
 
 #ifdef _WIN32
+#undef NOMINMAX 
 #include <Windows.h>
 #include <mmsystem.h>
 #endif

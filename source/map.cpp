@@ -756,7 +756,7 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 	def_path = L"";
 
 	// DEF file
-	SpellDEF *def = NULL;
+	std::unique_ptr<SpellDEF> def;
 
 	if(path.extension() == L".DEF" || path.extension() == L".def")
 	{
@@ -764,8 +764,7 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 
 		// load DEF file
 		try{
-			auto def_path = path.wstring();
-			def = new SpellDEF(def_path);
+			def = std::make_unique<SpellDEF>(path);
 		}catch(const runtime_error& error) {
 			last_error = string_format("Loading map DEF file '%ls' failed!",path.c_str());
 			Close();
@@ -778,7 +777,6 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 		{
 			// likely not a valid DEF file
 			last_error = string_format("MissionData section not found if map DEF file '%ls'!",map_path.c_str());
-			delete def;
 			Close();
 			return(1);
 		}
@@ -793,7 +791,6 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 				if(cmd->parameters.size() != 1)
 				{
 					last_error = string_format("Wrong parameters count in command '%s'!",cmd->full_command.c_str());
-					delete def;
 					Close();
 					return(1);
 				}
@@ -807,7 +804,6 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 		if(dta_path.empty())
 		{
 			last_error = string_format("Map name command MissionMap() not found in DEF file '%ls'!",map_path.c_str());
-			delete def;
 			Close();
 			return(1);
 		}
@@ -820,24 +816,14 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 	
 	// --- Load MAP file to buffer
 	// try open file
-	ifstream fr(map_path, ios::in | ios::binary | ios::ate);
-	if (!fr.is_open())
+	vector<uint8_t> map_buffer;
+	if(loaddata(map_path,map_buffer))
 	{
 		last_error = string_format("Loading map DTA file '%ls' failed!",map_path.c_str());
-		if(def)
-			delete def;
 		Close();
 		return(1);
-	}
-
-	// read to local buffer and close
-	streampos flen = fr.tellg();
-	fr.seekg(0);
-	vector<uint8_t> map_buffer(flen);
-	fr.read((char*)map_buffer.data(), flen);
-	fr.close();
-	unsigned char* data = map_buffer.data();
-			
+	}	
+	auto data = map_buffer.data();	
 
 	// get L1 data offset
 	//int L1_offset = *(int32_t*)data;
@@ -846,21 +832,17 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 	// get L1 sprites list size
 	int L1_count = *(int32_t*)data;
 	data += 4;
-	if (L1_count > 4095)
+	if(L1_count > 4095)
 	{
 		last_error = string_format("More than %d sprites in terrain layer!",L1_count);
-		if(def)
-			delete def;
 		Close();
 		return(1);
 	}
 
 	// version check (actually dunno what is that but it's always the same and looks like version code)
-	if (*data++ != 0x12)
+	if(*data++ != 0x12)
 	{
 		last_error = string_format("Unknown DTA file version 0x%02X!",data[-1]);
-		if(def)
-			delete def;
 		Close();
 		return(1);
 	}
@@ -880,11 +862,9 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 
 	// try to get terrain data pointer
 	this->terrain = spelldata->GetTerrain(terrain_name.c_str());
-	if (!this->terrain)
+	if(!this->terrain)
 	{
 		last_error = string_format("Map DTA files references unknown terrain '%s'!",terrain_name.c_str());
-		if(def)
-			delete def;
 		Close();
 		return(1);
 	}
@@ -909,8 +889,6 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 		{
 			// not found!
 			last_error = string_format("Map DTA terrain layer references unknown sprite name '%s'!",name);
-			if(def)
-				delete def;
 			Close();
 			return(1);
 		}
@@ -936,8 +914,6 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 		{
 			// out of available range
 			last_error = string_format("Map DTA terrain layer sprite index %d out of range!",sid);
-			if(def)
-				delete def;
 			Close();
 			return(1);
 		}
@@ -980,8 +956,6 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 		{
 			// not found!
 			last_error = string_format("Map DTA objects layer references unknown sprite name '%s'!",name);
-			if(def)
-				delete def;
 			Close();
 			return(1);
 		}
@@ -1000,8 +974,6 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 		{
 			// out of available range
 			last_error = string_format("Map DTA objects layer sprite index %d out of range!",sid);
-			if(def)
-				delete def;
 			Close();
 			return(1);
 		}
@@ -1036,8 +1008,6 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 			{
 				// not found!
 				last_error = string_format("Map DTA ANM layer references unknown sprite name '%s'!",name);
-				if(def)
-					delete def;
 				Close();
 				return(1);
 			}
@@ -1066,8 +1036,6 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 				if(aid >= L3_count)
 				{
 					last_error = string_format("Map DTA ANM layer animation index %d out of range!",aid);
-					if(def)
-						delete def;
 					Close();
 					return(1);
 				}
@@ -1107,8 +1075,6 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 		{
 			// not found!
 			last_error = string_format("Map DTA PNM layer references unknown sprite name '%s'!",name);
-			if(def)
-				delete def;
 			Close();
 			return(1);
 		}
@@ -1142,8 +1108,6 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 			if(pid >= L4_count)
 			{
 				last_error = string_format("Map DTA PNM layer animation index %d out of range!",pid);
-				if(def)
-					delete def;
 				Close();
 				return(1);
 			}
@@ -1202,8 +1166,6 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 		if(!snd_ref)
 		{
 			last_error = string_format("Map DTA sound #1 layer references unknown sound resource name '%s'!",name);
-			if(def)
-				delete def;
 			Close();
 			return(1);
 		}
@@ -1219,8 +1181,6 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 		if(sid >= L7_names_count)
 		{
 			last_error = string_format("Map DTA sound #1 layer sound index %d ouf of range!",sid);
-			if(def)
-				delete def;
 			Close();
 			return(1);
 		}
@@ -1247,8 +1207,6 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 		if(!snd_ref)
 		{
 			last_error = string_format("Map DTA sound #2 layer references unknown sound resource name '%s'!",name);
-			if(def)
-				delete def;
 			Close();
 			return(1);
 		}
@@ -1262,8 +1220,6 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 		if(sid >= L8_names_count)
 		{
 			last_error = string_format("Map DTA sound #2 layer sound index %d ouf of range!",sid);
-			if(def)
-				delete def;
 			Close();
 			return(1);
 		}
@@ -1297,10 +1253,11 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 	///// Load DEF stuff /////
 	//////////////////////////
 	int last_unit_index = 0;
-	if (def)
+	if(def)
 	{
 		// parse mission data
-		SpellDefSection *mission_data = def->GetSection("MissionData");
+		//SpellDefSection *mission_data = def->GetSection("MissionData");
+		std::unique_ptr<SpellDefSection> mission_data(def->GetSection("MissionData"));
 
 		for (int k = 0; k < mission_data->Size(); k++)
 		{
@@ -1317,8 +1274,6 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 					if(!coor.IsSelected())
 					{
 						last_error = string_format("Position %d out of valid range in command '%s'!",xy,cmd->full_command.c_str());
-						delete mission_data;
-						delete def;
 						Close();
 						return(1);
 					}
@@ -1337,8 +1292,6 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 					if(!coor.IsSelected())
 					{
 						last_error = string_format("Position %d out of valid range in command '%s'!",xy,cmd->full_command.c_str());
-						delete mission_data;
-						delete def;
 						Close();
 						return(1);
 					}
@@ -1357,8 +1310,6 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 					if(!coor.IsSelected())
 					{
 						last_error = string_format("Position %d out of valid range in command '%s'!",xy,cmd->full_command.c_str());
-						delete mission_data;
-						delete def;
 						Close();
 						return(1);
 					}
@@ -1372,8 +1323,6 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 				{
 					// failed - not enough parameters
 					last_error = string_format("Wrong parameter count in command '%s'!",cmd->full_command.c_str());
-					delete mission_data;
-					delete def;
 					Close();
 					return(1);
 				}
@@ -1396,9 +1345,7 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 				if(!unit->unit)
 				{
 					last_error = string_format("Unknown unit type %d parameter in command '%s'!",unit_type_id,cmd->full_command.c_str());
-					delete mission_data;
 					delete unit;
-					delete def;
 					Close();
 					return(1);
 				}
@@ -1410,9 +1357,7 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 				if(!unit->coor.IsSelected())
 				{
 					last_error = string_format("Unit position %d out of valid range in command '%s'!",xy,cmd->full_command.c_str());
-					delete mission_data;
 					delete unit;
-					delete def;
 					Close();
 					return(1);
 				}
@@ -1429,9 +1374,7 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 				if(unit->behave == MapUnitType::Unknown)
 				{
 					last_error = string_format("Unit behaviour '%s' not recognized in command '%s'!",cmd->parameters.at(5).c_str(),cmd->full_command.c_str());
-					delete mission_data;
 					delete unit;
-					delete def;
 					Close();
 					return(1);
 				}
@@ -1480,9 +1423,7 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 							if(!rand_unit || send == unit_id_str.c_str())
 							{
 								last_error = string_format("Unknown unit type '%s' parameter in command '%s'!",unit_id_str.c_str(),cmd->sub_full_command.c_str());
-								delete mission_data;
 								delete unit;
-								delete def;
 								Close();
 								return(1);
 							}
@@ -1493,9 +1434,7 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 					{
 						// invalid parameters
 						last_error = string_format("Unit randomizer command '%s' parameters not recognized for main command '%s'!",cmd->sub_full_command.c_str(),cmd->full_command.c_str());
-						delete mission_data;
 						delete unit;
-						delete def;
 						Close();
 						return(1);
 					}
@@ -1507,12 +1446,10 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 			else if(cmd->name.compare("AddSpecialEvent") == 0)
 			{
 				// --- Event definitions: AddSpecialEvent(type, position, index, probability) ---
-				if(events->AddSpecialEvent(spelldata, def, cmd))
+				if(events->AddSpecialEvent(spelldata, def.get(), cmd))
 				{
 					// failed
 					last_error = events->GetLastError();
-					delete mission_data;
-					delete def;
 					Close();
 					return(1);
 				}
@@ -1523,12 +1460,10 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 			else if(cmd->name.compare("AddMissionObjective") == 0)
 			{
 				// --- Mission objectives: treating them as events too				
-				if(events->AddMissionObjective(spelldata, def, cmd))
+				if(events->AddMissionObjective(spelldata, def.get(), cmd))
 				{
 					// failed
 					last_error = events->GetLastError();
-					delete mission_data;
-					delete def;
 					Close();
 					return(1);
 				}
@@ -1548,8 +1483,6 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 				if(unit_randomizer.AddRule(cmd, spelldata->units))
 				{
 					last_error = unit_randomizer.last_error;
-					delete mission_data;
-					delete def;
 					Close();
 					return(1);
 				}
@@ -1558,20 +1491,16 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 			{
 				// unknown stuff in MissionData
 				last_error = string_format("Unknown command '%s'!",cmd->full_command.c_str());										
-				delete mission_data;
-				delete def;
 				Close();
 				return(1);				
 			}
 		}
-		delete mission_data;
 
 		// parse mission parameters
-		SpellDefSection* mission_params = def->GetSection("MissionParameters");
+		std::unique_ptr<SpellDefSection> mission_params(def->GetSection("MissionParameters"));
 		if(!mission_params)
 		{
 			last_error = string_format("MissionParameters section not found in map DEF file!");
-			delete def;
 			Close();
 			return(1);
 		}
@@ -1588,8 +1517,6 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 					if(cmd->parameters.size() != 1)
 					{
 						last_error = string_format("%s command not found in MissionParameters section in map DEF file!",cmd_list[k].c_str());
-						delete mission_params;
-						delete def;
 						Close();
 						return(1);
 					}
@@ -1606,17 +1533,12 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 						last_error += string_format("Text resource '%s' referenced in command '%s' not found in loaded resources!",cmd_dest[k]->c_str(),cmd->full_command.c_str());
 
 						/*delete mission_params;
-						delete def;
 						Close();
 						return(1);*/
 					}
 				}
 			}
 		}
-		delete mission_params;
-
-		delete def;
-		
 	}
 
 	// initialize events

@@ -755,6 +755,10 @@ void MainFrame::SetStatusTextEvents(SpellMap* map)
 // update map status (units, events, etc.)
 void MainFrame::UpdateMapStatus(SpellMap* map)
 {
+    if(spell_map && spell_map->IsLoaded())
+        SetTitle(string_format("Spellcross Map Editor (%ls)",spell_map->GetTopPath().c_str()));
+    else
+        SetTitle(string_format("Spellcross Map Editor"));
     SetStatusTextUnits(map);
     SetStatusTextEvents(map);
 }
