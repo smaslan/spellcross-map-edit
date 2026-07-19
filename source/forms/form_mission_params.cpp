@@ -258,7 +258,7 @@ void FormMissionParams::OnSelectTxt(wxCommandEvent& event)
 }
 
 // fill unit randomizer list
-void FormMissionParams::LoadRandRules()
+void FormMissionParams::LoadRandRules(int select_id)
 {
 	pgRandRule->Clear();
 
@@ -273,10 +273,15 @@ void FormMissionParams::LoadRandRules()
 		lboxRndRules->Append(string_format("#%d: %ls",unit->type_id,unit->name.c_str()));
 	}
 	lboxRndRules->Thaw();	
-	if(lboxRndRules->GetCount())
-		lboxRndRules->Select(0);
-	if(!sel.empty())
-		lboxRndRules->SetStringSelection(sel);
+	if(select_id >= 0)
+		lboxRndRules->Select(select_id);
+	else
+	{
+		if(lboxRndRules->GetCount())
+			lboxRndRules->Select(0);
+		if(!sel.empty())
+			lboxRndRules->SetStringSelection(sel);
+	}
 
 	if(lboxRndRules->GetSelection() >= 0)
 	{
@@ -288,7 +293,10 @@ void FormMissionParams::LoadRandRules()
 
 
 const int ID_POP_NEW_RULE = 100;
-const int ID_POP_REM_RULE = 101;
+const int ID_POP_COMPLEMENT_RULE = 101;
+const int ID_POP_REM_RULE = 102;
+const int ID_POP_REM_ALL_RULES = 103;
+
 
 // auto randomizer rules
 void FormMissionParams::OnRulesClick(wxMouseEvent& event)
@@ -298,7 +306,12 @@ void FormMissionParams::OnRulesClick(wxMouseEvent& event)
 
 	auto rid = lboxRndRules->GetSelection();
 	if(rid >= 0 || rid < m_spell_map->unit_randomizer.rules.size())
+	{
+		menu.Append(ID_POP_COMPLEMENT_RULE,"Add mirror rule(s)");
 		menu.Append(ID_POP_REM_RULE,"Remove rule");
+	}
+	if(!m_spell_map->unit_randomizer.rules.empty())
+		menu.Append(ID_POP_REM_ALL_RULES,"Remove all rules");
 	
 	menu.Connect(wxEVT_COMMAND_MENU_SELECTED,wxCommandEventHandler(FormMissionParams::OnRulesPopup),NULL,this);
 	PopupMenu(&menu);
@@ -312,6 +325,16 @@ void FormMissionParams::OnRulesPopup(wxCommandEvent& event)
 		int new_pos;
 		if(m_spell_map->unit_randomizer.AddRule(m_spell_data->units,new_pos))
 			wxMessageBox(m_spell_map->unit_randomizer.last_error,"Error",wxICON_ERROR);
+		LoadRandRules(new_pos);
+	}
+	else if(menu_id == ID_POP_COMPLEMENT_RULE)
+	{
+		// add complementary rules
+		int new_pos = -1;
+		auto rid = lboxRndRules->GetSelection();
+		if(rid >= 0 || rid < m_spell_map->unit_randomizer.rules.size())
+			m_spell_map->unit_randomizer.AddMirrorRules(rid,new_pos);		
+		LoadRandRules(new_pos);
 	}
 	else if(menu_id == ID_POP_REM_RULE)
 	{
@@ -319,9 +342,14 @@ void FormMissionParams::OnRulesPopup(wxCommandEvent& event)
 		auto rid = lboxRndRules->GetSelection();
 		if(rid >= 0 || rid < m_spell_map->unit_randomizer.rules.size())
 			m_spell_map->unit_randomizer.RemoveRule(rid);
+		LoadRandRules();
 	}
-	
-	LoadRandRules();
+	else if(menu_id == ID_POP_REM_ALL_RULES)
+	{
+		// remove all rules
+		m_spell_map->unit_randomizer.Clear();
+		LoadRandRules();
+	}
 }
 
 // randomzier rule selected
@@ -369,9 +397,8 @@ void FormMissionParams::OnUnitPropChange(wxPropertyGridEvent& event)
 			wxMessageBox(m_spell_map->unit_randomizer.last_error,"Error",wxICON_ERROR);
 			rule = old_rule;
 		}
-		m_spell_map->unit_randomizer.SortRules();
-
-		LoadRandRules();
+		int rule_id = m_spell_map->unit_randomizer.SortRules(&rule - m_spell_map->unit_randomizer.rules.data());
+		LoadRandRules(rule_id);
 	}
 }
 

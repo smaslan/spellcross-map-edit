@@ -408,6 +408,7 @@ MainFrame::MainFrame(SpellConfig* config, SpellMap *&map, SpellData *&spelldata)
     menuEdit->Append(ID_CreateNewObject,"Create new object\tCtrl+Shift+O","",wxITEM_NORMAL);
     menuEdit->Append(wxID_ANY,"","",wxITEM_SEPARATOR);
     menuEdit->Append(ID_AddUnit,"Add unit\tCtrl+Shift+U","",wxITEM_NORMAL);
+    menuEdit->Append(ID_CycleUnitRandomMode,"Change unit randomizer rule\tCtrl+Shift+R","",wxITEM_NORMAL);
     AssignSVGresourceToMenu(menuEdit,ID_HistoryUndo,"IDR_UNDO");
     AssignSVGresourceToMenu(menuEdit,ID_HistoryRedo,"IDR_REDO");
     AssignSVGresourceToMenu(menuEdit,ID_EditMissionParams,"IDR_EDIT");
@@ -613,6 +614,7 @@ MainFrame::MainFrame(SpellConfig* config, SpellMap *&map, SpellData *&spelldata)
     Bind(wxEVT_MENU,&MainFrame::OnDeleteSel,this,ID_DeleteSel);
     Bind(wxEVT_MENU,&MainFrame::OnCreateNewObject,this,ID_CreateNewObject);
     Bind(wxEVT_MENU,&MainFrame::OnAddUnit,this,ID_AddUnit);
+    Bind(wxEVT_MENU,&MainFrame::OnCycleUnitRandMode,this,ID_CycleUnitRandomMode);
 
     spell_map->SetMessageInterface(bind(&MainFrame::ShowMessage,this,placeholders::_1,placeholders::_2,placeholders::_3), bind(&MainFrame::CheckMessageState,this));    
     
@@ -752,6 +754,28 @@ void MainFrame::SetStatusTextEvents(SpellMap* map)
     auto& events = map->events->GetEvents();    
     SetStatusTextEvents(string_format("Events: %d",events.size()));
 }
+// set unit status
+void MainFrame::SetStatusTextUnit(std::string text)
+{
+    SetStatusText(text,9);
+}
+void MainFrame::SetStatusTextUnit(MapUnit *unit)
+{
+    if(!spell_map->IsLoaded())
+    {
+        SetStatusTextUnit("");
+        return;
+    }
+    if(!unit)
+        unit = spell_map->GetSelectedUnit();
+    if(!unit)
+    {
+        SetStatusTextUnit("");
+        return;
+    }
+    SetStatusTextUnit(string_format("Unit: %ls, randomizer = %s",unit->unit->name.c_str(),unit->GetRandomizerModeName().c_str()));
+}
+
 // update map status (units, events, etc.)
 void MainFrame::UpdateMapStatus(SpellMap* map)
 {
@@ -761,6 +785,7 @@ void MainFrame::UpdateMapStatus(SpellMap* map)
         SetTitle(string_format("Spellcross Map Editor"));
     SetStatusTextUnits(map);
     SetStatusTextEvents(map);
+    SetStatusTextUnit();
 }
 
 
@@ -1980,6 +2005,21 @@ void MainFrame::OnAddUnit(wxCommandEvent& event)
     form_units->SetSpellData(spell_data);
     form_units->SetMapUnit(NULL, spell_map, &m_spell_unit_template);
     form_units->Show();    
+}
+
+// change selected unit randomizer mode
+void MainFrame::OnCycleUnitRandMode(wxCommandEvent& event)
+{
+    auto* unit = spell_map->GetSelectedUnit();
+    if(!unit)
+        return;
+    if(unit->randomize_mode == MapUnit::RandomizeMode::OFF)
+        unit->randomize_mode = MapUnit::RandomizeMode::AUTO;
+    else if(unit->randomize_mode == MapUnit::RandomizeMode::AUTO)
+        unit->randomize_mode = MapUnit::RandomizeMode::EXPLICIT;
+    else
+        unit->randomize_mode = MapUnit::RandomizeMode::OFF;
+    UpdateMapStatus();
 }
 
 

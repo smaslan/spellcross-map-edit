@@ -61,7 +61,7 @@ class FormMissionParams : public wxDialog
 
 		std::map<int,std::string> m_units_list;
 
-		void LoadRandRules();
+		void LoadRandRules(int select_id=-1);
 		void OnSelectRandRule(wxCommandEvent& event);
 		void OnUnitPropChange(wxPropertyGridEvent& event);
 		void OnRulesClick(wxMouseEvent& event);

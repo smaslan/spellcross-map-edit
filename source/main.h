@@ -171,6 +171,7 @@ private:
     void OnInvalidateSelection(wxCommandEvent& event);
     void OnCreateNewObject(wxCommandEvent& event);
     void OnAddUnit(wxCommandEvent& event);
+    void OnCycleUnitRandMode(wxCommandEvent& event);
     void OnEditMissionParams(wxCommandEvent& event);
     void OnExportMapRender(wxCommandEvent& event);
     void OnExportAllMapsRender(wxCommandEvent& event);
@@ -188,6 +189,8 @@ private:
     void SetStatusTextUnits(SpellMap *map=NULL);
     void SetStatusTextEvents(std::string text);
     void SetStatusTextEvents(SpellMap* map=NULL);
+    void SetStatusTextUnit(std::string text);
+    void SetStatusTextUnit(MapUnit* unit=NULL);
     void UpdateMapStatus(SpellMap *map=NULL);
 
     void HistoryCheck();
@@ -436,6 +439,7 @@ enum
     ID_PlaceExit,
     ID_CreateNewObject,
     ID_AddUnit,
+    ID_CycleUnitRandomMode,
     ID_UpdateSprContextMaps,
     ID_GenDMAobjects,
     ID_GenDMAobjectsMaps,
