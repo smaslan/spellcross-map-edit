@@ -332,7 +332,22 @@ int SpellMapEvents::EraseEvent(SpellMapEventRec* event)
 	map->LockMap();
 
 	// place all linked units to the map
-	for(auto & rec : evt->units)
+	while(!evt->units.empty())
+	{		
+		// extract unit from event units list
+		auto unit = evt->ExtractUnit(evt->units.back().unit);
+		if(unit->is_enemy)
+		{
+			// enemy units can go directly to the map
+			map->units.push_back(unit);
+		}
+		else
+		{
+			// alinace units can be only MissionStart()
+			AddMissionStartUnit(unit);
+		}
+	}
+	/*for(auto & rec : evt->units)
 	{
 		// extract unit from event units list
 		auto unit = evt->ExtractUnit(rec.unit);
@@ -346,7 +361,7 @@ int SpellMapEvents::EraseEvent(SpellMapEventRec* event)
 			// alinace units can be only MissionStart()
 			AddMissionStartUnit(unit);
 		}		
-	}
+	}*/
 
 	map->SortUnits();
 	map->ReleaseMap();
