@@ -409,6 +409,7 @@ MainFrame::MainFrame(SpellConfig* config, SpellMap *&map, SpellData *&spelldata)
     menuEdit->Append(wxID_ANY,"","",wxITEM_SEPARATOR);
     menuEdit->Append(ID_AddUnit,"Add unit\tCtrl+Shift+U","",wxITEM_NORMAL);
     menuEdit->Append(ID_CycleUnitRandomMode,"Change unit randomizer rule\tCtrl+Shift+R","",wxITEM_NORMAL);
+    menuEdit->Append(ID_CycleUnitBehaveMode,"Change unit behave/spec. type\tCtrl+Shift+B","",wxITEM_NORMAL);
     AssignSVGresourceToMenu(menuEdit,ID_HistoryUndo,"IDR_UNDO");
     AssignSVGresourceToMenu(menuEdit,ID_HistoryRedo,"IDR_REDO");
     AssignSVGresourceToMenu(menuEdit,ID_EditMissionParams,"IDR_EDIT");
@@ -448,6 +449,7 @@ MainFrame::MainFrame(SpellConfig* config, SpellMap *&map, SpellData *&spelldata)
     menuTools->Append(ID_ExportVoxZ,"Export Z-map","",wxITEM_NORMAL);
     menuTools->Append(ID_ExportMapImg,"Export map render","",wxITEM_NORMAL);
     menuTools->Append(ID_ExportMapsImg,"Export batch map renders","",wxITEM_NORMAL);
+    menuTools->Append(ID_BatchMapsLoadSave,"Batch maps load-save","",wxITEM_NORMAL);
     menuTools->Append(wxID_ANY,"","",wxITEM_SEPARATOR);
     menuTools->Append(ID_UpdateSprContext, "Update tile context from this map","",wxITEM_NORMAL);
     menuTools->Append(ID_UpdateSprContextMaps,"Update tile context from ALL maps","",wxITEM_NORMAL);
@@ -590,6 +592,9 @@ MainFrame::MainFrame(SpellConfig* config, SpellMap *&map, SpellData *&spelldata)
     Bind(wxEVT_MENU,&MainFrame::OnViewVoxZ,this,ID_ExportVoxZ);
     Bind(wxEVT_MENU,&MainFrame::OnExportMapRender,this,ID_ExportMapImg);    
     Bind(wxEVT_MENU,&MainFrame::OnExportAllMapsRender,this,ID_ExportMapsImg);    
+    Bind(wxEVT_MENU,&MainFrame::OnBatchMapsLoadSave,this,ID_BatchMapsLoadSave);
+
+
 
     Bind(wxEVT_MENU,&MainFrame::OnViewMiniMap,this,ID_ViewMiniMap);
     Bind(wxEVT_MENU,&MainFrame::OnUnitViewDebug,this,ID_UnitViewDbg);
@@ -615,6 +620,7 @@ MainFrame::MainFrame(SpellConfig* config, SpellMap *&map, SpellData *&spelldata)
     Bind(wxEVT_MENU,&MainFrame::OnCreateNewObject,this,ID_CreateNewObject);
     Bind(wxEVT_MENU,&MainFrame::OnAddUnit,this,ID_AddUnit);
     Bind(wxEVT_MENU,&MainFrame::OnCycleUnitRandMode,this,ID_CycleUnitRandomMode);
+    Bind(wxEVT_MENU,&MainFrame::OnCycleUnitBehaveMode,this,ID_CycleUnitBehaveMode);
 
     spell_map->SetMessageInterface(bind(&MainFrame::ShowMessage,this,placeholders::_1,placeholders::_2,placeholders::_3), bind(&MainFrame::CheckMessageState,this));    
     
@@ -773,7 +779,7 @@ void MainFrame::SetStatusTextUnit(MapUnit *unit)
         SetStatusTextUnit("");
         return;
     }
-    SetStatusTextUnit(string_format("Unit: %ls, randomizer = %s",unit->unit->name.c_str(),unit->GetRandomizerModeName().c_str()));
+    SetStatusTextUnit(string_format("Unit #%d: %ls, %s, randomizer = %s",unit->id,unit->unit->name.c_str(),unit->GetUnitConfigString().c_str(),unit->GetRandomizerModeName().c_str()));
 }
 
 // update map status (units, events, etc.)
@@ -1915,6 +1921,50 @@ void MainFrame::OnExportAllMapsRender(wxCommandEvent& event)
 }
 
 
+// batch open-save maps to fix bugs
+void MainFrame::OnBatchMapsLoadSave(wxCommandEvent& event)
+{
+    auto src_dir = std::filesystem::path(spell_map->GetTopPath()).parent_path().wstring();
+
+    // get source maps
+    wxFileDialog openMapsDialogue(this, "Select map files to render (multiple files allowed)", src_dir, "M*.DTA", "Map DTA files (*.DTA)|*.DTA", wxFD_OPEN|wxFD_MULTIPLE|wxFD_FILE_MUST_EXIST);
+    if(openMapsDialogue.ShowModal() == wxID_CANCEL)
+        return;
+    wxArrayString maps_list;
+    openMapsDialogue.GetFilenames(maps_list);
+
+    // for each map file
+    for(int fid = 0; fid < maps_list.Count(); fid++)
+    {        
+        auto map_path = maps_list[fid];        
+        SetStatusTextLast(string_format("Processing map %d of %d: \"%ls\"...",fid+1,maps_list.Count(),map_path.ToStdWstring().c_str()));
+
+        // try load map
+        SpellMap map;
+        map.hide_map_load_warnings = true;
+        if(map.Load(std::filesystem::path(map_path.ToStdWstring()),spell_data))
+        {
+            wxMessageDialog dlg(this,string_format("Loading map file \"%ls\" failed! Error message:\n%s\n\nContinue?",map_path.ToStdWstring().c_str(), map.GetLastError().c_str()), "Export map render error",wxYES_NO|wxYES_DEFAULT|wxICON_ERROR);
+            if(dlg.ShowModal() != wxID_YES)
+                break;
+            continue;
+        }
+
+        // try save to same place
+        if(map.SaveDTA(map_path.ToStdWstring()))
+        {
+            wxMessageDialog dlg(this,string_format("Saving map file \"%ls\" failed! Error message:\n%s\n\nContinue?",map_path.ToStdWstring().c_str(),map.GetLastError().c_str()),"Export map render error",wxYES_NO|wxYES_DEFAULT|wxICON_ERROR);
+            if(dlg.ShowModal() != wxID_YES)
+                break;
+            continue;
+        }
+        
+    }
+    SetStatusTextLast(string_format("Batch open-save %d maps done!",maps_list.Count()));
+}
+
+
+
 
 
 // edit mission parameters
@@ -2019,6 +2069,35 @@ void MainFrame::OnCycleUnitRandMode(wxCommandEvent& event)
         unit->randomize_mode = MapUnit::RandomizeMode::EXPLICIT;
     else
         unit->randomize_mode = MapUnit::RandomizeMode::OFF;
+    UpdateMapStatus();
+}
+
+// change selected unit bahave/spec. unit mode
+void MainFrame::OnCycleUnitBehaveMode(wxCommandEvent& event)
+{
+    auto* unit = spell_map->GetSelectedUnit();
+    if(!unit)
+        return;
+    if(unit->is_event)
+    {
+        if(unit->spec_type == MapUnitType::SpecUnit)
+            unit->spec_type = MapUnitType::ArmyUnit;
+        else if(unit->spec_type == MapUnitType::ArmyUnit)
+            unit->spec_type = MapUnitType::MissionUnit;
+        else if(unit->spec_type == MapUnitType::MissionUnit)
+            unit->spec_type = MapUnitType::VoluntUnit;
+        else if(unit->spec_type == MapUnitType::VoluntUnit)
+            unit->spec_type = MapUnitType::SpecUnit;
+    }
+    else
+    {
+        if(unit->behave == MapUnitType::NormalUnit)
+            unit->behave = MapUnitType::WaitForContact;
+        else if(unit->behave == MapUnitType::WaitForContact)
+            unit->behave = MapUnitType::ToughDefence;
+        else if(unit->behave == MapUnitType::ToughDefence)
+            unit->behave = MapUnitType::NormalUnit;
+    }
     UpdateMapStatus();
 }
 
@@ -2947,6 +3026,7 @@ void MainFrame::OnCanvasMouseMove(wxMouseEvent& event)
     auto [flags,height,code] = spell_map->GetTileFlags();
     SetStatusText(wxString::Format(wxT("(0x%02X)"),code),6);    
 
+    auto cur_unit = spell_map->GetCursorUnit();
     auto sel_evt = spell_map->GetSelectEvent();
     auto* unit = spell_map->GetSelectedUnit();
     auto sel_sound = spell_map->SoundSelected();
@@ -2985,6 +3065,8 @@ void MainFrame::OnCanvasMouseMove(wxMouseEvent& event)
                 spell_map->isUnitsViewDebugMode()?(SpellMap::ViewRange::ClearMode::HIDE):(SpellMap::ViewRange::ClearMode::NONE));
     }
 
+    // cursor unit status
+    SetStatusTextUnit(cur_unit);
 
     if(event.LeftIsDown())
     {

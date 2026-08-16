@@ -1617,6 +1617,13 @@ int SpellMap::SaveDTA(std::wstring path)
 		L1_map.push_back(tid);
 	}
 	uint32_t L1_count = L1_list.size();
+	for(auto spr: L1_list)
+		if(spr->is_dummy)
+		{
+			last_error = string_format("Saving DTA file: sprite %s in terrain layer not available in loaded data!",spr->name.c_str());
+			fw.close();
+			return(1);
+		}
 
 	// write L1 data offset
 	uint32_t L1_offset = L1_count*8 + 0x1A;
@@ -1680,6 +1687,14 @@ int SpellMap::SaveDTA(std::wstring path)
 		L2_map.push_back(tid);
 	}
 	uint32_t L2_count = L2_list.size();
+	for(auto spr: L2_list)
+		if(spr->is_dummy)
+		{
+			last_error = string_format("Saving DTA file: sprite %s in objects layer not available in loaded data!",spr->name.c_str());
+			fw.close();
+			return(1);
+		}
+
 
 	// write L2 sprites count
 	fw.write((uint32_t)L2_count);
@@ -1776,6 +1791,14 @@ int SpellMap::SaveDTA(std::wstring path)
 		}
 	}
 	uint32_t L4_count = L4_list.size();
+	for(auto spr: L4_list)
+		if(spr->is_dummy)
+		{
+			last_error = string_format("Saving DTA file: sprite %s in PNM layer not available in loaded data!",spr->name.c_str());
+			fw.close();
+			return(1);
+		}
+
 
 	// write PNM used animations count
 	fw.write((uint32_t)L4_count);
@@ -1803,7 +1826,7 @@ int SpellMap::SaveDTA(std::wstring path)
 		auto aid = (sid - L4_list.begin());
 
 		// randomize first frame offset
-		uint8_t ofs = rand() % pnm.anim->frames.size();
+		uint8_t ofs = rand() % std::min((int)pnm.anim->frames.size(),pnm.frame_limit);
 		fw.write((uint8_t)ofs);
 
 		// write frames limit (or whatever it is)

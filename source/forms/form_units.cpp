@@ -483,7 +483,7 @@ void FormUnits::OnClose(wxCloseEvent& ev)
 		m_unit_template->spec_type = m_unit->spec_type;
 		m_unit_template->behave = m_unit->behave;
 		m_unit_template->man = m_unit->man;
-		m_unit_template->experience_level = m_unit->experience_level;
+		m_unit_template->experience_level = m_unit->experience_init;
 	}
 	else if(m_unit && m_new_unit)
 	{
@@ -559,6 +559,7 @@ void FormUnits::SetMapUnit(MapUnit *unit, SpellMap* map, MapUnitTemplate *unit_t
 		unit->is_event = m_unit_template->is_event;
 		unit->behave = m_unit_template->behave;
 		unit->spec_type = m_unit_template->spec_type;
+		unit->experience_init = m_unit_template->experience_level;
 		unit->InitExperience(m_unit_template->experience_level);
 		unit->ResetHealth();
 

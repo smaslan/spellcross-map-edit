@@ -172,9 +172,11 @@ private:
     void OnCreateNewObject(wxCommandEvent& event);
     void OnAddUnit(wxCommandEvent& event);
     void OnCycleUnitRandMode(wxCommandEvent& event);
+    void OnCycleUnitBehaveMode(wxCommandEvent& event);
     void OnEditMissionParams(wxCommandEvent& event);
     void OnExportMapRender(wxCommandEvent& event);
     void OnExportAllMapsRender(wxCommandEvent& event);
+    void OnBatchMapsLoadSave(wxCommandEvent& event);
     void OnHistory(wxCommandEvent& event);
 
     void OnToolBtnClick(wxRibbonButtonBarEvent& event);
@@ -402,6 +404,7 @@ enum
     ID_ExportVoxZ,
     ID_ExportMapImg,
     ID_ExportMapsImg,
+    ID_BatchMapsLoadSave,
     ID_SetGamma,
     ID_ViewSprites,
     ID_ViewAnms,
@@ -440,6 +443,7 @@ enum
     ID_CreateNewObject,
     ID_AddUnit,
     ID_CycleUnitRandomMode,
+    ID_CycleUnitBehaveMode,
     ID_UpdateSprContextMaps,
     ID_GenDMAobjects,
     ID_GenDMAobjectsMaps,
