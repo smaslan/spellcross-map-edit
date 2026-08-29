@@ -1857,7 +1857,7 @@ int SpellMap::SaveDTA(std::wstring path)
 		fw.write((uint16_t)ConvXY(pos));
 	
 
-	// prepare L7 list of used sounds
+	// prepare L7 list of used sounds (ambient loop sounds)
 	std::vector<SpellSample*> L7_list;
 	int L7_count = 0;
 	for(auto snd: sounds->sounds)
@@ -9338,8 +9338,13 @@ int SpellMap::AssignUnitID(MapUnit *unit)
 	{
 		if(!unit->is_event)
 		{
-			// non event units - start at 50
-			id = max(id,50);			
+			// non-event units - start at index 50
+			id = max(id,50);
+			if(id >= 100)
+			{
+				last_error = string_format("There are more than 50 static units.");
+				ret = 1;
+			}
 		}
 		else
 		{
@@ -9353,12 +9358,11 @@ int SpellMap::AssignUnitID(MapUnit *unit)
 					last_error = string_format("There can be only two SpecUnits per map (SpecUnit1 and SpecUnit2)!");
 					ret = 1;
 				}
-			}
-			if(id >= 50 && id < 100)
+			}	
+			else if(id >= 48 && id < 100)
 			{
+				// skip static unit index range and spec units 48 - 99
 				id = 100;
-				last_error = string_format("There are more than 50 static units.");
-				ret = 1;
 			}
 		}
 		// is unique?
@@ -9397,9 +9401,12 @@ int SpellMap::SortUnitIDs()
 	int ret = 0;
 	for(auto u: units)
 		ret += AssignUnitID(u);
+	auto err_str = last_error;
 	for(auto ev: events->GetEvents())		
 		for(auto u: ev->units)
 			ret += AssignUnitID(u.unit);
+	if(last_error.empty())
+		last_error = err_str;
 	return(ret);
 }
 

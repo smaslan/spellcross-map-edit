@@ -10,6 +10,7 @@
 #include "other.h"
 #include "wx_other.h"
 #include "LZ_spell.h"
+#include "graphics.h"
 
 #include <wx/rawbmp.h>
 #include <wx/filedlg.h>
@@ -986,9 +987,95 @@ void FormGResEncoder::OnRegenPaletteClick(wxCommandEvent& event)
 		return;
 
 	auto dir = std::filesystem::path(m_info.path).parent_path().wstring();
+
+	
+	std::vector<ImgQuantize::Pixel> pixels;
+
+	// for each listed resource
+	std::filesystem::path prev_path;
+	for(auto& item: lboxList->GetStrings())
+	{
+		// item path
+		auto info_path = std::filesystem::path(dir).append(item.ToStdString()).wstring();
+		if(item == lboxList->GetStringSelection())
+			prev_path = info_path;
+
+		// try load
+		if(LoadResource(info_path))
+			continue;
+
+		// collect source pixels
+		int x_size = m_source.GetWidth();
+		int y_size = m_source.GetHeight();
+		if(m_source.HasAlpha())
+		{
+			// scan 32bit RGBA bmp data to buffer
+			typedef wxPixelData<wxBitmap,wxAlphaPixelFormat> PixelData;
+			PixelData data(m_source);
+			PixelData::Iterator p(data);
+			for(int y = 0; y < y_size; ++y)
+			{
+				p.MoveTo(data,0,y);
+				for(int x = 0; x < x_size; x++)
+				{
+					if(p.Alpha() != 0)
+						pixels.push_back({p.Red(),p.Green(),p.Blue()});
+					p++;
+				}
+			}
+		}
+		else
+		{
+			// scan 24bit RGB bmp data to buffer
+			wxNativePixelData data(m_source);
+			wxNativePixelData::Iterator p(data);
+			int depth = m_source.GetDepth();
+			if(depth != 24)
+				continue;
+			for(int y = 0; y < y_size; ++y)
+			{
+				p.MoveTo(data,0,y);
+				for(int x = 0; x < x_size; x++)
+				{
+					pixels.push_back({p.Red(),p.Green(),p.Blue()});
+					p++;
+				}
+				
+			}
+		}
+	}
+
+	// reload original resource
+	if(!prev_path.empty() && lboxList->GetCount() > 1)
+		LoadResource(prev_path);
+		
+
+	m_pal.m_used[0] = 0;
+	auto max_count = std::count(m_pal.m_used.begin(),m_pal.m_used.end(),1);
+
+	auto pal = ImgQuantize::GenMedianCutPalette(pixels, max_count);
+
+	// place black/transparent
+	m_pal.m_pal.assign(3*256,0);
+
+	// assign new colors
+	auto used = m_pal.m_used;
+	for(int k = 0; k < max_count; k++)
+	{
+		if(k >= pal.size())
+			break;
+		auto item = std::find(used.begin(), used.end(), 1);
+		if(item == used.end())
+			break;
+		int cid = item - used.begin() + 1;
+		m_pal.m_pal[cid*3 + 0] = pal[k].r;
+		m_pal.m_pal[cid*3 + 1] = pal[k].g;
+		m_pal.m_pal[cid*3 + 2] = pal[k].b;
+		*item = 0;
+	}
 		
 	
-	std::vector<uint32_t> pixels;
+	/*std::vector<uint32_t> pixels;
 
 	// for each listed resource
 	for(auto& item: lboxList->GetStrings())
@@ -1096,7 +1183,7 @@ void FormGResEncoder::OnRegenPaletteClick(wxCommandEvent& event)
 		m_pal.m_pal[cid*3 + 1] = color.db[1];
 		m_pal.m_pal[cid*3 + 2] = color.db[0];
 		*item = 0;
-	}
+	}*/
 
 	// refresh
 	OnRegenClick(event);

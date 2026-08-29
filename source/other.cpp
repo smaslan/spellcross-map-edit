@@ -323,6 +323,22 @@ bool iequals(const std::wstring& a,const std::wstring& b)
         });*/
 }
 
+bool caseInsensitiveCharCompare(wchar_t a,wchar_t b)
+{
+    return(tolower(a) == tolower(b));
+}
+// check string for presence of substring, case insensitive
+bool match_substr(std::wstring& str,std::wstring& substr,bool case_sensitive)
+{
+    std::wstring::iterator it;
+    if(case_sensitive)
+        it = std::search(str.begin(),str.end(),substr.begin(),substr.end());
+    else     
+        it = std::search(str.begin(),str.end(),substr.begin(),substr.end(),caseInsensitiveCharCompare);
+    return(it != str.end());
+}
+
+
 // checks string for duplicates in the list, modify it to not be duplicate, like e.g. "my string 1" to "my string 2", etc.
 std::string fix_no_duplicate_string(std::string str, std::vector<std::string> &list)
 {
@@ -627,7 +643,7 @@ std::vector<std::string> get_text_lines(std::string string, bool trim_white, cha
     return(rows);
 }
 
-// split string by lines (or other separators), by default also trims white chars both ends
+// merge string lines with separators
 std::string merge_text_lines(std::vector<std::string> &lines,std::string separator)
 {
     std::string str;
@@ -635,6 +651,19 @@ std::string merge_text_lines(std::vector<std::string> &lines,std::string separat
     {
         str += lines[k];
         if(k < lines.size() - 1)
+            str += separator;
+    }
+    return(str);
+}
+
+// merge vector to string with separators
+std::string merge_vector(std::vector<int>& vec,std::string separator)
+{
+    std::string str;
+    for(int k = 0; k < vec.size(); k++)
+    {
+        str += string_format("%d",vec[k]);
+        if(k < vec.size() - 1)
             str += separator;
     }
     return(str);
@@ -681,8 +710,8 @@ std::string get_timestr_iso()
     std::tm* gmt = std::gmtime(&tt);
     std::stringstream buffer;
     buffer << std::put_time(gmt,"%Y-%m-%dT%H:%M:%S%z");
-    return(buffer.str());
-    
+    return(buffer.str());    
+
     // ###note: this causes memory leaks! (bad MSVC implementation)
     /*std::chrono::system_clock::time_point now = std::chrono::system_clock::now();
     return(std::format("{0:%F}T{0:%T%z}.",now));*/
@@ -697,6 +726,15 @@ std::string get_local_time_str()
     std::stringstream buffer;
     buffer << std::put_time(gmt,"%Y-%m-%d %H:%M:%S");
     return(buffer.str());
+}
+
+// initialize random number generator by time
+void srand_init()
+{
+    auto usec = std::chrono::duration_cast<std::chrono::microseconds>(
+        std::chrono::system_clock::now().time_since_epoch()
+        ).count();
+    std::srand(usec % 10000);
 }
 
 

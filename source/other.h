@@ -23,6 +23,7 @@ std::wstring wstring_format(const std::wstring fmt,...);
 std::string format_bin(uint32_t dword,int digits=32,bool gaps=false);
 bool iequals(const std::string& a,const std::string& b);
 bool iequals(const std::wstring& a,const std::wstring& b);
+bool match_substr(std::wstring& str,std::wstring& substr,bool case_sensitive=true);
 std::string& strrep(std::string& str,std::string key,std::string rep);
 int savestr(std::wstring path,std::string& str);
 int loadstr(std::filesystem::path path,std::string& strbuf);
@@ -31,6 +32,7 @@ int loaddata(std::filesystem::path path,std::vector<uint8_t>& data);
 std::string trim_whites(std::string str,bool also_below_32=false);
 std::string get_timestr_iso();
 std::string get_local_time_str();
+void srand_init();
 int str2int(std::string str,int& value,int min=-INT_MIN,int max=INT_MAX,int base=10);
 int str2int(std::vector<std::string>& str,std::vector<int>& value,int min=-INT_MIN,int max=INT_MAX,int base=10);
 
@@ -81,6 +83,7 @@ std::vector<std::string> info_get_section(std::vector<std::string>& lines,std::s
 std::vector<std::string> str_split(std::string string,char separator,bool trim_white=false);
 std::vector<std::string> get_text_lines(std::string string,bool trim_white=true,char separator='\n');
 std::string merge_text_lines(std::vector<std::string>& lines,std::string separator="\r\n");
+std::string merge_vector(std::vector<int>& vec,std::string separator);
 std::vector<std::string> regexp_get(std::string str,std::string regkey);
 
 uint32_t popcount(uint32_t v);
@@ -194,9 +197,17 @@ public:
         : std::ifstream(name,options) {};
     ~ifstreamext() = default;
 
+    // check last operation was ok
+    bool is_ok()
+    {
+        return(this->rdstate() == goodbit);
+    }
+
     uint32_t read_u32(){
         uint32_t val;
         std::ifstream::read((char*)&val,sizeof(uint32_t));
+        /*if(this->rdstate() != goodbit)
+            throw std::exception("Read out of bounds!");*/
         return(val);
     };
 
@@ -230,14 +241,22 @@ public:
         return(val);
     };
 
-    std::vector<uint8_t> read_vector() {
-        seekg(0,SEEK_END);
-        auto flen = tellg();
-        seekg(0);
+    // read binary data of size or rest of file if size=0
+    std::vector<uint8_t> read_vector(int size=0) {
+        std::streampos flen = size;
+        if(!size)
+        {
+            // read rest of file
+            auto pos = tellg();
+            seekg(0,SEEK_END);
+            flen = tellg();
+            seekg(pos);
+        }        
         std::vector<uint8_t> data(flen);
         read((char*)data.data(),flen);
         return(data);
     }
+       
   
     // read string item with size prefix (16bit)
     std::string read_str_p16()
@@ -246,6 +265,33 @@ public:
         std::string str(len,'\0');
         std::ifstream::read((char*)str.data(),len);
         str.resize(len-1);
+        return(str);
+    }
+
+    // read null terminated string including the null
+    std::string read_str_null()
+    {
+        std::string str;
+        while(1)
+        {
+            auto c = read_i8();
+            if(!is_ok())
+                return("");
+            if(!c)
+                break;
+            str.push_back(c);
+        }        
+        return(str);
+    }
+
+    // read fixed size string including the null
+    std::string read_str_fixed(int len)
+    {
+        std::string str(len,'\0');
+        read(str.data(), len);
+        if(!is_ok())
+            return("");
+        str.resize(strlen(str.c_str()));
         return(str);
     }
 

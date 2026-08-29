@@ -133,6 +133,7 @@ private:
 
 public:
 	bool in_placement;	
+	bool not_placed_yet;
 
 	enum SoundType {
 		RANDOM = 0,

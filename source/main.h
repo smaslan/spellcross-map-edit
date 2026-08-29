@@ -195,6 +195,14 @@ private:
     void SetStatusTextUnit(MapUnit* unit=NULL);
     void UpdateMapStatus(SpellMap *map=NULL);
 
+    void ViewLayerObjects(bool state=true);
+    void ViewLayerEvents(bool state=true);
+    void ViewLayerUnits(bool state=true);
+    void ViewLayerANM(bool state=true);
+    void ViewLayerPNM(bool state=true);
+    void ViewLayerSounds(bool state=true);
+    void ViewLayerSoundLoops(bool state=true);
+
     void HistoryCheck();
     void HistoryPush();
 
@@ -348,8 +356,11 @@ private:
         ID_POP_REM_TRANSPORT_UNIT,
         ID_POP_REM_DESTROY_UNIT,
         ID_POP_ADD_SPAWN_UNIT,
+        ID_POP_SELECT_EVENT,
         ID_POP_EDIT_EVENT,
         ID_POP_ANOTHER_EVENT,
+        ID_POP_SELECT_UNIT,
+        ID_POP_MOVE_UNIT,
         ID_POP_EDIT_UNIT,
         ID_POP_REM_UNIT,
         ID_POP_EDIT_TERR,
@@ -359,6 +370,8 @@ private:
         ID_POP_REM_ANM,
         ID_POP_EDIT_PNM,
         ID_POP_REM_PNM,
+        ID_POP_MOVE_SOUND,
+        ID_POP_SELECT_SOUND,
         ID_POP_EDIT_SOUND,
         ID_POP_REM_SOUND,
         ID_POP_UNIT_TO_SEE_PLACE

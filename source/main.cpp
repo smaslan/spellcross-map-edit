@@ -856,6 +856,10 @@ void MainFrame::OnClose(wxCloseEvent& ev)
                 {
                     // some anim selected - place to clipboard
                     spell_map->SetBuffer(anm);
+
+                    GetMenuBar()->FindItem(ID_ViewAnm)->Check(true);
+                    wxCommandEvent event;
+                    OnViewLayer(event);
                 }
             }
             if(pnm)
@@ -870,6 +874,10 @@ void MainFrame::OnClose(wxCloseEvent& ev)
                 {
                     // some anim selected - place to clipboard
                     spell_map->SetBuffer(pnm,x_ofs,y_ofs);
+
+                    GetMenuBar()->FindItem(ID_ViewPnm)->Check(true);
+                    wxCommandEvent event;
+                    OnViewLayer(event);
                 }
             }
 
@@ -898,7 +906,13 @@ void MainFrame::OnClose(wxCloseEvent& ev)
                 if(map_sound)
                 {
                     spell_map->SoundSelect(map_sound);
-                    map_sound->in_placement = true;                    
+                    map_sound->in_placement = true;
+                    map_sound->not_placed_yet = true;
+
+                    GetMenuBar()->FindItem(ID_ViewSounds)->Check(true);
+                    GetMenuBar()->FindItem(ID_ViewSoundLoops)->Check(true);
+                    wxCommandEvent event;
+                    OnViewLayer(event);
                 }
             }
         }                
@@ -955,6 +969,10 @@ void MainFrame::OnClose(wxCloseEvent& ev)
                 spell_map->AddUnit(new_unit);
             }
             spell_map->SelectUnit(new_unit);
+
+            GetMenuBar()->FindItem(ID_ViewUnt)->Check(true);
+            wxCommandEvent event;
+            OnViewLayer(event);
         }
         if(form_units->DoUpdateUnit())
         {
@@ -1307,8 +1325,7 @@ void MainFrame::OnHUDbuttonsClick(wxMouseEvent& event)
 
 // on change of map layer view
 void MainFrame::OnViewLayer(wxCommandEvent& event)
-{
-    
+{    
     bool wL1 = GetMenuBar()->FindItem(ID_ViewTer)->IsChecked();
     bool wL2 = GetMenuBar()->FindItem(ID_ViewObj)->IsChecked();
     bool wL3 = GetMenuBar()->FindItem(ID_ViewAnm)->IsChecked();
@@ -1324,8 +1341,49 @@ void MainFrame::OnViewLayer(wxCommandEvent& event)
     spell_map->SetRender(wL1,wL2,wL3,wL4,wSS,wCounterStart,wL5,wSound,wSoundLoop,wEvents,wHobj,wDebug);
     bool hud = GetMenuBar()->FindItem(ID_ViewHUD)->IsChecked();
     spell_map->SetHUDstate(hud);
-    Refresh();
-    
+    Refresh();    
+}
+void MainFrame::ViewLayerObjects(bool state)
+{
+    wxCommandEvent evt;
+    GetMenuBar()->FindItem(ID_ViewObj)->Check(state);
+    OnViewLayer(evt);
+}
+void MainFrame::ViewLayerEvents(bool state)
+{
+    wxCommandEvent evt;
+    GetMenuBar()->FindItem(ID_ViewEvents)->Check(state);
+    OnViewLayer(evt);
+}
+void MainFrame::ViewLayerUnits(bool state)
+{
+    wxCommandEvent evt;
+    GetMenuBar()->FindItem(ID_ViewUnt)->Check(state);
+    OnViewLayer(evt);
+}
+void MainFrame::ViewLayerANM(bool state)
+{
+    wxCommandEvent evt;
+    GetMenuBar()->FindItem(ID_ViewAnm)->Check(state);
+    OnViewLayer(evt);
+}
+void MainFrame::ViewLayerPNM(bool state)
+{
+    wxCommandEvent evt;
+    GetMenuBar()->FindItem(ID_ViewPnm)->Check(state);
+    OnViewLayer(evt);
+}
+void MainFrame::ViewLayerSounds(bool state)
+{
+    wxCommandEvent evt;
+    GetMenuBar()->FindItem(ID_ViewSounds)->Check(state);
+    OnViewLayer(evt);
+}
+void MainFrame::ViewLayerSoundLoops(bool state)
+{
+    wxCommandEvent evt;
+    GetMenuBar()->FindItem(ID_ViewSoundLoops)->Check(state);
+    OnViewLayer(evt);
 }
 
 // enable disable unit view debug mode
@@ -2060,7 +2118,9 @@ void MainFrame::OnAddUnit(wxCommandEvent& event)
 // change selected unit randomizer mode
 void MainFrame::OnCycleUnitRandMode(wxCommandEvent& event)
 {
-    auto* unit = spell_map->GetSelectedUnit();
+    auto *unit = spell_map->GetCursorUnit();
+    if(!unit)
+        unit = spell_map->GetSelectedUnit();
     if(!unit)
         return;
     if(unit->randomize_mode == MapUnit::RandomizeMode::OFF)
@@ -2075,7 +2135,9 @@ void MainFrame::OnCycleUnitRandMode(wxCommandEvent& event)
 // change selected unit bahave/spec. unit mode
 void MainFrame::OnCycleUnitBehaveMode(wxCommandEvent& event)
 {
-    auto* unit = spell_map->GetSelectedUnit();
+    auto* unit = spell_map->GetCursorUnit();
+    if(!unit)
+        unit = spell_map->GetSelectedUnit();
     if(!unit)
         return;
     if(unit->is_event)
@@ -2159,6 +2221,7 @@ void MainFrame::OnCanvasPopupSelect(wxCommandEvent& event)
         spell_map->events->AddMissionStartUnit(cur_unit,probab);
         spell_map->SortUnits();
         HistoryPush();
+        ViewLayerEvents(true);
     }
     else if(menu_id == ID_POP_REM_MISSIONSTART)
     {
@@ -2174,6 +2237,7 @@ void MainFrame::OnCanvasPopupSelect(wxCommandEvent& event)
         spell_map->events->AddSeeUnitEvent(cur_unit);
         spell_map->SortUnits();
         HistoryPush();
+        ViewLayerEvents(true);
     }
     else if(menu_id == ID_POP_ADD_DESTROY_UNIT)
     {
@@ -2181,6 +2245,7 @@ void MainFrame::OnCanvasPopupSelect(wxCommandEvent& event)
         spell_map->events->AddUnitObjective(cur_unit,SpellMapEventRec::EvtTypes::EVT_DESTROY_UNIT);
         spell_map->SortUnits();
         HistoryPush();
+        ViewLayerEvents(true);
     }
     else if(menu_id == ID_POP_ADD_SAVE_UNIT)
     {
@@ -2188,6 +2253,7 @@ void MainFrame::OnCanvasPopupSelect(wxCommandEvent& event)
         spell_map->events->AddUnitObjective(cur_unit,SpellMapEventRec::EvtTypes::EVT_SAVE_UNIT);
         spell_map->SortUnits();
         HistoryPush();
+        ViewLayerEvents(true);
     }
     else if(menu_id == ID_POP_ADD_TRANSPORT_UNIT)
     {
@@ -2195,6 +2261,7 @@ void MainFrame::OnCanvasPopupSelect(wxCommandEvent& event)
         spell_map->events->AddUnitObjective(cur_unit,SpellMapEventRec::EvtTypes::EVT_TRANSPORT_UNIT);
         spell_map->SortUnits();
         HistoryPush();
+        ViewLayerEvents(true);
     }
     else if(menu_id == ID_POP_REM_SEEUNIT || menu_id == ID_POP_REM_DESTROY_UNIT || menu_id == ID_POP_REM_SAVE_UNIT || menu_id == ID_POP_REM_TRANSPORT_UNIT)
     {
@@ -2209,6 +2276,7 @@ void MainFrame::OnCanvasPopupSelect(wxCommandEvent& event)
         // try create SeePlace event        
         spell_map->events->AddSeePlaceEvent(spell_pos);
         HistoryPush();
+        ViewLayerEvents(true);
     }
     else if(menu_id == ID_POP_REM_SEE_PLACE)
     {
@@ -2224,6 +2292,7 @@ void MainFrame::OnCanvasPopupSelect(wxCommandEvent& event)
         spell_map->SelectEvent(evt);        
         spell_map->UpdateEventUnit(evt,cur_unit);
         HistoryPush();
+        ViewLayerEvents(true);
     }
     else if(menu_id == ID_POP_ADD_SPAWN_UNIT)
     {
@@ -2231,6 +2300,14 @@ void MainFrame::OnCanvasPopupSelect(wxCommandEvent& event)
         auto cur_evt = spell_map->GetSelectEvent();
         spell_map->UpdateEventUnit(cur_evt,cur_unit);
         HistoryPush();
+        ViewLayerEvents(true);
+    }
+    else if(menu_id == ID_POP_SELECT_EVENT)
+    {
+        // select event
+        auto cur_evt = spell_map->GetCursorEvent();
+        spell_map->SelectEvent(cur_evt);
+        ViewLayerEvents(true);
     }
     else if(menu_id == ID_POP_EDIT_EVENT)
     {
@@ -2238,12 +2315,26 @@ void MainFrame::OnCanvasPopupSelect(wxCommandEvent& event)
         auto cur_evt = spell_map->GetSelectEvent();
         //spell_map->SelectEvent(cur_evt);
         OnEditEvent(event);
+        ViewLayerEvents(true);
     }
     else if(menu_id == ID_POP_ANOTHER_EVENT)
     {
         // switch to another event at position
         auto cur_evt = spell_map->GetSelectEvent();
-        spell_map->SelectEvent(spell_map->events->GetAnotherEvent(cur_evt));        
+        spell_map->SelectEvent(spell_map->events->GetAnotherEvent(cur_evt));
+        ViewLayerEvents(true);
+    }
+    else if(menu_id == ID_POP_SELECT_UNIT)
+    {
+        // select unit
+        spell_map->SelectUnit(cur_unit);
+    }
+    else if(menu_id == ID_POP_MOVE_UNIT)
+    {
+        // move unit
+        auto unit = spell_map->SelectUnit(cur_unit);
+        if(unit)
+            unit->in_placement = !unit->in_placement;
     }
     else if(menu_id == ID_POP_EDIT_UNIT)
     {
@@ -2329,6 +2420,23 @@ void MainFrame::OnCanvasPopupSelect(wxCommandEvent& event)
             }
         }
     }
+    else if(menu_id == ID_POP_SELECT_SOUND)
+    {
+        // select sound
+        auto cur_sound = spell_map->CheckSound(NULL);        
+        if(cur_sound)
+            spell_map->SoundSelect(cur_sound);
+    }
+    else if(menu_id == ID_POP_MOVE_SOUND)
+    {
+        // move sound
+        auto cur_sound = spell_map->SoundSelected();
+        if(cur_sound)
+        {
+            spell_map->SoundSelect(cur_sound);
+            cur_sound->in_placement = true;
+        }
+    }
     else if(menu_id == ID_POP_REM_SOUND)
     {
         // remove sound
@@ -2376,6 +2484,8 @@ void MainFrame::OnCanvasRMouse(wxMouseEvent& event)
             auto cur_pos = spell_map->GetSelection();
             spell_pos = cur_pos;
 
+            int wUnits = GetMenuBar()->FindItem(ID_ViewUnt)->IsChecked(); // ###todo: optimize?
+            int wEvents = GetMenuBar()->FindItem(ID_ViewEvents)->IsChecked(); // ###todo: optimize?
             int wSounds = GetMenuBar()->FindItem(ID_ViewSounds)->IsChecked(); // ###todo: optimize?
             int wSoundLoops = GetMenuBar()->FindItem(ID_ViewSoundLoops)->IsChecked(); // ###todo: optimize?
             bool wSound = wSounds || wSoundLoops;
@@ -2390,11 +2500,15 @@ void MainFrame::OnCanvasRMouse(wxMouseEvent& event)
             wxMenu menu;
             menu.SetClientData(cur_unit);
 
-            if(sel_evt && sel_evt->GetPosition() == cur_pos && spell_map->events->GetEventsCount(cur_pos) > 1)
+            if(wEvents && cur_evt)
+            {
+                menu.Append(ID_POP_SELECT_EVENT,"Select event");
+            }
+            if(wEvents && sel_evt && sel_evt->GetPosition() == cur_pos && spell_map->events->GetEventsCount(cur_pos) > 1)
             {
                 menu.Append(ID_POP_ANOTHER_EVENT,"Switch to other event");
             }
-            if((cur_unit && cur_unit->creator_event && cur_unit->creator_event->isMissionStart()) || cur_evt)
+            if(wEvents && ((cur_unit && cur_unit->creator_event && cur_unit->creator_event->isMissionStart()) || cur_evt))
             {
                 menu.Append(ID_POP_EDIT_EVENT,"Edit event");
             }
@@ -2424,15 +2538,15 @@ void MainFrame::OnCanvasRMouse(wxMouseEvent& event)
                 menu.Append(ID_POP_ADD_TRANSPORT_UNIT,"Create TransportUnit objective");
                 menu.Append(ID_POP_ADD_DESTROY_UNIT,"Create DestroyUnit objective");
             }
-            if(cur_unit && cur_unit->GetTrigEvent(SpellMapEventRec::EvtTypes::EVT_SAVE_UNIT))
+            if(wEvents && cur_unit && cur_unit->GetTrigEvent(SpellMapEventRec::EvtTypes::EVT_SAVE_UNIT))
             {
                 menu.Append(ID_POP_REM_SAVE_UNIT,"Remove SaveUnit objective");
             }
-            if(cur_unit && cur_unit->GetTrigEvent(SpellMapEventRec::EvtTypes::EVT_TRANSPORT_UNIT))
+            if(wEvents && cur_unit && cur_unit->GetTrigEvent(SpellMapEventRec::EvtTypes::EVT_TRANSPORT_UNIT))
             {
                 menu.Append(ID_POP_REM_TRANSPORT_UNIT,"Remove TransportUnit objective");
             }
-            if(cur_unit && cur_unit->GetTrigEvent(SpellMapEventRec::EvtTypes::EVT_DESTROY_UNIT))
+            if(wEvents && cur_unit && cur_unit->GetTrigEvent(SpellMapEventRec::EvtTypes::EVT_DESTROY_UNIT))
             {
                 menu.Append(ID_POP_REM_DESTROY_UNIT,"Remove DestroyUnit objective");
             }
@@ -2440,7 +2554,7 @@ void MainFrame::OnCanvasRMouse(wxMouseEvent& event)
             {
                 menu.Append(ID_POP_ADD_SEEUNIT,"Create SeeUnit event");
             }
-            if(cur_unit && cur_unit->GetTrigEvent(SpellMapEventRec::EvtTypes::EVT_SEE_UNIT))
+            if(wEvents && cur_unit && cur_unit->GetTrigEvent(SpellMapEventRec::EvtTypes::EVT_SEE_UNIT))
             {
                 menu.Append(ID_POP_REM_SEEUNIT,"Remove SeeUnit event");
             }            
@@ -2452,18 +2566,20 @@ void MainFrame::OnCanvasRMouse(wxMouseEvent& event)
             {
                 menu.Append(ID_POP_ADD_SEE_PLACE,"Create SeePlace event");
             }
-            if(spell_map->events->CheckEvent(SpellMapEventRec::EvtTypes::EVT_SEE_PLACE,&cur_pos))
+            if(wEvents && spell_map->events->CheckEvent(SpellMapEventRec::EvtTypes::EVT_SEE_PLACE,&cur_pos))
             {
                 menu.Append(ID_POP_REM_SEE_PLACE,"Remove SeePlace event");
             }
-            if(cur_unit && sel_evt)
+            if(wEvents && cur_unit && sel_evt)
             {
                 menu.Append(ID_POP_ADD_SPAWN_UNIT,"Add/remove unit to/from event spawn units list\tCtrl+Left Click");
             }
-            if(cur_unit)
+            if(wUnits && cur_unit)
             {
                 if(menu.GetMenuItemCount())
                     menu.AppendSeparator();
+                menu.Append(ID_POP_SELECT_UNIT,"Select unit");
+                menu.Append(ID_POP_MOVE_UNIT,"Move unit");
                 menu.Append(ID_POP_EDIT_UNIT,"Edit unit");
                 menu.Append(ID_POP_REM_UNIT,"Remove unit");
             }            
@@ -2498,6 +2614,8 @@ void MainFrame::OnCanvasRMouse(wxMouseEvent& event)
             {
                 if(menu.GetMenuItemCount())
                     menu.AppendSeparator();
+                menu.Append(ID_POP_SELECT_SOUND,"Select sound");
+                menu.Append(ID_POP_MOVE_SOUND,"Move sound");
                 menu.Append(ID_POP_EDIT_SOUND,"Edit sound");
                 menu.Append(ID_POP_REM_SOUND,"Remove sound");
             }
@@ -2588,6 +2706,13 @@ void MainFrame::OnClearBuf(wxCommandEvent& event)
         spell_map->RemoveUnit(unit, true);
     }
 
+    auto sel_snd = spell_map->SoundSelected();
+    if(sel_snd && sel_snd->in_placement && sel_snd->not_placed_yet)
+    {
+        // cancel sound in placement
+        auto pos = sel_snd->GetPosition();
+        spell_map->SoundRemove(&pos);
+    }
 
     Refresh();
 }
@@ -2746,74 +2871,7 @@ void MainFrame::OnCanvasLMouseDown(wxMouseEvent& event)
             auto sel_anm = spell_map->SelectedANM();
             if(!spell_map->isGameMode())
             {
-                if(wAnms && cur_anm && cur_anm == sel_anm)
-                {
-                    // move ANM
-                    sel_anm->in_placement = !sel_anm->in_placement;
-                    if(!sel_anm->in_placement)
-                        HistoryPush();
-                }
-                else if(wAnms && cur_anm)
-                {
-                    // select ANM
-                    spell_map->SelectANM(cur_anm);
-                }
-                else if(wPnms && cur_pnm && cur_pnm == sel_pnm)
-                {
-                    // move PNM
-                    sel_pnm->in_placement = !sel_pnm->in_placement;
-                    if(!sel_pnm->in_placement)
-                        HistoryPush();
-                }
-                else if(wPnms && cur_pnm)
-                {
-                    // select PNM
-                    spell_map->SelectPNM(cur_pnm);
-                }
-                else if(wSound && cur_sound && cur_sound == sel_sound)
-                {
-                    // move sound
-                    if(sel_sound->in_placement)
-                    {
-                        // remap sound positions when mover released
-                        spell_map->sounds->InitSounds();
-                        spell_map->sounds->UpdateMaps();
-                    }
-                    sel_sound->in_placement = !sel_sound->in_placement;
-                    if(!sel_sound->in_placement)
-                        HistoryPush();
-                }
-                else if(wSound && cur_sound)
-                {
-                    // select sound
-                    spell_map->SoundSelect(cur_sound);
-                }
-                else if(wEvents && sel_evt && cur_unit && event.ControlDown())
-                {
-                    // try add/remove unit to event
-                    spell_map->UpdateEventUnit(sel_evt, cur_unit);
-                    HistoryPush();
-                }
-                else if(wEvents && sel_evt && sel_evt->position == select_pos)
-                {
-                    // move/place event
-                    if(sel_unit)
-                        sel_unit->in_placement = false;
-                    sel_evt->in_placement = !sel_evt->in_placement;
-                    if(!sel_evt->in_placement)
-                        HistoryPush();
-                }
-                else if(wEvents && cur_evt && !cur_evt->isMissionStart())
-                {
-                    // select event
-                    spell_map->SelectEvent(cur_evt);
-                }
-                else if(wEvents && cur_unit && cur_unit->GetTrigEvent(SpellMapEventRec::EvtTypes::EVT_SEE_UNIT))
-                {
-                    // select SeeUnit() event
-                    spell_map->SelectEvent(cur_unit->GetTrigEvent(SpellMapEventRec::EvtTypes::EVT_SEE_UNIT));
-                }
-                else if(cur_unit && cur_unit == sel_unit)
+                if(cur_unit && (cur_unit == sel_unit || cur_unit->in_placement))
                 {
                     // move/place unit
                     bool was_new_unit = sel_unit->not_placed_yet;
@@ -2823,6 +2881,15 @@ void MainFrame::OnCanvasLMouseDown(wxMouseEvent& event)
                     if(sel_unit->in_placement)
                         sel_unit->not_placed_yet = false;
                     sel_unit->in_placement = !sel_unit->in_placement;
+
+                    if(sel_unit->in_placement && sel_evt)
+                        sel_evt->in_placement = false;
+                    if(sel_unit->in_placement && sel_pnm)
+                        sel_pnm->in_placement = false;
+                    if(sel_unit->in_placement && sel_anm)
+                        sel_anm->in_placement = false;
+                    if(sel_unit->in_placement && sel_sound)
+                        sel_sound->in_placement = false;
 
                     if(was_new_unit)
                     {
@@ -2853,11 +2920,107 @@ void MainFrame::OnCanvasLMouseDown(wxMouseEvent& event)
                     if(!sel_unit->in_placement)
                         HistoryPush();
                 }
+                else if(wAnms && cur_anm && cur_anm == sel_anm)
+                {
+                    // move ANM
+                    sel_anm->in_placement = !sel_anm->in_placement;
+                    if(!sel_anm->in_placement)
+                        HistoryPush();
+                    if(sel_anm->in_placement && sel_evt)
+                        sel_evt->in_placement = false;
+                    if(sel_anm->in_placement && sel_pnm)
+                        sel_pnm->in_placement = false;
+                    if(sel_anm->in_placement && sel_unit)
+                        sel_unit->in_placement = false;
+                    if(sel_anm->in_placement && sel_sound)
+                        sel_sound->in_placement = false;
+                }
+                else if(wAnms && cur_anm)
+                {
+                    // select ANM
+                    spell_map->SelectANM(cur_anm);
+                }
+                else if(wPnms && cur_pnm && cur_pnm == sel_pnm)
+                {
+                    // move PNM
+                    sel_pnm->in_placement = !sel_pnm->in_placement;
+                    if(!sel_pnm->in_placement)
+                        HistoryPush();
+                    if(sel_pnm->in_placement && sel_evt)
+                        sel_evt->in_placement = false;
+                    if(sel_pnm->in_placement && sel_anm)
+                        sel_anm->in_placement = false;
+                    if(sel_pnm->in_placement && sel_unit)
+                        sel_unit->in_placement = false;
+                    if(sel_pnm->in_placement && sel_sound)
+                        sel_sound->in_placement = false;
+                }
+                else if(wPnms && cur_pnm)
+                {
+                    // select PNM
+                    spell_map->SelectPNM(cur_pnm);
+                }
+                else if(wSound && cur_sound && cur_sound == sel_sound)
+                {
+                    // move sound
+                    if(sel_sound->in_placement)
+                    {
+                        // remap sound positions when mover released
+                        spell_map->sounds->InitSounds();
+                        spell_map->sounds->UpdateMaps();
+                    }
+                    sel_sound->in_placement = !sel_sound->in_placement;
+                    sel_sound->not_placed_yet = false;
+                    if(!sel_sound->in_placement)
+                        HistoryPush();
+
+                    if(sel_sound->in_placement && sel_evt)
+                        sel_evt->in_placement = false;
+                    if(sel_sound->in_placement && sel_anm)
+                        sel_anm->in_placement = false;
+                    if(sel_sound->in_placement && sel_pnm)
+                        sel_pnm->in_placement = false;
+                    if(sel_sound->in_placement && sel_unit)
+                        sel_unit->in_placement = false;                    
+                }
+                else if(wSound && cur_sound)
+                {
+                    // select sound
+                    spell_map->SoundSelect(cur_sound);
+                }
+                else if(wEvents && sel_evt && cur_unit && event.ControlDown())
+                {
+                    // try add/remove unit to event
+                    spell_map->UpdateEventUnit(sel_evt, cur_unit);
+                    HistoryPush();
+                }
+                else if(wEvents && sel_evt && sel_evt->position == select_pos)
+                {
+                    // move/place event
+                    if(sel_unit)
+                        sel_unit->in_placement = false;
+                    sel_evt->in_placement = !sel_evt->in_placement;                    
+                    if(!sel_evt->in_placement)
+                        HistoryPush();
+                }
+                else if(wEvents && cur_evt && !cur_evt->isMissionStart())
+                {
+                    // select event
+                    spell_map->SelectEvent(cur_evt);
+                }
+                else if(wEvents && cur_unit && cur_unit->GetTrigEvent(SpellMapEventRec::EvtTypes::EVT_SEE_UNIT))
+                {
+                    // select SeeUnit() event
+                    spell_map->SelectEvent(cur_unit->GetTrigEvent(SpellMapEventRec::EvtTypes::EVT_SEE_UNIT));
+                }                
                 else if(cur_unit)
                 {
                     // try select unit (if on cursor)
                     spell_map->SelectUnit(cur_unit);
                 }
+
+                
+
             }
             else
             {

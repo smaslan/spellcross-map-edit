@@ -574,16 +574,6 @@ void FormUnits::SetMapUnit(MapUnit *unit, SpellMap* map, MapUnitTemplate *unit_t
 }
 
 
-bool caseInsensitiveCharCompare(wchar_t a,wchar_t b)
-{
-	return(tolower(a) == tolower(b));
-}
-bool caseInsensitiveSubstringSearch(wstring& str,wstring& substr)
-{
-	auto it	= std::search(str.begin(),str.end(),substr.begin(),substr.end(),caseInsensitiveCharCompare);
-	return(it != str.end());
-}
-
 // on unit search change
 void FormUnits::OnSearchUnit(wxCommandEvent& event)
 {
@@ -594,7 +584,7 @@ void FormUnits::OnSearchUnit(wxCommandEvent& event)
 	for(int k = 0; k < lboxUnits->GetCount(); k++)
 	{
 		auto name = lboxUnits->GetString(k).ToStdWstring();
-		if(caseInsensitiveSubstringSearch(name,key))
+		if(match_substr(name,key,false))
 		{
 			lboxUnits->Select(k);
 			OnSelectUnit(event);
