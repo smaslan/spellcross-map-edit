@@ -12,6 +12,7 @@
 #include "fs_archive.h"
 #include "fsu_archive.h"
 #include "spell_units.h"
+#include "spell_filter.h"
 #include "sprites.h"
 #include "other.h"
 
@@ -29,6 +30,11 @@
 #include "wx/dcgraph.h"
 #include "wx/dcbuffer.h"
 #include <wx/rawbmp.h>
+
+// get rid of windows.h stuff
+#undef min
+#undef max
+
 
 
 
@@ -4250,7 +4256,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 			if(use_view_mask && unit_view->view[mxy] == 0)
 				continue;
 			else if(use_view_mask && unit_view->view[mxy] == 1)
-				fil = terrain->filter.darkpal;
+				fil = terrain->filter->darkpal;
 
 			// apply optional filter mask
 			if(filter[mxy])
@@ -4321,11 +4327,11 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 			if(use_view_mask && unit_view->view[mxy] == 0)
 				continue;
 			else if(use_view_mask && unit_view->view[mxy] == 1)
-				fil = terrain->filter.darkpal;
+				fil = terrain->filter->darkpal;
 			else if(!use_view_mask && !anm->Compare(anm_selection) && cursor == pos && wHighlight_obj)
-				fil = terrain->filter.goldpal; // highlight animation
+				fil = terrain->filter->goldpal; // highlight animation
 			else if(!use_view_mask && anm->Compare(anm_selection) && sel_blink_state)
-				fil = terrain->filter.goldpal; // highlight animation
+				fil = terrain->filter->goldpal; // highlight animation
 			
 			// L1 elevation
 			int sof = tiles[mxy].elev;
@@ -4376,7 +4382,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 				if(use_view_mask && unit_view->view[mxy] == 0)
 					continue;
 				else if(use_view_mask && unit_view->view[mxy] == 1)
-					fil = terrain->filter.darkpal;
+					fil = terrain->filter->darkpal;
 
 				// L1 elevation
 				int y_elev = tiles[mxy].elev;
@@ -4406,7 +4412,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 		if(use_view_mask && unit_view->view[mxy] == 0)
 			continue;
 		else if(use_view_mask && unit_view->view[mxy] == 1)
-			fil = terrain->filter.darkpal;
+			fil = terrain->filter->darkpal;
 
 		// L1 elevation
 		int y_elev = tiles[mxy].elev;
@@ -4472,7 +4478,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 			if(use_view_mask && unit_view->view[mxy] == 0)
 				continue;
 			else if(use_view_mask && unit_view->view[mxy] == 1)
-				fil = terrain->filter.darkpal;
+				fil = terrain->filter->darkpal;
 
 			// get map tile
 			Sprite *sid = tiles[mxy].L1;
@@ -4513,11 +4519,11 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 			if(use_view_mask && unit_view->view[mxy] == 0)
 				continue;
 			else if(use_view_mask && unit_view->view[mxy] == 1)
-				fil = terrain->filter.darkpal;
+				fil = terrain->filter->darkpal;
 			else if(!use_view_mask && pos == cursor && wHighlight_obj)
-				fil = terrain->filter.goldpal; // highlight animation
+				fil = terrain->filter->goldpal; // highlight animation
 			else if(!use_view_mask && pnm->Compare(pnm_selection) && sel_blink_state)
-				fil = terrain->filter.goldpal; // highlight selected animation						
+				fil = terrain->filter->goldpal; // highlight selected animation						
 
 			// L1 elevation
 			int y_elev = tiles[mxy].elev;
@@ -4572,7 +4578,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 			if(use_view_mask && unit_view->view[mxy] == 0)
 				continue;
 			else if(hide_units)
-				filter = terrain->filter.darkpal;
+				filter = terrain->filter->darkpal;
 			
 			// render origin
 			int mxx = n * 80 + (((m & 1) != 0) ? 0 : 40);
@@ -4595,7 +4601,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 						// render unit
 						uint8_t* filter_unit = render_filter;
 						if(cursor_unit == unit && !use_view_mask)
-							filter_unit = terrain->filter.goldpal;
+							filter_unit = terrain->filter->goldpal;
 						int top_y_ofs = unit->Render(terrain, pic, pic_end, mxx, myy, pic_x_size,filter_unit, filter, sid, w_unit_hud);
 						
 						// store attack-target positions in buffer (for projectile trajectory calculation)
@@ -4645,7 +4651,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 				{
 					auto filt = filter;
 					if(!use_view_mask && cursor == pos && wHighlight_obj)
-						filt = terrain->filter.goldpal;					
+						filt = terrain->filter->goldpal;					
 					sid2->Render(pic, pic_end, mxx, myy + sid->y_ofs, pic_x_size, filt);
 				}
 
@@ -4705,7 +4711,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 				if(use_view_mask && unit_view->view[mxy] == 0)
 					continue;
 				else if(use_view_mask && unit_view->view[mxy] == 1)
-					fil = terrain->filter.darkpal;
+					fil = terrain->filter->darkpal;
 				
 				// L1 elevation
 				auto L1_spr = tiles[mxy].L1;
@@ -4757,7 +4763,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 
 
 	// --- Render Layer 7+8 sound marks ---
-	terrain->font->SetFilter(terrain->filter.darker);
+	terrain->font->SetFilter(terrain->filter->darker);
 	for(auto& sound: sounds->sounds)
 	{
 		if(!(sound.GetType() == MapSound::SoundType::LOOP && wSoundLoop || sound.GetType() == MapSound::SoundType::RANDOM && wSound))
@@ -4800,8 +4806,8 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 	// --- Events:
 	if(wEvents)
 	{
-		terrain->font->SetFilter(terrain->filter.darker);
-		terrain->font7->SetFilter(terrain->filter.darker);
+		terrain->font->SetFilter(terrain->filter->darker);
+		terrain->font7->SetFilter(terrain->filter->darker);
 		
 		// render event-unit connection lines:
 		for(auto & evt : events->GetEvents())
@@ -5659,15 +5665,15 @@ uint8_t* SpellMap::GetUnitRangeFilter(int x, int y)
 	if(render_filter)
 		return(render_filter);	
 	if(viewingUnitMoveRange() && unit_range->fire_left[mxy] > 0)
-		return(terrain->filter.bluepal);
+		return(terrain->filter->bluepal);
 	if(viewingUnitMoveRange() && unit_range->ap_left[mxy] >= 0)
-		return(terrain->filter.dbluepal);
+		return(terrain->filter->dbluepal);
 	if(viewingUnitAttackRange() && unit_view->attack_map[mxy] > 0)
-		return(terrain->filter.redpal);
+		return(terrain->filter->redpal);
 	if(viewingUnitMoveRange() || viewingUnitAttackRange())
-		return(terrain->filter.darkpal);
+		return(terrain->filter->darkpal);
 	if(!TileIsVisible(x,y))
-		return(terrain->filter.darkpal);
+		return(terrain->filter->darkpal);
 	return(default_filter);
 }
 
@@ -11079,7 +11085,7 @@ int SpellMap::ReTexture(uint8_t *modz,std::function<void(std::string)> status_cb
 					// this is likely caused by invalid surounding
 					
 					// mask red failed tile
-					filter[mxy] = terrain->filter.redpal;
+					filter[mxy] = terrain->filter->redpal;
 
 					fail = true;					
 					continue;					
@@ -11210,7 +11216,7 @@ int SpellMap::ReTexture(uint8_t *modz,std::function<void(std::string)> status_cb
 					// this is likely caused by invalid surounding
 
 					// mask red failed tile
-					filter[mxy] = terrain->filter.redpal;
+					filter[mxy] = terrain->filter->redpal;
 
 					fail = true;				
 				}

@@ -6,6 +6,7 @@
 ///////////////////////////////////////////////////////////////////////////
 
 #include "form_text.h"
+#include "../spell_palette.h"
 #include <wx/filedlg.h>
 #include <wx/dirdlg.h>
 #include <wx/msgdlg.h>

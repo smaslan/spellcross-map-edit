@@ -6,6 +6,7 @@
 ///////////////////////////////////////////////////////////////////////////
 
 #include "form_gr_view.h"
+#include "spell_palette.h"
 #include "sprites.h"
 #include "other.h"
 #include "wx_other.h"

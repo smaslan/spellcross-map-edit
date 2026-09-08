@@ -9,7 +9,6 @@
 #ifndef _SPRITES_H_
 #define _SPRITES_H_
 
-//#include "windows.h"
 #include "cstdint"
 #include <fstream>
 #include <vector>
@@ -19,20 +18,22 @@
 #include <thread>
 
 #include "other.h"
-#include "fs_archive.h"
-#include "fsu_archive.h"
-#include "map_types.h"
-//#include "map.h"
-#include "spell_font.h"
-#include "spell_filter.h"
-#include "spell_sound.h"
-#include "spell_graphics.h"
 
 #include "wx/dcbuffer.h"
 
 
 #define MAX_STR 256
 #define MAX_SPRITE_NAME 8
+
+class SpellSound;
+class SpellSounds;
+class SpellPalette;
+class SpellGraphicItem;
+class SpellGraphics;
+class SpellFilters;
+class SpellFont;
+class AnimPNM;
+class FSarchive;
 
 
 class SpellL2classRec
@@ -166,8 +167,8 @@ class Sprite
 		Sprite* GetContext(int quadrant,int tile,int index);		
 		Sprite* GetContext(int quadrant,int tile,int index,int random);
 		Sprite* GetContextRng(int quadrant,int tile,int index);
-		void RemoveContext(int quadrant,int tile,vector<int> &list);
-		void RemoveContext(int quadrant,vector<int>& list);
+		void RemoveContext(int quadrant,int tile,std::vector<int> &list);
+		void RemoveContext(int quadrant,std::vector<int>& list);
 		int CheckContext(int quadrant,Sprite *sprite);
 		int ClearContext(int quadrant=-1);
 		int RandomizeContext();
@@ -381,6 +382,7 @@ class AnimPNM
 
 class MapSprite;
 class MapLayer4;
+class MapXY;
 
 // spellcross terrain object (group of sprites forming e.g. house)
 class SpellObject
@@ -422,12 +424,12 @@ public:
 		NONE
 	};
 	
-	SpellObject(ifstreamext& fr,std::vector<Sprite*>& sprite_list,vector<AnimPNM*>& pnm_list,uint8_t* palette);
-	SpellObject(vector<MapXY>& xy,vector<Sprite*>& L1_list,vector<Sprite*>& L2_list,vector<uint8_t>& flag_list,std::vector<MapLayer4>& pnm_list,uint8_t* palette=NULL,std::string desc="");
+	SpellObject(ifstreamext& fr,std::vector<Sprite*>& sprite_list,std::vector<AnimPNM*>& pnm_list,uint8_t* palette);
+	SpellObject(std::vector<MapXY>& xy,std::vector<Sprite*>& L1_list,std::vector<Sprite*>& L2_list,std::vector<uint8_t>& flag_list,std::vector<MapLayer4>& pnm_list,uint8_t* palette=NULL,std::string desc="");
 	//SpellObject(std::vector<MapXY> xy,std::vector<Sprite*> L1_list,std::vector<Sprite*> L2_list,std::vector<uint8_t> flag_list, uint8_t *palette = NULL, std::string desc = "");
 	~SpellObject();
 	int RenderPreview(wxBitmap& bmp,double gamma=1.30);
-	tuple<int, int> GetGlyphSize();
+	std::tuple<int, int> GetGlyphSize();
 	wxBitmap *RenderPreview(double gamma = 1.30, int x_size = -1, int y_size = -1, bool no_zoom=true);
 	int WriteToFile(ofstreamext& fw);
 	std::string GetDescription();
@@ -492,7 +494,7 @@ private:
 	double last_gamma;
 	uint8_t gamma_pal[256][3];
 	// sprite context file path
-	wstring context_path;
+	std::wstring context_path;
 	// list of generic tile glyph pointers
 	std::vector<Sprite *> glyphs[13];
 
@@ -527,7 +529,7 @@ public:
 	// color palette
 	uint8_t pal[256][3];
 	// filters
-	SpellFilters filter;	
+	std::unique_ptr<SpellFilters> filter;
 	// fonts
 	SpellFont *font;
 	SpellFont *font7;
@@ -557,7 +559,7 @@ public:
 	std::vector<SpriteFlag> GetSpriteFlagList();
 		
 	int InitSpriteContext(std::filesystem::path& path);
-	int SaveSpriteContext(wstring& path);	
+	int SaveSpriteContext(std::wstring& path);	
 	std::wstring &GetSpriteContextPath();
 	void ClearSpriteContext();
 	int RandomizeSpriteContext();
@@ -581,7 +583,7 @@ public:
 	bool CheckObjectDuplicates(SpellObject* obj,bool exact_pnm=true);
 	int RemoveObject(int id);
 	int MoveObject(int posa, int posb);
-	int RenameObject(int id, string name);
+	int RenameObject(int id, std::string name);
 	int GetObjectsCount();
 	SpellObject *GetObject(int id);
 	std::vector<SpellObject*> &GetObjects();
@@ -596,7 +598,7 @@ public:
 	int SetToolSetTitle(int id,std::string title);
 	int GetToolSetGlyphScalingMode(int id);
 	int SetToolSetGlyphScalingMode(int id, int mode);
-	tuple<int, int> GetToolSetGlyphScaling(int id);
+	std::tuple<int, int> GetToolSetGlyphScaling(int id);
 	int SetToolSetGlyphScaling(int id, int x, int y);
 	int GetToolSetItemsCount(int id);
 	int GetToolSetItem(int toolset_id,std::string tool_name);
@@ -611,10 +613,10 @@ public:
 	int AddToolSet(std::string &name,std::string title,int &position);
 	int RemoveToolSet(int position);
 	int MoveToolSet(int posa, int posb,bool insert=false);
-	int GetToolSetID(string& name);
+	int GetToolSetID(std::string& name);
 	int GetToolSetID(const char *name);
 	wxBitmap* RenderToolSetItemImage(int tool_id, int item_id, double gamma=1.30, int x_size=-1, int y_size=-1, bool no_zoom=true);
-	tuple<int, int> GetToolSetItemImageSize(int tool_id, int item_id);
+	std::tuple<int, int> GetToolSetItemImageSize(int tool_id, int item_id);
 
 	std::vector<Sprite*> GetToolSprites(SpellTool &tool);
 	std::vector<SpellObject*> GetToolObjects(SpellTool& tool);

@@ -9,6 +9,7 @@
 #define _HAS_STD_BYTE 0
 
 #include "spell_graphics.h"
+#include "spell_palette.h"
 #include "spellcross.h"
 #include "sprites.h"
 #include "LZ_spell.h"

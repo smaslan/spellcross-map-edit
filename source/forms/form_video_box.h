@@ -1,12 +1,16 @@
 #pragma once
 
-#include "spellcross.h"
-#include "spell_video.h"
+//#include "spellcross.h"
+//#include "spell_video.h"
 #include <wx/frame.h>
 #include <wx/window.h>
 #include <wx/panel.h>
 #include <wx/bitmap.h>
 #include <string>
+
+class SpellData;
+class SpellSound;
+class SpellVideo;
 
 class FormVideoBox
 {

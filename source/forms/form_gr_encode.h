@@ -45,6 +45,7 @@
 // </wxFormsBuilder-include> - Section auto-inserted from 'forms.h' class 'FormGResEncoder' on 2026-05-09 14:29:43
 
 #include "spellcross.h"
+#include "spell_palette.h"
 
 ///////////////////////////////////////////////////////////////////////////
 

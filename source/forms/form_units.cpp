@@ -6,6 +6,7 @@
 ///////////////////////////////////////////////////////////////////////////
 
 #include "form_units.h"
+#include "spell_filter.h"
 #include "other.h"
 #include "wx_other.h"
 
@@ -1043,7 +1044,7 @@ void FormUnits::OnPaintGrp(wxPaintEvent& event)
 	// render unit
 	int org_x = surf_x/2 - (80)*zoom/2;
 	int org_y = surf_y/2 - (48)*zoom/2;
-	spr->Render(buf,buf_end, org_x-0, org_y, surf_x,terr->filter.darkpal,NULL,zoom);
+	spr->Render(buf,buf_end, org_x-0, org_y, surf_x,terr->filter->darkpal,NULL,zoom);
 
 	/*vector<int> hist(256,0);
 	for(auto & pix : buffer)

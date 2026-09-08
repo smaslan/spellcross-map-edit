@@ -1,4 +1,6 @@
 #include "form_minimap.h"
+#include "spellcross.h"
+#include "map.h"
 #include "fs_archive.h"
 #include "other.h"
 

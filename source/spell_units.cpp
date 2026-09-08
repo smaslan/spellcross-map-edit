@@ -9,11 +9,13 @@
 //=============================================================================
 #undef _HAS_STD_BYTE
 #define _HAS_STD_BYTE 0
+//#define NOMINMAX
 
 #include "spell_units.h"
 #ifndef MINIMAL_SPELL_UNITS
 #include "fs_archive.h"
 #include "fsu_archive.h"
+#include "spell_filter.h"
 #include "spellcross.h"
 #include "map.h"
 #endif
@@ -24,6 +26,9 @@
 #include <stdexcept>
 #include <random>
 
+// get rid of Windows.h definitions
+#undef min
+#undef max
 
 //using namespace std;
 
@@ -895,26 +900,35 @@ int SpellUnitRec::isMobile()
 	return(!!apw);
 }
 
-
+// get maximum health
 int SpellUnitRec::GetMaxHealth()
 {
 	if(isSingleMan())
 		return(100);
 	return(cnt);
 }
+
+// is XP definition valid? (radards have 0, so not calculation possible)
+int SpellUnitRec::isXPvalid()
+{
+	return(exp_min != 0 && exp_max != 0);
+}
 // calculate base experience points for given exp. level 1-12 (use for precalculation only)
 int SpellUnitRec::CalcExperiencePts(int level)
-{
-	// very crude approximation of strange Spellcross experience boundaries
-	// note: it's not accurate, but decently close...
-	if(!exp_min || !exp_max)
+{	
+	if(!isXPvalid())
 		return(0);
-	double a = (double)exp_min;
-	double b = log(200.0*exp_max/exp_min)/log(12);
-	level = std::min(std::max(level,0),11);
-	int points = (int)(a*pow((double)level,b));
-	return(points);
+	
+	// regression found by ChatGPT using data points from game
+	if(level < 1)
+		return(0);
+	if(level <= 1)
+		return(exp_min);
+	int xp = 2*exp_min + floor((double)(level - 1)*(level - 1)/64.0*(exp_max - exp_min));
+	
+	return(xp);
 }
+
 // get base experience points for given exp. level 1-12
 int SpellUnitRec::GetExperiencePts(int level)
 {
@@ -1796,7 +1810,7 @@ int MapUnit::Render(Terrain* data,uint8_t* buffer,uint8_t* buf_end,int buf_x_pos
 		return(0);	
 	
 	// filter for shadow rendering
-	auto shadow_filter = data->filter.darker;
+	auto shadow_filter = data->filter->darker;
 	
 	int loc_frame = frame;
 	if(!in_animation)
@@ -1809,7 +1823,7 @@ int MapUnit::Render(Terrain* data,uint8_t* buffer,uint8_t* buf_end,int buf_x_pos
 	auto [x_status_bar,y_status_bar] = unit->Render(buffer, buf_end, buf_x_pos, buf_y_pos, buf_x_size,filter,shadow_filter, sprt, visible_man,azimuth, azimuth_turret, loc_frame, in_animation, altitude);
 	
 	if(!hud_filter)
-		hud_filter = data->filter.nullpal;
+		hud_filter = data->filter->nullpal;
 
 	// -- make status bar
 	if(!show_hud)
@@ -1987,7 +2001,7 @@ int MapUnit::RenderPreview(uint8_t* buffer,uint8_t* buf_end,int buf_x_size)
 	if(!map->isGameMode())
 	{
 		// unit ID (pos = 141,25)
-		spell_data->font7->SetFilter(map->terrain->filter.darkpal);
+		spell_data->font7->SetFilter(map->terrain->filter->darkpal);
 		spell_data->font7->Render(buffer,buf_end,buf_x_size,141,25,string_format("#%d",id),252,254,SpellFont::FontShadow::SOLID,SpellFont::FontAlign::RIGHT);
 		spell_data->font7->SetFilter(NULL);
 	}

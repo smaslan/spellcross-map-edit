@@ -1,13 +1,17 @@
 #pragma once
 
-#include "spellcross.h"
-#include "map.h"
+//#include "spellcross.h"
+//#include "map.h"
 #include <wx/frame.h>
 #include <wx/window.h>
 #include <wx/panel.h>
 #include <wx/bitmap.h>
 #include <wx/sizer.h>
 #include <string>
+
+class SpellData;
+class SpellMap;
+class MapUnit;
 
 
 class FormMapUnits

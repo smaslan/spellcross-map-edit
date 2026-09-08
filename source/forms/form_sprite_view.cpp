@@ -7,6 +7,7 @@
 
 #include "form_sprite_view.h"
 #include "form_edit_toolset.h"
+#include "spell_palette.h"
 #include "spellcross.h"
 #include "sprites.h"
 #include "other.h"

@@ -14,6 +14,9 @@
 #include "fs_archive.h"
 #include "fsu_archive.h"
 #include "map_types.h"
+#include "spell_palette.h"
+#include "spell_graphics.h"
+#include "spell_filter.h"
 #include "map.h"
 #include "spellcross.h"
 
@@ -28,11 +31,6 @@
 #include "wx/dcgraph.h"
 #include "wx/dcbuffer.h"
 #include <wx/rawbmp.h>
-
-
-using namespace std;
-
-
 
 
 //=============================================================================
@@ -1458,7 +1456,7 @@ Sprite* Sprite::GetContext(int quadrant,int index)
 	return(NULL);
 }
 // remove list of context entries
-void Sprite::RemoveContext(int quadrant,int tile,vector<int>& list)
+void Sprite::RemoveContext(int quadrant,int tile,std::vector<int>& list)
 {
 	if(quadrant < 0 || quadrant > 4 || tile < 'A' || tile > 'M')
 		return;
@@ -1901,13 +1899,14 @@ DestructibleRec SpellL2classes::GetClass(const char* sprite_name)
 //=============================================================================
 
 Terrain::Terrain(SpellData &spell_data) :
-	m_spell_data(spell_data)
+	m_spell_data(spell_data),
+	filter(std::make_unique<SpellFilters>())
 {
 	name[0] = '\0';	
 	sprites.clear();
 	anms.clear();
 	last_gamma = 0.0;
-	context_path = L"";	
+	context_path = L"";		
 }
 
 Terrain::~Terrain()
@@ -2084,7 +2083,7 @@ int Terrain::Load(FSarchive *terrain_fs, uint8_t map_pal[][3],SpellGraphics* gre
 					//////////////////
 					
 					// these are color reindexing filters, ie. 256 bytes represent new 256 colors, each points to some original color					
-					filter.AddFilter(data,full_name);						
+					filter->AddFilter(data,full_name);
 
 					if(status_item)
 						status_item(name);
@@ -3486,7 +3485,7 @@ AnimPNM* Terrain::GetPNM(std::string name)
 // Spellcross map objects stuff
 //=============================================================================
 // make object
-SpellObject::SpellObject(vector<MapXY> &xy,vector<Sprite*> &L1_list,vector<Sprite*> &L2_list,vector<uint8_t> &flag_list,std::vector<MapLayer4> &pnm_list,uint8_t* palette,std::string desc)
+SpellObject::SpellObject(std::vector<MapXY> &xy,std::vector<Sprite*> &L1_list,std::vector<Sprite*> &L2_list,std::vector<uint8_t> &flag_list,std::vector<MapLayer4> &pnm_list,uint8_t* palette,std::string desc)
 {
 	sprite_pos.clear();
 	L1_sprites.clear();
@@ -3770,7 +3769,7 @@ int SpellObject::RenderObjectGlyph()
 	return(0);
 }
 // get glyph dimensions
-tuple<int, int> SpellObject::GetGlyphSize()
+std::tuple<int, int> SpellObject::GetGlyphSize()
 {
 	return tuple(surf_x, surf_y);
 }
@@ -4082,7 +4081,7 @@ int SpellObject::WriteToFile(ofstreamext &fw)
 }
 
 // create object from a file
-SpellObject::SpellObject(ifstreamext& fr, vector<Sprite*> &sprite_list, vector<AnimPNM*> &pnm_list, uint8_t* palette)
+SpellObject::SpellObject(ifstreamext& fr,std::vector<Sprite*> &sprite_list,std::vector<AnimPNM*> &pnm_list, uint8_t* palette)
 {
 	sprite_pos.clear();
 	L1_sprites.clear();
@@ -4561,7 +4560,7 @@ int Terrain::GetToolSetID(const char *name)
 }
 
 // get tool item glyph size [x,y]
-tuple<int, int> Terrain::GetToolSetItemImageSize(int tool_id, int item_id)
+std::tuple<int, int> Terrain::GetToolSetItemImageSize(int tool_id, int item_id)
 {
 	// find sprite that matches the desired classes and is marked as tool item glyph
 	for (auto const& sid : sprites)

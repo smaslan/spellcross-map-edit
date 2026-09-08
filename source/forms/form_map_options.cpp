@@ -1,4 +1,5 @@
 #include "form_map_options.h"
+#include "spell_filter.h"
 #include "map.h"
 
 #include <wx/rawbmp.h>
@@ -182,7 +183,7 @@ void FormMapOptions::OnPaintTab(wxPaintEvent& event)
     // make semi transparent back
     for(int k = 0; k < x_size*y_size; k++)
         if(m_mask[k])
-            buf[k] = m_spell_map->terrain->filter.darker[buf[k]];
+            buf[k] = m_spell_map->terrain->filter->darker[buf[k]];
 
     // render back frame
     grp_frame->Render(buf,&buf[x_size*y_size],x_size,0,0);

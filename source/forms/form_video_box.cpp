@@ -1,6 +1,10 @@
 #include "form_video_box.h"
 #include "fs_archive.h"
+#include "spell_palette.h"
+#include "spell_video.h"
+#include "spellcross.h"
 #include "other.h"
+
 
 
 #include <wx/rawbmp.h>

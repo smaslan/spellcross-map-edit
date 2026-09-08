@@ -1,12 +1,16 @@
 #pragma once
 
-#include "spellcross.h"
-#include "map.h"
+//#include "spellcross.h"
+//#include "map.h"
 #include <wx/frame.h>
 #include <wx/window.h>
 #include <wx/panel.h>
 #include <wx/bitmap.h>
 #include <string>
+
+class SpellData;
+class TScroll;
+class SpellMap;
 
 class TMiniMap {
 public:

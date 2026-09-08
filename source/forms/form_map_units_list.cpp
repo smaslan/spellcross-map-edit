@@ -1,4 +1,6 @@
 #include "form_map_units_list.h"
+#include "spell_filter.h"
+#include "map.h"
 #include "other.h"
 
 #include <wx/rawbmp.h>
@@ -37,7 +39,7 @@ FormMapUnits::FormMapUnits(wxPanel* parent,wxWindowID win_id,SpellData* spell_da
     OnResizeCanvas(szrev);
 
     // darken map
-    m_spellmap->SetRenderFilter(m_spellmap->terrain->filter.darker);
+    m_spellmap->SetRenderFilter(m_spellmap->terrain->filter->darker);
 }
 
 // cleanup

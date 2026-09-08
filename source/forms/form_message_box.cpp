@@ -1,4 +1,5 @@
 #include "form_message_box.h"
+#include "spell_filter.h"
 #include "map.h"
 
 #include <wx/rawbmp.h>
@@ -21,10 +22,10 @@ FormMsgBox::FormMsgBox(wxPanel* parent,wxWindowID win_id,SpellData* spell_data,S
     
     // word wrap text
     int text_x_size = x_size - 4*corn->x_size;
-    m_chunks = text->WordWrap(spell_data->font,text_x_size);
+    m_chunks = std::make_shared<SpellTextLines>(text->WordWrap(spell_data->font,text_x_size));
     int x_text = 0;
     int y_size = 0;
-    for(auto & line : m_chunks.lines)
+    for(auto & line : m_chunks->lines)
     {
         y_size = max(y_size, line.pos_y); 
         x_text = max(x_text, line.size_x);
@@ -121,7 +122,7 @@ void FormMsgBox::OnPaintTab(wxPaintEvent& event)
 
     // make semi transparent back
     for(int k = 0; k < x_size*y_size; k++)
-        buf[k] = m_spell_map->terrain->filter.darkpal[buf[k]];
+        buf[k] = m_spell_map->terrain->filter->darkpal[buf[k]];
 
 
     // frame border graphics
@@ -131,7 +132,7 @@ void FormMsgBox::OnPaintTab(wxPaintEvent& event)
 
     // render text chunks
     int text_y_ofs = 2*corn->y_size;
-    for(auto & line : m_chunks.lines)
+    for(auto & line : m_chunks->lines)
     {     
         for(auto &word: line.chunks)
             m_spelldata->font->Render(buf, &buf[x_size*y_size], x_size, word.pos_x + 4*corn->x_size/2, line.pos_y + text_y_ofs, word.text, 0xFF);
@@ -244,7 +245,7 @@ void FormMsgBox::OnPaintButton(wxPaintEvent& event)
         std::memset(buf, 231, x_size*y_size);
     else
     {
-        uint8_t* filter = m_spell_map->terrain->filter.darkpal;;
+        uint8_t* filter = m_spell_map->terrain->filter->darkpal;
         for(int k = 0; k < x_size*y_size; k++)
             buf[k] = filter[buf[k]];
     }

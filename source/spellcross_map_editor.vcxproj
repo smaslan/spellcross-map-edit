@@ -66,6 +66,7 @@
     <ClCompile Include="spell_def.cpp" />
     <ClCompile Include="spell_filter.cpp" />
     <ClCompile Include="spell_midi.cpp" />
+    <ClCompile Include="spell_palette.cpp" />
     <ClCompile Include="spell_randomizer.cpp" />
     <ClCompile Include="spell_texts.cpp" />
     <ClCompile Include="spell_graphics.cpp" />
@@ -132,6 +133,7 @@
     <ClInclude Include="fs_archive.h" />
     <ClInclude Include="graphics.h" />
     <ClInclude Include="spell_def.h" />
+    <ClInclude Include="spell_palette.h" />
     <ClInclude Include="spell_randomizer.h" />
     <ClInclude Include="wx_other.h" />
     <ClInclude Include="resource.h" />

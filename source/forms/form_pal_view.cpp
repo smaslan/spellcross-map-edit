@@ -6,6 +6,8 @@
 ///////////////////////////////////////////////////////////////////////////
 
 #include "form_pal_view.h"
+#include "spell_palette.h"
+#include "spell_filter.h"
 #include "sprites.h"
 #include "other.h"
 #include "wx_other.h"
@@ -292,17 +294,17 @@ void FormPalView::ListFilters()
 	filter = NULL;
 
 	// make list of filters
-	for(int k = 0; k < terr->filter.list.size(); k++)
+	for(int k = 0; k < terr->filter->list.size(); k++)
 	{
-		auto filter = terr->filter.list[k];
+		auto filter = terr->filter->list[k];
 		mmFilter->Append(FILTER_ID0 + k, wxString(filter->name),wxEmptyString,wxITEM_RADIO);
 		Bind(wxEVT_MENU,&FormPalView::OnFilterChange,this,FILTER_ID0 + k);
 	}
-	if(terr->filter.list.size())
+	if(terr->filter->list.size())
 		mmFilter->Check(FILTER_ID0, true);
 
 	mmFilter->Append(wxID_ANY,wxEmptyString,wxEmptyString,wxITEM_SEPARATOR);
-	auto wx_id_save_filter = FILTER_ID0 + terr->filter.list.size();
+	auto wx_id_save_filter = FILTER_ID0 + terr->filter->list.size();
 	mmFilter->Append(wx_id_save_filter,wxString("Save New Filter"),wxEmptyString,wxITEM_NORMAL);
 	AssignSVGresourceToMenu(mmFilter,wx_id_save_filter,"IDR_SAVE");	
 	Bind(wxEVT_MENU,&FormPalView::OnSaveFilterFile,this,wx_id_save_filter);
@@ -345,14 +347,14 @@ void FormPalView::OnFilterChange(wxCommandEvent& event)
 {	
 	auto terr = FindTerrain();
 	int filter_id = event.GetId() - FILTER_ID0;
-	filter = terr->filter.list[filter_id];	
+	filter = terr->filter->list[filter_id];	
 	canvas->Refresh();
 }
 
 void FormPalView::OnChangeFilterRGB(wxCommandEvent& event)
 {
 	auto terr = FindTerrain();
-	auto filter = terr->filter.GetTempFilter();		
+	auto filter = terr->filter->GetTempFilter();
 	if(filter)
 		filter->SetFilter(&terr->pal[0][0], "New Filter *",(double)slideRed->GetValue()*0.02,(double)slideGreen->GetValue()*0.02,(double)slideBlue->GetValue()*0.02);
 	canvas->Refresh();

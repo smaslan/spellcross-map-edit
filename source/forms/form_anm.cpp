@@ -6,6 +6,7 @@
 ///////////////////////////////////////////////////////////////////////////
 
 #include "form_anm.h"
+#include "../spell_palette.h"
 #include "wx_other.h"
 #include "wx/filedlg.h"
 

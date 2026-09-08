@@ -1,11 +1,18 @@
 #pragma once
 
-#include "spellcross.h"
-#include "map.h"
+//#include "spellcross.h"
+//#include "map.h"
 #include <wx/frame.h>
 #include <wx/window.h>
 #include <wx/panel.h>
 #include <string>
+#include <memory>
+
+class SpellData;
+class SpellSound;
+class SpellMap;
+class SpellTextRec;
+class SpellTextLines;
 
 class FormMsgBox
 {
@@ -24,15 +31,15 @@ private:
     std::function<void(int)> m_sel_cb;
     SpellMsgOptions m_options;
 
-    SpellTextLines m_chunks;
+    std::shared_ptr<SpellTextLines> m_chunks;
     
     SpellSound* m_sound;
 
     wxWindow* form;
     wxPanel *m_buttons[2];
-    vector<string> m_labels;
-    vector<int> m_hovers;
-    vector<SpellMsgResult> m_results;
+    std::vector<std::string> m_labels;
+    std::vector<int> m_hovers;
+    std::vector<SpellMsgResult> m_results;
     SpellMsgResult m_result;
 
     wxPoint m_click_pos;

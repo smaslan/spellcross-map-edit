@@ -18,73 +18,62 @@ bool blue_comp(const ImgQuantize::Pixel& a,const ImgQuantize::Pixel& b)
     return a.b < b.b;
 }
 
-uint8_t determine_primary_color_and_sort_box(std::vector<ImgQuantize::Pixel>& box,int &which)
-{
-    uint8_t redRange =   std::max_element(box.begin(),box.end(),red_comp)->r   - std::min_element(box.begin(),box.end(),red_comp)->r;
-    uint8_t greenRange = std::max_element(box.begin(),box.end(),green_comp)->g - std::min_element(box.begin(),box.end(),green_comp)->g;
-    uint8_t blueRange =  std::max_element(box.begin(),box.end(),blue_comp)->b  - std::min_element(box.begin(),box.end(),blue_comp)->b;
-
-    if(redRange >= greenRange && redRange >= blueRange)
-    {
-        if(which != 0)
-            std::sort(box.begin(),box.end(),red_comp);
-        which = 0;
-        return(redRange);
-    }
-    else if(greenRange >= redRange && greenRange >= blueRange)
-    {
-        if(which != 1)
-            std::sort(box.begin(),box.end(),green_comp);
-        which = 1;
-        return(greenRange);
-    }
-    else
-    {
-        if(which != 2)
-            std::sort(box.begin(),box.end(),blue_comp);
-        which = 2;
-        return(blueRange);
-    }
-}
-
 std::vector<ImgQuantize::Pixel> ImgQuantize::GenMedianCutPalette(const std::vector<ImgQuantize::Pixel>& source,int numColors)
 {
     typedef std::vector<Pixel> Box;
     struct RangeBox{
-        int which;
+        int begin;
+        int end;
+        std::vector<ImgQuantize::Pixel> *channel;
         uint8_t range;
-        Box box;
     };
 
+    Box data = source;
     std::vector<RangeBox> boxes;
-    Box init = source;
-    boxes.push_back(RangeBox(-1,0,init));
+    boxes.push_back(RangeBox(0,source.size() - 1,&data,0));
 
     while(boxes.size() < numColors)
     {
         /* for each box, sort the boxes pixels according to the colour it has the most range in */
-        for(RangeBox& boxData : boxes)
-            if(boxData.range == 0)
-                boxData.range = determine_primary_color_and_sort_box(boxData.box,boxData.which);
+        for(RangeBox& box: boxes)
+            if(box.range == 0)
+            {
+                uint8_t redRange =   std::max_element(box.channel->begin() + box.begin,box.channel->begin() + box.end,red_comp)->r   - std::min_element(box.channel->begin() + box.begin,box.channel->begin() + box.end,red_comp)->r;
+                uint8_t greenRange = std::max_element(box.channel->begin() + box.begin,box.channel->begin() + box.end,green_comp)->g - std::min_element(box.channel->begin() + box.begin,box.channel->begin() + box.end,green_comp)->g;
+                uint8_t blueRange =  std::max_element(box.channel->begin() + box.begin,box.channel->begin() + box.end,blue_comp)->b  - std::min_element(box.channel->begin() + box.begin,box.channel->begin() + box.end,blue_comp)->b;
+                if(redRange >= greenRange && redRange >= blueRange)
+                {
+                    std::sort(box.channel->begin() + box.begin,box.channel->begin() + box.end,red_comp);
+                    box.range = redRange;
+                }
+                else if(greenRange >= redRange && greenRange >= blueRange)
+                {
+                    std::sort(box.channel->begin() + box.begin,box.channel->begin() + box.end,green_comp);
+                    box.range = greenRange;
+                }
+                else
+                {
+                    std::sort(box.channel->begin() + box.begin,box.channel->begin() + box.end,blue_comp);
+                    box.range = blueRange;
+                }
+            }
 
         // sort boxes by color range
         std::sort(boxes.begin(),boxes.end(),[](const RangeBox& a,const RangeBox& b) {return a.range < b.range;});
         
         auto itr = std::prev(boxes.end()); 
-        auto biggestBox = itr->box;
-        auto which = itr->which;
+        auto box = *itr;
         boxes.erase(itr);
 
         // leave if nothing more to split (was not in original code - would loop forever when not enough colours?)
-        if(biggestBox.size() <= 1)
+        if(box.end - box.begin <= 1)
             break;
 
         // the box is sorted already, so split at median
-        Box splitA(biggestBox.begin(),biggestBox.begin() + biggestBox.size() / 2);
-        Box splitB(biggestBox.begin() + biggestBox.size() / 2,biggestBox.end());
-
-        boxes.push_back(RangeBox(which,0,splitA));
-        boxes.push_back(RangeBox(which,0,splitB));
+        RangeBox A = {box.begin,box.begin + (box.end - box.begin + 1)/2 - 1,box.channel,0};
+        RangeBox B ={box.begin + (box.end - box.begin + 1)/2,box.end,box.channel,0};
+        boxes.push_back(A);
+        boxes.push_back(B);
     }      
 
     struct Pal{
@@ -99,21 +88,21 @@ std::vector<ImgQuantize::Pixel> ImgQuantize::GenMedianCutPalette(const std::vect
 
     // each box in boxes can be averaged to determine the colour
     std::vector<Pal> palette;
-    for(const RangeBox& boxData: boxes)
+    for(const RangeBox& box: boxes)
     {
-        auto &box = boxData.box;
         int redAccum = 0;
         int greenAccum = 0;
         int blueAccum = 0;
-        std::for_each(box.begin(),box.end(),[&](const Pixel& p)
+        std::for_each(box.channel->begin() + box.begin,box.channel->begin() + box.end,[&](const Pixel& p)
             {
                 redAccum += p.r;
                 greenAccum += p.g;
                 blueAccum += p.b;
             });
-        redAccum /= box.size();
-        greenAccum /= box.size();
-        blueAccum /= box.size();
+        int size = box.end - box.begin + 1;
+        redAccum /= size;
+        greenAccum /= size;
+        blueAccum /= size;
 
         Pal col;
         col.r = std::min((uint32_t)redAccum,255u);
@@ -162,3 +151,71 @@ std::vector<ImgQuantize::Pixel> ImgQuantize::GenMedianCutPalette(const std::vect
 
     return pal;
 }
+
+
+
+
+// geometric distance of colors
+double ImgQuantize::Pixel::distance_squared(const Pixel& other) const {
+    int dr = static_cast<int>(r) - other.r;
+    int dg = static_cast<int>(g) - other.g;
+    int db = static_cast<int>(b) - other.b;
+    return(dr*dr + dg*dg + db*db);
+}
+
+// Determines which of the 8 children a color belongs to at a specific bit depth
+int ImgQuantize::OctreeNode::get_child_index(const Pixel& cls,int depth) {
+    int shift = 7 - depth;
+    int r_bit = (cls.r >> shift) & 1;
+    int g_bit = (cls.g >> shift) & 1;
+    int b_bit = (cls.b >> shift) & 1;
+    return((r_bit << 2) | (g_bit << 1) | b_bit);
+}
+
+// insert node 
+void ImgQuantize::ColorOctree::insert_recursive(OctreeNode* node,const Pixel& color,int depth)
+{
+    if(depth == MAX_DEPTH) {
+        node->is_leaf = true;
+        node->color = color;
+        return;
+    }
+
+    int index = OctreeNode::get_child_index(color,depth);
+    if(!node->children[index]) {
+        node->children[index] = std::make_unique<OctreeNode>();
+    }
+
+    insert_recursive(node->children[index].get(),color,depth + 1);
+}
+
+void ImgQuantize::ColorOctree::search_recursive(const OctreeNode* node,const Pixel& target,int depth,Pixel& best_match,double& min_dist_sq)
+{
+    if(!node)
+        return;        
+    
+    if(node->is_leaf) {
+        double dist_sq = target.distance_squared(node->color);
+        if(dist_sq < min_dist_sq) {
+            min_dist_sq = dist_sq;
+            best_match = node->color;
+        }
+        return;
+    }
+
+    // 1. Prioritize the child node that matches the target's bit path
+    int preferred_index = OctreeNode::get_child_index(target,depth);
+    if(node->children[preferred_index]) {
+        search_recursive(node->children[preferred_index].get(),target,depth + 1,best_match,min_dist_sq);
+    }
+
+    // 2. Check remaining branches (pruning can be added here based on bounding boxes)
+    for(int i = 0; i < 8; ++i) {
+        if(i == preferred_index || !node->children[i]) continue;
+
+        search_recursive(node->children[i].get(),target,depth + 1,best_match,min_dist_sq);
+    }
+}
+
+
+
