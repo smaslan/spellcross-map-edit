@@ -1,4 +1,12 @@
-
+//=============================================================================
+// Stuff related to GUI HUD buttons (both ingame and editor)
+// Basically emulation of Spellcross HUD using wxWidgets objects.
+// 
+// This code is part of Spellcross Map Editor project.
+// (c) 2022 - 2026, Stanislav Maslan, s.maslan@seznam.cz
+// url: https://github.com/smaslan/spellcross-map-edit
+// Distributed under MIT license, https://opensource.org/licenses/MIT.
+//=============================================================================
 #include "spell_hud_buttons.h"
 
 #include "wx/dcgraph.h"

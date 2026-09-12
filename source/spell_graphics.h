@@ -1,3 +1,11 @@
+//=============================================================================
+// Spellcross various graphics processing stuff.
+// 
+// This code is part of Spellcross Map Editor project.
+// (c) 2022 - 2026, Stanislav Maslan, s.maslan@seznam.cz
+// url: https://github.com/smaslan/spellcross-map-edit
+// Distributed under MIT license, https://opensource.org/licenses/MIT.
+//=============================================================================
 #pragma once
 
 //#include "sprites.h"

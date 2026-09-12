@@ -1,4 +1,12 @@
-﻿#include "other.h"
+﻿//=============================================================================
+// Collection of useful random stuff.
+// 
+// This code is part of Spellcross Map Editor project.
+// (c) 2021-2026, Stanislav Maslan, s.maslan@seznam.cz
+// url: https://github.com/smaslan/spellcross-map-edit
+// Distributed under MIT license, https://opensource.org/licenses/MIT.
+//=============================================================================
+#include "other.h"
 
 #include <string>
 #include <codecvt>

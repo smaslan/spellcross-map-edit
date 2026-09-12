@@ -1,3 +1,11 @@
+//=============================================================================
+// Spellcross palette filter stuff.
+// 
+// This code is part of Spellcross Map Editor project.
+// (c) 2022, Stanislav Maslan, s.maslan@seznam.cz
+// url: https://github.com/smaslan/spellcross-map-edit
+// Distributed under MIT license, https://opensource.org/licenses/MIT.
+//=============================================================================
 #include "spell_filter.h"
 
 //#include <filesystem>

@@ -1,3 +1,12 @@
+//=============================================================================
+// Spellcross map events related stuff.
+// 
+// This code is part of Spellcross Map Editor project.
+// (c) 2022 - 2026, Stanislav Maslan, s.maslan@seznam.cz
+// url: https://github.com/smaslan/spellcross-map-edit
+// Distributed under MIT license, https://opensource.org/licenses/MIT.
+//=============================================================================
+
 #include "spell_map_event.h"
 #include "spell_units.h"
 #include "map.h"
