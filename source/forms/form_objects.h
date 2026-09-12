@@ -1,4 +1,4 @@
-///////////////////////////////////////////////////////////////////////////
+﻿///////////////////////////////////////////////////////////////////////////
 // C++ code generated with wxFormBuilder (version 3.10.1-0-g8feb16b3)
 // http://www.wxformbuilder.org/
 //
@@ -7,30 +7,43 @@
 
 #pragma once
 
+// <wxFormsBuilder-include> - Section auto-inserted from 'forms.h' class 'FormObjects' on 2026-09-10 18:08:45
 #include <wx/artprov.h>
 #include <wx/xrc/xmlres.h>
-#include <wx/statusbr.h>
+#include <wx/string.h>
+#include <wx/bitmap.h>
+#include <wx/image.h>
+#include <wx/icon.h>
+#include <wx/menu.h>
 #include <wx/gdicmn.h>
 #include <wx/font.h>
 #include <wx/colour.h>
 #include <wx/settings.h>
-#include <wx/string.h>
 #include <wx/stattext.h>
-#include <wx/listbox.h>
-#include <wx/button.h>
-#include <wx/bitmap.h>
-#include <wx/image.h>
-#include <wx/icon.h>
-#include <wx/sizer.h>
-#include <wx/statline.h>
-#include <wx/panel.h>
 #include <wx/textctrl.h>
+#include <wx/sizer.h>
+#include <wx/listbox.h>
+#include <wx/panel.h>
+#include <wx/statbox.h>
 #include <wx/slider.h>
+#include <wx/checkbox.h>
 #include <wx/choice.h>
-#include <wx/menu.h>
-#include <wx/frame.h>
-#include <wx/filedlg.h>
+#include <wx/statline.h>
 #include <wx/treectrl.h>
+#include <wx/statusbr.h>
+#include <wx/frame.h>
+#include <wx/button.h>
+#include <wx/dialog.h>
+#include <wx/spinctrl.h>
+#include <wx/timer.h>
+#include <wx/propgrid/propgrid.h>
+#include <wx/propgrid/advprops.h>
+#include <wx/notebook.h>
+#include <wx/radiobut.h>
+#include <wx/scrolbar.h>
+#include <wx/bmpbuttn.h>
+
+// </wxFormsBuilder-include> - Section auto-inserted from 'forms.h' class 'FormObjects' on 2026-09-10 18:08:45
 
 #include "spellcross.h"
 #include "sprites.h"
@@ -72,6 +85,7 @@ class FormObjects : public wxFrame
 		void OnTreeClassBeginDrag(wxTreeEvent& evt);
 		void OnTreeClassEndDrag(wxTreeEvent& evt);
 		void OnEditToolset(wxCommandEvent& evt);
+		void OnExportToolset(wxCommandEvent& evt);
 		void OnTreeClassMenu(wxTreeEvent& evt);
 		void OnTreeClassMenuClick(wxCommandEvent& evt);
 
@@ -79,7 +93,8 @@ class FormObjects : public wxFrame
 			MNU_REMOVE = 0,
 			MNU_NEW_TOOL,
 			MNU_NEW_TOOLSET,
-			MNU_EDIT_TOOLSET
+			MNU_EDIT_TOOLSET,
+			MNU_EXPORT_TOOLSET
 		};
 		
 
@@ -112,6 +127,7 @@ class FormObjects : public wxFrame
 
 
 	protected:
+		// <wxFormsBuilder> - Section auto-inserted from 'forms.h' class 'FormObjects' on 2026-09-10 18:08:45
 		enum
 		{
 			wxID_SB_MAIN = 5999,
@@ -127,7 +143,7 @@ class FormObjects : public wxFrame
 			wxID_MM_NEW_TOOL,
 			wxID_MM_EDIT_TOOLSET,
 		};
-
+		
 		wxStatusBar* sbar;
 		wxStaticText* m_staticText14;
 		wxTreeCtrl* treeCtrlClasses;
@@ -142,6 +158,7 @@ class FormObjects : public wxFrame
 		wxMenu* mnuTerr;
 		wxMenu* mnuEdit;
 
+		// </wxFormsBuilder> - Section auto-inserted from 'forms.h' class 'FormObjects' on 2026-09-10 18:08:45
 
 
 

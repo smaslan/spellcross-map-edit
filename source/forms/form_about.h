@@ -1,4 +1,4 @@
-///////////////////////////////////////////////////////////////////////////
+﻿///////////////////////////////////////////////////////////////////////////
 // C++ code generated with wxFormBuilder (version 4.2.1-0-g80c4cb6)
 // http://www.wxformbuilder.org/
 //
@@ -7,22 +7,43 @@
 
 #pragma once
 
+// <wxFormsBuilder-include> - Section auto-inserted from 'forms.h' class 'FormAbout' on 2026-09-12 10:31:22
 #include <wx/artprov.h>
 #include <wx/xrc/xmlres.h>
 #include <wx/string.h>
-#include <wx/stattext.h>
+#include <wx/bitmap.h>
+#include <wx/image.h>
+#include <wx/icon.h>
+#include <wx/menu.h>
 #include <wx/gdicmn.h>
 #include <wx/font.h>
 #include <wx/colour.h>
 #include <wx/settings.h>
-#include <wx/statline.h>
+#include <wx/stattext.h>
 #include <wx/textctrl.h>
 #include <wx/sizer.h>
+#include <wx/listbox.h>
+#include <wx/panel.h>
+#include <wx/statbox.h>
+#include <wx/slider.h>
+#include <wx/checkbox.h>
+#include <wx/choice.h>
+#include <wx/statline.h>
+#include <wx/treectrl.h>
+#include <wx/statusbr.h>
+#include <wx/frame.h>
 #include <wx/button.h>
-#include <wx/bitmap.h>
-#include <wx/image.h>
-#include <wx/icon.h>
 #include <wx/dialog.h>
+#include <wx/spinctrl.h>
+#include <wx/timer.h>
+#include <wx/propgrid/propgrid.h>
+#include <wx/propgrid/advprops.h>
+#include <wx/notebook.h>
+#include <wx/radiobut.h>
+#include <wx/scrolbar.h>
+#include <wx/bmpbuttn.h>
+
+// </wxFormsBuilder-include> - Section auto-inserted from 'forms.h' class 'FormAbout' on 2026-09-12 10:31:22
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -36,6 +57,7 @@ class FormAbout : public wxDialog
 		void OnURL(wxTextUrlEvent& event);
 
 	protected:
+		// <wxFormsBuilder> - Section auto-inserted from 'forms.h' class 'FormAbout' on 2026-09-12 10:31:22
 		enum
 		{
 			wxID_FORM_ABOUT = 5999,
@@ -47,7 +69,7 @@ class FormAbout : public wxDialog
 			wxID_TXT_DESC,
 			wxID_BTN_OK,
 		};
-
+		
 		wxStaticText* m_staticText80;
 		wxStaticLine* m_staticline29;
 		wxTextCtrl* m_textCtrl17;
@@ -65,9 +87,11 @@ class FormAbout : public wxDialog
 		wxStaticLine* m_staticline31;
 		wxButton* btnOK;
 
+		// </wxFormsBuilder> - Section auto-inserted from 'forms.h' class 'FormAbout' on 2026-09-12 10:31:22
+
 	public:
 
-		FormAbout( wxWindow* parent, wxWindowID id = wxID_FORM_ABOUT, const wxString& title = wxT("About Spellcross Map Editor"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 600,350 ), long style = wxDEFAULT_DIALOG_STYLE|wxRESIZE_BORDER );
+		FormAbout( wxWindow* parent,std::string ver_label, wxWindowID id = wxID_FORM_ABOUT, const wxString& title = wxT("About Spellcross Map Editor"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 1000,500 ), long style = wxDEFAULT_DIALOG_STYLE|wxRESIZE_BORDER );
 		~FormAbout();
 		void OnClose(wxCommandEvent& event);
 

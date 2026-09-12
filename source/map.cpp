@@ -764,7 +764,7 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 	// DEF file
 	std::unique_ptr<SpellDEF> def;
 
-	if(path.extension() == L".DEF" || path.extension() == L".def")
+	if(iequals(path.extension().string(),".DEF"))
 	{
 		// --- this is DEF file: parse it ---
 
@@ -772,7 +772,7 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 		try{
 			def = std::make_unique<SpellDEF>(path);
 		}catch(const runtime_error& error) {
-			last_error = string_format("Loading map DEF file '%ls' failed!",path.c_str());
+			last_error = string_format("Loading map DEF file '%s' failed!",path);
 			Close();
 			return(1);
 		}
@@ -782,7 +782,7 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 		if (!mission_data || !mission_data->Size())
 		{
 			// likely not a valid DEF file
-			last_error = string_format("MissionData section not found if map DEF file '%ls'!",map_path.c_str());
+			last_error = string_format("MissionData section not found if map DEF file '%s'!",map_path);
 			Close();
 			return(1);
 		}
@@ -796,7 +796,7 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 				// --- *.MAP file definition ---				
 				if(cmd->parameters.size() != 1)
 				{
-					last_error = string_format("Wrong parameters count in command '%s'!",cmd->full_command.c_str());
+					last_error = string_format("Wrong parameters count in command '%s'!",cmd->full_command);
 					Close();
 					return(1);
 				}
@@ -809,7 +809,7 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 		delete mission_data;
 		if(dta_path.empty())
 		{
-			last_error = string_format("Map name command MissionMap() not found in DEF file '%ls'!",map_path.c_str());
+			last_error = string_format("Map name command MissionMap() not found in DEF file '%s'!",map_path);
 			Close();
 			return(1);
 		}
@@ -825,17 +825,24 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 	vector<uint8_t> map_buffer;
 	if(loaddata(map_path,map_buffer))
 	{
-		last_error = string_format("Loading map DTA file '%ls' failed!",map_path.c_str());
+		last_error = string_format("Loading map DTA file '%s' failed!",map_path);
 		Close();
 		return(1);
 	}	
 	auto data = map_buffer.data();	
+	auto dend = data + map_buffer.size();
 
 	// get L1 data offset
 	//int L1_offset = *(int32_t*)data;
 	data += 4;
 
 	// get L1 sprites list size
+	if(data + sizeof(uint32_t) >= dend)
+	{
+		last_error = string_format("Possibly corrupted map DTA file '%s'!",map_path);
+		Close();
+		return(1);
+	}
 	int L1_count = *(int32_t*)data;
 	data += 4;
 	if(L1_count > 4095)
@@ -846,6 +853,12 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 	}
 
 	// version check (actually dunno what is that but it's always the same and looks like version code)
+	if(data + sizeof(uint8_t) >= dend)
+	{
+		last_error = string_format("Possibly corrupted map DTA file '%s'!",map_path);
+		Close();
+		return(1);
+	}
 	if(*data++ != 0x12)
 	{
 		last_error = string_format("Unknown DTA file version 0x%02X!",data[-1]);
@@ -854,17 +867,25 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 	}
 
 	// get map size
+	if(data + 2*sizeof(uint16_t) >= dend)
+	{
+		last_error = string_format("Possibly corrupted map DTA file '%s'!",map_path);
+		Close();
+		return(1);
+	}
 	this->x_size = *(int16_t*)data;
 	data += 2;
 	this->y_size = *(int16_t*)data;
 	data += 2;
 
 	// get map terrain name
-	char terr_name[14];
-	std::memset((void*)terr_name, '\0', sizeof(terr_name));
-	std::memcpy((void*)terr_name, data, 13);
-	terrain_name = terr_name;
-	data += 13;
+	if(data_read_str(terrain_name,data,dend,13))
+	{
+		last_error = string_format("Possibly corrupted map DTA file '%s'!",map_path);
+		Close();
+		return(1);
+	}
+
 
 	// try to get terrain data pointer
 	this->terrain = spelldata->GetTerrain(terrain_name.c_str());
@@ -879,18 +900,27 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 	this->spelldata = spelldata;
 	
 	// load list of used L1 sprites
+	if(data + L1_count*8 >= dend)
+	{
+		last_error = string_format("Possibly corrupted map DTA file '%s'!",map_path);
+		Close();
+		return(1);
+	}
 	vector<Sprite*> sprites;
 	sprites.assign(L1_count,NULL);
 	for (auto & sprite : sprites)
 	{
 		// read sprite name		
-		char name[9];
-		std::memset((void*)name, '\0', sizeof(name));
-		std::memcpy((void*)name, (void*)data, 8);
-		data += 8;
+		std::string name;
+		if(data_read_str(name,data,dend,8))
+		{
+			last_error = string_format("Possibly corrupted map DTA file '%s'!",map_path);
+			Close();
+			return(1);
+		}
 
 		// try to get sprite's data
-		sprite = terrain->GetSprite(name);
+		sprite = terrain->GetSprite(name.c_str());
 		if (!sprite)
 		{
 			// not found!
@@ -901,6 +931,12 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 	}
 
 	// load L1 sprite indices
+	if(data + x_size*y_size*sizeof(uint16_t) >= dend)
+	{
+		last_error = string_format("Possibly corrupted map DTA file '%s'!",map_path);
+		Close();
+		return(1);
+	}
 	tiles.resize(x_size*y_size);
 	L1_flags.resize(x_size*y_size);
 	for (auto & tile : tiles)
@@ -938,6 +974,12 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 	//////////////
 
 	// read count of L2 sprites
+	if(data + sizeof(uint32_t) >= dend)
+	{
+		last_error = string_format("Possibly corrupted map DTA file '%s'!",map_path);
+		Close();
+		return(1);
+	}
 	int L2_count = *(int32_t*)data;
 	data += 4;
 	if (L2_count > 255)
@@ -947,17 +989,26 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 	}
 	
 	// load list of used L2 sprites
+	if(data + L2_count*8 >= dend)
+	{
+		last_error = string_format("Possibly corrupted map DTA file '%s'!",map_path);
+		Close();
+		return(1);
+	}
 	sprites.assign(L2_count,NULL);
-	for (auto & sprite : sprites)
+	for (auto & sprite: sprites)
 	{
 		// read sprite name
-		char name[9];
-		std::memset((void*)name, '\0', sizeof(name));
-		std::memcpy((void*)name, (void*)data, 8);
-		data += 8;
+		std::string name;
+		if(data_read_str(name,data,dend,8))
+		{
+			last_error = string_format("Possibly corrupted map DTA file '%s'!",map_path);
+			Close();
+			return(1);
+		}
 
 		// try to get sprite's data
-		sprite = terrain->GetSprite(name);
+		sprite = terrain->GetSprite(name.c_str());
 		if (!sprite)
 		{
 			// not found!
@@ -968,6 +1019,12 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 	}
 
 	// load L2 sprite indices
+	if(data + tiles.size()*2 >= dend)
+	{
+		last_error = string_format("Possibly corrupted map DTA file '%s'!",map_path);
+		Close();
+		return(1);
+	}
 	for (auto & tile : tiles)
 	{
 		// get sprite index
@@ -994,19 +1051,34 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 	//////////////////////////////
 
 	// read count of ANM used
+	if(data + sizeof(uint32_t) >= dend)
+	{
+		last_error = string_format("Possibly corrupted map DTA file '%s'!",map_path);
+		Close();
+		return(1);
+	}
 	int L3_count = *(int32_t*)data; data += 4;
 
 	// load list of used L3 sprites
 	if(L3_count)
 	{
+		if(data + L3_count*8 >= dend)
+		{
+			last_error = string_format("Possibly corrupted map DTA file '%s'!",map_path);
+			Close();
+			return(1);
+		}
 		vector<AnimL1*> anims(L3_count);
 		for (int k = 0; k < L3_count; k++)
 		{
 			// read anim name
-			char name[9];
-			std::memset((void*)name, '\0', sizeof(name));
-			std::memcpy((void*)name, (void*)data, 8);
-			data += 8;
+			std::string name;
+			if(data_read_str(name,data,dend,8))
+			{
+				last_error = string_format("Possibly corrupted map DTA file '%s'!",map_path);
+				Close();
+				return(1);
+			}
 
 			// try to get sprite's data
 			anims[k] = this->terrain->GetANM(name);
@@ -1020,38 +1092,45 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 		}
 
 		// decode animation locations
-		if (L3_count)
-		{
-			// get total ANM items count
-			int L3_items = *(int32_t*)data; data += 4;
 		
-			// for each item:
-			anms.reserve(L3_items);
-			for (int k = 0; k < L3_items; k++)
+		// get total ANM items count
+		if(data + sizeof(uint32_t) >= dend)
+		{
+			last_error = string_format("Possibly corrupted map DTA file '%s'!",map_path);
+			Close();
+			return(1);
+		}
+		int L3_items = *(int32_t*)data; data += 4;
+		
+		// for each item:
+		if(data + L3_items*(1 + 2 + 2 + 2 + 2) >= dend)
+		{
+			last_error = string_format("Possibly corrupted map DTA file '%s'!",map_path);
+			Close();
+			return(1);
+		}
+		anms.reserve(L3_items);
+		for (int k = 0; k < L3_items; k++)
+		{
+			// initial frame offset
+			int frame_ofs = *data++;
+			// frames count limit, ###note: this may be actually frames count from offset???
+			// ###todo: findout why frame offset is byte and frames count word??? Maybe it is byte limit, and another byte of whatever?
+			int frame_limit = *(int16_t*)data; data += 2;
+			// x,y position in map
+			int x_pos = *(int16_t*)data; data += 2;
+			int y_pos = *(int16_t*)data; data += 2;
+			// animation ID
+			int aid = *(int16_t*)data; data += 2;
+			if(aid >= L3_count)
 			{
-				// initial frame offset
-				int frame_ofs = *data++;
-				// frames count limit, ###note: this may be actually frames count from offset???
-				// ###todo: findout why frame offset is byte and frames count word??? Maybe it is byte limit, and another byte of whatever?
-				int frame_limit = *(int16_t*)data; data += 2;
-				// x,y position in map
-				int x_pos = *(int16_t*)data; data += 2;
-				int y_pos = *(int16_t*)data; data += 2;
-				// animation ID
-				int aid = *(int16_t*)data; data += 2;
-				if(aid >= L3_count)
-				{
-					last_error = string_format("Map DTA ANM layer animation index %d out of range!",aid);
-					Close();
-					return(1);
-				}
-						
-				// put new animation entry to list
-				//MapLayer3* anim = new MapLayer3(anims[aid], x_pos, y_pos, frame_ofs, frame_limit);
-				anms.emplace_back(anims[aid],x_pos,y_pos,frame_ofs,frame_limit);
-						
+				last_error = string_format("Map DTA ANM layer animation index %d out of range!",aid);
+				Close();
+				return(1);
 			}
-
+						
+			// put new animation entry to list
+			anms.emplace_back(anims[aid],x_pos,y_pos,frame_ofs,frame_limit);						
 		}
 
 	}
@@ -1063,17 +1142,32 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 	//////////////////////////////
 
 	// read count of L4 animations
+	if(data + sizeof(uint32_t) >= dend)
+	{
+		last_error = string_format("Possibly corrupted map DTA file '%s'!",map_path);
+		Close();
+		return(1);
+	}
 	int L4_count = *(int32_t*)data; data += 4;
 
 	// load list of used L3 sprites
+	if(data + L4_count*(8) >= dend)
+	{
+		last_error = string_format("Possibly corrupted map DTA file '%s'!",map_path);
+		Close();
+		return(1);
+	}
 	vector<AnimPNM*> pnims(L4_count);
 	for (int k = 0; k < L4_count; k++)
 	{
 		// read anim name
-		char name[9];
-		std::memset((void*)name, '\0', sizeof(name));
-		std::memcpy((void*)name, (void*)data, 8);
-		data += 8;
+		std::string name;
+		if(data_read_str(name,data,dend,8))
+		{
+			last_error = string_format("Possibly corrupted map DTA file '%s'!",map_path);
+			Close();
+			return(1);
+		}
 
 		// try to get sprite's data
 		pnims[k] = this->terrain->GetPNM(name);
@@ -1087,12 +1181,24 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 	}
 
 	// decode animation locations
-	if (L4_count)
+	if(L4_count)
 	{
 		// get total PNM items count
+		if(data + sizeof(uint32_t) >= dend)
+		{
+			last_error = string_format("Possibly corrupted map DTA file '%s'!",map_path);
+			Close();
+			return(1);
+		}
 		int L4_items = *(int32_t*)data; data += 4;
 
 		// for each item:
+		if(data + L4_items*(1+2+2+2+2+4+4) >= dend)
+		{
+			last_error = string_format("Possibly corrupted map DTA file '%s'!",map_path);
+			Close();
+			return(1);
+		}
 		for (int k = 0; k < L4_items; k++)
 		{
 			// 17 bytes per record
@@ -1119,7 +1225,6 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 			}
 
 			// put new animation entry to list
-			//MapLayer4* pnim = new MapLayer4(pnims[pid], x_pos, y_pos, x_ofs, y_ofs, frame_ofs, frame_limit);
 			pnms.emplace_back(pnims[pid],x_pos,y_pos,x_ofs,y_ofs,frame_ofs,frame_limit);
 		}
 
@@ -1127,12 +1232,24 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 
 
 
-	//////////////////////////////////////
-	///// L5 - Mysterious numbers #1 /////
-	//////////////////////////////////////
+	///////////////////////////////////////////////
+	///// L5 - Enemy counter attack positions /////
+	///////////////////////////////////////////////
 	
 	// read count of L5 stuff
+	if(data + sizeof(uint32_t) >= dend)
+	{
+		last_error = string_format("Possibly corrupted map DTA file '%s'!",map_path);
+		Close();
+		return(1);
+	}
 	int L5_count = *(int32_t*)data; data += 4;
+	if(data + L5_count*sizeof(uint16_t) >= dend)
+	{
+		last_error = string_format("Possibly corrupted map DTA file '%s'!",map_path);
+		Close();
+		return(1);
+	}
 	for(int k = 0; k < L5_count; k++)
 	{
 		int pxy = *(uint16_t*)data; data += 2;
@@ -1141,34 +1258,56 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 
 
 
-	//////////////////////////////////////
-	///// L6 - Mysterious numbers #2 /////
-	//////////////////////////////////////
+	////////////////////////////////////////////////
+	///// L6 - Player counter attack positions /////
+	////////////////////////////////////////////////
 
 	// read count of L6 stuff
+	if(data + sizeof(uint32_t) >= dend)
+	{
+		last_error = string_format("Possibly corrupted map DTA file '%s'!",map_path);
+		Close();
+		return(1);
+	}
 	int L6_count = *(int32_t*)data; data += 4;
+	if(data + L6_count*sizeof(uint16_t) >= dend)
+	{
+		last_error = string_format("Possibly corrupted map DTA file '%s'!",map_path);
+		Close();
+		return(1);
+	}
 	for(int k = 0; k < L6_count; k++)
 	{
 		int pxy = *(uint16_t*)data; data += 2;
 		counter_attack_post_player.push_back(MapXY(pxy% x_size,pxy / x_size));
 	}
 	
+
+
 	//////////////////////////
 	///// L7 - Sounds #1 /////
 	//////////////////////////
 
-	std::vector<SpellSample*> L7_list;
-	sounds = new MapSounds(spelldata, x_size,y_size);
+	if(data + sizeof(uint32_t) >= dend)
+	{
+		last_error = string_format("Possibly corrupted map DTA file '%s'!",map_path);
+		Close();
+		return(1);
+	}
 	int L7_names_count = *(int32_t*)data; data += 4;
+	std::vector<SpellSample*> L7_list;
+	sounds = new MapSounds(spelldata, x_size,y_size);	
 	for(int k = 0; k < L7_names_count; k++)
 	{
-		char name[9];
-		char* pstr = name;
-		while(*data)
-			*pstr++ = *data++;
-		data++;
-		*pstr = '\0';
-		auto snd_ref = spelldata->sounds->GetSample(name);
+		std::string name;
+		if(data_read_str(name,data,dend,8,true))
+		{
+			last_error = string_format("Possibly corrupted map DTA file '%s'!",map_path);
+			Close();
+			return(1);
+		}
+
+		auto snd_ref = spelldata->sounds->GetSample(name.c_str());
 		if(!snd_ref)
 		{
 			last_error = string_format("Map DTA sound #1 layer references unknown sound resource name '%s'!",name);
@@ -1176,10 +1315,20 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 			return(1);
 		}
 		L7_list.push_back(snd_ref);
-		/*auto sound = new SpellSound(spelldata->sounds->channels,snd_ref);
-		sounds->list.push_back(sound);*/
+	}
+	if(data + sizeof(uint32_t) >= dend)
+	{
+		last_error = string_format("Possibly corrupted map DTA file '%s'!",map_path);
+		Close();
+		return(1);
 	}
 	int L7_count = *(int32_t*)data; data += 4;
+	if(data + L7_count*(2+1) >= dend)
+	{
+		last_error = string_format("Possibly corrupted map DTA file '%s'!",map_path);
+		Close();
+		return(1);
+	}
 	for(int k = 0; k < L7_count; k++)
 	{
 		int pxy = *(uint16_t*)data; data += 2;
@@ -1195,21 +1344,28 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 	sounds->InitSounds();
 	sounds->UpdateMaps();
 
+
 	//////////////////////////
 	///// L8 - Sounds #2 /////
 	//////////////////////////
-
+	if(data + sizeof(uint32_t) >= dend)
+	{
+		last_error = string_format("Possibly corrupted map DTA file '%s'!",map_path);
+		Close();
+		return(1);
+	}
 	int L8_names_count = *(int32_t*)data; data += 4;
 	vector<SpellSample*> L8_sounds;
 	for(int k = 0; k < L8_names_count; k++)
 	{
-		char name[9];
-		char* pstr = name;
-		while(*data)
-			*pstr++ = *data++;
-		data++;
-		*pstr = '\0';
-		auto snd_ref = spelldata->sounds->GetSample(name);
+		std::string name;
+		if(data_read_str(name,data,dend,8,true))
+		{
+			last_error = string_format("Possibly corrupted map DTA file '%s'!",map_path);
+			Close();
+			return(1);
+		}
+		auto snd_ref = spelldata->sounds->GetSample(name.c_str());
 		if(!snd_ref)
 		{
 			last_error = string_format("Map DTA sound #2 layer references unknown sound resource name '%s'!",name);
@@ -1218,7 +1374,19 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 		}
 		L8_sounds.push_back(snd_ref);
 	}
+	if(data + sizeof(uint32_t) >= dend)
+	{
+		last_error = string_format("Possibly corrupted map DTA file '%s'!",map_path);
+		Close();
+		return(1);
+	}
 	int L8_count = *(int32_t*)data; data += 4;
+	if(data + L8_count*(2+1) >= dend)
+	{
+		last_error = string_format("Possibly corrupted map DTA file '%s'!",map_path);
+		Close();
+		return(1);
+	}
 	for(int k = 0; k < L8_count; k++)
 	{
 		int pxy = *(uint16_t*)data; data += 2;
@@ -1231,7 +1399,6 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 		}
 		sounds->sounds.emplace_back(MapXY(pxy% x_size,pxy / x_size), L8_sounds[sid],MapSound::SoundType::RANDOM);
 	}
-
 
 	
 
@@ -1279,7 +1446,7 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 					coor.x = xy - coor.y * x_size;
 					if(!coor.IsSelected())
 					{
-						last_error = string_format("Position %d out of valid range in command '%s'!",xy,cmd->full_command.c_str());
+						last_error = string_format("Position %d out of valid range in command '%s'!",xy,cmd->full_command);
 						Close();
 						return(1);
 					}
@@ -1288,7 +1455,7 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 			}
 			else if (cmd->name.compare("AddEscapeSquare") == 0)
 			{
-				// --- AddStartSquare(s) ---				
+				// --- AddEscapeSquare(s) ---				
 				for (int p = 0; p < cmd->parameters.size(); p++)
 				{
 					int xy = stoi(cmd->parameters.at(p));
@@ -1297,7 +1464,7 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 					coor.x = xy - coor.y * x_size;
 					if(!coor.IsSelected())
 					{
-						last_error = string_format("Position %d out of valid range in command '%s'!",xy,cmd->full_command.c_str());
+						last_error = string_format("Position %d out of valid range in command '%s'!",xy,cmd->full_command);
 						Close();
 						return(1);
 					}
@@ -1315,7 +1482,7 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 					coor.x = xy - coor.y * x_size;
 					if(!coor.IsSelected())
 					{
-						last_error = string_format("Position %d out of valid range in command '%s'!",xy,cmd->full_command.c_str());
+						last_error = string_format("Position %d out of valid range in command '%s'!",xy,cmd->full_command);
 						Close();
 						return(1);
 					}
@@ -1328,7 +1495,7 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 				if(cmd->parameters.size() != 7)
 				{
 					// failed - not enough parameters
-					last_error = string_format("Wrong parameter count in command '%s'!",cmd->full_command.c_str());
+					last_error = string_format("Wrong parameter count in command '%s'!",cmd->full_command);
 					Close();
 					return(1);
 				}
@@ -1350,7 +1517,7 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 				unit->unit = spelldata->units->GetUnit(unit_type_id);
 				if(!unit->unit)
 				{
-					last_error = string_format("Unknown unit type %d parameter in command '%s'!",unit_type_id,cmd->full_command.c_str());
+					last_error = string_format("Unknown unit type %d parameter in command '%s'!",unit_type_id,cmd->full_command);
 					delete unit;
 					Close();
 					return(1);
@@ -1362,7 +1529,7 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 				unit->coor.x = xy - unit->coor.y * x_size;
 				if(!unit->coor.IsSelected())
 				{
-					last_error = string_format("Unit position %d out of valid range in command '%s'!",xy,cmd->full_command.c_str());
+					last_error = string_format("Unit position %d out of valid range in command '%s'!",xy,cmd->full_command);
 					delete unit;
 					Close();
 					return(1);
@@ -1379,7 +1546,7 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 				unit->behave = cmd->parameters.at(5).c_str();
 				if(unit->behave == MapUnitType::Unknown)
 				{
-					last_error = string_format("Unit behaviour '%s' not recognized in command '%s'!",cmd->parameters.at(5).c_str(),cmd->full_command.c_str());
+					last_error = string_format("Unit behaviour '%s' not recognized in command '%s'!",cmd->parameters.at(5),cmd->full_command);
 					delete unit;
 					Close();
 					return(1);
@@ -1428,7 +1595,7 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 							auto rand_unit = spelldata->units->GetUnit(unit_type_id);
 							if(!rand_unit || send == unit_id_str.c_str())
 							{
-								last_error = string_format("Unknown unit type '%s' parameter in command '%s'!",unit_id_str.c_str(),cmd->sub_full_command.c_str());
+								last_error = string_format("Unknown unit type '%s' parameter in command '%s'!",unit_id_str,cmd->sub_full_command);
 								delete unit;
 								Close();
 								return(1);
@@ -1439,7 +1606,7 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 					else
 					{
 						// invalid parameters
-						last_error = string_format("Unit randomizer command '%s' parameters not recognized for main command '%s'!",cmd->sub_full_command.c_str(),cmd->full_command.c_str());
+						last_error = string_format("Unit randomizer command '%s' parameters not recognized for main command '%s'!",cmd->sub_full_command,cmd->full_command);
 						delete unit;
 						Close();
 						return(1);
@@ -1496,7 +1663,7 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 			else
 			{
 				// unknown stuff in MissionData
-				last_error = string_format("Unknown command '%s'!",cmd->full_command.c_str());										
+				last_error = string_format("Unknown command '%s'!",cmd->full_command);
 				Close();
 				return(1);				
 			}
@@ -1522,7 +1689,7 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 				{
 					if(cmd->parameters.size() != 1)
 					{
-						last_error = string_format("%s command not found in MissionParameters section in map DEF file!",cmd_list[k].c_str());
+						last_error = string_format("%s command not found in MissionParameters section in map DEF file!",cmd_list[k]);
 						Close();
 						return(1);
 					}
@@ -1536,7 +1703,7 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 
 						if(!last_error.empty())
 							last_error += "\n";
-						last_error += string_format("Text resource '%s' referenced in command '%s' not found in loaded resources!",cmd_dest[k]->c_str(),cmd->full_command.c_str());
+						last_error += string_format("Text resource '%s' referenced in command '%s' not found in loaded resources!",cmd_dest[k]->c_str(),cmd->full_command);
 
 						/*delete mission_params;
 						Close();

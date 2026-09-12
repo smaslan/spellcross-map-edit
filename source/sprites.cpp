@@ -15,10 +15,14 @@
 #include "fsu_archive.h"
 #include "map_types.h"
 #include "spell_palette.h"
+#include "spell_filter.h"
+
+#ifndef MINIMAL_SPRITES
 #include "spell_graphics.h"
 #include "spell_filter.h"
 #include "map.h"
 #include "spellcross.h"
+#endif
 
 #include "simpleini.h"
 #include <string>
@@ -26,6 +30,7 @@
 #include <stdexcept>
 #include <filesystem>
 #include <regex>
+#include <memory>
 #include <sstream>
 
 #include "wx/dcgraph.h"
@@ -1013,10 +1018,11 @@ AnimPNM::~AnimPNM()
 }
 
 // encode frames
+#ifndef MINIMAL_SPRITES
 int AnimPNM::Encode(std::filesystem::path path,std::vector<std::unique_ptr<SpellGraphicItem>> &frames)
 {
 	// try open file
-	ofstreamext fw(path,ios::out | ios::binary | ios::trunc);
+	ofstreamext fw(path,std::ios::out | std::ios::binary | std::ios::trunc);
 	if(!fw.is_open())
 		return(1);
 
@@ -1041,7 +1047,7 @@ int AnimPNM::Encode(std::filesystem::path path,std::vector<std::unique_ptr<Spell
 
 		// skip header
 		auto fpos_frame_head = fw.tellp();
-		fw.seekp(3*sizeof(int16_t) + sizeof(uint8_t),ios::_Seekcur);
+		fw.seekp(3*sizeof(int16_t) + sizeof(uint8_t),std::ios::_Seekcur);
 		
 		// pixel data
 		auto &pixels = frame->pixels;
@@ -1160,6 +1166,7 @@ int AnimPNM::Encode(std::filesystem::path path,std::vector<std::unique_ptr<Spell
 
 	return(0);
 }
+#endif
 
 // decode animation file from buffer
 int AnimPNM::Decode(uint8_t* data, const char* name)
@@ -1333,9 +1340,9 @@ int Sprite::CompareSpriteContextAlt(Sprite* alt)
 		return(0);
 	if(is_object && alt->tool_class && alt->tool_group != this->tool_group)
 		return(0);
-	if(any_of(&alt->edge_class[0],&alt->edge_class[4],[](auto i) {return(i == LandClass::GENERIC);}))
+	if(std::any_of(&alt->edge_class[0],&alt->edge_class[4],[](auto i) {return(i == LandClass::GENERIC);}))
 		return(0);
-	if(!equal(&alt->edge_class[0],&alt->edge_class[4],&this->edge_class[0]))
+	if(!std::equal(&alt->edge_class[0],&alt->edge_class[4],&this->edge_class[0]))
 		return(0);
 	return(1);
 }
@@ -1467,7 +1474,7 @@ void Sprite::RemoveContext(int quadrant,int tile,std::vector<int>& list)
 		quad[quadrant][tile-'A'].erase(quad[quadrant][tile-'A'].begin() + list[k]);
 }
 // remove list of context entries (indexing all slopes together)
-void Sprite::RemoveContext(int quadrant,vector<int>& list)
+void Sprite::RemoveContext(int quadrant,std::vector<int>& list)
 {
 	if(quadrant < 0 || quadrant > 4 || !list.size())
 		return;
@@ -1513,7 +1520,7 @@ int Sprite::RandomizeContext()
 			auto & cont = quad_rng[eid][slope - 'A'];
 			cont.clear();
 			cont.resize(count);
-			vector<int> used(count,false);
+			std::vector<int> used(count,false);
 
 			int cont_id = 0;			
 			int sid = -1;
@@ -1542,9 +1549,9 @@ int Sprite::RandomizeContext()
 						continue;
 					if(is_object && alt->tool_class && alt->tool_group != spr->tool_group)
 						continue;
-					if(any_of(&alt->edge_class[0],&alt->edge_class[4], [](auto i) {return(i == LandClass::GENERIC);}))
+					if(std::any_of(&alt->edge_class[0],&alt->edge_class[4], [](auto i) {return(i == LandClass::GENERIC);}))
 						continue;
-					if(!equal(&alt->edge_class[0],&alt->edge_class[4],&spr->edge_class[0]))
+					if(!std::equal(&alt->edge_class[0],&alt->edge_class[4],&spr->edge_class[0]))
 						continue;
 					
 					// valid alternative
@@ -1714,6 +1721,7 @@ int Sprite::GetToolClassGroup()
 //=============================================================================
 // Destructible objects parameters
 //=============================================================================
+#ifndef MINIMAL_SPRITES
 SpellL2classRec::SpellL2classRec()
 {
 	sound_hit = NULL;
@@ -1742,7 +1750,7 @@ SpellL2classes::SpellL2classes(FSarchive* fs,SpellSounds* sounds,std::function<v
 	// --- Wall classes:	
 	if(status_list)
 		status_list(" - parsing wall object classes (MURY.DEF)...");
-	string mury_text = fs->GetFile("MURY.DEF");
+	std::string mury_text = fs->GetFile("MURY.DEF");
 	if(mury_text.empty())
 		throw runtime_error("MURY.DEF not found in COMMON.FS!");		
 	SpellClassFile wall_cls = SpellClassFile(mury_text,";\\s*typ\\s*([\\d]+)\\s*:\\s*([^\\n\\r]+)\\r?\\n?([^;]+)",0);
@@ -1890,7 +1898,7 @@ DestructibleRec SpellL2classes::GetClass(const char* sprite_name)
 
 	return(rec);
 }
-
+#endif
 
 
 
@@ -1945,7 +1953,8 @@ int Terrain::Load(FSarchive *terrain_fs, uint8_t map_pal[][3],SpellGraphics* gre
 	name = terrain_fs->GetFSname(false);
 	
 	// init common part of map palette
-	std::memcpy(pal, map_pal, 256*3);
+	if(map_pal)
+		std::memcpy(pal, map_pal, 256*3);
 
 	// --- read files from archive:
 	int sprite_index = 0;
@@ -1985,15 +1994,15 @@ int Terrain::Load(FSarchive *terrain_fs, uint8_t map_pal[][3],SpellGraphics* gre
 			{
 				///////////////////
 				///// Sprites /////
-				///////////////////
-
-				// add sprite list element
-				Sprite* sprite = new Sprite();
-				sprites.push_back(sprite);
+				///////////////////					
 				
 				// skip known faulty sprites
 				if(this->name == "DEVAST" && _strcmpi(name,"DMA0_270") == 0)
 					continue;
+
+				// add sprite list element
+				Sprite* sprite = new Sprite();
+				sprites.push_back(sprite);
 
 				// try decode sprite data
 				auto len = sprite->Decode(data,name);
@@ -2001,7 +2010,8 @@ int Terrain::Load(FSarchive *terrain_fs, uint8_t map_pal[][3],SpellGraphics* gre
 					return(1);
 				// set sprite index (linear unsorted)
 				sprite->SetIndex(sprite_index++);
-				
+				sprite->terr = this;
+
 				if(status_item)
 					status_item(name);
 				fcnt++;
@@ -2093,6 +2103,7 @@ int Terrain::Load(FSarchive *terrain_fs, uint8_t map_pal[][3],SpellGraphics* gre
 		}
 	}
 	
+#ifndef MINIMAL_SPRITES
 	if(L2)
 	{
 		// try pair sprites with class definitions (MURY.DEF, MOSTY.DEF or SPECOBJ.DEF)
@@ -2117,6 +2128,7 @@ int Terrain::Load(FSarchive *terrain_fs, uint8_t map_pal[][3],SpellGraphics* gre
 			}
 		}
 	}
+#endif
 
 	// fix sprite land types (marks objects as 0-type)
 	FixSpriteLandTypes();
@@ -2258,6 +2270,7 @@ std::vector<Terrain::SpriteFlag> Terrain::GetSpriteFlagList()
 }
 
 
+#ifndef MINIMAL_SPRITES
 // initialize sprite tiles context from file (optional)
 int Terrain::InitSpriteContext(std::filesystem::path &path)
 {
@@ -2548,84 +2561,90 @@ int Terrain::SaveSpriteContext(wstring& path)
 		}
 	}
 
-
-	// store sprite count
-	uint32_t count = sprites.size();
-	fw.write(count);
-
 	// store sprite name list, following code will work with indexes corresponding to this list
-	for(int k = 0; k < count;k++)
+	std::vector<std::string> sprite_list;
+	int sid = 0;
+	for(auto &spr: sprites)
 	{
-		char name[MAX_SPRITE_NAME+1];
-		memset(name,'\0',sizeof(name));
-		strncpy(name,sprites[k]->name.c_str(),sizeof(name));
-		name[MAX_SPRITE_NAME] = '\0';
-		fw.write(name, sizeof(name));
+		// skip removed
+		if(spr->is_removed)
+			continue;
+		// reindex
+		spr->index = sid++;
+		// store name		
+		sprite_list.push_back(spr->name);			
 	}
 
+	// store sprite count
+	fw.write((uint32_t)sprite_list.size());
+
+	// store sprite list
+	for(auto &name: sprite_list)
+		fw.write_str(name, MAX_SPRITE_NAME + 1);
+
 	// --- for each sprite:
-	for(int k = 0; k < count;k++)
+	for(auto& spr: sprites)
 	{
+		if(spr->is_removed)
+			continue;
+			
 		// for each tile side:
 		for(int quid = 0; quid < 4; quid++)
-		{
-			// L1 context count
-			uint32_t cont_count = sprites[k]->GetContextCount(quid);
-			fw.write(cont_count);
-
+		{			
 			// for each context tile
-			for(int sid = 0; sid < cont_count; sid++)
+			std::vector<uint16_t> list;
+			for(int sid = 0; sid < spr->GetContextCount(quid); sid++)
 			{
 				// get context tile index
-				Sprite *sprite = sprites[k]->GetContext(quid, sid);
-				// store index
-				uint16_t tile_id = sprite->GetIndex();
-				//fw.write((char*)&tile_id,sizeof(uint16_t));
-				fw.write(tile_id);
+				Sprite* sprite = spr->GetContext(quid,sid);
+				// skip removed
+				if(sprite->is_removed)
+					continue;		
+				list.push_back(sprite->index);
 			}
+						
+			// L1 context count
+			uint32_t cont_count = list.size();
+			fw.write(cont_count);
 
+			// store L1 list
+			for(auto &sid: list)
+				fw.write(sid);
 		}
 		// store edge classes
 		for(int quid = 0; quid < 4; quid++)
 		{
-			uint8_t edge_class = sprites[k]->GetEdgeClass(quid);
-			//fw.write((char*)&edge_class,sizeof(uint8_t));
+			uint8_t edge_class = spr->GetEdgeClass(quid);
 			fw.write(edge_class);
 		}
 
 		// store flags
-		fw.write((uint32_t)sprites[k]->GetFlags());
+		fw.write((uint32_t)spr->GetFlags());
 		
 		// store special flags
-		fw.write((uint32_t)sprites[k]->GetGlyphFlags());
+		fw.write((uint32_t)spr->GetGlyphFlags());
 		
 		// store special tile class
-		fw.write((uint32_t)sprites[k]->GetSpecClass());
+		fw.write((uint32_t)spr->GetSpecClass());
 
 		// store map tile flags
-		fw.write((uint32_t)sprites[k]->GetMapFlags());
+		fw.write((uint32_t)spr->GetMapFlags());
 		
 		// store shading flags and masks
-		fw.write((uint32_t)sprites[k]->GetShadingFlags() | (sprites[k]->GetShadingMask() << 8));
+		fw.write((uint32_t)spr->GetShadingFlags() | (spr->GetShadingMask() << 8));
 
 		// store tool class
-		fw.write((uint32_t)sprites[k]->GetToolClass());
+		fw.write((uint32_t)spr->GetToolClass());
 
 		// store tool class item
-		fw.write((uint32_t)sprites[k]->GetToolClassGroup());
+		fw.write((uint32_t)spr->GetToolClassGroup());
 	}
 
 	// store PNMs count
 	fw.write((uint32_t)pnms.size());
 	// store PNM names
 	for(auto &pnm: pnms)
-	{
-		char name[MAX_SPRITE_NAME+1];
-		memset(name,'\0',sizeof(name));
-		strncpy(name,pnm->name.c_str(),sizeof(name));
-		name[MAX_SPRITE_NAME] = '\0';
-		fw.write(name,sizeof(name));
-	}
+		fw.write_str(pnm->name,MAX_SPRITE_NAME + 1);
 
 	// skip objects count
 	auto fpos_obj_count = fw.tellp();
@@ -2641,7 +2660,8 @@ int Terrain::SaveSpriteContext(wstring& path)
 		if(obj->is_virtual)
 			continue;
 		// write object data
-		obj->WriteToFile(fw);
+		if(obj->WriteToFile(fw))
+			continue;
 		obj_count++;
 	}
 
@@ -3033,7 +3053,7 @@ int Terrain::InitSpriteContextShading()
 	}
 	return(0);
 }
-
+#endif
 
 // fixes land shape type flags for objects layer
 int Terrain::FixSpriteLandTypes()
@@ -3484,6 +3504,8 @@ AnimPNM* Terrain::GetPNM(std::string name)
 //=============================================================================
 // Spellcross map objects stuff
 //=============================================================================
+#ifndef MINIMAL_SPRITES
+
 // make object
 SpellObject::SpellObject(std::vector<MapXY> &xy,std::vector<Sprite*> &L1_list,std::vector<Sprite*> &L2_list,std::vector<uint8_t> &flag_list,std::vector<MapLayer4> &pnm_list,uint8_t* palette,std::string desc)
 {
@@ -3994,7 +4016,14 @@ void SpellObject::SetDescription(std::string name)
 
 // write object to a file (for saving objects list)
 int SpellObject::WriteToFile(ofstreamext &fw)
-{
+{	
+	if(std::ranges::find_if(L1_sprites, [](Sprite *spr){return(spr && spr->is_removed);}) != L1_sprites.end() ||
+		std::ranges::find_if(L2_sprites,[](Sprite* spr) {return(spr && spr->is_removed);}) != L2_sprites.end())
+	{
+		// object contains removed sprite
+		return(1);
+	}
+		
 	// write description string
 	fw.write_str_p16(description);
 
@@ -4008,7 +4037,7 @@ int SpellObject::WriteToFile(ofstreamext &fw)
 	fw.write((uint32_t)L1_sprites.size());
 
 	// for each tile:
-	for(int k = 0;k < L1_sprites.size(); k++)
+	for(int k = 0; k < L1_sprites.size(); k++)
 	{	
 		// write L1 sprite index
 		int32_t L1_id = -1;
@@ -4021,7 +4050,6 @@ int SpellObject::WriteToFile(ofstreamext &fw)
 
 		// write flags
 		uint8_t flag = flags[k];
-		//fw.write((char*)&flag,sizeof(uint8_t));
 		fw.write(flag);
 
 		// write tile relative position [x,y]
@@ -4231,7 +4259,6 @@ SpellObject::SpellObject(ifstreamext& fr,std::vector<Sprite*> &sprite_list,std::
 	}	
 
 }
-
 
 // add object to list of objects
 SpellObject* Terrain::AddObject(vector<MapXY> xy,vector<Sprite*> L1_list,vector<Sprite*> L2_list,vector<uint8_t> flag_list,vector<MapLayer4> pnm_list,uint8_t* palette,std::string desc)
@@ -4558,6 +4585,44 @@ int Terrain::GetToolSetID(const char *name)
 			return(k);
 	return(-1);
 }
+
+// export toolset to info file
+int Terrain::ExportToolSetInfo(std::filesystem::path info_path, int id)
+{
+	if(id < 0 || id >= tools.size())
+		return(1);	
+	auto &toolset = tools[id];
+
+	std::string info;
+	info += "// Spellcross toolset export from Spellcross Map Editor\n";	
+	info += "// Note: this export covers just single sprites like trees and not composite objects\n\n";
+	info += string_format("What:: Spellcross toolset\n");
+	info += string_format("Date:: %s\n", get_local_time_str());
+	info += string_format("Version:: V1.00\n\n");
+
+	info += string_format("Terrain:: %s\n",name);
+	info += string_format("Toolset name:: %s\n",toolset->name);
+	info += string_format("Toolset title:: %s\n\n",toolset->title);
+
+	info += info_make_text_vector("Tools list",toolset->items);
+	info += "\n";
+
+	for(int k = 0; k < toolset->items.size(); k++)
+	{
+		SpellTool tool;		
+		tool.Set(id,k);
+		auto sprite_list = GetToolSprites(tool);
+
+		std::vector<std::string> list;
+		std::ranges::transform(sprite_list,std::back_inserter(list),&Sprite::name);
+		info += info_make_text_vector(toolset->items[k],list);
+		info += "\n";
+	}
+	
+	return(savestr(info_path,info));
+}
+
+
 
 // get tool item glyph size [x,y]
 std::tuple<int, int> Terrain::GetToolSetItemImageSize(int tool_id, int item_id)
@@ -4902,7 +4967,7 @@ std::vector<SpellObject*> Terrain::GetToolObjects(SpellTool& tool)
 
 	return(list);
 }
-
+#endif
 
 
 

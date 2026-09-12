@@ -93,12 +93,17 @@ public:
 	Txyz(int xx,int yy,int zz) {x=xx;y=yy;z=zz;};
 };
 
+class Terrain;
 
 class Sprite
 {
 	public:
+		// owning terrain backref
+		Terrain *terr;
 		// place holder sprite
 		bool is_dummy;
+		// marked as to be removed
+		bool is_removed;
 		// sprite name tag
 		std::string name;
 		// sprite data
@@ -385,6 +390,7 @@ class MapLayer4;
 class MapXY;
 
 // spellcross terrain object (group of sprites forming e.g. house)
+#ifndef MINIMAL_SPRITES
 class SpellObject
 {
 private:	
@@ -417,7 +423,7 @@ public:
 	bool is_virtual;
 	// all object components are available in loaded data
 	bool is_valid;
-	
+		
 	enum GLYPH_FORMAT{		
 		INDEX_8BIT = 0,
 		LZ_INDEX_8BIT,
@@ -425,8 +431,7 @@ public:
 	};
 	
 	SpellObject(ifstreamext& fr,std::vector<Sprite*>& sprite_list,std::vector<AnimPNM*>& pnm_list,uint8_t* palette);
-	SpellObject(std::vector<MapXY>& xy,std::vector<Sprite*>& L1_list,std::vector<Sprite*>& L2_list,std::vector<uint8_t>& flag_list,std::vector<MapLayer4>& pnm_list,uint8_t* palette=NULL,std::string desc="");
-	//SpellObject(std::vector<MapXY> xy,std::vector<Sprite*> L1_list,std::vector<Sprite*> L2_list,std::vector<uint8_t> flag_list, uint8_t *palette = NULL, std::string desc = "");
+	SpellObject(std::vector<MapXY>& xy,std::vector<Sprite*>& L1_list,std::vector<Sprite*>& L2_list,std::vector<uint8_t>& flag_list,std::vector<MapLayer4>& pnm_list,uint8_t* palette=NULL,std::string desc="");	
 	~SpellObject();
 	int RenderPreview(wxBitmap& bmp,double gamma=1.30);
 	std::tuple<int, int> GetGlyphSize();
@@ -481,6 +486,11 @@ public:
 	std::tuple<int,int> GetTool() { return(std::make_tuple(class_id,tool_id)); };
 	bool isSame(SpellTool &tool) {return(obj == tool.obj && class_id == tool.class_id && tool_id == tool.tool_id);};
 };
+#else
+class SpellObject;
+class SpellTool;
+class SpellToolsGroup;
+#endif
 
 
 class SpellData;
@@ -496,7 +506,7 @@ private:
 	// sprite context file path
 	std::wstring context_path;
 	// list of generic tile glyph pointers
-	std::vector<Sprite *> glyphs[13];
+	std::vector<Sprite*> glyphs[13];
 
 	// tools list
 	std::vector<SpellToolsGroup*> tools;
@@ -615,6 +625,7 @@ public:
 	int MoveToolSet(int posa, int posb,bool insert=false);
 	int GetToolSetID(std::string& name);
 	int GetToolSetID(const char *name);
+	int ExportToolSetInfo(std::filesystem::path info_path, int id);
 	wxBitmap* RenderToolSetItemImage(int tool_id, int item_id, double gamma=1.30, int x_size=-1, int y_size=-1, bool no_zoom=true);
 	std::tuple<int, int> GetToolSetItemImageSize(int tool_id, int item_id);
 

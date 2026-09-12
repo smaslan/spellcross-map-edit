@@ -528,9 +528,7 @@ FormSprite::FormSprite( wxWindow* parent,SpellData* spell_data,wxWindowID id, co
 	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormSprite::OnEdgeShadeChange,this,wxID_CB_SHADE_C3);
 	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormSprite::OnEdgeShadeChange,this,wxID_CB_SHADE_C4);
 
-
 	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormSprite::OnFlagsChange,this,wxID_CB_TOOL_GLYPH);
-	
 
 	statBar->SetFieldsCount(2);
 	statBar->SetAutoLayout(true);
@@ -593,6 +591,8 @@ FormSprite::FormSprite( wxWindow* parent,SpellData* spell_data,wxWindowID id, co
 	SpriteDropTarget* drop_target = new SpriteDropTarget(this);
 	treeCtrlObjects->SetDropTarget((wxDropTarget*)drop_target);
 
+	lboxSprites->Bind(wxEVT_RIGHT_DOWN,&FormSprite::OnSpritePupupOpen,this);
+
 	FillToolsTree();
 
 }
@@ -600,6 +600,51 @@ FormSprite::~FormSprite()
 {
 	delete imlist;
 }
+
+
+
+
+// rules popup menu
+void FormSprite::OnSpritePupupOpen(wxMouseEvent& event)
+{
+	wxMenu menu;
+	int flags;
+	auto pos = event.GetPosition();
+	static auto sel_id = -1;
+	sel_id = -1; // must be cleared before HitTest()!
+	sel_id = lboxSprites->HitTest(pos,flags);
+	if(sel_id >= 0)
+		lboxSprites->SetItemState(sel_id,wxLIST_STATE_SELECTED,wxLIST_STATE_SELECTED);
+	if(sel_id >= m_sprite_list.size())
+		sel_id = -1;
+	bool is_sel = (sel_id >= 0);
+	menu.SetClientData(&sel_id);
+
+	menu.Append((int)PopupActions::REMOVE_SPRITE,"Remove sprite");
+
+	menu.Connect(wxEVT_COMMAND_MENU_SELECTED,wxCommandEventHandler(FormSprite::OnSpritePupup),NULL,this);
+	PopupMenu(&menu);
+}
+void FormSprite::OnSpritePupup(wxCommandEvent& event)
+{
+	auto menu_id = (PopupActions)event.GetId();
+	auto menu = (wxMenu*)event.GetEventObject();
+	if(!menu)
+		return;
+	auto sel_id = *(int*)menu->GetClientData();
+
+	if(menu_id == PopupActions::REMOVE_SPRITE)
+	{
+		if(sel_id < 0 || sel_id >= m_sprite_list.size())
+			return;
+		auto sprite = m_sprite_list[sel_id];
+		sprite->is_removed = true;		
+
+		SelectTerrain();
+	}
+}
+
+
 
 
 // begin sprite drag from sprite list
@@ -1732,7 +1777,7 @@ void FormSprite::SelectTerrain()
 	auto filter = txtFilter->GetValue().ToStdString();
 	m_sprite_list.clear();
 	for(auto &spr: terr->sprites)
-		if(wildcmp(filter,spr->name))
+		if(wildcmp(filter,spr->name) && !spr->is_removed)
 			m_sprite_list.push_back(spr);
 		
 	lboxSprites->SetClientData(terr);

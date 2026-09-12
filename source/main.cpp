@@ -653,7 +653,7 @@ void MainFrame::OnExit(wxCommandEvent& event)
 // about message
 void MainFrame::OnAbout(wxCommandEvent& event)
 {
-    auto form = new FormAbout(this);
+    auto form = new FormAbout(this,c_str_ver_label);
     if(form->ShowModal() == wxID_OK)
     {
         // --- confirmed

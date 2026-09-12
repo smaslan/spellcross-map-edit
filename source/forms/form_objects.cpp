@@ -1,4 +1,4 @@
-///////////////////////////////////////////////////////////////////////////
+﻿///////////////////////////////////////////////////////////////////////////
 // C++ code generated with wxFormBuilder (version 3.10.1-0-g8feb16b3)
 // http://www.wxformbuilder.org/
 //
@@ -13,6 +13,7 @@
 
 #include <filesystem>
 #include <regex>
+#include <wx/filedlg.h>
 #include <wx/msgdlg.h>
 
 ///////////////////////////////////////////////////////////////////////////
@@ -24,103 +25,105 @@ FormObjects::FormObjects( wxWindow* parent,SpellData* spell_data,wxWindowID id, 
 	m_spell_obj = NULL;
 
 	// === AUTO GENERATED START ===
+	// <wxFormsBuilder> - Section auto-inserted from 'forms.cpp' class 'FormObjects' on 2026-09-10 18:08:44
+	this->SetSizeHints( wxSize( 800,400 ), wxDefaultSize );
+	this->SetForegroundColour( wxSystemSettings::GetColour( wxSYS_COLOUR_BTNTEXT ) );
+	this->SetBackgroundColour( wxSystemSettings::GetColour( wxSYS_COLOUR_MENU ) );
 	
-	this->SetSizeHints(wxSize(800,400),wxDefaultSize);
-	this->SetForegroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_BTNTEXT));
-	this->SetBackgroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_MENU));
-
-	sbar = this->CreateStatusBar(1,wxSTB_SIZEGRIP,wxID_SB_MAIN);
+	sbar = this->CreateStatusBar( 1, wxSTB_SIZEGRIP, wxID_SB_MAIN );
 	wxBoxSizer* szrMain;
-	szrMain = new wxBoxSizer(wxHORIZONTAL);
-
+	szrMain = new wxBoxSizer( wxHORIZONTAL );
+	
 	wxBoxSizer* szrList;
-	szrList = new wxBoxSizer(wxVERTICAL);
-
-	szrList->SetMinSize(wxSize(250,-1));
-	m_staticText14 = new wxStaticText(this,wxID_ANY,wxT("Objects list:"),wxDefaultPosition,wxDefaultSize,0);
-	m_staticText14->Wrap(-1);
-	szrList->Add(m_staticText14,0,wxLEFT|wxTOP,5);
-
-	treeCtrlClasses = new wxTreeCtrl(this,wxID_TRC_CLASSES,wxDefaultPosition,wxDefaultSize,wxTR_DEFAULT_STYLE|wxTR_EDIT_LABELS|wxTR_HIDE_ROOT|wxTR_SINGLE|wxALWAYS_SHOW_SB|wxVSCROLL);
-	szrList->Add(treeCtrlClasses,1,wxBOTTOM|wxEXPAND|wxLEFT|wxRIGHT,5);
-
-
-	szrMain->Add(szrList,0,wxEXPAND,5);
-
-	m_staticline5 = new wxStaticLine(this,wxID_ANY,wxDefaultPosition,wxDefaultSize,wxLI_VERTICAL);
-	szrMain->Add(m_staticline5,0,wxEXPAND | wxALL,5);
-
+	szrList = new wxBoxSizer( wxVERTICAL );
+	
+	szrList->SetMinSize( wxSize( 250,-1 ) );
+	m_staticText14 = new wxStaticText( this, wxID_ANY, wxT("Objects list:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText14->Wrap( -1 );
+	szrList->Add( m_staticText14, 0, wxLEFT|wxTOP, 5 );
+	
+	treeCtrlClasses = new wxTreeCtrl( this, wxID_TRC_CLASSES, wxDefaultPosition, wxDefaultSize, wxTR_DEFAULT_STYLE|wxTR_EDIT_LABELS|wxTR_HIDE_ROOT|wxTR_SINGLE|wxALWAYS_SHOW_SB|wxVSCROLL );
+	szrList->Add( treeCtrlClasses, 1, wxBOTTOM|wxEXPAND|wxLEFT|wxRIGHT, 5 );
+	
+	
+	szrMain->Add( szrList, 0, wxEXPAND, 5 );
+	
+	m_staticline5 = new wxStaticLine( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLI_VERTICAL );
+	szrMain->Add( m_staticline5, 0, wxEXPAND | wxALL, 5 );
+	
 	wxBoxSizer* szrView;
-	szrView = new wxBoxSizer(wxVERTICAL);
-
-	m_staticText15 = new wxStaticText(this,wxID_ANY,wxT("Object preview:"),wxDefaultPosition,wxDefaultSize,0);
-	m_staticText15->Wrap(-1);
-	szrView->Add(m_staticText15,0,wxLEFT|wxRIGHT|wxTOP,5);
-
-	canvas = new wxPanel(this,wxID_CANVAS,wxDefaultPosition,wxDefaultSize,wxFULL_REPAINT_ON_RESIZE|wxTAB_TRAVERSAL);
-	szrView->Add(canvas,1,wxEXPAND | wxALL,5);
-
-	m_staticline8 = new wxStaticLine(this,wxID_ANY,wxDefaultPosition,wxDefaultSize,wxLI_HORIZONTAL);
-	szrView->Add(m_staticline8,0,wxEXPAND|wxTOP|wxRIGHT|wxLEFT,5);
-
-	txtGamma = new wxStaticText(this,wxID_TXT_GAMMA,wxT("Gamma correction:"),wxDefaultPosition,wxDefaultSize,0);
-	txtGamma->Wrap(-1);
-	szrView->Add(txtGamma,0,wxLEFT|wxRIGHT|wxTOP,5);
-
-	slideGamma = new wxSlider(this,wxID_SLIDE_GAMMA,1300,500,2000,wxDefaultPosition,wxDefaultSize,wxSL_HORIZONTAL);
-	szrView->Add(slideGamma,0,wxEXPAND|wxALL,1);
-
-
-	szrMain->Add(szrView,1,wxEXPAND,5);
-
-
-	this->SetSizer(szrMain);
+	szrView = new wxBoxSizer( wxVERTICAL );
+	
+	m_staticText15 = new wxStaticText( this, wxID_ANY, wxT("Object preview:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText15->Wrap( -1 );
+	szrView->Add( m_staticText15, 0, wxLEFT|wxRIGHT|wxTOP, 5 );
+	
+	canvas = new wxPanel( this, wxID_CANVAS, wxDefaultPosition, wxDefaultSize, wxFULL_REPAINT_ON_RESIZE|wxTAB_TRAVERSAL );
+	szrView->Add( canvas, 1, wxEXPAND | wxALL, 5 );
+	
+	m_staticline8 = new wxStaticLine( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLI_HORIZONTAL );
+	szrView->Add( m_staticline8, 0, wxEXPAND|wxTOP|wxRIGHT|wxLEFT, 5 );
+	
+	txtGamma = new wxStaticText( this, wxID_TXT_GAMMA, wxT("Gamma correction:"), wxDefaultPosition, wxDefaultSize, 0 );
+	txtGamma->Wrap( -1 );
+	szrView->Add( txtGamma, 0, wxLEFT|wxRIGHT|wxTOP, 5 );
+	
+	slideGamma = new wxSlider( this, wxID_SLIDE_GAMMA, 1300, 500, 2000, wxDefaultPosition, wxDefaultSize, wxSL_HORIZONTAL );
+	szrView->Add( slideGamma, 0, wxEXPAND|wxALL, 1 );
+	
+	
+	szrMain->Add( szrView, 1, wxEXPAND, 5 );
+	
+	
+	this->SetSizer( szrMain );
 	this->Layout();
-	m_menubar2 = new wxMenuBar(0);
+	m_menubar2 = new wxMenuBar( 0 );
 	mnuFile = new wxMenu();
 	wxMenuItem* btnSaveList;
-	btnSaveList = new wxMenuItem(mnuFile,wxID_MM_SAVE_OBJECTS,wxString(wxT("Save objects")),wxEmptyString,wxITEM_NORMAL);
-	mnuFile->Append(btnSaveList);
-
+	btnSaveList = new wxMenuItem( mnuFile, wxID_MM_SAVE_OBJECTS, wxString( wxT("Save objects") ) , wxEmptyString, wxITEM_NORMAL );
+	mnuFile->Append( btnSaveList );
+	
 	mnuFile->AppendSeparator();
-
+	
 	wxMenuItem* btnClose;
-	btnClose = new wxMenuItem(mnuFile,wxID_MM_CLOSE,wxString(wxT("Close")) + wxT('\t') + wxT("Escape"),wxEmptyString,wxITEM_NORMAL);
-	mnuFile->Append(btnClose);
-
-	m_menubar2->Append(mnuFile,wxT("File"));
-
+	btnClose = new wxMenuItem( mnuFile, wxID_MM_CLOSE, wxString( wxT("Close") ) + wxT('\t') + wxT("Escape"), wxEmptyString, wxITEM_NORMAL );
+	mnuFile->Append( btnClose );
+	
+	m_menubar2->Append( mnuFile, wxT("File") );
+	
 	mnuTerr = new wxMenu();
-	m_menubar2->Append(mnuTerr,wxT("Terrain"));
-
+	m_menubar2->Append( mnuTerr, wxT("Terrain") );
+	
 	mnuEdit = new wxMenu();
 	wxMenuItem* mmRemove;
-	mmRemove = new wxMenuItem(mnuEdit,wxID_MM_REMOVE,wxString(wxT("Delete")) + wxT('\t') + wxT("Delete"),wxEmptyString,wxITEM_NORMAL);
-	mnuEdit->Append(mmRemove);
-
+	mmRemove = new wxMenuItem( mnuEdit, wxID_MM_REMOVE, wxString( wxT("Delete") ) + wxT('\t') + wxT("Delete"), wxEmptyString, wxITEM_NORMAL );
+	mnuEdit->Append( mmRemove );
+	
 	wxMenuItem* mmRename;
-	mmRename = new wxMenuItem(mnuEdit,wxID_MM_RENAME,wxString(wxT("Rename")) + wxT('\t') + wxT("Ctrl+R"),wxEmptyString,wxITEM_NORMAL);
-	mnuEdit->Append(mmRename);
-
+	mmRename = new wxMenuItem( mnuEdit, wxID_MM_RENAME, wxString( wxT("Rename") ) + wxT('\t') + wxT("Ctrl+R"), wxEmptyString, wxITEM_NORMAL );
+	mnuEdit->Append( mmRename );
+	
 	wxMenuItem* mmNewClass;
-	mmNewClass = new wxMenuItem(mnuEdit,wxID_MM_NEW_CLASS,wxString(wxT("New toolset")) + wxT('\t') + wxT("Ctrl+N"),wxEmptyString,wxITEM_NORMAL);
-	mnuEdit->Append(mmNewClass);
-
+	mmNewClass = new wxMenuItem( mnuEdit, wxID_MM_NEW_CLASS, wxString( wxT("New toolset") ) + wxT('\t') + wxT("Ctrl+N"), wxEmptyString, wxITEM_NORMAL );
+	mnuEdit->Append( mmNewClass );
+	
 	wxMenuItem* mmNewTool;
-	mmNewTool = new wxMenuItem(mnuEdit,wxID_MM_NEW_TOOL,wxString(wxT("New tool")) + wxT('\t') + wxT("Ctrl+T"),wxEmptyString,wxITEM_NORMAL);
-	mnuEdit->Append(mmNewTool);
-
+	mmNewTool = new wxMenuItem( mnuEdit, wxID_MM_NEW_TOOL, wxString( wxT("New tool") ) + wxT('\t') + wxT("Ctrl+T"), wxEmptyString, wxITEM_NORMAL );
+	mnuEdit->Append( mmNewTool );
+	
 	wxMenuItem* mmEditToolset;
-	mmEditToolset = new wxMenuItem(mnuEdit,wxID_MM_EDIT_TOOLSET,wxString(wxT("Edit toolset")) + wxT('\t') + wxT("Ctrl+E"),wxEmptyString,wxITEM_NORMAL);
-	mnuEdit->Append(mmEditToolset);
+	mmEditToolset = new wxMenuItem( mnuEdit, wxID_MM_EDIT_TOOLSET, wxString( wxT("Edit toolset") ) + wxT('\t') + wxT("Ctrl+E"), wxEmptyString, wxITEM_NORMAL );
+	mnuEdit->Append( mmEditToolset );
+	
+	m_menubar2->Append( mnuEdit, wxT("Edit") );
+	
+	this->SetMenuBar( m_menubar2 );
+	
+	
+	this->Centre( wxBOTH );
+	
 
-	m_menubar2->Append(mnuEdit,wxT("Edit"));
-
-	this->SetMenuBar(m_menubar2);
-
-
-	this->Centre(wxBOTH);
-
+	// </wxFormsBuilder> - Section auto-inserted from 'forms.cpp' class 'FormObjects' on 2026-09-10 18:08:44
 	// === AUTO GENERATED END ===
 
 	
@@ -492,6 +495,36 @@ void FormObjects::OnEditToolset(wxCommandEvent& evt)
 	FillToolsClasses();
 }
 
+// export toolset class to info file
+void FormObjects::OnExportToolset(wxCommandEvent& evt)
+{
+	auto item_id = treeCtrlClasses->GetSelection();
+	if(!item_id.IsOk())
+		return;
+	auto* obj = (TreeNode*)treeCtrlClasses->GetItemData(item_id);
+	auto terr = FindTerrain();
+	if(!terr)
+		return;
+	
+	// split path to folder and file
+	std::filesystem::path last_path = terr->GetSpriteContextPath();
+	wstring dir = last_path.parent_path();
+	wstring name = L"";
+
+	// show save dialog
+	wxFileDialog saveFileDialog(this,_("Export toolset as info file"),dir,name,"Spellcross toolset info file (*.info)|*.info",wxFD_SAVE);
+	if(saveFileDialog.ShowModal() == wxID_CANCEL)
+		return;
+	std::filesystem::path path = saveFileDialog.GetPath().ToStdWstring();
+
+	if(terr->ExportToolSetInfo(path,obj->m_class_id - 1))
+	{
+		wxMessageBox("Exporting toolset class failed!","Error",wxICON_ERROR);
+		return;
+	}	
+}
+
+
 // tool tree menu popup
 void FormObjects::OnTreeClassMenu(wxTreeEvent& evt)
 {
@@ -501,7 +534,7 @@ void FormObjects::OnTreeClassMenu(wxTreeEvent& evt)
 	treeCtrlClasses->SelectItem(item_id);
 	auto* obj = (TreeNode*)treeCtrlClasses->GetItemData(item_id);
 
-	wxMenu menu;// = new wxMenu();
+	wxMenu menu;
 	menu.SetClientData(item_id);
 	if(obj)
 		menu.Append(MNU_REMOVE,"Remove\tDelete");
@@ -510,6 +543,9 @@ void FormObjects::OnTreeClassMenu(wxTreeEvent& evt)
 	menu.Append(MNU_NEW_TOOLSET,"New toolset\tCtrl+N");
 	if(!obj->m_obj && obj->m_class_id > 0 && obj->m_tool_id <= 0)
 		menu.Append(MNU_EDIT_TOOLSET,"Edit toolset parameters\tCtrl+E");
+	if(!obj->m_obj && obj->m_class_id > 0 && obj->m_tool_id <= 0)
+		menu.Append(MNU_EXPORT_TOOLSET,"Export toolset to info file");
+
 	menu.Connect(wxEVT_COMMAND_MENU_SELECTED,wxCommandEventHandler(FormObjects::OnTreeClassMenuClick),NULL,this);
 	treeCtrlClasses->PopupMenu(&menu,evt.GetPoint());
 }
@@ -538,6 +574,11 @@ void FormObjects::OnTreeClassMenuClick(wxCommandEvent& evt)
 	{
 		wxCommandEvent event;
 		OnEditToolset(event);
+	}
+	else if(menu_id == MNU_EXPORT_TOOLSET)
+	{
+		wxCommandEvent event;
+		OnExportToolset(event);
 	}
 }
 

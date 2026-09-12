@@ -20026,7 +20026,7 @@
       <property name="minimum_size">600,350</property>
       <property name="name">FormAbout</property>
       <property name="pos"></property>
-      <property name="size">600,350</property>
+      <property name="size">719,431</property>
       <property name="style">wxDEFAULT_DIALOG_STYLE|wxRESIZE_BORDER</property>
       <property name="subclass">; ; forward_declare</property>
       <property name="title">About Spellcross Map Editor</property>
@@ -20834,7 +20834,7 @@
                     <property name="validator_style">wxFILTER_NONE</property>
                     <property name="validator_type">wxDefaultValidator</property>
                     <property name="validator_variable"></property>
-                    <property name="value">MIT License, (c) 2025, Stanislav Mašláň</property>
+                    <property name="value">MIT License, (c) 2025 - 2026, Stanislav Mašláň</property>
                     <property name="window_extra_style"></property>
                     <property name="window_name"></property>
                     <property name="window_style">wxBORDER_NONE</property>
@@ -20932,7 +20932,7 @@
             <property name="enabled">1</property>
             <property name="fg"></property>
             <property name="floatable">1</property>
-            <property name="font"></property>
+            <property name="font">,90,400,12,70,0</property>
             <property name="gripper">0</property>
             <property name="hidden">0</property>
             <property name="id">wxID_TXT_DESC</property>
@@ -20954,7 +20954,7 @@
             <property name="resize">Resizable</property>
             <property name="show">1</property>
             <property name="size"></property>
-            <property name="style">wxTE_MULTILINE|wxTE_READONLY|wxTE_RICH|wxTE_WORDWRAP</property>
+            <property name="style">wxTE_AUTO_URL|wxTE_MULTILINE|wxTE_READONLY|wxTE_RICH|wxTE_WORDWRAP</property>
             <property name="subclass">; ; forward_declare</property>
             <property name="toolbar_pane">0</property>
             <property name="tooltip"></property>
@@ -22366,7 +22366,7 @@
         </object>
       </object>
     </object>
-    <object class="Frame" expanded="true">
+    <object class="Frame" expanded="false">
       <property name="aui_managed">0</property>
       <property name="aui_manager_style">wxAUI_MGR_DEFAULT</property>
       <property name="bg">wxSYS_COLOUR_MENU</property>
@@ -22525,11 +22525,11 @@
                 <property name="wrap">-1</property>
               </object>
             </object>
-            <object class="sizeritem" expanded="true">
+            <object class="sizeritem" expanded="false">
               <property name="border">5</property>
               <property name="flag">wxEXPAND|wxRIGHT|wxLEFT</property>
               <property name="proportion">0</property>
-              <object class="wxTextCtrl" expanded="true">
+              <object class="wxTextCtrl" expanded="false">
                 <property name="BottomDockable">1</property>
                 <property name="LeftDockable">1</property>
                 <property name="RightDockable">1</property>

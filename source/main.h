@@ -220,6 +220,10 @@ private:
     void OnCanvasPopupSelect(wxCommandEvent& event);
     void OnUnitClick_cb(int action);
 
+    // version string
+    const std::string c_str_ver_label = "V0.90 (beta), build: " __DATE__;
+
+
     MapXY m_drag_sel_start;
     
     // map render buffer

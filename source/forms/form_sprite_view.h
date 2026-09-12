@@ -109,6 +109,9 @@ class FormSprite : public wxFrame
 		void OnAutoShadeFlags(wxCommandEvent& event);
 		void OnSaveTileContext(wxCommandEvent& event);
 
+		void OnSpritePupupOpen(wxMouseEvent& event);
+		void OnSpritePupup(wxCommandEvent& event);
+
 		void SelectTerrain();
 		void SelectQuad();
 		void SetFlags();
@@ -148,6 +151,10 @@ class FormSprite : public wxFrame
 		};
 
 		static constexpr int TERR_ID0 = 990;
+
+		enum class PopupActions {
+			REMOVE_SPRITE = 0,
+		};
 
 	protected:
 		// <wxFormsBuilder> - Section auto-inserted from 'forms.h' class 'FormSprite' on 2026-06-20 09:37:23
