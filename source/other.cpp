@@ -454,6 +454,15 @@ bool iequals(const std::wstring& a,const std::wstring& b)
         });*/
 }
 
+// compare string to list of strings case insensitive, return matching index or -1
+int iequals(std::vector<std::string> &list, std::string &str)
+{
+    auto it = std::ranges::find_if(list,[str](const std::string& a){return(iequals(a,str));});
+    if(it == list.end())
+        return(-1);
+    return(it - list.begin());
+}
+
 bool caseInsensitiveCharCompare(wchar_t a,wchar_t b)
 {
     return(tolower(a) == tolower(b));
@@ -513,6 +522,7 @@ std::string info_get_string(std::string &info, std::string key, std::string defa
     auto lines = get_text_lines(info,true);
     return(info_get_string(lines, key, default_value));
 }
+// fetch info file key value
 std::string info_get_string(std::vector<std::string>& lines,std::string key,std::string default_value)
 {
     int section = 0;
@@ -565,12 +575,64 @@ int info_get_int(std::string &info,std::string key,int default_value)
         return(default_value);
     return(std::atoi(str.c_str()));
 }
+// fetch info file key integer value
 int info_get_int(std::vector<std::string>& lines,std::string key,int default_value)
 {        
     auto str = info_get_string(lines,key,"");
     if(str.empty())
         return(default_value);
     return(std::atoi(str.c_str()));
+}
+
+// fetch info file key real value
+double info_get_real(std::string& info,std::string key,double default_value)
+{
+    auto str = info_get_string(info,key,"");
+    if(str.empty())
+        return(default_value);
+    double val = default_value;
+    std::from_chars(str.data(),str.data() + str.size(),val);
+    return(val);
+}
+// fetch info file key real value
+double info_get_real(std::vector<std::string>& lines,std::string key,double default_value)
+{
+    auto str = info_get_string(lines,key,"");    
+    if(str.empty())
+        return(default_value);
+    double val = default_value;
+    std::from_chars(str.data(),str.data() + str.size(),val);
+    return(val);
+}
+
+// make info string variable
+std::string info_make_string(std::string key,std::string value,std::string comment)
+{
+    std::string info = comment;
+    if(!comment.empty())
+        info += string_format("\n");
+    info += string_format("%s:: %s\n",key,value);
+    return(info);
+}
+
+// make info int variable
+std::string info_make_int(std::string key,int value,std::string comment)
+{
+    std::string info = comment;
+    if(!comment.empty())
+        info += string_format("\n");
+    info += string_format("%s:: %d\n",key,value);
+    return(info);
+}
+
+// make info real variable
+std::string info_make_real(std::string key,double value,std::string comment)
+{
+    std::string info = comment;
+    if(!comment.empty())
+        info += string_format("\n");
+    info += string_format("%s:: %g\n",key,value);
+    return(info);
 }
 
 // make info matrix of vector of strings (vertical)
@@ -608,6 +670,7 @@ std::vector<std::string> info_get_text_vector(std::string& info,std::string key)
     auto lines = get_text_lines(info,true);
     return(info_get_text_vector(lines,key));
 }
+// get strings vector from info file
 std::vector<std::string> info_get_text_vector(std::vector<std::string> &lines,std::string key)
 {
     std::vector<std::string> rows;
@@ -661,6 +724,7 @@ std::vector<std::string> info_get_section(std::string &info,std::string section)
     auto lines = get_text_lines(info,true);
     return(info_get_section(lines,section));
 }
+// get section content
 std::vector<std::string> info_get_section(std::vector<std::string> &lines,std::string section)
 {
     std::vector<std::string> rows;
@@ -759,6 +823,12 @@ std::vector<std::string> str_split(std::string string,char separator,bool trim_w
     return(chunks);
 }
 
+// split data-string by lines (or other separators), by default also trims white chars both ends
+std::vector<std::string> get_text_lines(std::vector<uint8_t> &data,bool trim_white,char separator)
+{
+    std::string str(data.begin(),data.end());
+    return(get_text_lines(str,trim_white,separator));
+}
 // split string by lines (or other separators), by default also trims white chars both ends
 std::vector<std::string> get_text_lines(std::string string, bool trim_white, char separator)
 {

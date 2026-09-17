@@ -27,7 +27,7 @@ FormGResEncoder::FormGResEncoder(wxWindow* parent,SpellData* spell_data,wxWindow
 	this->spell_data = spell_data;
 
 	// === AUTO GENERATED START ===	
-	// <wxFormsBuilder> - Section auto-inserted from 'forms.cpp' class 'FormGResEncoder' on 2026-05-09 14:29:43
+	// <wxFormsBuilder> - Section auto-inserted from 'forms.cpp' class 'FormGResEncoder' on 2026-09-16 21:16:37
 	this->SetSizeHints( wxDefaultSize, wxDefaultSize );
 	this->SetBackgroundColour( wxSystemSettings::GetColour( wxSYS_COLOUR_MENU ) );
 	
@@ -179,6 +179,21 @@ FormGResEncoder::FormGResEncoder(wxWindow* parent,SpellData* spell_data,wxWindow
 	m_staticline42 = new wxStaticLine( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLI_VERTICAL );
 	bSizer102->Add( m_staticline42, 0, wxEXPAND | wxALL, 5 );
 	
+	wxBoxSizer* bSizer128;
+	bSizer128 = new wxBoxSizer( wxVERTICAL );
+	
+	m_staticText136 = new wxStaticText( this, wxID_ANY, wxT("Resource meta data:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText136->Wrap( -1 );
+	bSizer128->Add( m_staticText136, 0, wxRIGHT|wxLEFT, 5 );
+	
+	pgProperties = new wxPropertyGrid(this, wxID_PG_PROPS, wxDefaultPosition, wxDefaultSize, wxPG_DEFAULT_STYLE);
+	pgProperties->SetMinSize( wxSize( 500,-1 ) );
+	
+	bSizer128->Add( pgProperties, 0, wxEXPAND|wxBOTTOM|wxRIGHT|wxLEFT, 5 );
+	
+	
+	bSizer102->Add( bSizer128, 1, wxEXPAND, 5 );
+	
 	
 	bSizer102->Add( 0, 0, 1, wxEXPAND, 5 );
 	
@@ -198,7 +213,7 @@ FormGResEncoder::FormGResEncoder(wxWindow* parent,SpellData* spell_data,wxWindow
 	this->Centre( wxBOTH );
 	
 
-	// </wxFormsBuilder> - Section auto-inserted from 'forms.cpp' class 'FormGResEncoder' on 2026-05-09 14:29:43
+	// </wxFormsBuilder> - Section auto-inserted from 'forms.cpp' class 'FormGResEncoder' on 2026-09-16 21:16:37
 	// === AUTO GENERATED END ===
 	m_thread_active = 0;
 
@@ -227,9 +242,9 @@ FormGResEncoder::FormGResEncoder(wxWindow* parent,SpellData* spell_data,wxWindow
 	Bind(wxEVT_COMMAND_BUTTON_CLICKED,&FormGResEncoder::OnRegenPaletteClick,this,wxID_BTN_REGEN_PAL);
 	Bind(wxEVT_COMMAND_SLIDER_UPDATED,&FormGResEncoder::OnRegenClick,this,wxID_SLIDE_MIN_DITHER);
 	Bind(wxEVT_COMMAND_LISTBOX_SELECTED,&FormGResEncoder::OnSelectClick,this,wxID_LB_LIST);
+	Bind(wxEVT_PG_CHANGED,&FormGResEncoder::OnPropChange,this,wxID_PG_PROPS);
 
-	Bind(wxEVT_THREAD,&FormGResEncoder::OnThreadEvent,this,wxID_PROC_THREAD);
-
+	Bind(wxEVT_THREAD,&FormGResEncoder::OnThreadEvent,this,wxID_PROC_THREAD);	
 	
 	// canvas stuff:	
 	canvasSrc->SetDoubleBuffered(true);
@@ -356,11 +371,21 @@ wxThread::ExitCode ProcTh::Entry()
 				shadow_color = info.shadow_color;			
 			gres_list.push_back(std::make_unique<SpellGraphicItem>());
 			auto &gres = gres_list.back();
-			gres->Encode(source,info.name,&pal,m_config.dither_randomize,shadow_color,0xFD);
+			gres->Encode(source,info.name,&pal,info.gamma,info.x_size,info.y_size,(wxImageResizeQuality)info.resampling,m_config.dither_randomize,info.alpha_threshold,shadow_color,0xFD);
 
 			// just collect frames for animations
 			if(info.isPNM() && frame_id < info.img_names.size() - 1)
 				continue;
+
+			// auto y-offset for trees?
+			int y_offset = info.y_offset;
+			if(info.is_tree_auto_y_offset)
+				y_offset -= (gres->y_size - 32);
+
+			// auto centering to given width?
+			int x_offset = info.x_offset;
+			if(info.center_width)
+				x_offset += (info.center_width - gres->x_size)/2;
 
 			// save to file
 			auto save_path = std::filesystem::path(m_config.target_dir).append(info.name).wstring();
@@ -449,7 +474,10 @@ wxThread::ExitCode ProcTh::Entry()
 			else if(info.isDTA())
 			{
 				// sprite DTA
-				auto err = Sprite::SaveSprite(save_path,gres->pixels,gres->x_size,info.x_offset,info.y_offset,info.land_type);
+
+				
+
+				auto err = Sprite::SaveSprite(save_path, gres->pixels, gres->x_size, x_offset, y_offset, info.land_type);
 				if(err)
 				{
 					m_config.mutex->lock();
@@ -549,6 +577,12 @@ void FormGResEncoder::OnThreadEvent(wxThreadEvent& event)
 //------------------------------------------------------------------------------------------------------------------------
 // Graphic resource meta file loader
 //------------------------------------------------------------------------------------------------------------------------
+const std::map<int,std::string> SpellGresInfo::c_resampling = {
+	{wxIMAGE_QUALITY_NEAREST,"Nearest"},
+	{wxIMAGE_QUALITY_BILINEAR,"Bilinear"},
+	{wxIMAGE_QUALITY_BICUBIC,"Bicubic"}
+};
+
 SpellGresInfo::SpellGresInfo()
 {
 	Clear();
@@ -557,10 +591,12 @@ SpellGresInfo::SpellGresInfo()
 // clear metadata
 void SpellGresInfo::Clear()
 {
-	path = L"";
+	path = "";
 	info_name = "";
 	name = "";
+	raw_name = "";
 	img_name = "";
+	raw_img_name = "";
 	pal_name = "";
 	colors_str = "";
 	x_size = 0;
@@ -571,16 +607,17 @@ void SpellGresInfo::Clear()
 	shadow_color[0] = -1;
 	shadow_color[1] = -1;
 	shadow_color[2] = -1;
+	gamma = 1.0;
 }
 
 // is loaded?
 bool SpellGresInfo::isLoaded()
 {
-	return(!path.empty() && !info_name.empty() && !name.empty() && !img_name.empty() && !pal_name.empty() && x_size && y_size);
+	return(!path.empty() && !info_name.empty() && !name.empty() && !img_name.empty() && !pal_name.empty());
 }
 
 // try load metadata from info file
-int SpellGresInfo::LoadInfo(std::wstring path)
+int SpellGresInfo::LoadInfo(std::filesystem::path path)
 {
 	Clear();
 
@@ -592,31 +629,43 @@ int SpellGresInfo::LoadInfo(std::wstring path)
 	
 	this->path = path;
 	info_name = std::filesystem::path(path).filename().string();
+	std::string stem = path.stem().string();
 
-	name = info_get_string(info,"name");
+	// resource file name
+	raw_name = name = info_get_string(info,"name");
 	if(name.empty())
 	{
 		Clear();
 		return(1);
 	}
-	img_name = info_get_string(info,"image");
+	name = strrep(name,"*",stem);
+
+	// resource image name
+	raw_img_name = img_name = info_get_string(info,"image");
 	if(img_name.empty())
 	{
 		Clear();
 		return(1);
 	}
+	img_name = strrep(img_name,"*",stem);
+
+	// palette name (palinfo)
 	pal_name = info_get_string(info,"palette");
 	if(pal_name.empty())
 	{
 		Clear();
 		return(1);
 	}
+
+	// used colors list
 	colors_str = info_get_string(info,"colors");
 	if(colors_str.empty())
 	{
 		Clear();
 		return(1);
 	}
+	
+	
 	auto x_size_str = info_get_string(info,"xsize");
 	auto y_size_str = info_get_string(info,"ysize");
 	if(x_size_str.empty() || y_size_str.empty())
@@ -628,14 +677,37 @@ int SpellGresInfo::LoadInfo(std::wstring path)
 	y_size = std::atoi(y_size_str.c_str());
 	is_transparent = std::atoi(info_get_string(info,"transparent").c_str());
 	format = info_get_string(info,"format");
-	
+
 	auto x_offset_str = info_get_string(info,"xoffset");
 	x_offset = std::atoi(x_offset_str.c_str());
 	auto y_offset_str = info_get_string(info,"yoffset");
 	y_offset = std::atoi(y_offset_str.c_str());
 
+	// resampling mode
+	auto res_str = info_get_string(info, "resampling","nearest");	
+	auto res_it = std::ranges::find_if(c_resampling,[res_str](const auto &pair){return(iequals(pair.second,res_str));});
+	if(res_it == c_resampling.end())
+	{
+		Clear();
+		return(1);
+	}
+	resampling = res_it->first;
+
+	// preprocessing gamma correction
+	gamma = info_get_real(info,"gamma",1.0);
+
+	// non-zero to enable image centering to given width
+	center_width = info_get_int(info,"center_to_width",0);
+
+	// enable automatic y-offset for trees (y_offset is then just extra relative offset to automatic value)
+	is_tree_auto_y_offset = !!info_get_int(info,"tree_auto_y_offset",0);
+	
+	// sprite land type code
 	auto landtype_str = info_get_string(info,"landtype");
 	land_type = std::atoi(landtype_str.c_str());
+
+	// alpha channel threshold
+	alpha_threshold = info_get_int(info,"alpha_threshold",128);
 
 	auto shadow_color_str = info_get_string(info,"shadow_color");
 	auto shadow_colors_list = get_text_lines(shadow_color_str,true,',');
@@ -654,19 +726,66 @@ int SpellGresInfo::LoadInfo(std::wstring path)
 	return(0);
 }
 
+// try save metadata to info file
+int SpellGresInfo::SaveInfo(std::filesystem::path path)
+{
+	if(path.empty())
+		path = this->path;
+
+	std::string info = "// Spellcross graphics resource meta data file (autogenerated by Spellcross Map Editor)\n";
+
+	info += info_make_string("name",raw_name);
+	info += info_make_string("image",raw_img_name);
+	info += info_make_string("format",format);
+	
+	info += info_make_int("xsize",x_size);
+	info += info_make_int("ysize",y_size);
+	info += info_make_int("xoffset",x_offset);
+	info += info_make_int("yoffset",y_offset);
+
+	auto res_it = c_resampling.find(resampling);
+	if(res_it == c_resampling.end())
+		return(1);
+	info += info_make_string("resampling",res_it->second);
+
+	info += info_make_real("gamma",gamma);
+
+	info += info_make_int("center_to_width",center_width);
+	info += info_make_int("tree_auto_y_offset",!!is_tree_auto_y_offset);
+	info += info_make_int("landtype",land_type);
+	info += info_make_int("transparent",!!is_transparent);
+	info += info_make_int("alpha_threshold",alpha_threshold);
+
+	std::vector<int> sh_colors(std::begin(shadow_color),std::end(shadow_color));	
+	info += info_make_string("shadow_color",merge_vector(sh_colors,","));
+
+	info += info_make_string("palette",pal_name);
+	info += info_make_string("colors",colors_str);
+
+	if(!img_names.empty())
+	{
+		info += info_make_text_vector("images",img_names);
+	}
+
+	// try save
+	return(savestr(path,info));
+}
+
 // load new resource
-int FormGResEncoder::LoadResource(std::wstring path,int frame_id)
+int FormGResEncoder::LoadResource(std::filesystem::path path,int frame_id)
 {
 	m_source = wxBitmap();
+	pgProperties->Clear();
 	m_pal.Clear();
 	m_gres.Clear();
 	m_info.Clear();
+	
 	
 	// try read meta file
 	m_info.LoadInfo(path);
 
 	// try load palette
-	auto pal_path = std::filesystem::path(path).parent_path().append(m_info.pal_name).wstring();
+	auto pal_path = std::filesystem::path(path).parent_path().append(m_info.pal_name);
 	if(m_pal.LoadInfo(pal_path))
 		return(1);
 	//m_pal.m_name = m_info.pal_name;
@@ -690,10 +809,57 @@ int FormGResEncoder::LoadResource(std::wstring path,int frame_id)
 	SetStatusText((m_info.is_transparent)?"transparent":"solid",3);
 	SetStatusText(m_info.pal_name,4);
 	SetStatusText(m_info.colors_str,5);
+
+	pgProperties->Freeze();
+	pgProperties->Clear();
+	pgProperties->Append(new wxStringPropertyExt(wxT("Resource name"),wxT(""),&m_info.raw_name));
+	pgProperties->Append(new wxStringPropertyExt(wxT("Image name"),wxT(""),&m_info.raw_img_name));
+	pgProperties->Append(new wxStringPropertyExt(wxT("Palette name"),wxT(""),&m_info.pal_name));
+	pgProperties->Append(new wxStringPropertyExt(wxT("Format"),wxT(""),&m_info.format));
+	pgProperties->Append(new wxIntPropertyExt(wxT("x-size"),wxT(""),&m_info.x_size,-1));
+	pgProperties->Append(new wxIntPropertyExt(wxT("y-size"),wxT(""),&m_info.y_size,-1));
+	pgProperties->Append(new wxIntPropertyExt(wxT("x-offset"),wxT(""),&m_info.x_offset));
+	pgProperties->Append(new wxIntPropertyExt(wxT("y-offset"),wxT(""),&m_info.y_offset));
+	pgProperties->Append(new wxEnumPropertyExt(wxT("Resampling mode"),wxT(""),MapToPGenumChoices(SpellGresInfo::c_resampling),&m_info.resampling));
+	pgProperties->Append(new wxRealPropertyExt(wxT("Gamma correction"),wxT(""),&m_info.gamma,2,0.1,3.0));
+	pgProperties->Append(new wxIntPropertyExt(wxT("Alpha threshold"),wxT(""),&m_info.alpha_threshold,0,255));
+	pgProperties->Append(new wxIntPropertyExt(wxT("Centering width"),wxT(""),&m_info.center_width,-1));
+	pgProperties->Append(new wxBoolPropertyExt(wxT("Auto y-offset for tree"),wxT(""),&m_info.is_tree_auto_y_offset));
+	pgProperties->Append(new wxIntPropertyExt(wxT("Land type"),wxT(""),&m_info.land_type,0,13));
+	pgProperties->Append(new wxBoolPropertyExt(wxT("Transparent"),wxT(""),&m_info.is_transparent));
+	pgProperties->Append(new wxStringPropertyExt(wxT("Colors range"),wxT(""),&m_info.colors_str));
+
+	pgProperties->Thaw();
+	pgProperties->FitColumns();
+	setPGsize(pgProperties,10);
+	pgProperties->GetParent()->Layout();
 	
 
 	return(0);
 }
+
+// edit resource properties
+void FormGResEncoder::OnPropChange(wxPropertyGridEvent& event)
+{
+	auto pgrid = (wxPropertyGrid*)event.GetEventObject();
+	if(!pgrid)
+		return;
+
+	auto prop = event.GetProperty();
+	auto obj = (wxPGobj*)prop->GetClientObject();
+	if(obj)
+	{
+		// update
+		obj->Update(prop);
+
+		// try save changes
+		m_info.SaveInfo();
+
+		wxCommandEvent evt;
+		OnRegenClick(evt);
+	}
+}
+
 
 // open glyph resource
 void FormGResEncoder::OnOpenClick(wxCommandEvent& event)
@@ -797,6 +963,8 @@ void FormGResEncoder::OnSelectClick(wxCommandEvent& event)
 		return;
 	}
 
+	pgProperties->Clear();
+
 	auto id = lboxList->GetSelection();
 	if(id < 0)
 		return;
@@ -824,8 +992,13 @@ void FormGResEncoder::OnRegenClick(wxCommandEvent& event)
 	if(m_info.format == "UNITS.FSU")
 		shadow_color = m_info.shadow_color;
 
+
+	/*wxImage img = m_source.ConvertToImage();
+	wxImage resizedImg = img.Rescale(newWidth,newHeight,wxIMAGE_QUALITY_HIGH);
+	wxBitmap bmp = resizedImg;*/
+
 	// re-encode
-	m_gres.Encode(m_source,m_info.name,&m_pal,slideMinDither->GetValue(),shadow_color,0xFD);
+	m_gres.Encode(m_source,m_info.name,&m_pal, m_info.gamma, m_info.x_size,m_info.y_size,(wxImageResizeQuality)m_info.resampling,slideMinDither->GetValue(),m_info.alpha_threshold,shadow_color,0xFD);
 
 	canvasSrc->Refresh();
 	canvasRes->Refresh();

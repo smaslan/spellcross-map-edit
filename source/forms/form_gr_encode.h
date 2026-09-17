@@ -7,7 +7,7 @@
 
 #pragma once
 
-// <wxFormsBuilder-include> - Section auto-inserted from 'forms.h' class 'FormGResEncoder' on 2026-05-09 14:29:43
+// <wxFormsBuilder-include> - Section auto-inserted from 'forms.h' class 'FormGResEncoder' on 2026-09-16 21:16:37
 #include <wx/artprov.h>
 #include <wx/xrc/xmlres.h>
 #include <wx/string.h>
@@ -20,6 +20,7 @@
 #include <wx/colour.h>
 #include <wx/settings.h>
 #include <wx/stattext.h>
+#include <wx/textctrl.h>
 #include <wx/sizer.h>
 #include <wx/listbox.h>
 #include <wx/panel.h>
@@ -28,7 +29,6 @@
 #include <wx/checkbox.h>
 #include <wx/choice.h>
 #include <wx/statline.h>
-#include <wx/textctrl.h>
 #include <wx/treectrl.h>
 #include <wx/statusbr.h>
 #include <wx/frame.h>
@@ -41,8 +41,9 @@
 #include <wx/notebook.h>
 #include <wx/radiobut.h>
 #include <wx/scrolbar.h>
+#include <wx/bmpbuttn.h>
 
-// </wxFormsBuilder-include> - Section auto-inserted from 'forms.h' class 'FormGResEncoder' on 2026-05-09 14:29:43
+// </wxFormsBuilder-include> - Section auto-inserted from 'forms.h' class 'FormGResEncoder' on 2026-09-16 21:16:37
 
 #include "spellcross.h"
 #include "spell_palette.h"
@@ -93,14 +94,17 @@ private:
 // graphic resource metadata
 class SpellGresInfo {
 public:
-	std::wstring path;
+	std::filesystem::path path;
 	std::string info_name;
 	std::string name;
+	std::string raw_name;
 	std::string img_name;
+	std::string raw_img_name;
 	std::vector<std::string> img_names;
 	std::string pal_name;
 	std::string colors_str;
 	std::string format;
+	int alpha_threshold;
 	int x_size;
 	int y_size;
 	int x_offset;
@@ -108,10 +112,17 @@ public:
 	int land_type;
 	int shadow_color[3];
 	bool is_transparent;
+	int center_width;
+	bool is_tree_auto_y_offset;
+	int resampling;
+	double gamma;
+
+	static const std::map<int,std::string> c_resampling;
 
 	SpellGresInfo();
 	void Clear();
-	int LoadInfo(std::wstring path);
+	int LoadInfo(std::filesystem::path path);
+	int SaveInfo(std::filesystem::path path="");
 	bool isLoaded();
 	bool isPNM() {return(format == "PNM");};
 	bool isUnitsFSU() { return(format == "UNITS.FSU"); };
@@ -140,7 +151,7 @@ private:
 	std::vector<std::string> m_task_failed_list;
 	int m_thread_active;
 
-	int LoadResource(std::wstring path, int frame_id=-1);
+	int LoadResource(std::filesystem::path path, int frame_id=-1);
 	
 	void OnClose(wxCloseEvent& ev);
 	void OnCloseClick(wxCommandEvent& event);
@@ -151,6 +162,7 @@ private:
 	void OnRegenClick(wxCommandEvent& event);
 	void OnSelectClick(wxCommandEvent& event);
 	void OnRegenPaletteClick(wxCommandEvent& event);
+	void OnPropChange(wxPropertyGridEvent& event);
 	
 	void OnPaintPalette(wxPaintEvent& event);
 	void OnPaintSource(wxPaintEvent& event);
@@ -160,7 +172,7 @@ private:
 
 protected:
 	
-	// <wxFormsBuilder> - Section auto-inserted from 'forms.h' class 'FormGResEncoder' on 2026-05-09 14:29:43
+	// <wxFormsBuilder> - Section auto-inserted from 'forms.h' class 'FormGResEncoder' on 2026-09-16 21:16:37
 	enum
 	{
 		wxID_MM_OPEN = 5999,
@@ -176,6 +188,7 @@ protected:
 		wxID_SLIDE_MIN_DITHER,
 		wxID_SPIN_EX_OFS,
 		wxID_SPIN_EY_OFS,
+		wxID_PG_PROPS,
 		wxID_BTN_REGEN,
 		wxID_BTN_REGEN_PAL,
 	};
@@ -203,10 +216,12 @@ protected:
 	wxStaticText* m_staticText116;
 	wxSpinCtrl* spinExtraYoffset;
 	wxStaticLine* m_staticline42;
+	wxStaticText* m_staticText136;
+	wxPropertyGrid* pgProperties;
 	wxButton* btnRegen;
 	wxButton* btnRegenPalette;
 
-	// </wxFormsBuilder> - Section auto-inserted from 'forms.h' class 'FormGResEncoder' on 2026-05-09 14:29:43
+	// </wxFormsBuilder> - Section auto-inserted from 'forms.h' class 'FormGResEncoder' on 2026-09-16 21:16:37
 
 public:
 	

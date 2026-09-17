@@ -382,7 +382,7 @@ int UnitRandomizer::RandomizeMap(std::string& def, SpellUnits* units,UnitRandomi
 				if(cmd.sub_params.size() == 1 && iequals(cmd.sub_params[0],"OFF"))
 				{
 					// disabled
-					if(glob_rules && !glob_rules->override_off_rule)
+					if(!glob_rules || !glob_rules->override_off_rule)
 						continue;
 				}
 				else if(cmd.sub_params.size() == 1 && iequals(cmd.sub_params[0],"AUTO"))
@@ -393,10 +393,11 @@ int UnitRandomizer::RandomizeMap(std::string& def, SpellUnits* units,UnitRandomi
 					auto rule = rules.GetRule(orig_unit_type);
 					if(rule && !glob_rules)
 					{
+						// use map rules
 						rand_list = rule->rand_units;
 						map_rules = true;
 					}
-					else if(!rule)
+					else if(!rule && !glob_rules)
 						continue;
 				}
 				else if(!cmd.sub_params.empty())
@@ -652,7 +653,7 @@ int UnitRandomizerSetup::Randomize(SpellUnits* units,int src_unit_id,int& unit)
 	auto src_unit = units->GetUnit(src_unit_id);
 	if(!src_unit)
 		return(1);
-
+	
 	UnitRandomizerGlobRule *rule;
 	if(src_unit->isLight())
 		rule = &rules_light;
@@ -661,7 +662,7 @@ int UnitRandomizerSetup::Randomize(SpellUnits* units,int src_unit_id,int& unit)
 	else if(src_unit->isAir())
 		rule = &rules_air;
 	else
-		return(1);
+		return(1);	
 	
 	int rand_unit = -1;
 	if(rule->Randomize(src_unit_id,rand_unit))

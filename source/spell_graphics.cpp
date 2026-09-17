@@ -584,7 +584,7 @@ void SpellGraphicItem::Clear()
 
 
 // encode bitmap to graphic resouce
-int SpellGraphicItem::Encode(wxBitmap& bmp,std::string name,SpellPalette* target_pal,int dither_dist,int* shadow_color,uint8_t shadow_index)
+int SpellGraphicItem::Encode(wxBitmap& bmp,std::string name,SpellPalette* target_pal,double gamma,int x_res_size,int y_res_size,wxImageResizeQuality resampling_mode, int dither_dist,int alpha_threshold,int* shadow_color,uint8_t shadow_index)
 {
 	is_transparent = bmp.HasAlpha();
 
@@ -592,9 +592,32 @@ int SpellGraphicItem::Encode(wxBitmap& bmp,std::string name,SpellPalette* target
 	full_name = name;
 	this->name = std::filesystem::path(name).stem().string();
 
-	// store size
+	// orig bmp size
 	x_size = bmp.GetWidth();
 	y_size = bmp.GetHeight();
+	
+	wxBitmap wbmp = bmp;
+	bool auto_size = x_res_size <= 0 && y_res_size <= 0;
+	if(!auto_size && (x_size != x_res_size || y_size != y_res_size))
+	{
+		// resize
+		if(y_res_size <= 0)
+			y_res_size = x_res_size*y_size/x_size;
+		else if(x_res_size <= 0)
+			x_res_size = y_res_size*x_size/y_size;
+
+		// resample
+		wxImage img = bmp.ConvertToImage();
+		wxImage resizedImg = img.Rescale(x_res_size,y_res_size,resampling_mode);
+		wbmp = resizedImg;
+	}
+	else
+		wbmp = bmp;
+
+
+	// store size
+	x_size = wbmp.GetWidth();
+	y_size = wbmp.GetHeight();
 	x_ofs = 0;
 	y_ofs = 0;
 
@@ -605,14 +628,11 @@ int SpellGraphicItem::Encode(wxBitmap& bmp,std::string name,SpellPalette* target
 	palette = target_pal;
 	pal = (uint8_t(*)[3])palette->m_pal.data();
 
-	// make target palette
+	// make target palette with inverse gamma
 	int ipal[256][3];
 	for(int k = 0; k < 256; k++)
-	{
-		ipal[k][0] = pal[k][0];
-		ipal[k][1] = pal[k][1];
-		ipal[k][2] = pal[k][2];
-	}
+		for(int c = 0; c < 3; c++)
+			ipal[k][c] = (uint8_t)(pow((double)pal[k][c] / 255.0, gamma)*255.0);
 	uint8_t *mask = palette->m_used.data();
 
 	class Pixel {
@@ -629,7 +649,7 @@ int SpellGraphicItem::Encode(wxBitmap& bmp,std::string name,SpellPalette* target
 	{
 		// scan 32bit RGBA bmp data to buffer
 		typedef wxPixelData<wxBitmap,wxAlphaPixelFormat> PixelData;
-		PixelData data(bmp);
+		PixelData data(wbmp);
 		PixelData::Iterator p(data);
 		int id = 0;
 		for(int y = 0; y < y_size; ++y)
@@ -650,7 +670,7 @@ int SpellGraphicItem::Encode(wxBitmap& bmp,std::string name,SpellPalette* target
 	else
 	{
 		// scan 24bit RGB bmp data to buffer
-		wxNativePixelData data(bmp);
+		wxNativePixelData data(wbmp);
 		wxNativePixelData::Iterator p(data);
 		int depth = bmp.GetDepth();
 		if(depth != 24)
@@ -715,7 +735,7 @@ int SpellGraphicItem::Encode(wxBitmap& bmp,std::string name,SpellPalette* target
 		if(min_id < 0)
 			min_id = 0;
 
-		if(!aa || (!has_transparent && (rr == 0 && gg == 0 && bb == 0)))
+		if(aa < alpha_threshold || (!has_transparent && (rr == 0 && gg == 0 && bb == 0)))
 			pixels[p] = 0;
 		else
 			pixels[p] = min_id;
