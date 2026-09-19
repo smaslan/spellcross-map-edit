@@ -87,6 +87,7 @@ public:
 	std::wstring data_path;
 	std::wstring cd_data_path;
 	std::wstring export_path;
+	std::filesystem::path export_fs_path;
 
 	
 	// terrains data array

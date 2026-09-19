@@ -1272,7 +1272,7 @@ int SpellTreeRandomizerRule::PrepareRng()
 	FixProb();
 
 	// generate cumsum
-	m_pdf.assign(rand_trees.size(),0.0);	
+	m_pdf.assign(rand_trees.size(),0.0);
 	auto prob = rand_trees | std::views::transform(&SpellTreeRandomizerItem::probab);
 	std::partial_sum(prob.begin(),prob.end(),m_pdf.begin());
 	

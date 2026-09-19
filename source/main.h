@@ -160,6 +160,7 @@ private:
     void OnUpdateTileContextMaps(wxCommandEvent& event);    
     void OnGenDMAobjects(wxCommandEvent& event);
     void OnGenDMAobjectsMaps(wxCommandEvent& event);
+    void OnExtractFS(wxCommandEvent& event);
     void OnSelectAll(wxCommandEvent& event);
     void OnDeselectAll(wxCommandEvent& event);
     void OnSelectDeselect(wxCommandEvent& event);
@@ -464,6 +465,7 @@ enum
     ID_UpdateSprContextMaps,
     ID_GenDMAobjects,
     ID_GenDMAobjectsMaps,
+    ID_ExtractFS,
     ID_ViewVideo,
     ID_ViewMIDI,
     ID_EditTileFlags,

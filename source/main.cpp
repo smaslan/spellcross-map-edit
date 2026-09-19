@@ -173,9 +173,12 @@ bool MyApp::OnInit()
         return(false);
     }
 
-
     // last export path
     spell_data->export_path = char2wstring(ini.GetValue("STATE","export_path",""));
+
+    // last extract FS path
+    spell_data->export_fs_path = char2wstring(ini.GetValue("STATE","extract_fs_path",wstring2string(m_config.spell_path).c_str()));
+
 
     // --- load some map
     wstring map_path = char2wstring(ini.GetValue("STATE","last_map",""));
@@ -250,7 +253,9 @@ int MyApp::OnExit()
     // last export path
     if(spell_data)
         ini.SetValue("STATE","export_path",wstring2string(spell_data->export_path).c_str());
-        
+    if(spell_data)
+        ini.SetValue("STATE","extract_fs_path",wstring2string(spell_data->export_fs_path).c_str());
+
     // store sound/midi volumes
     if(spell_data->sounds)
         ini.SetLongValue("STATE", "sound_volume", 100.0*spell_data->sounds->channels->GetVolume());
@@ -381,7 +386,7 @@ MainFrame::MainFrame(SpellConfig* config, SpellMap *&map, SpellData *&spelldata)
     menuEdit->Append(ID_HistoryUndo,"Undo\tCtrl+Z","",wxITEM_NORMAL);
     menuEdit->Append(ID_HistoryRedo,"Redo\tCtrl+Y","",wxITEM_NORMAL);
     menuEdit->Append(wxID_ANY,"","",wxITEM_SEPARATOR);
-    menuEdit->Append(ID_EditMissionParams,"Edit mission parameters","",wxITEM_NORMAL);
+    menuEdit->Append(ID_EditMissionParams,"Mission parameters","",wxITEM_NORMAL);
     menuEdit->Append(wxID_ANY,"","",wxITEM_SEPARATOR);
     menuEdit->AppendSubMenu(menuLayer,"Select layer(s)","");
     menuEdit->Append(ID_SelectAll,"Select all tiles\tCtrl+A","",wxITEM_NORMAL);
@@ -455,6 +460,8 @@ MainFrame::MainFrame(SpellConfig* config, SpellMap *&map, SpellData *&spelldata)
     menuTools->Append(ID_UpdateSprContextMaps,"Update tile context from ALL maps","",wxITEM_NORMAL);
     menuTools->Append(ID_GenDMAobjects,"Generate DMAx_xxx objects from this map","",wxITEM_NORMAL);
     menuTools->Append(ID_GenDMAobjectsMaps,"Generate DMAx_xxx objects from ALL maps","",wxITEM_NORMAL);
+    menuTools->Append(wxID_ANY,"","",wxITEM_SEPARATOR);
+    menuTools->Append(ID_ExtractFS,"Extract FS archive","",wxITEM_NORMAL);
     AssignSVGresourceToMenu(menuTools,ID_ViewSprites,"IDR_LAY_SPRITE");
     AssignSVGresourceToMenu(menuTools,ID_ViewAnms,"IDR_LAY_ANM");
     AssignSVGresourceToMenu(menuTools,ID_ViewPnms,"IDR_LAY_PNM");
@@ -468,7 +475,8 @@ MainFrame::MainFrame(SpellConfig* config, SpellMap *&map, SpellData *&spelldata)
     AssignSVGresourceToMenu(menuTools,ID_EditEvent,"IDR_EVENT_TIME");
     AssignSVGresourceToMenu(menuTools,ID_ViewVideo,"IDR_VIDEO");
     AssignSVGresourceToMenu(menuTools,ID_ViewMIDI,"IDR_MUSIC");
-    
+    AssignSVGresourceToMenu(menuTools,ID_ExtractFS,"IDR_SAVE");
+
         
     // Help menu
     wxMenu* menuHelp = new wxMenu;
@@ -593,6 +601,9 @@ MainFrame::MainFrame(SpellConfig* config, SpellMap *&map, SpellData *&spelldata)
     Bind(wxEVT_MENU,&MainFrame::OnExportMapRender,this,ID_ExportMapImg);    
     Bind(wxEVT_MENU,&MainFrame::OnExportAllMapsRender,this,ID_ExportMapsImg);    
     Bind(wxEVT_MENU,&MainFrame::OnBatchMapsLoadSave,this,ID_BatchMapsLoadSave);
+    Bind(wxEVT_MENU,&MainFrame::OnExtractFS,this,ID_ExtractFS);
+
+    
 
 
 
@@ -2020,6 +2031,42 @@ void MainFrame::OnBatchMapsLoadSave(wxCommandEvent& event)
     }
     SetStatusTextLast(string_format("Batch open-save %d maps done!",maps_list.Count()));
 }
+
+// extract FS archive
+void MainFrame::OnExtractFS(wxCommandEvent& event)
+{
+    if(!spell_data)
+        return;
+
+    // open dialogue
+    auto fs_dir = spell_data->export_fs_path.wstring();
+    auto fs_name = spell_data->export_fs_path.filename().string();
+    wxFileDialog openFileDialog(this,_("Extract Spellcross FS archive"),fs_dir,fs_name,"Spellcross FS archive (*.FS)|*.FS",wxFD_OPEN);
+    if(openFileDialog.ShowModal() == wxID_CANCEL)
+        return;
+    auto fs_path = std::filesystem::path(openFileDialog.GetPath().ToStdWstring());
+    spell_data->export_fs_path = fs_path;
+
+    // load archive
+    std::unique_ptr<FSarchive> fs;
+    try{
+        fs = std::make_unique<FSarchive>(fs_path);
+    }catch(const runtime_error& error){
+        wxMessageBox(string_format("Loading \"%s\" archive failed (%s)!",fs_path,error.what()),"Extract FS archive",wxICON_ERROR);
+        return;
+    }
+
+    // extract all files
+    auto extract_dir = fs_path.parent_path() / fs_path.stem();
+    if(fs->ExtractFiles(extract_dir,"*",true))
+    {
+        wxMessageBox(string_format("Extracting \"%s\" archive failed (%s)!",fs_path,fs->m_last_error),"Extract FS archive",wxICON_ERROR);
+        return;
+    }
+
+    wxMessageBox(string_format("Extracting \"%s\" archive to folder \"%s\" done!",fs_path,extract_dir),"Extract FS archive",wxICON_INFORMATION);
+}
+
 
 
 

@@ -16,6 +16,7 @@
 #include <sstream>
 #include <chrono>
 #include <format>
+#include <charconv>
 
 // converts wstring to ascii string (removes accents, then leaves out anything >255)
 std::string str_to_ascii(std::wstring str)

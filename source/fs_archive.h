@@ -12,6 +12,7 @@
 #include <vector>
 #include <string>
 #include <cstdint>
+#include <filesystem>
 #include "LZ_spell.h"
 
 class FSarchive
@@ -48,6 +49,7 @@ class FSarchive
 		int AddFile(std::string name, std::vector<uint8_t> &data, bool allow_replace=false);
 		int LoadFolder(std::wstring dir, std::string wild_filter="*", bool allow_replace=false);
 		int SaveFile(std::wstring path=L"",bool allow_overwrite=false);
+		int ExtractFiles(std::filesystem::path extract_dir, std::string wildcard="*", bool allow_overwrite=false);
 		bool CompareArchives(FSarchive* fs);
 		std::vector<FSfile*> &GetFiles();
 		int GetFile(const char* name, uint8_t** data, int* size);

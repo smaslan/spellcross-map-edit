@@ -372,6 +372,41 @@ int FSarchive::SaveFile(std::wstring path,bool allow_overwrite)
 	return(0);
 }
 
+// extract file(s) to folder
+int FSarchive::ExtractFiles(std::filesystem::path extract_dir,std::string wildcard,bool allow_overwrite)
+{
+	m_last_error.clear();
+
+	if(extract_dir.empty())
+	{
+		m_last_error = "Export directory not specified!";
+		return(1);
+	}
+
+	if(!std::filesystem::exists(extract_dir))
+		std::filesystem::create_directories(extract_dir);
+
+	// for each file:
+	for(auto &file: m_files)
+	{
+		if(!wildcmp(wildcard, file->name))
+			continue;
+		auto path = extract_dir / file->name;
+		if(std::filesystem::exists(path) && !allow_overwrite)
+		{
+			m_last_error = string_format("File \"%s\" already exists and overwrite not allowed!",path);
+			return(1);
+		}
+		if(savedata(path, file->data))
+		{
+			m_last_error = string_format("Writing file \"%s\" failed!",path);
+			return(1);
+		}
+	}
+
+	return(0);
+}
+
 // compare archive to another archive by content (must contain same files, order does not matter)
 bool FSarchive::CompareArchives(FSarchive *fs)
 {
