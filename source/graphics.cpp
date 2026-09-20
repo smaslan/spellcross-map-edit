@@ -1,82 +1,97 @@
 // Graphics routines
-// based on: https://indiegamedev.net/2020/01/17/median-cut-with-floyd-steinberg-dithering-in-c/
+// based on:
+//   https://indiegamedev.net/2020/01/17/median-cut-with-floyd-steinberg-dithering-in-c/
+// and google Gemini AI
 
 #include "graphics.h"
 #include <algorithm>
+#include <vector>
 
-
-bool red_comp(const ImgQuantize::Pixel& a,const ImgQuantize::Pixel& b)
+// make new color bucket
+ImgQuantize::Bucket::Bucket(std::vector<ImgQuantize::Pixel>::iterator s,std::vector<ImgQuantize::Pixel>::iterator e)
+    : start(s),end(e)
 {
-    return a.r < b.r;
+    // fond range of color channels
+    minR = minG = minB = 255;
+    maxR = maxG = maxB = 0;
+    for(auto it = start; it != end; ++it) {
+        if(it->r < minR) minR = it->r;
+        if(it->r > maxR) maxR = it->r;
+        if(it->g < minG) minG = it->g;
+        if(it->g > maxG) maxG = it->g;
+        if(it->b < minB) minB = it->b;
+        if(it->b > maxB) maxB = it->b;
+    }
 }
-bool green_comp(const ImgQuantize::Pixel& a,const ImgQuantize::Pixel& b)
-{
-    return a.g < b.g;
+
+// get color with widest range
+int ImgQuantize::Bucket::getLongestSide() const {
+    int rRange = maxR - minR;
+    int gRange = maxG - minG;
+    int bRange = maxB - minB;
+    return std::max({rRange, gRange, bRange});
 }
-bool blue_comp(const ImgQuantize::Pixel& a,const ImgQuantize::Pixel& b)
+
+// find palette by median cut algorithm
+std::vector<ImgQuantize::Pixel> ImgQuantize::GenMedianCutPalette(std::vector<ImgQuantize::Pixel>& pixels,int targetColors)
 {
-    return a.b < b.b;
-}
+    std::vector<Pixel> pal;
+    if(pixels.empty())
+        return(pal);
 
-std::vector<ImgQuantize::Pixel> ImgQuantize::GenMedianCutPalette(const std::vector<ImgQuantize::Pixel>& source,int numColors)
-{
-    typedef std::vector<Pixel> Box;
-    struct RangeBox{
-        int begin;
-        int end;
-        std::vector<ImgQuantize::Pixel> *channel;
-        uint8_t range;
-    };
+    std::vector<Bucket> buckets;
+    buckets.emplace_back(pixels.begin(),pixels.end());
 
-    Box data = source;
-    std::vector<RangeBox> boxes;
-    boxes.push_back(RangeBox(0,source.size() - 1,&data,0));
-
-    while(boxes.size() < numColors)
+    // Keep splitting until we reach the target palette count
+    while(buckets.size() < targetColors)
     {
-        /* for each box, sort the boxes pixels according to the colour it has the most range in */
-        for(RangeBox& box: boxes)
-            if(box.range == 0)
-            {
-                uint8_t redRange =   std::max_element(box.channel->begin() + box.begin,box.channel->begin() + box.end,red_comp)->r   - std::min_element(box.channel->begin() + box.begin,box.channel->begin() + box.end,red_comp)->r;
-                uint8_t greenRange = std::max_element(box.channel->begin() + box.begin,box.channel->begin() + box.end,green_comp)->g - std::min_element(box.channel->begin() + box.begin,box.channel->begin() + box.end,green_comp)->g;
-                uint8_t blueRange =  std::max_element(box.channel->begin() + box.begin,box.channel->begin() + box.end,blue_comp)->b  - std::min_element(box.channel->begin() + box.begin,box.channel->begin() + box.end,blue_comp)->b;
-                if(redRange >= greenRange && redRange >= blueRange)
-                {
-                    std::sort(box.channel->begin() + box.begin,box.channel->begin() + box.end,red_comp);
-                    box.range = redRange;
-                }
-                else if(greenRange >= redRange && greenRange >= blueRange)
-                {
-                    std::sort(box.channel->begin() + box.begin,box.channel->begin() + box.end,green_comp);
-                    box.range = greenRange;
-                }
-                else
-                {
-                    std::sort(box.channel->begin() + box.begin,box.channel->begin() + box.end,blue_comp);
-                    box.range = blueRange;
+        // Find the bucket with the largest overall color channel range
+        auto splitTarget = buckets.end();
+        int maxRange = -1;
+
+        for(auto it = buckets.begin(); it != buckets.end(); ++it) {
+            // Ensure bucket has at least 2 pixels to be physically splittable
+            if(std::distance(it->start,it->end) > 1) {
+                int range = it->getLongestSide();
+                if(range > maxRange) {
+                    maxRange = range;
+                    splitTarget = it;
                 }
             }
+        }
 
-        // sort boxes by color range
-        std::sort(boxes.begin(),boxes.end(),[](const RangeBox& a,const RangeBox& b) {return a.range < b.range;});
-        
-        auto itr = std::prev(boxes.end()); 
-        auto box = *itr;
-        boxes.erase(itr);
-
-        // leave if nothing more to split (was not in original code - would loop forever when not enough colours?)
-        if(box.end - box.begin <= 1)
+        // If no more buckets can be split, break early
+        if(splitTarget == buckets.end())
             break;
 
-        // the box is sorted already, so split at median
-        RangeBox A = {box.begin,box.begin + (box.end - box.begin + 1)/2 - 1,box.channel,0};
-        RangeBox B ={box.begin + (box.end - box.begin + 1)/2,box.end,box.channel,0};
-        boxes.push_back(A);
-        boxes.push_back(B);
-    }      
+        // Determine which specific channel is the longest
+        int rRange = splitTarget->maxR - splitTarget->minR;
+        int gRange = splitTarget->maxG - splitTarget->minG;
+        int bRange = splitTarget->maxB - splitTarget->minB;
 
-    struct Pal{
+        auto startIdx = splitTarget->start;
+        auto endIdx = splitTarget->end;
+        auto medianIdx = startIdx + std::distance(startIdx,endIdx) / 2;
+
+        // Efficient linear-time O(N) partitioning on the longest channel
+        if(rRange >= gRange && rRange >= bRange)
+            std::nth_element(startIdx,medianIdx,endIdx,[](const Pixel& a,const Pixel& b) { return a.r < b.r; });
+        else if(gRange >= rRange && gRange >= bRange)
+            std::nth_element(startIdx,medianIdx,endIdx,[](const Pixel& a,const Pixel& b) { return a.g < b.g; });
+        else
+            std::nth_element(startIdx,medianIdx,endIdx,[](const Pixel& a,const Pixel& b) { return a.b < b.b; });
+
+        // Split the target bucket into two parts around the median point
+        Bucket left(startIdx,medianIdx);
+        Bucket right(medianIdx,endIdx);
+
+        // Erase old bucket, inject the two new subdivisions
+        buckets.erase(splitTarget);
+        buckets.push_back(left);
+        buckets.push_back(right);
+    }
+
+    struct Pal {
         int r;
         int g;
         int b;
@@ -86,24 +101,26 @@ std::vector<ImgQuantize::Pixel> ImgQuantize::GenMedianCutPalette(const std::vect
         double x;
     };
 
-    // each box in boxes can be averaged to determine the colour
+    // find average colors
     std::vector<Pal> palette;
-    for(const RangeBox& box: boxes)
+    for(const Bucket& box: buckets)
     {
         int redAccum = 0;
         int greenAccum = 0;
         int blueAccum = 0;
-        std::for_each(box.channel->begin() + box.begin,box.channel->begin() + box.end,[&](const Pixel& p)
+        std::for_each(box.start,box.end,[&](const Pixel& p)
             {
                 redAccum += p.r;
                 greenAccum += p.g;
                 blueAccum += p.b;
             });
-        int size = box.end - box.begin + 1;
-        redAccum /= size;
-        greenAccum /= size;
-        blueAccum /= size;
-
+        int size = box.end - box.start + 1;
+        if(size)
+        {
+            redAccum /= size;
+            greenAccum /= size;
+            blueAccum /= size;
+        }
         Pal col;
         col.r = std::min((uint32_t)redAccum,255u);
         col.g = std::min((uint32_t)greenAccum,255u);
@@ -132,25 +149,22 @@ std::vector<ImgQuantize::Pixel> ImgQuantize::GenMedianCutPalette(const std::vect
         palette.push_back(col);
     }
 
-    auto uid = std::unique(palette.begin(),palette.end(),[](Pal &a,Pal &b){return a.r == b.r && a.g == b.g && a.b == b.b;});
-    palette.resize(std::distance(palette.begin(),uid));
-       
-    
+
+    // try to sort result to make it "pretty"
     //std::sort(palette.begin(),palette.end(),[](const Pal& a,const Pal& b) {return a.v < b.v;});
     //std::sort(palette.begin(),palette.end(),[](const Pal& a,const Pal& b) {return a.s < b.s;});
     //std::sort(palette.begin(), palette.end(),[](const Pal& a,const Pal& b) {return a.h < b.h;});
-    std::sort(palette.begin(),palette.end(),[](const Pal& a,const Pal& b) {return a.x < b.x;});
+    std::ranges::sort(palette,[](const Pal& a,const Pal& b) {return a.x < b.x;});
 
-    std::vector<Pixel> pal;
-    for(auto &col: palette)
+    for(auto& col: palette)
     {
         Pixel pix = {col.r,col.g,col.b};
         pal.push_back(pix);
     }
 
-
-    return pal;
+    return(pal);
 }
+
 
 
 

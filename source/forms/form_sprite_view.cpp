@@ -1237,9 +1237,9 @@ void FormSprite::OnExportClick(wxCommandEvent& event)
 	// build common terrain palette
 	SpellPalette pal("MAP.PAL");
 	std::vector<uint8_t> pal_data(256*3);
-	memcpy(pal_data.data(),&terr->pal[0][0],128*3);		
+	memcpy(pal_data.data(),&terr->pal->GetPal()[0][0],128*3);
 	pal.Insert(pal_data,"MAP.PAL",0,128);
-	memcpy(pal_data.data(),&terr->pal[240][0],10*3);
+	memcpy(pal_data.data(),&terr->pal->GetPal()[240][0],10*3);
 	pal.Insert(pal_data,"CYCLE.PAL",240,10);
 	// export palette
 	auto pal_path = export_dir / "map.palinfo";
@@ -1259,7 +1259,7 @@ void FormSprite::OnExportClick(wxCommandEvent& event)
 		item->ExportInfo(info_path, png_name, pal);
 		
 		// export bitmap
-		auto bmp = item->Render((uint8_t*)terr->pal, 1.0);
+		auto bmp = item->Render((uint8_t*)terr->pal->GetPal(), 1.0);
 		bmp->SaveFile(png_path.wstring(),wxBITMAP_TYPE_PNG);
 		delete bmp;
 	}

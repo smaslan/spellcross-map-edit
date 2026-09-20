@@ -18,9 +18,21 @@ public:
         double distance_squared(const Pixel& other) const;
     };
     
-    static std::vector<Pixel> GenMedianCutPalette(const std::vector<Pixel>& source,int numColors);
+    static std::vector<Pixel> GenMedianCutPalette(std::vector<Pixel> &pixels,int targetColors);
 
 private:
+
+    class Bucket
+    {
+    public:
+        std::vector<Pixel>::iterator start;
+        std::vector<Pixel>::iterator end;
+        uint8_t minR,maxR,minG,maxG,minB,maxB;
+
+        // make bucket from pixels
+        Bucket(std::vector<Pixel>::iterator s,std::vector<Pixel>::iterator e);
+        int getLongestSide() const;
+    };
 
     // Node structure for the Octree
     class OctreeNode

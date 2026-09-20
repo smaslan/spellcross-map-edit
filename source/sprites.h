@@ -538,7 +538,8 @@ public:
 	// terrain objects list
 	std::vector<SpellObject*> objects;
 	// color palette
-	uint8_t pal[256][3];
+	//uint8_t raw_pal[256][3];
+	std::unique_ptr<SpellPalette> pal;
 	// filters
 	std::unique_ptr<SpellFilters> filter;
 	// fonts
@@ -550,7 +551,7 @@ public:
 	// void contructor
 	Terrain(SpellData &spell_data);
 	~Terrain();
-	int Load(FSarchive *terrain_fs, uint8_t map_pal[][3], SpellGraphics *gres, SpellL2classes* L2=NULL,std::function<void(std::string)> status_item=NULL);
+	int Load(FSarchive *terrain_fs, SpellPalette *pal, SpellGraphics *gres, SpellL2classes* L2=NULL,std::function<void(std::string)> status_item=NULL);
 	Sprite* GetSprite(const char* name);
 	Sprite* GetSprite(int index);
 	int GetSpriteID(Sprite *spr);

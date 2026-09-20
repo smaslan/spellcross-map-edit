@@ -356,7 +356,7 @@ void FormPalView::OnChangeFilterRGB(wxCommandEvent& event)
 	auto terr = FindTerrain();
 	auto filter = terr->filter->GetTempFilter();
 	if(filter)
-		filter->SetFilter(&terr->pal[0][0], "New Filter *",(double)slideRed->GetValue()*0.02,(double)slideGreen->GetValue()*0.02,(double)slideBlue->GetValue()*0.02);
+		filter->SetFilter(&terr->pal->GetPal()[0][0], "New Filter *",(double)slideRed->GetValue()*0.02,(double)slideGreen->GetValue()*0.02,(double)slideBlue->GetValue()*0.02);
 	canvas->Refresh();
 }
 
@@ -470,8 +470,8 @@ void FormPalView::OnPaintColor(wxPaintEvent& event)
 			int color = terrain->RenderPaletteColor(bmp, canvas->GetClientSize().GetWidth(),sel_pos_x,fil);
 			if(color >= 0)
 				state = string_format("Color = #%d (0x%02X), R = %d, G = %d, B = %d, RGB = 0x%02X%02X%02X", color, color,
-					terrain->pal[color][0],terrain->pal[color][1],terrain->pal[color][2],
-					terrain->pal[color][0],terrain->pal[color][1],terrain->pal[color][2]);
+					terrain->pal->GetPal()[color][0],terrain->pal->GetPal()[color][1],terrain->pal->GetPal()[color][2],
+					terrain->pal->GetPal()[color][0],terrain->pal->GetPal()[color][1],terrain->pal->GetPal()[color][2]);
 		}
 	}
 	else

@@ -12,6 +12,7 @@
 #include "fs_archive.h"
 #include "fsu_archive.h"
 #include "spell_units.h"
+#include "spell_palette.h"
 #include "spell_filter.h"
 #include "sprites.h"
 #include "other.h"
@@ -5238,7 +5239,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 		last_gamma = gamma;
 
 		// male local copy of palette	
-		std::memcpy((void*)pal, (void*)terrain->pal, 3 * 256);
+		std::memcpy((void*)pal, (void*)terrain->pal->GetPal(), 3 * 256);
 
 		// apply gamma correction (this should be maybe optimized out of here?
 		for (int k = 0; k < 256; k++)
@@ -6869,13 +6870,13 @@ SpellBtnHUD* SpellMap::CreateHUDbutton(SpellGraphicItem* glyph,t_xypos &hud_pos,
 		if(cbtn->PositionMatch(x_pos - surf_x_origin,y_pos - surf_y_origin,x_size,y_size))
 		{
 			btn = cbtn;
-			btn->Make(x_pos - surf_x_origin,y_pos - surf_y_origin,x_size,y_size,(uint8_t*)terrain->pal,surf[0],surf[1],surf[2],action_id,cb_press,cb_hover);
+			btn->Make(x_pos - surf_x_origin,y_pos - surf_y_origin,x_size,y_size,(uint8_t*)terrain->pal->GetPal(),surf[0],surf[1],surf[2],action_id,cb_press,cb_hover);
 			break;
 		}
 	if(!btn)
 	{
 		// create new button if not existed before
-		btn = new SpellBtnHUD(x_pos - surf_x_origin, y_pos - surf_y_origin, x_size, y_size, (uint8_t*)terrain->pal, surf[0],surf[1],surf[2], action_id, cb_press, cb_hover);
+		btn = new SpellBtnHUD(x_pos - surf_x_origin, y_pos - surf_y_origin, x_size, y_size, (uint8_t*)terrain->pal->GetPal(), surf[0],surf[1],surf[2], action_id, cb_press, cb_hover);
 		hud_buttons.push_back(btn);
 	}
 
@@ -12200,7 +12201,7 @@ int SpellMap::BuildHouseObjects()
 			std::string name = string_format("House #%02d",house_id);
 			if(!pnm_list.empty())
 				name += " + PNM";
-			SpellObject *obj = new SpellObject(xylist,L1_list,L2_list,flag_list,pnm_list,(uint8_t*)terrain->pal,name);
+			SpellObject *obj = new SpellObject(xylist,L1_list,L2_list,flag_list,pnm_list,(uint8_t*)terrain->pal->GetPal(),name);
 
 			// check duplicates
 			if(terrain->CheckObjectDuplicates(obj,false))

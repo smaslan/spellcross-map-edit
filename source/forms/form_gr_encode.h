@@ -94,6 +94,16 @@ private:
 // graphic resource metadata
 class SpellGresInfo {
 public:
+	enum class FORMAT : int {
+		LZ = 0,
+		GFK,
+		DTA,
+		PNM,
+		FSU
+	};
+
+	std::string m_last_error;
+	
 	std::filesystem::path path;
 	std::string info_name;
 	std::string name;
@@ -103,7 +113,7 @@ public:
 	std::vector<std::string> img_names;
 	std::string pal_name;
 	std::string colors_str;
-	std::string format;
+	FORMAT format;
 	int alpha_threshold;
 	int x_size;
 	int y_size;
@@ -118,15 +128,17 @@ public:
 	double gamma;
 
 	static const std::map<int,std::string> c_resampling;
+	static const std::map<FORMAT,std::string> c_format;
+	static const std::map<int,std::string> c_format_menu;
 
 	SpellGresInfo();
 	void Clear();
 	int LoadInfo(std::filesystem::path path);
 	int SaveInfo(std::filesystem::path path="");
 	bool isLoaded();
-	bool isPNM() {return(format == "PNM");};
-	bool isUnitsFSU() { return(format == "UNITS.FSU"); };
-	bool isDTA() { return(format == "DTA"); };
+	bool isPNM() {return(format == FORMAT::PNM);};
+	bool isUnitsFSU() { return(format == FORMAT::FSU); };
+	bool isDTA() { return(format == FORMAT::DTA); };
 };
 
 
@@ -139,6 +151,7 @@ private:
 	
 	SpellData *spell_data;
 
+	std::string m_last_error;
 	wxBitmap m_source;
 	std::mutex m_source_mutex;
 	SpellPalette m_pal;

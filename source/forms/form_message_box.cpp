@@ -1,4 +1,5 @@
 #include "form_message_box.h"
+#include "spell_palette.h"
 #include "spell_filter.h"
 #include "map.h"
 
@@ -158,7 +159,7 @@ void FormMsgBox::OnPaintTab(wxPaintEvent& event)
 
 
     // blit window
-    uint8_t* pal = (uint8_t*)m_spell_map->terrain->pal;
+    uint8_t* pal = (uint8_t*)m_spell_map->terrain->pal->GetPal();
     uint8_t* ptr = buf;
     wxBitmap bmp(x_size,y_size,24);
     wxNativePixelData pdata(bmp);
@@ -264,7 +265,7 @@ void FormMsgBox::OnPaintButton(wxPaintEvent& event)
     m_spelldata->font->Render(buf,&buf[x_size*y_size],x_size,0,0,x_size,y_size,*label,(is_hover)?254:0xFF,(is_hover)?-1:0xFE,(is_hover)?(SpellFont::FontShadow::NONE):(SpellFont::FontShadow::RIGHT_DOWN));
       
     // blit window
-    uint8_t* pal = (uint8_t*)m_spell_map->terrain->pal;
+    uint8_t* pal = (uint8_t*)m_spell_map->terrain->pal->GetPal();
     uint8_t* ptr = buf;
     wxBitmap bmp(x_size,y_size,24);
     wxNativePixelData pdata(bmp);

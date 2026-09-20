@@ -433,7 +433,7 @@ int SpellData::Reload(std::filesystem::path &data_path,std::filesystem::path& cd
 		
 		// make new terrain
 		Terrain* new_terrain = new Terrain(*this);
-		if(new_terrain->Load(terrain_fs, map_pal, &gres, L2_classes, status_item))
+		if(new_terrain->Load(terrain_fs,GetPalette("MAP"), &gres, L2_classes, status_item))
 		{
 			Cleanup();
 			if(status_list)

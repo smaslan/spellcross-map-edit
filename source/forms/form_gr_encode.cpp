@@ -582,6 +582,20 @@ const std::map<int,std::string> SpellGresInfo::c_resampling = {
 	{wxIMAGE_QUALITY_BILINEAR,"Bilinear"},
 	{wxIMAGE_QUALITY_BICUBIC,"Bicubic"}
 };
+const std::map<int,std::string> SpellGresInfo::c_format_menu = {
+	{(int)SpellGresInfo::FORMAT::DTA,"Sprite DTA"},
+	{(int)SpellGresInfo::FORMAT::GFK,"Projectile GFK"},
+	{(int)SpellGresInfo::FORMAT::LZ,"LZ compressed"},
+	{(int)SpellGresInfo::FORMAT::FSU,"UNITS.FSU sprites"},
+	{(int)SpellGresInfo::FORMAT::PNM,"PNM animation"}
+};
+const std::map<SpellGresInfo::FORMAT,std::string> SpellGresInfo::c_format ={
+	{SpellGresInfo::FORMAT::DTA,"DTA"},
+	{SpellGresInfo::FORMAT::GFK,"GFK"},
+	{SpellGresInfo::FORMAT::LZ,"LZ"},
+	{SpellGresInfo::FORMAT::FSU,"UNITS.FSU"},
+	{SpellGresInfo::FORMAT::PNM,"PNM"}
+};
 
 SpellGresInfo::SpellGresInfo()
 {
@@ -603,11 +617,11 @@ void SpellGresInfo::Clear()
 	y_size = 0;
 	is_transparent = false;
 	y_offset = 0;
-	format = "";
 	shadow_color[0] = -1;
 	shadow_color[1] = -1;
 	shadow_color[2] = -1;
 	gamma = 1.0;
+	m_last_error.clear();
 }
 
 // is loaded?
@@ -620,11 +634,15 @@ bool SpellGresInfo::isLoaded()
 int SpellGresInfo::LoadInfo(std::filesystem::path path)
 {
 	Clear();
+	m_last_error.clear();
 
 	// try read meta file
 	std::string infostr;
 	if(loadstr(path, infostr))
+	{
+		m_last_error = string_format("Failed loading file \"%s\"!",path);
 		return(1);
+	}
 	auto info = get_text_lines(infostr, true);
 	
 	this->path = path;
@@ -636,6 +654,7 @@ int SpellGresInfo::LoadInfo(std::filesystem::path path)
 	if(name.empty())
 	{
 		Clear();
+		m_last_error = string_format("Missing 'name' item in \"%s\"!",path);
 		return(1);
 	}
 	name = strrep(name,"*",stem);
@@ -645,6 +664,7 @@ int SpellGresInfo::LoadInfo(std::filesystem::path path)
 	if(img_name.empty())
 	{
 		Clear();
+		m_last_error = string_format("Missing 'image' item in \"%s\"!",path);
 		return(1);
 	}
 	img_name = strrep(img_name,"*",stem);
@@ -654,6 +674,7 @@ int SpellGresInfo::LoadInfo(std::filesystem::path path)
 	if(pal_name.empty())
 	{
 		Clear();
+		m_last_error = string_format("Missing 'palette' item in \"%s\"!",path);
 		return(1);
 	}
 
@@ -662,6 +683,7 @@ int SpellGresInfo::LoadInfo(std::filesystem::path path)
 	if(colors_str.empty())
 	{
 		Clear();
+		m_last_error = string_format("Missing 'colors' range item in \"%s\"!",path);
 		return(1);
 	}
 	
@@ -671,12 +693,22 @@ int SpellGresInfo::LoadInfo(std::filesystem::path path)
 	if(x_size_str.empty() || y_size_str.empty())
 	{
 		Clear();
+		m_last_error = string_format("Missing 'xsize' or 'ysize' items in \"%s\"!",path);
 		return(1);
 	}
 	x_size = std::atoi(x_size_str.c_str());
 	y_size = std::atoi(y_size_str.c_str());
 	is_transparent = std::atoi(info_get_string(info,"transparent").c_str());
-	format = info_get_string(info,"format");
+	
+	auto format_str = info_get_string(info,"format","");
+	auto fmt_it = std::ranges::find_if(c_format,[format_str](const auto& pair) {return(iequals(pair.second,format_str));});
+	if(fmt_it == c_format.end())
+	{
+		Clear();
+		m_last_error = string_format("Unknown or missing 'format' item value '%s' in \"%s\"!",format_str,path);
+		return(1);
+	}
+	format = fmt_it->first;
 
 	auto x_offset_str = info_get_string(info,"xoffset");
 	x_offset = std::atoi(x_offset_str.c_str());
@@ -689,6 +721,7 @@ int SpellGresInfo::LoadInfo(std::filesystem::path path)
 	if(res_it == c_resampling.end())
 	{
 		Clear();
+		m_last_error = string_format("Unknown or missing 'resampling' item value '%s' in \"%s\"!",res_str,path);
 		return(1);
 	}
 	resampling = res_it->first;
@@ -714,6 +747,7 @@ int SpellGresInfo::LoadInfo(std::filesystem::path path)
 	if(!shadow_color_str.empty() && shadow_colors_list.size() != 3)
 	{
 		Clear();
+		m_last_error = string_format("Missing or invalid 'shadow_color' item value '%s' in \"%s\"!",shadow_color_str,path);
 		return(1);
 	}
 	if(!shadow_color_str.empty())
@@ -736,7 +770,11 @@ int SpellGresInfo::SaveInfo(std::filesystem::path path)
 
 	info += info_make_string("name",raw_name);
 	info += info_make_string("image",raw_img_name);
-	info += info_make_string("format",format);
+	
+	auto fmt_it = c_format.find(format);
+	if(fmt_it == c_format.end())
+		return(1);
+	info += info_make_string("format",fmt_it->second);
 	
 	info += info_make_int("xsize",x_size);
 	info += info_make_int("ysize",y_size);
@@ -774,6 +812,7 @@ int SpellGresInfo::SaveInfo(std::filesystem::path path)
 // load new resource
 int FormGResEncoder::LoadResource(std::filesystem::path path,int frame_id)
 {
+	m_last_error.clear();
 	m_source = wxBitmap();
 	pgProperties->Clear();
 	m_pal.Clear();
@@ -782,18 +821,28 @@ int FormGResEncoder::LoadResource(std::filesystem::path path,int frame_id)
 	
 	
 	// try read meta file
-	m_info.LoadInfo(path);
+	if(m_info.LoadInfo(path))
+	{
+		m_last_error = m_info.m_last_error;
+		return(1);
+	}
 
 	// try load palette
 	auto pal_path = std::filesystem::path(path).parent_path().append(m_info.pal_name);
 	if(m_pal.LoadInfo(pal_path))
+	{
+		m_last_error = string_format("Failed loading palette \"%s\"!",pal_path);
 		return(1);
+	}
 	//m_pal.m_name = m_info.pal_name;
 
 	// pick frame of animation?
 	bool is_pnm = m_info.isPNM();
 	if(is_pnm && (frame_id < 0 || frame_id >= m_info.img_names.size()))
+	{
+		m_last_error = string_format("Requested frame index %d outside valid range 0 to %d!",frame_id,m_info.img_names.size()-1);
 		return(1);
+	}
 	auto img_name = m_info.img_name;
 	if(is_pnm && frame_id >= 0)
 		img_name = m_info.img_names[frame_id];
@@ -801,8 +850,10 @@ int FormGResEncoder::LoadResource(std::filesystem::path path,int frame_id)
 	// try read image file
 	auto image_path = std::filesystem::path(path).parent_path().append(img_name).wstring();
 	if(!m_source.LoadFile(image_path,wxBITMAP_TYPE_PNG))
+	{
+		m_last_error = string_format("Loading image \"%s\" failed!",image_path);
 		return(1);
-
+	}
 	SetStatusText(m_info.info_name,0);
 	SetStatusText(m_info.name,1);
 	SetStatusText(string_format("size = %d x %d",m_source.GetWidth(),m_source.GetHeight()),2);
@@ -815,7 +866,7 @@ int FormGResEncoder::LoadResource(std::filesystem::path path,int frame_id)
 	pgProperties->Append(new wxStringPropertyExt(wxT("Resource name"),wxT(""),&m_info.raw_name));
 	pgProperties->Append(new wxStringPropertyExt(wxT("Image name"),wxT(""),&m_info.raw_img_name));
 	pgProperties->Append(new wxStringPropertyExt(wxT("Palette name"),wxT(""),&m_info.pal_name));
-	pgProperties->Append(new wxStringPropertyExt(wxT("Format"),wxT(""),&m_info.format));
+	pgProperties->Append(new wxEnumPropertyExt(wxT("Format"),wxT(""),MapToPGenumChoices(SpellGresInfo::c_format_menu),(int*)&m_info.format));
 	pgProperties->Append(new wxIntPropertyExt(wxT("x-size"),wxT(""),&m_info.x_size,-1));
 	pgProperties->Append(new wxIntPropertyExt(wxT("y-size"),wxT(""),&m_info.y_size,-1));
 	pgProperties->Append(new wxIntPropertyExt(wxT("x-offset"),wxT(""),&m_info.x_offset));
@@ -903,27 +954,37 @@ void FormGResEncoder::OnOpenClick(wxCommandEvent& event)
 		path = std::filesystem::path(dir).append(info_name).wstring();
 		if(!std::filesystem::exists(path))
 		{
-			wxMessageDialog msg(NULL,string_format("Cannot find matching graphic resource meta file:\n%ls",path.c_str()),"Open glyph resource",wxOK| wxICON_EXCLAMATION);
+			wxMessageDialog msg(NULL,string_format("Cannot find matching graphic resource meta file:\n%s",path),"Open glyph resource",wxOK| wxICON_EXCLAMATION);
 			msg.ShowModal();
 			return;
 		}
 		SpellGresInfo info;
-		if(info.LoadInfo(path) || info.img_name.compare(png_name) != 0)			
+		if(info.LoadInfo(path))
 		{
-			wxMessageDialog msg(NULL,string_format("Cannot find matching graphic resource meta file:\n%ls",path.c_str()),"Open glyph resource",wxOK| wxICON_EXCLAMATION);
+			wxMessageDialog msg(NULL,string_format("Failed loading graphic resource metadata:\n%s",info.m_last_error),"Open glyph resource",wxOK| wxICON_EXCLAMATION);
+			msg.ShowModal();
+			return;
+		}
+		if(info.img_name.compare(png_name) != 0)			
+		{
+			wxMessageDialog msg(NULL,string_format("Cannot find matching graphic resource meta file:\n%s",path),"Open glyph resource",wxOK| wxICON_EXCLAMATION);
 			msg.ShowModal();
 			return;
 		}
 	}
 	else
 	{
-		wxMessageDialog msg(NULL,string_format("Unknown file type:\n%ls!",path.c_str()),"Open glyph resource",wxOK| wxICON_EXCLAMATION);
+		wxMessageDialog msg(NULL,string_format("Unknown file type:\n%s!",path),"Open glyph resource",wxOK| wxICON_EXCLAMATION);
 		msg.ShowModal();
 		return;
 	}	
 	
 	// load resource
-	LoadResource(path,0);
+	if(LoadResource(path,0))
+	{
+		wxMessageBox(string_format("Failed loading graphic resource:\n%s",m_last_error),"Open glyph resource",wxICON_EXCLAMATION);
+		return;
+	}
 	
 	// load all other resources with shared palette
 	lboxList->Clear();
@@ -935,8 +996,11 @@ void FormGResEncoder::OnOpenClick(wxCommandEvent& event)
 		if(!wildcmp("*.info",name.c_str()))
 			continue;
 		SpellGresInfo info;
-		if(info.LoadInfo(entry.path().wstring()))
-			continue;
+		if(info.LoadInfo(entry.path()))
+		{
+			wxMessageBox(string_format("Failed loading graphic resource metadata:\n%s",info.m_last_error),"Open glyph resource",wxICON_EXCLAMATION);
+			break;
+		}
 		if(m_info.pal_name.compare(info.pal_name) != 0)
 			continue;
 		lboxList->Append(name);
@@ -989,9 +1053,8 @@ void FormGResEncoder::OnRegenClick(wxCommandEvent& event)
 	}
 
 	int *shadow_color = NULL; 
-	if(m_info.format == "UNITS.FSU")
+	if(m_info.isUnitsFSU())
 		shadow_color = m_info.shadow_color;
-
 
 	/*wxImage img = m_source.ConvertToImage();
 	wxImage resizedImg = img.Rescale(newWidth,newHeight,wxIMAGE_QUALITY_HIGH);
@@ -1017,7 +1080,71 @@ void FormGResEncoder::OnSaveClick(wxCommandEvent& event)
 		return;
 	}
 
-	std::string name = m_info.name;
+	// show save dialog
+	wxDirDialog saveDirDialog(this,"Export resource data to directory",spell_data->export_path,wxDD_DIR_MUST_EXIST);
+	if(saveDirDialog.ShowModal() == wxID_CANCEL)
+		return;
+	wstring dir = wstring(saveDirDialog.GetPath().ToStdWstring());
+	spell_data->export_path = dir;
+
+	// rather ask for permission
+	wxMessageDialog msg(NULL,"Files in the selected folder might be overwritten! Continue?","Export glyphs",wxYES_NO | wxYES_DEFAULT | wxICON_QUESTION);
+	if(msg.ShowModal() != wxID_YES)
+		return;
+
+	// for each listed resource
+	m_task_failed_list.clear();
+	
+	// pick resource
+	auto res_name = lboxList->GetStringSelection();
+	if(res_name.empty())
+	{
+		wxMessageBox("No resource selected?","Exporting resource",wxICON_EXCLAMATION);
+		return;
+	}
+	auto info_path = std::filesystem::path(dir) / res_name.ToStdString();
+	m_task_list.push_back(info_path);
+
+	// build tasks
+	ProcTh::Params params;
+	params.x_offset = spinExtraXoffset->GetValue();
+	params.y_offset = spinExtraYoffset->GetValue();
+	params.dither_randomize = slideMinDither->GetValue();
+	params.target_dir = std::filesystem::path(dir);
+	params.mutex = &m_mutex;
+	params.list = &m_task_list;
+	params.failed_list = &m_task_failed_list;
+
+	// start processign threads	
+	auto cores = std::min(wxThread::GetCPUCount(),8);
+	//auto cores = 1;
+	m_threads.clear();
+	m_thread_active = 0;
+	for(int k = 0; k < cores; k++)
+	{
+		auto th_proc = new ProcTh(this,params);
+		m_threads.push_back(th_proc);
+		if(th_proc->Create() != wxTHREAD_NO_ERROR)
+		{
+			wxMessageBox(_("Couldn't create processing thread!"));
+			for(auto& th: m_threads)
+				delete th;
+			return;
+		}
+		m_thread_active++;
+	}
+	for(auto& th: m_threads)
+	{
+		if(th->Run() != wxTHREAD_NO_ERROR)
+		{
+			wxMessageBox(_("Couldn't run processing thread!"));
+			// ###todo: somehow get rid of other threads?
+			return;
+		}
+	}
+
+
+	/*std::string name = m_info.name;
 
 	// show save dialog
 	wxFileDialog saveFileDialog(this,_("Export glyph resource"),spell_data->export_path,name,"LZ resource file (*.LZ)|*.LZ",
@@ -1048,7 +1175,7 @@ void FormGResEncoder::OnSaveClick(wxCommandEvent& event)
 			msg.ShowModal();
 			return;
 		}		
-	}
+	}*/
 }
 
 // export all glyphs

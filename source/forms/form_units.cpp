@@ -6,6 +6,7 @@
 ///////////////////////////////////////////////////////////////////////////
 
 #include "form_units.h"
+#include "spell_palette.h"
 #include "spell_filter.h"
 #include "other.h"
 #include "wx_other.h"
@@ -1118,7 +1119,7 @@ void FormUnits::OnPaintGrp(wxPaintEvent& event)
 
 	// apply gamma
 	uint8_t pal[256][3];
-	memcpy((void*)pal,(void*)terr->pal,256*3);
+	memcpy((void*)pal,(void*)terr->pal->GetPal(),256*3);
 	apply_gamma((uint8_t*)pal, 0.01*slideGrpGamma->GetValue());
 
 	// render 24bit RGB data to raw bmp buffer

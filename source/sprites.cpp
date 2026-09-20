@@ -1908,7 +1908,8 @@ DestructibleRec SpellL2classes::GetClass(const char* sprite_name)
 
 Terrain::Terrain(SpellData &spell_data) :
 	m_spell_data(spell_data),
-	filter(std::make_unique<SpellFilters>())
+	filter(std::make_unique<SpellFilters>()),
+	pal(std::make_unique<SpellPalette>())
 {
 	name[0] = '\0';	
 	sprites.clear();
@@ -1919,7 +1920,7 @@ Terrain::Terrain(SpellData &spell_data) :
 
 Terrain::~Terrain()
 {
-	name[0] = '\0';
+	name.clear();
 	
 	// destruct each sprite element
 	for (unsigned k = 0; k < sprites.size(); k++)
@@ -1947,14 +1948,16 @@ Terrain::~Terrain()
 	tools.clear();
 }
 
-int Terrain::Load(FSarchive *terrain_fs, uint8_t map_pal[][3],SpellGraphics* gres,SpellL2classes *L2,std::function<void(std::string)> status_item)
+int Terrain::Load(FSarchive *terrain_fs, SpellPalette *map_pal,SpellGraphics* gres,SpellL2classes *L2,std::function<void(std::string)> status_item)
 {	
 	// store archive name (no extension)
 	name = terrain_fs->GetFSname(false);
 	
 	// init common part of map palette
 	if(map_pal)
-		std::memcpy(pal, map_pal, 256*3);
+	{
+		*pal = *map_pal;
+	}
 
 	// --- read files from archive:
 	int sprite_index = 0;
@@ -1986,7 +1989,7 @@ int Terrain::Load(FSarchive *terrain_fs, uint8_t map_pal[][3],SpellGraphics* gre
 		}
 				
 		// check extension
-		if (ext)
+		if(ext)
 		{
 			// file with extension
 
@@ -2066,20 +2069,20 @@ int Terrain::Load(FSarchive *terrain_fs, uint8_t map_pal[][3],SpellGraphics* gre
 					///// Palette /////
 					///////////////////
 
-					if (_strcmpi(full_name, "map.pal") == 0)
+					if(_strcmpi(full_name, "map.pal") == 0 && size == 128*3)
 					{
 						// "map.pal"
-						std::memcpy((void*)&pal[0][0], data, 128*3);
-
+						pal->Insert(data,"MAP.PAL",0,128);
+						
 						if(status_item)
 							status_item(name);
 						fcnt++;
 					}
-					else if (_strcmpi(full_name, "cycle.pal") == 0)
+					else if (_strcmpi(full_name, "cycle.pal") == 0 && size == 10*3)
 					{
 						// "cycle.pal"
-						std::memcpy((void*)&pal[240][0], data, 10*3);
-
+						pal->Insert(data,"CYCLE.PAL",240,10);
+						
 						if(status_item)
 							status_item(name);
 						fcnt++;
@@ -3376,12 +3379,12 @@ int Terrain::RenderSpritePreview(wxBitmap& bmp, std::vector<Sprite*> &tiles, int
 		last_gamma = gamma;
 
 		// male local copy of palette	
-		std::memcpy((void*)gamma_pal,(void*)pal,3 * 256);
+		std::memcpy((void*)gamma_pal,(void*)pal->GetPal(),3 * 256);
 
 		// apply gamma correction (this should be maybe optimized out of here?
 		for(int k = 0; k < 256; k++)
 			for(int c = 0; c < 3; c++)
-				gamma_pal[k][c] = (uint8_t)(pow((double)pal[k][c] / 255.0,1.0 / gamma) * 255.0);
+				gamma_pal[k][c] = (uint8_t)(pow((double)gamma_pal[k][c] / 255.0,1.0 / gamma) * 255.0);
 	}
 
 	// render 24bit RGB data to raw bmp buffer
@@ -3437,12 +3440,12 @@ int Terrain::RenderPNMpreview(wxBitmap& bmp,Sprite *spr,int flags,double gamma)
 		last_gamma = gamma;
 
 		// male local copy of palette	
-		std::memcpy((void*)gamma_pal,(void*)pal,3 * 256);
+		std::memcpy((void*)gamma_pal,(void*)pal->GetPal(),3 * 256);
 
 		// apply gamma correction (this should be maybe optimized out of here?
 		for(int k = 0; k < 256; k++)
 			for(int c = 0; c < 3; c++)
-				gamma_pal[k][c] = (uint8_t)(pow((double)pal[k][c] / 255.0,1.0 / gamma) * 255.0);
+				gamma_pal[k][c] = (uint8_t)(pow((double)gamma_pal[k][c] / 255.0,1.0 / gamma) * 255.0);
 	}
 
 	// render 24bit RGB data to raw bmp buffer
@@ -4264,7 +4267,7 @@ SpellObject::SpellObject(ifstreamext& fr,std::vector<Sprite*> &sprite_list,std::
 SpellObject* Terrain::AddObject(vector<MapXY> xy,vector<Sprite*> L1_list,vector<Sprite*> L2_list,vector<uint8_t> flag_list,vector<MapLayer4> pnm_list,uint8_t* palette,std::string desc)
 {		
 	// create object
-	SpellObject *obj = new SpellObject(xy,L1_list,L2_list,flag_list,pnm_list,(uint8_t*)pal,desc);
+	SpellObject *obj = new SpellObject(xy,L1_list,L2_list,flag_list,pnm_list,(uint8_t*)pal->GetPal(),desc);
 
 	// add to list
 	objects.push_back(obj);
@@ -4433,7 +4436,7 @@ int Terrain::AddSpecialTools()
 		pnm.x_pos = 0;
 		pnm.y_pos = 0;
 		std::vector<MapLayer4> pnm_list ={pnm};
-		auto obj = AddObject(posxy,L1_list,L2_list,flag_list,pnm_list,(uint8_t*)pal,tool_names[k]);
+		auto obj = AddObject(posxy,L1_list,L2_list,flag_list,pnm_list,(uint8_t*)pal->GetPal(),tool_names[k]);
 		if(!obj)
 			return(1);
 		obj->is_virtual = true;
@@ -4661,7 +4664,7 @@ wxBitmap* Terrain::RenderToolSetItemImage(int tool_id,int item_id,double gamma, 
 			(sid->GetGlyphFlags() & Sprite::LandFlags::IS_TOOL_ITEM_GLYPH))
 		{
 			// mathing sprite found: render
-			return(sid->Render((uint8_t*)pal, gamma, x_size, y_size, no_zoom));
+			return(sid->Render((uint8_t*)pal->GetPal(), gamma, x_size, y_size, no_zoom));
 		}
 	}
 	for (auto const& obj : objects)
@@ -4986,11 +4989,11 @@ int Terrain::RenderPalette(wxBitmap& bmp, uint8_t* filter, int relative_time)
 
 	// make local copy of palette, cycle colors
 	uint8_t cpal[256][3];
-	memcpy((void*)cpal, (void*)pal, 3*256);
+	memcpy((void*)cpal, (void*)pal->GetPal(), 3*256);
 	for(int k = 240; k < 240+10; k++)
 	{
 		int src = (k + relative_time)%10 + 240;
-		std::memcpy((void*)&cpal[k][0],(void*)&pal[src][0],3);
+		std::memcpy((void*)&cpal[k][0],(void*)&pal->GetPal()[src][0],3);
 	}
 
 	// split vertically
@@ -5048,6 +5051,8 @@ int Terrain::RenderPaletteColor(wxBitmap& bmp, int x_size, int x_pos, uint8_t *f
 	int pal_id = (is_selected)?((x_pos - x_ofs)/x_color_width):-1;
 	if(filter)
 		pal_id = filter[pal_id];
+
+	auto pal = this->pal->GetPal();
 
 	// render 24bit RGB data to raw bmp buffer
 	wxNativePixelData data(bmp);

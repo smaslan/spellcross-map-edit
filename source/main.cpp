@@ -2125,7 +2125,7 @@ void MainFrame::OnCreateNewObject(wxCommandEvent& event)
             pnm_list.clear();
         
         // add object to list
-        auto obj =spell_map->terrain->AddObject(posxy,L1_list,L2_list,flag_list,pnm_list,(uint8_t*)spell_map->terrain->pal,description);
+        auto obj =spell_map->terrain->AddObject(posxy,L1_list,L2_list,flag_list,pnm_list,(uint8_t*)spell_map->terrain->pal->GetPal(),description);
         obj->SetToolClass(class_id);
                 
         // clear selection
@@ -3479,7 +3479,7 @@ void MainFrame::OnToolBtnDropClick(wxRibbonButtonBarEvent& event)
                     for(auto item: list)
                     {
                         auto mmi = menu.Append(item_id++,item->name);
-                        auto bmp = item->Render((uint8_t*)spell_map->terrain->pal,1.3,64,64,true);
+                        auto bmp = item->Render((uint8_t*)spell_map->terrain->pal->GetPal(),1.3,64,64,true);
                         auto img = bmp->ConvertToImage(); // this does something to alpha channel so it is correctly recognized by menu
                         mmi->SetBitmap(img);
                         delete bmp;
