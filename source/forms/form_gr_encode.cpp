@@ -1566,7 +1566,7 @@ void FormGResEncoder::OnSaveAllClick(wxCommandEvent& event)
 	params.failed_list = &m_task_failed_list;
 
 	// start processign threads	
-	auto cores = std::min(wxThread::GetCPUCount(),1);
+	auto cores = std::min(wxThread::GetCPUCount(),8);
 	//auto cores = 1;
 	m_threads.clear();
 	m_thread_active = 0;
@@ -1759,6 +1759,7 @@ void FormGResEncoder::OnPaintResult(wxPaintEvent& event)
 		wxPaintDC pdc(canvasRes);
 		pdc.DrawBitmap(*bmp,wxPoint(0,0));
 		
+				
 		int x_ofs = (surf_x - m_gres.x_size)/2;
 		int y_ofs = (surf_y - m_gres.y_size)/2;
 		if(mmViewFrame->IsChecked())
@@ -1768,7 +1769,7 @@ void FormGResEncoder::OnPaintResult(wxPaintEvent& event)
 			pdc.DrawRectangle(wxPoint(x_ofs,y_ofs),wxSize(m_gres.x_size,m_gres.y_size));
 		}
 		if(mmViewRef->IsChecked())
-		{
+		{			
 			x_ofs -= m_gres.aux.x_offset;
 			y_ofs -= m_gres.aux.y_offset;
 			int x_size = max(m_gres.x_size + m_gres.aux.x_offset, m_info.center_width);		
@@ -1776,7 +1777,23 @@ void FormGResEncoder::OnPaintResult(wxPaintEvent& event)
 			pdc.DrawLine(x_ofs,0,x_ofs,surf_y-1);
 			pdc.DrawLine(x_ofs+x_size,0,x_ofs+x_size,surf_y-1);		
 			pdc.DrawLine(0,y_ofs,surf_x-1,y_ofs);
+
+			// render tile frame
+			if(m_info.format == SpellGresInfo::Format::DTA)
+			{
+				auto land_type = std::max(std::min(m_info.land_type,13) - 1,0);
+				auto& tile = spell_data->special.frame[land_type];
+				std::vector<uint8_t> pal(256*3,0);
+				pal[3 + 0] = 0x11;
+				pal[3 + 1] = 0xFF;
+				pal[3 + 2] = 0x11;
+				auto frame = tile.Render(pal.data());
+				pdc.DrawBitmap(*frame,wxPoint(x_ofs,y_ofs));
+				delete frame;
+			}
 		}
+			
+		
 
 		delete bmp;
 	}	

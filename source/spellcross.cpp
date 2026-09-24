@@ -1311,6 +1311,9 @@ int SpellData::GenerateSpecialTiles()
 			data += len;
 		}
 
+		// transparent grid
+		special.frame[slope - 'A'] = special.select[slope - 'A'];
+
 		// clear solid sprite
 		data = solid->data.data();
 		for(int y = 0; y < solid->y_size; y++)
@@ -1370,8 +1373,10 @@ int SpellData::GenerateSpecialTiles()
 
 		// make grid edges
 		const uint8_t grid_color = 0xC1;
+		const uint8_t frame_color = 0x01;
 		special.grid[slope - 'A'] = special.solid[slope - 'A'];
-		Sprite* grid = &special.grid[slope - 'A'];
+		Sprite* grid = &special.grid[slope - 'A'];		
+		Sprite *frame = &special.frame[slope - 'A'];
 		for(int x = grid->x_ofs; x < grid->x_ofs + grid->x_size; x++)
 		{
 			int y_first = -1000;
@@ -1382,17 +1387,16 @@ int SpellData::GenerateSpecialTiles()
 				{
 					y_first = y;
 					grid->SetPixel(x,y,grid_color);
+					frame->SetPixel(x,y,frame_color);
 				}
 				if(y_first > -1000 && !pix)
 				{
 					grid->SetPixel(x,y - 1,grid_color);
+					frame->SetPixel(x,y - 1,frame_color);
 					break;
 				}
 			}
-		}
-
-		
-		
+		}		
 	}
 
 	return(0);

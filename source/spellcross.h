@@ -97,6 +97,7 @@ public:
 		Sprite select[13];
 		Sprite grid[13];
 		Sprite solid[13];
+		Sprite frame[13];
 	} special;
 	// units graphics (FSU)
 	FSUarchive *units_fsu;
