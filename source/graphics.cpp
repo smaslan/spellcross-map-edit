@@ -177,6 +177,17 @@ double ImgQuantize::Pixel::distance_squared(const Pixel& other) const {
     return(dr*dr + dg*dg + db*db);
 }
 
+// is pixel black?
+bool ImgQuantize::Pixel::isBlack() const {    
+    return(!r && !g && !b);
+}
+
+// is pixel transparent?
+bool ImgQuantize::Pixel::isTransparent() const {
+    return(!a);
+}
+
+
 // Determines which of the 8 children a color belongs to at a specific bit depth
 int ImgQuantize::OctreeNode::get_child_index(const Pixel& cls,int depth) {
     int shift = 7 - depth;

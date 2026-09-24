@@ -27,7 +27,7 @@ FormGResEncoder::FormGResEncoder(wxWindow* parent,SpellData* spell_data,wxWindow
 	this->spell_data = spell_data;
 
 	// === AUTO GENERATED START ===	
-	// <wxFormsBuilder> - Section auto-inserted from 'forms.cpp' class 'FormGResEncoder' on 2026-09-16 21:16:37
+	// <wxFormsBuilder> - Section auto-inserted from 'forms.cpp' class 'FormGResEncoder' on 2026-09-21 21:21:11
 	this->SetSizeHints( wxDefaultSize, wxDefaultSize );
 	this->SetBackgroundColour( wxSystemSettings::GetColour( wxSYS_COLOUR_MENU ) );
 	
@@ -36,6 +36,10 @@ FormGResEncoder::FormGResEncoder(wxWindow* parent,SpellData* spell_data,wxWindow
 	wxMenuItem* mmOpen;
 	mmOpen = new wxMenuItem( mmFile, wxID_MM_OPEN, wxString( wxT("Open resource") ) + wxT('\t') + wxT("Ctrl+O"), wxEmptyString, wxITEM_NORMAL );
 	mmFile->Append( mmOpen );
+	
+	wxMenuItem* mmOpenBatch;
+	mmOpenBatch = new wxMenuItem( mmFile, wxID_MM_OPEN_BATCH, wxString( wxT("Load batch") ) + wxT('\t') + wxT("Ctrl+B"), wxEmptyString, wxITEM_NORMAL );
+	mmFile->Append( mmOpenBatch );
 	
 	wxMenuItem* mmSave;
 	mmSave = new wxMenuItem( mmFile, wxID_MM_SAVE, wxString( wxT("Save resource") ) + wxT('\t') + wxT("Ctrl+S"), wxEmptyString, wxITEM_NORMAL );
@@ -57,6 +61,17 @@ FormGResEncoder::FormGResEncoder(wxWindow* parent,SpellData* spell_data,wxWindow
 	
 	m_menubar12->Append( mmFile, wxT("File") );
 	
+	mmView = new wxMenu();
+	mmViewFrame = new wxMenuItem( mmView, wxID_MM_VIEW_FRAME, wxString( wxT("View image frame") ) + wxT('\t') + wxT("Alt+F"), wxEmptyString, wxITEM_CHECK );
+	mmView->Append( mmViewFrame );
+	mmViewFrame->Check( true );
+	
+	mmViewRef = new wxMenuItem( mmView, wxID_MM_VIEW_REF, wxString( wxT("View references") ) + wxT('\t') + wxT("Alt+R"), wxEmptyString, wxITEM_CHECK );
+	mmView->Append( mmViewRef );
+	mmViewRef->Check( true );
+	
+	m_menubar12->Append( mmView, wxT("View") );
+	
 	this->SetMenuBar( m_menubar12 );
 	
 	sbar = this->CreateStatusBar( 1, wxSTB_SIZEGRIP, wxID_SBAR );
@@ -69,7 +84,7 @@ FormGResEncoder::FormGResEncoder(wxWindow* parent,SpellData* spell_data,wxWindow
 	wxBoxSizer* bSizer104;
 	bSizer104 = new wxBoxSizer( wxVERTICAL );
 	
-	m_staticText103 = new wxStaticText( this, wxID_ANY, wxT("Others sharing palette:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText103 = new wxStaticText( this, wxID_ANY, wxT("Others resources:"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_staticText103->Wrap( -1 );
 	bSizer104->Add( m_staticText103, 0, wxLEFT|wxTOP, 5 );
 	
@@ -182,7 +197,7 @@ FormGResEncoder::FormGResEncoder(wxWindow* parent,SpellData* spell_data,wxWindow
 	wxBoxSizer* bSizer128;
 	bSizer128 = new wxBoxSizer( wxVERTICAL );
 	
-	m_staticText136 = new wxStaticText( this, wxID_ANY, wxT("Resource meta data:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText136 = new wxStaticText( this, wxID_ANY, wxT("Resource meta data (pop-up menu):"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_staticText136->Wrap( -1 );
 	bSizer128->Add( m_staticText136, 0, wxRIGHT|wxLEFT, 5 );
 	
@@ -213,7 +228,7 @@ FormGResEncoder::FormGResEncoder(wxWindow* parent,SpellData* spell_data,wxWindow
 	this->Centre( wxBOTH );
 	
 
-	// </wxFormsBuilder> - Section auto-inserted from 'forms.cpp' class 'FormGResEncoder' on 2026-09-16 21:16:37
+	// </wxFormsBuilder> - Section auto-inserted from 'forms.cpp' class 'FormGResEncoder' on 2026-09-21 21:21:11
 	// === AUTO GENERATED END ===
 	m_thread_active = 0;
 
@@ -224,6 +239,7 @@ FormGResEncoder::FormGResEncoder(wxWindow* parent,SpellData* spell_data,wxWindow
 		SetIcon(appIcon);
 
 	AssignSVGresourceToMenu(mmOpen, "IDR_OPEN3");
+	AssignSVGresourceToMenu(mmOpenBatch,"IDR_OPEN3");
 	AssignSVGresourceToMenu(mmSave,"IDR_SAVE");
 	AssignSVGresourceToMenu(mmSavePal,"IDR_SAVE");
 	AssignSVGresourceToMenu(mmExportAll,"IDR_SAVE_ALL");
@@ -233,9 +249,13 @@ FormGResEncoder::FormGResEncoder(wxWindow* parent,SpellData* spell_data,wxWindow
 	Bind(wxEVT_CLOSE_WINDOW, &FormGResEncoder::OnClose, this, this->m_windowId);
 	Bind(wxEVT_MENU,&FormGResEncoder::OnCloseClick,this,wxID_MM_EXIT);
 	Bind(wxEVT_MENU,&FormGResEncoder::OnOpenClick,this,wxID_MM_OPEN);
+	Bind(wxEVT_MENU,&FormGResEncoder::OnOpenBatchClick,this,wxID_MM_OPEN_BATCH);
 	Bind(wxEVT_MENU,&FormGResEncoder::OnSaveClick,this,wxID_MM_SAVE);
 	Bind(wxEVT_MENU,&FormGResEncoder::OnSaveAllClick,this,wxID_MM_SAVE_ALL);
 	Bind(wxEVT_MENU,&FormGResEncoder::OnSavePalClick,this,wxID_MM_SAVE_PAL);
+
+	Bind(wxEVT_MENU,&FormGResEncoder::OnViewClick,this,wxID_MM_VIEW_FRAME);
+	Bind(wxEVT_MENU,&FormGResEncoder::OnViewClick,this,wxID_MM_VIEW_REF);
 	
 	
 	Bind(wxEVT_COMMAND_BUTTON_CLICKED,&FormGResEncoder::OnRegenClick,this,wxID_BTN_REGEN);
@@ -244,7 +264,10 @@ FormGResEncoder::FormGResEncoder(wxWindow* parent,SpellData* spell_data,wxWindow
 	Bind(wxEVT_COMMAND_LISTBOX_SELECTED,&FormGResEncoder::OnSelectClick,this,wxID_LB_LIST);
 	Bind(wxEVT_PG_CHANGED,&FormGResEncoder::OnPropChange,this,wxID_PG_PROPS);
 
-	Bind(wxEVT_THREAD,&FormGResEncoder::OnThreadEvent,this,wxID_PROC_THREAD);	
+	Bind(wxEVT_THREAD,&FormGResEncoder::OnThreadEvent,this,wxID_PROC_THREAD);
+
+	pgProperties->Bind(wxEVT_PG_RIGHT_CLICK,&FormGResEncoder::OnPropPopupClick,this);
+
 	
 	// canvas stuff:	
 	canvasSrc->SetDoubleBuffered(true);
@@ -253,7 +276,7 @@ FormGResEncoder::FormGResEncoder(wxWindow* parent,SpellData* spell_data,wxWindow
 	canvasRes->Bind(wxEVT_PAINT,&FormGResEncoder::OnPaintResult,this,wxID_CANVAS_RES);
 	palette->SetDoubleBuffered(true);
 	palette->Bind(wxEVT_PAINT,&FormGResEncoder::OnPaintPalette,this,wxID_PALETTE);
-	
+		
 
 	const int ss_w[] = {150,150,150,100,150,-1};
 	sbar->SetFieldsCount(6,ss_w);
@@ -320,10 +343,13 @@ wxThread::ExitCode ProcTh::Entry()
 			continue;
 		}
 
+		// will regenerate palette?
+		bool regen_pal = info.regen_pal && info.regen_pal_preset != SpellGresInfo::RegenPalPreset::NONE;
+
 		// try load palette
 		SpellPalette pal;
-		auto pal_path = std::filesystem::path(path).parent_path().append(info.pal_name).wstring();
-		if(pal.LoadInfo(pal_path))
+		auto pal_path = std::filesystem::path(path).parent_path().append(info.pal_name);
+		if(pal.LoadInfo(pal_path) && !regen_pal)
 		{
 			m_config.mutex->lock();
 			if(!m_config.list->empty())
@@ -332,6 +358,9 @@ wxThread::ExitCode ProcTh::Entry()
 			continue;
 		}
 
+		// expand generic file names
+		info.ParseNames();
+		
 		// for each frame in case of animations:
 		std::vector<std::unique_ptr<SpellGraphicItem>> gres_list;
 		std::vector<std::string> img_names = {info.img_name};
@@ -365,13 +394,58 @@ wxThread::ExitCode ProcTh::Entry()
 			status.push_back(info.colors_str);
 			SetStatusCallback(status, &source);
 
+			if(regen_pal)
+			{
+				// preprocess image only
+				SpellGraphicItem gres;
+				std::vector<ImgQuantize::Pixel> buffer;
+				gres.Encode(source,buffer,true,info.name,
+					&pal,info.gamma,info.saturation,
+					info.x_size,info.y_size,(wxImageResizeQuality)info.resampling);
+
+				// remove transparents
+				if(info.is_transparent)
+					std::erase_if(buffer,[](ImgQuantize::Pixel &pix){ return(pix.isTransparent());});
+
+				// make palette template
+				auto pal_name = std::filesystem::path(info.name).stem().concat(".PAL").string();				
+				pal.Clear();
+				if(info.regen_pal_preset == SpellGresInfo::RegenPalPreset::INFO_FS)
+				{					
+					pal.InsertBlank(pal_name, 0, 192, info.colors_str);
+				}
+				int colors_count = pal.GetUsedCount();
+
+				// generate palette
+				auto colors = ImgQuantize::GenMedianCutPalette(buffer,colors_count);
+				
+				// try assign colors
+				pal.AssignColors(colors);							
+			}
+
+			if(info.save_pal)
+			{
+				// save palette chunks
+				m_config.mutex->lock();
+				pal.SaveChunks(m_config.target_dir);
+				m_config.mutex->unlock();
+			}
+
+			// define usable range of palette
+			pal.ClearUserRange();
+			pal.AddUserRangeStr(info.colors_str);
+
 			// encode image
 			int* shadow_color = NULL;
 			if(info.isUnitsFSU())
 				shadow_color = info.shadow_color;			
 			gres_list.push_back(std::make_unique<SpellGraphicItem>());
 			auto &gres = gres_list.back();
-			gres->Encode(source,info.name,&pal,info.gamma,info.x_size,info.y_size,(wxImageResizeQuality)info.resampling,m_config.dither_randomize,info.alpha_threshold,shadow_color,0xFD);
+			std::vector<ImgQuantize::Pixel> buffer;
+			gres->Encode(source,buffer,false,info.name,
+				&pal,info.gamma,info.saturation,
+				info.x_size,info.y_size,(wxImageResizeQuality)info.resampling,
+				m_config.dither_randomize,info.alpha_threshold,shadow_color,0xFD);
 
 			// just collect frames for animations
 			if(info.isPNM() && frame_id < info.img_names.size() - 1)
@@ -380,7 +454,7 @@ wxThread::ExitCode ProcTh::Entry()
 			// auto y-offset for trees?
 			int y_offset = info.y_offset;
 			if(info.is_tree_auto_y_offset)
-				y_offset -= (gres->y_size - 32);
+				y_offset -= (gres->y_size - 26);
 
 			// auto centering to given width?
 			int x_offset = info.x_offset;
@@ -388,7 +462,7 @@ wxThread::ExitCode ProcTh::Entry()
 				x_offset += (info.center_width - gres->x_size)/2;
 
 			// save to file
-			auto save_path = std::filesystem::path(m_config.target_dir).append(info.name).wstring();
+			auto save_path = std::filesystem::path(m_config.target_dir).append(info.name);
 			if(info.isPNM())
 			{
 				// PNM animation: all frames encoded
@@ -402,58 +476,6 @@ wxThread::ExitCode ProcTh::Entry()
 					m_config.mutex->unlock();
 					continue;
 				}
-
-				/*std::vector<uint8_t> pnm_data;
-				loaddata(save_path,pnm_data);
-
-				AnimPNM pnm;
-				pnm.Decode(pnm_data.data(), "test.pnm");
-
-				
-				auto frame = pnm.frames[0];
-
-				int x_size = pnm.x_max;
-				int y_size = pnm.y_max;
-				int y_ref = 0;
-				if(pnm.y_min < 0)
-				{
-					y_ref = -pnm.y_min;
-					y_size += (-pnm.y_min);
-				}				
-				
-				
-				// make indexed buffer
-				std::vector<uint8_t> buf(x_size*y_size,0);
-				uint8_t* buf_end = buf.data() + buf.size();
-
-				// render tile
-				frame->Render(buf.data(),buf_end,0,y_ref,x_size);
-
-				// render 24bit RGB data to raw bmp buffer
-				auto ppal = (uint8_t(*)[3])pal.m_pal.data();
-
-				// render with alpha channel to bitmap
-				wxBitmap bmp(x_size,y_size,32);
-				bmp.UseAlpha(true);
-				typedef wxPixelData<wxBitmap,wxAlphaPixelFormat> PixelData;
-				PixelData data(bmp);
-				PixelData::Iterator p(data);
-				for(int y = 0; y < y_size; ++y)
-				{
-					uint8_t* scan = p.m_ptr;
-					uint8_t* src = &buf[y*x_size];
-					for(int x = 0; x < x_size; x++)
-					{
-						*scan++ = ppal[*src][2];
-						*scan++ = ppal[*src][1];
-						*scan++ = ppal[*src][0];
-						*scan++ = (*src)?255:0;
-						src++;
-					}
-					p.OffsetY(data,1);
-				}
-
-				SetStatusCallback(status,&bmp);*/
 
 			}
 			else if(info.isUnitsFSU())
@@ -473,9 +495,7 @@ wxThread::ExitCode ProcTh::Entry()
 			}
 			else if(info.isDTA())
 			{
-				// sprite DTA
-
-				
+				// sprite DTA sprites
 
 				auto err = Sprite::SaveSprite(save_path, gres->pixels, gres->x_size, x_offset, y_offset, info.land_type);
 				if(err)
@@ -583,18 +603,22 @@ const std::map<int,std::string> SpellGresInfo::c_resampling = {
 	{wxIMAGE_QUALITY_BICUBIC,"Bicubic"}
 };
 const std::map<int,std::string> SpellGresInfo::c_format_menu = {
-	{(int)SpellGresInfo::FORMAT::DTA,"Sprite DTA"},
-	{(int)SpellGresInfo::FORMAT::GFK,"Projectile GFK"},
-	{(int)SpellGresInfo::FORMAT::LZ,"LZ compressed"},
-	{(int)SpellGresInfo::FORMAT::FSU,"UNITS.FSU sprites"},
-	{(int)SpellGresInfo::FORMAT::PNM,"PNM animation"}
+	{(int)SpellGresInfo::Format::DTA,"Sprite DTA"},
+	{(int)SpellGresInfo::Format::GFK,"Projectile GFK"},
+	{(int)SpellGresInfo::Format::LZ,"LZ compressed"},
+	{(int)SpellGresInfo::Format::FSU,"UNITS.FSU sprites"},
+	{(int)SpellGresInfo::Format::PNM,"PNM animation"}
 };
-const std::map<SpellGresInfo::FORMAT,std::string> SpellGresInfo::c_format ={
-	{SpellGresInfo::FORMAT::DTA,"DTA"},
-	{SpellGresInfo::FORMAT::GFK,"GFK"},
-	{SpellGresInfo::FORMAT::LZ,"LZ"},
-	{SpellGresInfo::FORMAT::FSU,"UNITS.FSU"},
-	{SpellGresInfo::FORMAT::PNM,"PNM"}
+const std::map<SpellGresInfo::Format,std::string> SpellGresInfo::c_format = {
+	{SpellGresInfo::Format::DTA,"DTA"},
+	{SpellGresInfo::Format::GFK,"GFK"},
+	{SpellGresInfo::Format::LZ,"LZ"},
+	{SpellGresInfo::Format::FSU,"UNITS.FSU"},
+	{SpellGresInfo::Format::PNM,"PNM"}
+};
+const std::map<int,std::string> SpellGresInfo::c_regen_palette_presets = {
+	{(int)SpellGresInfo::RegenPalPreset::NONE,"None"},
+	{(int)SpellGresInfo::RegenPalPreset::INFO_FS,"INFO.FS"}
 };
 
 SpellGresInfo::SpellGresInfo()
@@ -611,23 +635,44 @@ void SpellGresInfo::Clear()
 	raw_name = "";
 	img_name = "";
 	raw_img_name = "";
-	pal_name = "";
-	colors_str = "";
+	pal_name = "";	
+	colors_str = "0-255";
+	format = Format::DTA;
 	x_size = 0;
 	y_size = 0;
-	is_transparent = false;
+	x_offset = 0;
 	y_offset = 0;
+	center_width = 0;
+	is_tree_auto_y_offset = false;
+	is_transparent = false;
 	shadow_color[0] = -1;
 	shadow_color[1] = -1;
 	shadow_color[2] = -1;
 	gamma = 1.0;
+	saturation = 1.0;
+	alpha_threshold = 128;
+	resampling = wxIMAGE_QUALITY_NEAREST;	
+	regen_pal = false;
+	regen_pal_preset = RegenPalPreset::NONE;
+	save_pal = false;
+
 	m_last_error.clear();
+}
+
+// parse raw names to actual names
+void SpellGresInfo::ParseNames()
+{
+	auto stem = path.stem();
+	if(stem.has_extension())
+		stem = stem.stem();
+	name = strrep(raw_name,"*",stem.string());
+	img_name = strrep(raw_img_name,"*",stem.string());
 }
 
 // is loaded?
 bool SpellGresInfo::isLoaded()
 {
-	return(!path.empty() && !info_name.empty() && !name.empty() && !img_name.empty() && !pal_name.empty());
+	return(!path.empty() && !info_name.empty() && !name.empty() && !img_name.empty() /*&& !pal_name.empty()*/);
 }
 
 // try load metadata from info file
@@ -671,12 +716,12 @@ int SpellGresInfo::LoadInfo(std::filesystem::path path)
 
 	// palette name (palinfo)
 	pal_name = info_get_string(info,"palette");
-	if(pal_name.empty())
+	/*if(pal_name.empty())
 	{
 		Clear();
 		m_last_error = string_format("Missing 'palette' item in \"%s\"!",path);
 		return(1);
-	}
+	}*/
 
 	// used colors list
 	colors_str = info_get_string(info,"colors");
@@ -726,8 +771,9 @@ int SpellGresInfo::LoadInfo(std::filesystem::path path)
 	}
 	resampling = res_it->first;
 
-	// preprocessing gamma correction
+	// preprocessing color corrections
 	gamma = info_get_real(info,"gamma",1.0);
+	saturation = info_get_real(info,"saturation",1.0);
 
 	// non-zero to enable image centering to given width
 	center_width = info_get_int(info,"center_to_width",0);
@@ -741,6 +787,23 @@ int SpellGresInfo::LoadInfo(std::filesystem::path path)
 
 	// alpha channel threshold
 	alpha_threshold = info_get_int(info,"alpha_threshold",128);
+
+	// auto regen palette on export?
+	regen_pal = info_get_int(info,"regen_palette",0);
+
+	// regen palette mode
+	auto regen_pal_preset_str = info_get_string(info,"regen_palette_preset","none");
+	auto regen_pal_preset_it = std::ranges::find_if(c_regen_palette_presets,[regen_pal_preset_str](const auto& pair) {return(iequals(pair.second,regen_pal_preset_str));});
+	if(regen_pal_preset_it == c_regen_palette_presets.end())
+	{
+		Clear();
+		m_last_error = string_format("Unknown or missing 'regen_palette_preset' item value '%s' in \"%s\"!",regen_pal_preset_str,path);
+		return(1);
+	}
+	regen_pal_preset = (RegenPalPreset)regen_pal_preset_it->first;
+
+	// auto save palettes on export?
+	save_pal = info_get_int(info,"export_palette",0);
 
 	auto shadow_color_str = info_get_string(info,"shadow_color");
 	auto shadow_colors_list = get_text_lines(shadow_color_str,true,',');
@@ -787,6 +850,7 @@ int SpellGresInfo::SaveInfo(std::filesystem::path path)
 	info += info_make_string("resampling",res_it->second);
 
 	info += info_make_real("gamma",gamma);
+	info += info_make_real("saturation",saturation);
 
 	info += info_make_int("center_to_width",center_width);
 	info += info_make_int("tree_auto_y_offset",!!is_tree_auto_y_offset);
@@ -798,6 +862,16 @@ int SpellGresInfo::SaveInfo(std::filesystem::path path)
 	info += info_make_string("shadow_color",merge_vector(sh_colors,","));
 
 	info += info_make_string("palette",pal_name);
+	info += info_make_int("regen_palette",!!regen_pal);
+
+	auto pal_preset_it = c_regen_palette_presets.find((int)regen_pal_preset);
+	if(pal_preset_it == c_regen_palette_presets.end())
+		return(1);
+	info += info_make_string("regen_palette_preset",pal_preset_it->second);
+
+	info += info_make_int("export_palette",save_pal);
+
+
 	info += info_make_string("colors",colors_str);
 
 	if(!img_names.empty())
@@ -829,18 +903,23 @@ int FormGResEncoder::LoadResource(std::filesystem::path path,int frame_id)
 
 	// try load palette
 	auto pal_path = std::filesystem::path(path).parent_path().append(m_info.pal_name);
-	if(m_pal.LoadInfo(pal_path))
+	if(!m_info.pal_name.empty() && m_pal.LoadInfo(pal_path))
 	{
 		m_last_error = string_format("Failed loading palette \"%s\"!",pal_path);
+		m_info.Clear();
 		return(1);
 	}
-	//m_pal.m_name = m_info.pal_name;
+	
+	// mark used palette colors
+	m_pal.ClearUserRange();
+	m_pal.AddUserRangeStr(m_info.colors_str);
 
 	// pick frame of animation?
 	bool is_pnm = m_info.isPNM();
 	if(is_pnm && (frame_id < 0 || frame_id >= m_info.img_names.size()))
 	{
 		m_last_error = string_format("Requested frame index %d outside valid range 0 to %d!",frame_id,m_info.img_names.size()-1);
+		m_info.Clear();
 		return(1);
 	}
 	auto img_name = m_info.img_name;
@@ -852,6 +931,7 @@ int FormGResEncoder::LoadResource(std::filesystem::path path,int frame_id)
 	if(!m_source.LoadFile(image_path,wxBITMAP_TYPE_PNG))
 	{
 		m_last_error = string_format("Loading image \"%s\" failed!",image_path);
+		m_info.Clear();
 		return(1);
 	}
 	SetStatusText(m_info.info_name,0);
@@ -863,8 +943,8 @@ int FormGResEncoder::LoadResource(std::filesystem::path path,int frame_id)
 
 	pgProperties->Freeze();
 	pgProperties->Clear();
-	pgProperties->Append(new wxStringPropertyExt(wxT("Resource name"),wxT(""),&m_info.raw_name));
-	pgProperties->Append(new wxStringPropertyExt(wxT("Image name"),wxT(""),&m_info.raw_img_name));
+	pgProperties->Append(new wxStringPropertyExt(wxT("Resource name"),wxT("name"),&m_info.raw_name));
+	pgProperties->Append(new wxStringPropertyExt(wxT("Image name"),wxT("image"),&m_info.raw_img_name));
 	pgProperties->Append(new wxStringPropertyExt(wxT("Palette name"),wxT(""),&m_info.pal_name));
 	pgProperties->Append(new wxEnumPropertyExt(wxT("Format"),wxT(""),MapToPGenumChoices(SpellGresInfo::c_format_menu),(int*)&m_info.format));
 	pgProperties->Append(new wxIntPropertyExt(wxT("x-size"),wxT(""),&m_info.x_size,-1));
@@ -873,12 +953,16 @@ int FormGResEncoder::LoadResource(std::filesystem::path path,int frame_id)
 	pgProperties->Append(new wxIntPropertyExt(wxT("y-offset"),wxT(""),&m_info.y_offset));
 	pgProperties->Append(new wxEnumPropertyExt(wxT("Resampling mode"),wxT(""),MapToPGenumChoices(SpellGresInfo::c_resampling),&m_info.resampling));
 	pgProperties->Append(new wxRealPropertyExt(wxT("Gamma correction"),wxT(""),&m_info.gamma,2,0.1,3.0));
+	pgProperties->Append(new wxRealPropertyExt(wxT("Color saturation"),wxT(""),&m_info.saturation,2,0.0,3.0));
 	pgProperties->Append(new wxIntPropertyExt(wxT("Alpha threshold"),wxT(""),&m_info.alpha_threshold,0,255));
 	pgProperties->Append(new wxIntPropertyExt(wxT("Centering width"),wxT(""),&m_info.center_width,-1));
 	pgProperties->Append(new wxBoolPropertyExt(wxT("Auto y-offset for tree"),wxT(""),&m_info.is_tree_auto_y_offset));
 	pgProperties->Append(new wxIntPropertyExt(wxT("Land type"),wxT(""),&m_info.land_type,0,13));
 	pgProperties->Append(new wxBoolPropertyExt(wxT("Transparent"),wxT(""),&m_info.is_transparent));
-	pgProperties->Append(new wxStringPropertyExt(wxT("Colors range"),wxT(""),&m_info.colors_str));
+	pgProperties->Append(new wxBoolPropertyExt(wxT("Regenerate palette"),wxT(""),&m_info.regen_pal));
+	pgProperties->Append(new wxEnumPropertyExt(wxT("Regenerate palette preset"),wxT(""),MapToPGenumChoices(SpellGresInfo::c_regen_palette_presets),(int*)&m_info.regen_pal_preset));
+	pgProperties->Append(new wxBoolPropertyExt(wxT("Export palettes"),wxT(""),&m_info.save_pal));
+	pgProperties->Append(new wxStringPropertyExt(wxT("Colors range"),wxT("colors"),&m_info.colors_str));
 
 	pgProperties->Thaw();
 	pgProperties->FitColumns();
@@ -911,6 +995,141 @@ void FormGResEncoder::OnPropChange(wxPropertyGridEvent& event)
 	}
 }
 
+// property popup menu
+void FormGResEncoder::OnPropPopupClick(wxPropertyGridEvent& event)
+{
+	auto prop = event.GetProperty();
+	if(!prop)
+		return;
+	
+	wxMenu menu;
+	menu.Append((int)POPUP_ACTIONS::COPY_PROP,string_format("Copy property \"%s\" to all resources",prop->GetLabel().ToStdString()));
+	menu.Append((int)POPUP_ACTIONS::COPY_ALL,"Copy all properties to all resources");
+	
+	if(prop->GetName().CmpNoCase("colors") == 0)
+	{
+		menu.AppendSeparator();
+		menu.Append((int)POPUP_ACTIONS::COLOR_INFO,"Set for INFO.FS graphics");
+		menu.Append((int)POPUP_ACTIONS::COLOR_UNITS,"Set for UNITS.FSU graphics");
+		menu.Append((int)POPUP_ACTIONS::COLOR_TERR,"Set for terrain sprites");
+		menu.Append((int)POPUP_ACTIONS::COLOR_TERR_CYCLE,"Set for terrain sprites witch CYCLE.PAL");
+	}
+
+	menu.SetClientData(prop);
+		
+	menu.Connect(wxEVT_COMMAND_MENU_SELECTED,wxCommandEventHandler(FormGResEncoder::OnRulesPopup),NULL,this);
+	PopupMenu(&menu);
+}
+void FormGResEncoder::OnRulesPopup(wxCommandEvent& event)
+{
+	auto menu = (wxMenu*)event.GetEventObject();
+	if(!menu)
+		return;
+	auto prop = (wxPGProperty*)menu->GetClientData();
+	if(!prop)
+		return;
+	auto obj = (wxPGobj*)prop->GetClientObject();
+	if(!obj)
+		return;
+	
+	auto menu_id = (POPUP_ACTIONS)event.GetId();
+	if(menu_id == POPUP_ACTIONS::COLOR_INFO)
+	{
+		prop->SetValue("0-191");
+		obj->Update(prop);
+	}
+	else if(menu_id == POPUP_ACTIONS::COLOR_UNITS)
+	{
+		prop->SetValue("128-223");
+		obj->Update(prop);
+	}
+	else if(menu_id == POPUP_ACTIONS::COLOR_TERR)
+	{
+		prop->SetValue("0-223");
+		obj->Update(prop);
+	}
+	else if(menu_id == POPUP_ACTIONS::COLOR_TERR_CYCLE)
+	{
+		prop->SetValue("0-223, 240-249");
+		obj->Update(prop);
+	}
+	else if(menu_id == POPUP_ACTIONS::COPY_PROP)
+	{
+		// for each listed resource:
+		auto sel_id = lboxList->GetSelection();
+		for(int k = 0; k < lboxList->GetCount(); k++)
+		{
+			auto data = static_cast<wxStringClientData*>(lboxList->GetClientObject(k));
+			if(!data)
+				continue;
+			auto info_path = std::filesystem::path(data->GetData().ToStdWstring());
+
+			// try load resource info
+			if(m_info.LoadInfo(info_path))
+				continue;
+			
+			// update property
+			obj->Update(prop);
+
+			// try save changes
+			m_info.SaveInfo();
+		}
+		// reload original resource:
+		if(sel_id >= 0)
+		{
+			auto data = static_cast<wxStringClientData*>(lboxList->GetClientObject(sel_id));
+			if(!data)
+				return;
+			auto info_path = std::filesystem::path(data->GetData().ToStdWstring());
+			if(m_info.LoadInfo(info_path))
+				return;
+		}
+	}
+	else if(menu_id == POPUP_ACTIONS::COPY_ALL)
+	{		
+		// for each listed resource:
+		auto sel_id = lboxList->GetSelection();
+		for(int k = 0; k < lboxList->GetCount(); k++)
+		{
+			auto data = static_cast<wxStringClientData*>(lboxList->GetClientObject(k));
+			if(!data)
+				continue;
+			auto info_path = std::filesystem::path(data->GetData().ToStdWstring());
+
+			// try load resource info
+			if(m_info.LoadInfo(info_path))
+				continue;
+
+			// update all properties
+			for(wxPropertyGridIterator it = pgProperties->GetIterator(); !it.AtEnd(); ++it)
+			{
+				wxPGProperty *prop = *it;
+				if(!prop)
+					continue;
+				auto obj = (wxPGobj*)prop->GetClientObject();
+				if(!obj)
+					continue;
+				if(prop->GetName().CmpNoCase("name") == 0 || prop->GetName().CmpNoCase("image") == 0)
+					continue;
+				obj->Update(prop);
+			}
+			
+			// try save changes
+			m_info.SaveInfo();
+		}
+		// reload original resource:
+		if(sel_id >= 0)
+		{
+			auto data = static_cast<wxStringClientData*>(lboxList->GetClientObject(sel_id));
+			if(!data)
+				return;
+			auto info_path = std::filesystem::path(data->GetData().ToStdWstring());
+			if(m_info.LoadInfo(info_path))
+				return;
+		}
+	}
+}
+
 
 // open glyph resource
 void FormGResEncoder::OnOpenClick(wxCommandEvent& event)
@@ -927,6 +1146,7 @@ void FormGResEncoder::OnOpenClick(wxCommandEvent& event)
 	m_gres.Clear();
 	m_info.Clear();
 	lboxList->Clear();
+	pgProperties->Clear();
 
 	// force redraw when done
 	canvasSrc->Refresh();
@@ -996,14 +1216,15 @@ void FormGResEncoder::OnOpenClick(wxCommandEvent& event)
 		if(!wildcmp("*.info",name.c_str()))
 			continue;
 		SpellGresInfo info;
-		if(info.LoadInfo(entry.path()))
+		auto info_path = entry.path();
+		if(info.LoadInfo(info_path))
 		{
 			wxMessageBox(string_format("Failed loading graphic resource metadata:\n%s",info.m_last_error),"Open glyph resource",wxICON_EXCLAMATION);
 			break;
 		}
 		if(m_info.pal_name.compare(info.pal_name) != 0)
 			continue;
-		lboxList->Append(name);
+		lboxList->Append(name, new wxStringClientData(info_path.wstring()));
 		if(name.compare(m_info.info_name) == 0)
 			select_id = lboxList->GetCount() - 1;
 	}
@@ -1011,16 +1232,145 @@ void FormGResEncoder::OnOpenClick(wxCommandEvent& event)
 	lboxList->Select(select_id);
 
 	// force encoding
+	OnSelectClick(event);
 	wxCommandEvent evt;
 	OnRegenClick(evt);
 
 }
 
+
+// open glyph resource
+void FormGResEncoder::OnOpenBatchClick(wxCommandEvent& event)
+{
+	if(m_thread_active)
+	{
+		wxMessageBox("Encoding resources seems to be still in progress!","Encode resources");
+		return;
+	}
+
+	// cleanup
+	m_source = wxBitmap();
+	m_pal.Clear();
+	m_gres.Clear();
+	m_info.Clear();
+	lboxList->Clear();
+	pgProperties->Clear();
+
+	// force redraw when done
+	canvasSrc->Refresh();
+	canvasRes->Refresh();
+	palette->Refresh();
+
+	// show open dialog
+	wxFileDialog openFileDialog(this,"Open glyph resource(s)",spell_data->export_path,L"","Graphic resource meta file (*.info)|*.info|Graphic resource image file (*.png)|*.png",
+		wxFD_OPEN|wxFD_FILE_MUST_EXIST|wxFD_MULTIPLE);
+	if(openFileDialog.ShowModal() == wxID_CANCEL)
+		return;
+	spell_data->export_path = openFileDialog.GetDirectory();
+	wxArrayString list;
+	std::vector<std::filesystem::path> paths;
+	openFileDialog.GetFilenames(list);
+	std::transform(list.begin(), list.end(), std::back_inserter(paths),[](wxArrayString::value_type& item) {return(std::filesystem::path(item.ToStdWstring()));});	
+	if(paths.empty())
+		return;
+
+	// check selection content
+	bool has_non_info = std::ranges::any_of(paths, [](auto &item){return(!iequals(item.extension().string(),".info"));});
+	bool has_info = std::ranges::any_of(paths,[](auto& item) {return(iequals(item.extension().string(),".info"));});
+	if(has_info && has_non_info)
+	{
+		wxMessageBox(string_format("Select either metadata *.info or images *.png, but not both!"),"Open graphics resources",wxICON_EXCLAMATION);
+		return;
+	}
+
+	// common directory
+	auto dir = paths[0].parent_path();
+
+	// default metadata
+	SpellGresInfo info_def;
+
+	// load all resources
+	bool was_info_created = false;
+	lboxList->Clear();
+	lboxList->Freeze();
+	for(auto &item: paths)
+	{		
+		auto is_info = iequals(item.extension().string(),".info");
+		auto is_png = iequals(item.extension().string(),".png");
+		if(!is_info && !is_png)
+		{
+			wxMessageBox(string_format("Select either metadata *.info or images *.png! \"%s\" not supported.",item.filename()),"Open graphics resources",wxICON_EXCLAMATION);
+			return;
+		}
+
+		auto info_path = dir / item.stem().concat(".info");
+		if(is_png && !std::filesystem::exists(info_path))
+		{
+			// is image, info metada not there
+			if(!was_info_created)
+			{
+				// info not created
+				wxMessageDialog dlg(this,string_format("Resource \"%s\" has not metadata *.info file! Create default?",item.filename()),"Open graphics resource",wxICON_QUESTION|wxYES_NO|wxYES_DEFAULT);
+				if(dlg.ShowModal() != wxID_YES)
+					return;
+
+				// select palette file
+				std::filesystem::path pal_path;
+				while(true)
+				{
+					wxFileDialog openFileDialog(this,"Select palette matedata file",dir.wstring(),L"","Spellcross palette metadata file (*.palinfo)|*.palinfo",
+						wxFD_OPEN|wxFD_FILE_MUST_EXIST);
+					if(openFileDialog.ShowModal() == wxID_CANCEL)
+						return;
+					pal_path = openFileDialog.GetPath().ToStdWstring();
+					auto pal_dir = std::filesystem::path(openFileDialog.GetDirectory().ToStdWstring());
+					if(dir == pal_dir)
+						break;					
+					wxMessageDialog dlg(this,string_format("Palette \"%s\" must be in the same folder as selected resources \"%s\"! Try again?",pal_path,dir),"Open graphics resource",wxICON_QUESTION|wxYES_NO|wxYES_DEFAULT);
+					if(dlg.ShowModal() != wxID_YES)
+						return;
+				}
+				
+				// make some default metadata				
+				info_def.raw_name = "*.DTA";
+				info_def.raw_img_name = "*.png";
+				info_def.pal_name = pal_path.filename().string();
+				info_def.format = SpellGresInfo::Format::DTA;
+			}
+			
+			// save path
+			if(info_def.SaveInfo(info_path))
+			{
+				wxMessageBox(string_format("Saving metadata \"%s\" failed!",info_path),"Open graphics resources",wxICON_EXCLAMATION);
+				return;
+			}
+			was_info_created = true;
+		}
+		
+		SpellGresInfo info;
+		if(info.LoadInfo(info_path))
+		{
+			wxMessageBox(string_format("Failed loading graphic resource metadata:\n%s",info.m_last_error),"Open graphics resource",wxICON_EXCLAMATION);
+			break;
+		}
+		lboxList->Append(info_path.filename().wstring(),new wxStringClientData(info_path.wstring()));
+	}
+	lboxList->Thaw();
+	if(!lboxList->IsEmpty())
+		lboxList->Select(0);
+
+	// force encoding
+	OnSelectClick(event);
+	wxCommandEvent evt;
+	OnRegenClick(evt);
+}
+
+
 // select resource from list
 void FormGResEncoder::OnSelectClick(wxCommandEvent& event)
 {
-	if(!m_info.isLoaded())
-		return;
+	/*if(!m_info.isLoaded())
+		return;*/
 	if(m_thread_active)
 	{
 		wxMessageBox("Encoding resources seems to be still in progress!","Encode resources");
@@ -1029,12 +1379,21 @@ void FormGResEncoder::OnSelectClick(wxCommandEvent& event)
 
 	pgProperties->Clear();
 
-	auto id = lboxList->GetSelection();
-	if(id < 0)
+	// pick resource
+	auto sel_id = lboxList->GetSelection();
+	if(sel_id < 0)
 		return;
-	
-	auto path = std::filesystem::path(m_info.path).parent_path().append(lboxList->GetString(id).ToStdString());
-	LoadResource(path);
+	auto data = static_cast<wxStringClientData*>(lboxList->GetClientObject(sel_id));
+	if(!data)
+		return;
+	auto info_path = std::filesystem::path(data->GetData().ToStdWstring());
+
+	// try load
+	if(LoadResource(info_path))
+	{
+		wxMessageBox(string_format("Resource has faulty meta data *.info file:\n%s",m_last_error),"Loading resource");
+		return;
+	}
 
 	// force encoding
 	wxCommandEvent evt;
@@ -1056,12 +1415,24 @@ void FormGResEncoder::OnRegenClick(wxCommandEvent& event)
 	if(m_info.isUnitsFSU())
 		shadow_color = m_info.shadow_color;
 
-	/*wxImage img = m_source.ConvertToImage();
-	wxImage resizedImg = img.Rescale(newWidth,newHeight,wxIMAGE_QUALITY_HIGH);
-	wxBitmap bmp = resizedImg;*/
-
 	// re-encode
-	m_gres.Encode(m_source,m_info.name,&m_pal, m_info.gamma, m_info.x_size,m_info.y_size,(wxImageResizeQuality)m_info.resampling,slideMinDither->GetValue(),m_info.alpha_threshold,shadow_color,0xFD);
+	std::vector<ImgQuantize::Pixel> buffer;
+	m_gres.Encode(m_source,buffer,false,
+		m_info.name,&m_pal,m_info.gamma,m_info.saturation,
+		m_info.x_size,m_info.y_size,(wxImageResizeQuality)m_info.resampling,
+		slideMinDither->GetValue(),m_info.alpha_threshold,shadow_color,0xFD);
+
+	// auto y-offset for trees?
+	m_gres.aux.y_offset = m_info.y_offset;
+	if(m_info.is_tree_auto_y_offset)
+		m_gres.aux.y_offset -= (m_gres.y_size - 26);
+
+	// auto centering to given width?
+	m_gres.aux.x_offset = m_info.x_offset;
+	if(m_info.center_width)
+		m_gres.aux.x_offset += (m_info.center_width - m_gres.x_size)/2;
+
+
 
 	canvasSrc->Refresh();
 	canvasRes->Refresh();
@@ -1096,13 +1467,16 @@ void FormGResEncoder::OnSaveClick(wxCommandEvent& event)
 	m_task_failed_list.clear();
 	
 	// pick resource
-	auto res_name = lboxList->GetStringSelection();
-	if(res_name.empty())
+	auto sel_id = lboxList->GetSelection();
+	if(sel_id < 0)
 	{
 		wxMessageBox("No resource selected?","Exporting resource",wxICON_EXCLAMATION);
 		return;
 	}
-	auto info_path = std::filesystem::path(dir) / res_name.ToStdString();
+	auto data = static_cast<wxStringClientData*>(lboxList->GetClientObject(sel_id));
+	if(!data)
+		return;
+	auto info_path = std::filesystem::path(data->GetData().ToStdWstring());
 	m_task_list.push_back(info_path);
 
 	// build tasks
@@ -1142,40 +1516,6 @@ void FormGResEncoder::OnSaveClick(wxCommandEvent& event)
 			return;
 		}
 	}
-
-
-	/*std::string name = m_info.name;
-
-	// show save dialog
-	wxFileDialog saveFileDialog(this,_("Export glyph resource"),spell_data->export_path,name,"LZ resource file (*.LZ)|*.LZ",
-		wxFD_SAVE|wxFD_OVERWRITE_PROMPT);
-	if(saveFileDialog.ShowModal() == wxID_CANCEL)
-		return;
-	wstring path = wstring(saveFileDialog.GetPath().ToStdWstring());
-	spell_data->export_path = saveFileDialog.GetDirectory().ToStdWstring();
-
-	// save to file
-	if(m_info.isUnitsFSU())
-	{
-		// UNITS.FSU sprite
-		auto x_ofs = spinExtraXoffset->GetValue();
-		auto y_ofs = m_info.y_offset + spinExtraYoffset->GetValue();
-		if(FSU_sprite::SaveSprite(path,m_gres.pixels,m_gres.x_size,x_ofs,y_ofs,0xFD))
-		{
-			wxMessageDialog msg(NULL,string_format("Exporting graphic resource failed!"),"Export glyph resource",wxOK| wxICON_EXCLAMATION);
-			msg.ShowModal();
-			return;
-		}
-	}
-	else
-	{
-		if(m_gres.Export(path))
-		{
-			wxMessageDialog msg(NULL,string_format("Exporting graphic resource failed!"),"Export glyph resource",wxOK| wxICON_EXCLAMATION);
-			msg.ShowModal();
-			return;
-		}		
-	}*/
 }
 
 // export all glyphs
@@ -1204,11 +1544,14 @@ void FormGResEncoder::OnSaveAllClick(wxCommandEvent& event)
 
 	// for each listed resource
 	m_task_failed_list.clear();
-	m_task_list.clear();
-	for(auto &item: lboxList->GetStrings())
+	m_task_list.clear();	
+	for(int k = 0; k < lboxList->GetCount(); k++)
 	{
 		// item path
-		auto info_path = std::filesystem::path(dir).append(item.ToStdString()).wstring();
+		auto data = static_cast<wxStringClientData*>(lboxList->GetClientObject(k));
+		if(!data)
+			continue;
+		auto info_path = std::filesystem::path(data->GetData().ToStdWstring());
 		m_task_list.push_back(info_path);
 	}
 
@@ -1223,7 +1566,7 @@ void FormGResEncoder::OnSaveAllClick(wxCommandEvent& event)
 	params.failed_list = &m_task_failed_list;
 
 	// start processign threads	
-	auto cores = std::min(wxThread::GetCPUCount(),8);
+	auto cores = std::min(wxThread::GetCPUCount(),1);
 	//auto cores = 1;
 	m_threads.clear();
 	m_thread_active = 0;
@@ -1288,7 +1631,7 @@ void FormGResEncoder::OnRegenPaletteClick(wxCommandEvent& event)
 
 	auto dir = std::filesystem::path(m_info.path).parent_path().wstring();
 
-	
+	// all resources pixels
 	std::vector<ImgQuantize::Pixel> pixels;
 
 	// for each listed resource
@@ -1304,187 +1647,52 @@ void FormGResEncoder::OnRegenPaletteClick(wxCommandEvent& event)
 		if(LoadResource(info_path))
 			continue;
 
-		// collect source pixels
-		int x_size = m_source.GetWidth();
-		int y_size = m_source.GetHeight();
-		if(m_source.HasAlpha())
-		{
-			// scan 32bit RGBA bmp data to buffer
-			typedef wxPixelData<wxBitmap,wxAlphaPixelFormat> PixelData;
-			PixelData data(m_source);
-			PixelData::Iterator p(data);
-			for(int y = 0; y < y_size; ++y)
-			{
-				p.MoveTo(data,0,y);
-				for(int x = 0; x < x_size; x++)
-				{
-					if(p.Alpha() != 0)
-						pixels.push_back({p.Red(),p.Green(),p.Blue()});
-					p++;
-				}
-			}
-		}
-		else
-		{
-			// scan 24bit RGB bmp data to buffer
-			wxNativePixelData data(m_source);
-			wxNativePixelData::Iterator p(data);
-			int depth = m_source.GetDepth();
-			if(depth != 24)
-				continue;
-			for(int y = 0; y < y_size; ++y)
-			{
-				p.MoveTo(data,0,y);
-				for(int x = 0; x < x_size; x++)
-				{
-					pixels.push_back({p.Red(),p.Green(),p.Blue()});
-					p++;
-				}
-				
-			}
-		}
+		// load image pixels with preprocessing
+		std::vector<ImgQuantize::Pixel> buffer;
+		m_gres.Encode(m_source,buffer,true,"",
+			NULL,m_info.gamma,m_info.saturation,
+			m_info.x_size,m_info.y_size,(wxImageResizeQuality)m_info.resampling);
+		
+		// add pixels to collection
+		pixels.insert(pixels.end(), buffer.begin(), buffer.end());
 	}
 
 	// reload original resource
 	if(!prev_path.empty() && lboxList->GetCount() > 1)
 		LoadResource(prev_path);
+
+	// target colors count
+	m_pal.ClearUserRange();
+	m_pal.AddUserRangeStr(m_info.colors_str);
+	m_pal.m_used_user[0] = 0;
+	auto max_count = std::ranges::count(m_pal.m_used_user,1);
 		
-
-	m_pal.m_used[0] = 0;
-	auto max_count = std::count(m_pal.m_used.begin(),m_pal.m_used.end(),1);
-
+	// generate palette
 	auto pal = ImgQuantize::GenMedianCutPalette(pixels, max_count);
 
 	// place black/transparent
 	m_pal.m_pal.assign(3*256,0);
 
 	// assign new colors
-	auto used = m_pal.m_used;
+	auto used = m_pal.m_used_user;
+	m_pal.m_used.assign(256,0);
 	for(int k = 0; k < max_count; k++)
 	{
 		if(k >= pal.size())
 			break;
-		auto item = std::find(used.begin(), used.end(), 1);
+		auto item = std::ranges::find(used, 1);
 		if(item == used.end())
 			break;
 		int cid = item - used.begin() + 1;
 		m_pal.m_pal[cid*3 + 0] = pal[k].r;
 		m_pal.m_pal[cid*3 + 1] = pal[k].g;
 		m_pal.m_pal[cid*3 + 2] = pal[k].b;
+		m_pal.m_used[cid] = 1;
 		*item = 0;
 	}
+
+	
 		
-	
-	/*std::vector<uint32_t> pixels;
-
-	// for each listed resource
-	for(auto& item: lboxList->GetStrings())
-	{
-		// item path
-		auto info_path = std::filesystem::path(dir).append(item.ToStdString()).wstring();
-
-		// try load
-		if(LoadResource(info_path))
-			continue;
-		
-		// collect source pixels
-		int x_size = m_source.GetWidth();
-		int y_size = m_source.GetHeight();		
-		if(m_source.HasAlpha())
-		{
-			// scan 32bit RGBA bmp data to buffer
-			typedef wxPixelData<wxBitmap,wxAlphaPixelFormat> PixelData;
-			PixelData data(m_source);
-			PixelData::Iterator p(data);
-			for(int y = 0; y < y_size; ++y)
-			{
-				uint32_t* scan = (uint32_t*)p.m_ptr;
-				for(int x = 0; x < x_size; x++)
-					pixels.push_back(*scan++);				
-				p.OffsetY(data,1);
-			}
-		}
-		else
-		{
-			// scan 24bit RGB bmp data to buffer
-			wxNativePixelData data(m_source);
-			wxNativePixelData::Iterator p(data);
-			int depth = m_source.GetDepth();
-			if(depth != 24)
-				continue;
-			for(int y = 0; y < y_size; ++y)
-			{
-				uint8_t* scan = p.m_ptr;
-				for(int x = 0; x < x_size; x++)
-				{
-					union{
-						uint8_t db[4];
-						uint32_t dw;						
-					}pix;
-					pix.db[0] = *scan++;
-					pix.db[1] = *scan++;
-					pix.db[2] = *scan++;
-					pix.db[3] = 0xFF;
-					pixels.push_back(pix.dw);
-				}
-				p.OffsetY(data,1);
-			}
-		}
-	}
-
-	// sort pixels
-	std::sort(pixels.begin(),pixels.end());
-
-	// find uniques
-	std::vector<uint32_t> uniques(pixels.size());
-	auto uniques_end = std::unique_copy(pixels.begin(),pixels.end(),uniques.begin());
-	uniques.resize(uniques_end - uniques.begin());
-
-	// count uniques
-	class UniquePixel{
-		public:
-		uint32_t pix;
-		uint32_t count;
-	};
-	std::vector<UniquePixel> list;
-	for(auto &pix: uniques)
-	{
-		UniquePixel item;
-		item.pix = pix;
-		item.count = std::count(pixels.begin(), pixels.end(), pix);
-		list.push_back(item);
-	}
-
-	// sort uniques by counts
-	std::sort(list.begin(),list.end(),[](UniquePixel &a,UniquePixel &b) {return a.count > b.count;});
-
-	m_pal.m_used[0] = 0;
-	auto max_count = std::count(m_pal.m_used.begin(), m_pal.m_used.end(), 1);
-	
-	// place black/transparent
-	m_pal.m_pal.assign(3*256,0);
-	
-	// assign new colors
-	auto used = m_pal.m_used;
-	for(int k = 0; k < max_count; k++)
-	{
-		if(k >= list.size())
-			break;
-		auto item = std::find(used.begin(), used.end(),1);
-		if(item == used.end())
-			break;
-		union{
-			uint8_t db[4];
-			uint32_t dw;
-		} color;
-		color.dw = list[k].pix;
-		int cid = item - used.begin() + 1;
-		m_pal.m_pal[cid*3 + 0] = color.db[2];
-		m_pal.m_pal[cid*3 + 1] = color.db[1];
-		m_pal.m_pal[cid*3 + 2] = color.db[0];
-		*item = 0;
-	}*/
-
 	// refresh
 	OnRegenClick(event);
 }
@@ -1532,6 +1740,11 @@ void FormGResEncoder::OnPaintSource(wxPaintEvent& event)
 	m_source_mutex.unlock();
 }
 
+// change view setup
+void FormGResEncoder::OnViewClick(wxCommandEvent& event)
+{
+	canvasRes->Refresh();
+}
 
 // render result
 void FormGResEncoder::OnPaintResult(wxPaintEvent& event)
@@ -1545,6 +1758,26 @@ void FormGResEncoder::OnPaintResult(wxPaintEvent& event)
 		// blit to screen
 		wxPaintDC pdc(canvasRes);
 		pdc.DrawBitmap(*bmp,wxPoint(0,0));
+		
+		int x_ofs = (surf_x - m_gres.x_size)/2;
+		int y_ofs = (surf_y - m_gres.y_size)/2;
+		if(mmViewFrame->IsChecked())
+		{			
+			pdc.SetPen(wxPen(wxColor(0xFF0000),2,wxPENSTYLE_SHORT_DASH));
+			pdc.SetBrush(*wxTRANSPARENT_BRUSH);
+			pdc.DrawRectangle(wxPoint(x_ofs,y_ofs),wxSize(m_gres.x_size,m_gres.y_size));
+		}
+		if(mmViewRef->IsChecked())
+		{
+			x_ofs -= m_gres.aux.x_offset;
+			y_ofs -= m_gres.aux.y_offset;
+			int x_size = max(m_gres.x_size + m_gres.aux.x_offset, m_info.center_width);		
+			pdc.SetPen(wxPen(wxColor(0x0000FF),2,wxPENSTYLE_SHORT_DASH));
+			pdc.DrawLine(x_ofs,0,x_ofs,surf_y-1);
+			pdc.DrawLine(x_ofs+x_size,0,x_ofs+x_size,surf_y-1);		
+			pdc.DrawLine(0,y_ofs,surf_x-1,y_ofs);
+		}
+
 		delete bmp;
 	}	
 }

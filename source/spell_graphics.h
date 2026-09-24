@@ -14,12 +14,12 @@
 
 #include <wx/rawbmp.h>
 
-using namespace std;
+#include "graphics.h"
 
 // forward refs
 class AnimPNM;
-
 class SpellPalette;
+
 
 class SpellGraphicItem
 {
@@ -31,9 +31,15 @@ public:
 	bool is_transparent; // color #0 is tranparancy?
 	std::string name; // no extension
 	std::string full_name; // with extension if exists
-	vector<uint8_t> pixels;
+	std::vector<uint8_t> pixels;
 	SpellPalette* palette;
 	uint8_t (*pal)[3];
+
+	// auxiliary data
+	struct {
+		int x_offset;
+		int y_offset;
+	} aux;
 	
 
 	void Clear();
@@ -41,10 +47,13 @@ public:
 	int Render(uint8_t *buf,uint8_t* buf_end,int buf_x_size,int x_pos,int y_pos,int in_black=false,int* y_buffer=NULL);
 	wxBitmap* Render(int x_size=-1,int y_size=-1,bool transparent=false,bool invert=false);
 	wxBitmap* Render(bool transparent,bool invert=false);
-	wxCursor* RenderCUR(bool is_grayscale=true);
-	int Encode(wxBitmap &bmp,std::string name,SpellPalette *target_pal,double gamma,int x_res_size,int y_res_size,wxImageResizeQuality resampling_mode,int dither_dist,int alpha_threshold=128,int *shadow_color=NULL,uint8_t shadow_index=0);
+	wxCursor* RenderCUR(bool is_grayscale=true);	
+	int Encode(wxBitmap &bmp,std::vector<ImgQuantize::Pixel> &buffer, bool preproc_only=true, std::string name="",
+		SpellPalette *target_pal=NULL,double gamma=1.0,double sat=1.0,
+		int x_res_size=0,int y_res_size=0,wxImageResizeQuality resampling_mode=wxIMAGE_QUALITY_BICUBIC,
+		int dither_dist=0,int alpha_threshold=128,int *shadow_color=NULL,uint8_t shadow_index=0);
 	int RenderMask(uint8_t* buf,uint8_t* buf_end);
-	int ExportInfo(wstring path,wstring image_name);
+	int ExportInfo(std::wstring path,std::wstring image_name);
 	int Export(std::wstring path);
 	std::string GetColorRangeString();
 };
@@ -64,10 +73,10 @@ public:
 class SpellGraphics
 {
 private:
-	vector<SpellGraphicItem*> items;	
-	vector<SpellProjectile> projectiles;	
+	std::vector<SpellGraphicItem*> items;	
+	std::vector<SpellProjectile> projectiles;
 public:
-	vector<AnimPNM*> m_pnms;
+	std::vector<AnimPNM*> m_pnms;
 	
 	SpellGraphics();
 	~SpellGraphics();

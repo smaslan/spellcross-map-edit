@@ -7,7 +7,7 @@
 
 #pragma once
 
-// <wxFormsBuilder-include> - Section auto-inserted from 'forms.h' class 'FormGResEncoder' on 2026-09-16 21:16:37
+// <wxFormsBuilder-include> - Section auto-inserted from 'forms.h' class 'FormGResEncoder' on 2026-09-21 21:21:12
 #include <wx/artprov.h>
 #include <wx/xrc/xmlres.h>
 #include <wx/string.h>
@@ -43,7 +43,7 @@
 #include <wx/scrolbar.h>
 #include <wx/bmpbuttn.h>
 
-// </wxFormsBuilder-include> - Section auto-inserted from 'forms.h' class 'FormGResEncoder' on 2026-09-16 21:16:37
+// </wxFormsBuilder-include> - Section auto-inserted from 'forms.h' class 'FormGResEncoder' on 2026-09-21 21:21:12
 
 #include "spellcross.h"
 #include "spell_palette.h"
@@ -94,12 +94,17 @@ private:
 // graphic resource metadata
 class SpellGresInfo {
 public:
-	enum class FORMAT : int {
+	enum class Format : int {
 		LZ = 0,
 		GFK,
 		DTA,
 		PNM,
 		FSU
+	};
+
+	enum class RegenPalPreset : int{
+		NONE = 0,
+		INFO_FS
 	};
 
 	std::string m_last_error;
@@ -113,7 +118,7 @@ public:
 	std::vector<std::string> img_names;
 	std::string pal_name;
 	std::string colors_str;
-	FORMAT format;
+	Format format;
 	int alpha_threshold;
 	int x_size;
 	int y_size;
@@ -126,19 +131,25 @@ public:
 	bool is_tree_auto_y_offset;
 	int resampling;
 	double gamma;
+	double saturation;
+	bool regen_pal;
+	RegenPalPreset regen_pal_preset;
+	bool save_pal;
 
 	static const std::map<int,std::string> c_resampling;
-	static const std::map<FORMAT,std::string> c_format;
+	static const std::map<Format,std::string> c_format;
 	static const std::map<int,std::string> c_format_menu;
+	static const std::map<int,std::string> c_regen_palette_presets;
 
 	SpellGresInfo();
 	void Clear();
+	void ParseNames();
 	int LoadInfo(std::filesystem::path path);
 	int SaveInfo(std::filesystem::path path="");
 	bool isLoaded();
-	bool isPNM() {return(format == FORMAT::PNM);};
-	bool isUnitsFSU() { return(format == FORMAT::FSU); };
-	bool isDTA() { return(format == FORMAT::DTA); };
+	bool isPNM() {return(format == Format::PNM);};
+	bool isUnitsFSU() { return(format == Format::FSU); };
+	bool isDTA() { return(format == Format::DTA); };
 };
 
 
@@ -172,27 +183,43 @@ private:
 	void OnSaveAllClick(wxCommandEvent& event);
 	void OnSavePalClick(wxCommandEvent& event);
 	void OnOpenClick(wxCommandEvent& event);
+	void OnOpenBatchClick(wxCommandEvent& event);
 	void OnRegenClick(wxCommandEvent& event);
 	void OnSelectClick(wxCommandEvent& event);
 	void OnRegenPaletteClick(wxCommandEvent& event);
 	void OnPropChange(wxPropertyGridEvent& event);
+	void OnPropPopupClick(wxPropertyGridEvent& event);
+	void OnRulesPopup(wxCommandEvent& event);
 	
+	void OnViewClick(wxCommandEvent& event);
 	void OnPaintPalette(wxPaintEvent& event);
 	void OnPaintSource(wxPaintEvent& event);
 	void OnPaintResult(wxPaintEvent& event);
 
 	void OnThreadEvent(wxThreadEvent& event);
 
+	enum class POPUP_ACTIONS{
+		COPY_PROP = 0,
+		COPY_ALL,
+		COLOR_INFO,
+		COLOR_UNITS,
+		COLOR_TERR,
+		COLOR_TERR_CYCLE
+	};
+
 protected:
 	
-	// <wxFormsBuilder> - Section auto-inserted from 'forms.h' class 'FormGResEncoder' on 2026-09-16 21:16:37
+	// <wxFormsBuilder> - Section auto-inserted from 'forms.h' class 'FormGResEncoder' on 2026-09-21 21:21:12
 	enum
 	{
 		wxID_MM_OPEN = 5999,
+		wxID_MM_OPEN_BATCH,
 		wxID_MM_SAVE,
 		wxID_MM_SAVE_ALL,
 		wxID_MM_SAVE_PAL,
 		wxID_MM_EXIT,
+		wxID_MM_VIEW_FRAME,
+		wxID_MM_VIEW_REF,
 		wxID_SBAR,
 		wxID_LB_LIST,
 		wxID_CANVAS_SRC,
@@ -208,6 +235,9 @@ protected:
 	
 	wxMenuBar* m_menubar12;
 	wxMenu* mmFile;
+	wxMenu* mmView;
+	wxMenuItem* mmViewFrame;
+	wxMenuItem* mmViewRef;
 	wxStatusBar* sbar;
 	wxStaticText* m_staticText103;
 	wxListBox* lboxList;
@@ -234,7 +264,7 @@ protected:
 	wxButton* btnRegen;
 	wxButton* btnRegenPalette;
 
-	// </wxFormsBuilder> - Section auto-inserted from 'forms.h' class 'FormGResEncoder' on 2026-09-16 21:16:37
+	// </wxFormsBuilder> - Section auto-inserted from 'forms.h' class 'FormGResEncoder' on 2026-09-21 21:21:12
 
 public:
 	

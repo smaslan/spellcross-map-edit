@@ -151,13 +151,12 @@ int SpellPalette::Insert(std::vector<uint8_t>& data,std::string name,int offset,
 }
 
 // place chunk of data to palette from file with offset (0 - 255)
-int SpellPalette::Insert(std::wstring path,int offset,std::string used)
+int SpellPalette::Insert(std::filesystem::path path,int offset,std::string used)
 {
-	ifstreamext fr(path.c_str(),std::ios::in);
-	if(!fr.is_open())
+	std::vector<uint8_t> chunk;
+	if(loaddata(path,chunk))
 		return(1);
-	auto chunk = fr.read_vector();
-	fr.close();
+
 	auto name = std::filesystem::path(path).filename().string();
 	if(Insert(chunk,name,offset))
 		return(1);
@@ -168,28 +167,84 @@ int SpellPalette::Insert(std::wstring path,int offset,std::string used)
 	m_used.assign(256,0);
 
 	// parse used string
-	std::regex regexz(",");
-	auto chunks = std::vector<std::string>(std::sregex_token_iterator(used.begin(),used.end(),regexz,-1),std::sregex_token_iterator());
-	for(auto &chunk: chunks)
-	{
-		auto list = regexp_get(chunk,"\\s*([\\d]+)\\s*-*\\s*([\\d]+)*");
-		if(list.size() < 1)
-			return(1);
-		int from = std::atoi(list[0].c_str());
-		int to = -1;
-		if(list.size() >= 2 && !list[1].empty())
-			to = std::atoi(list[1].c_str());
-		if(from > 255 || to > 255)
-			return(1);		
-		m_used[from] = 1;
-		if(to > 0)
-			std::fill(m_used.begin() + from, m_used.begin() + to, 1);
-	}
+	auto used_temp = ParseRangeStr(used);
+	if(used_temp.empty())
+		return(1);
+	m_used = used_temp;
 
 	// keep sorted by chunk positions
 	SortChunks();
 
 	return(0);
+}
+
+// insert blank chunk
+int SpellPalette::InsertBlank(std::string name,int offset,int size,std::string color_str_filter)
+{	
+	// parse color range string
+	auto used = ParseRangeStr(color_str_filter);
+	if(used.empty())
+		return(1);
+	m_used = used;
+
+	// filter out stuff outside range str (should not happen)
+	if(!color_str_filter.empty())
+	{
+		for(int k = 0; k < used.size(); k++)
+			if(k < offset || k >= offset + size)
+				m_used[k] = 0;
+	}
+
+	// clear affected colors
+	for(int k = 0; k < used.size(); k++)
+		if(m_used[k])
+			std::memset(&m_pal[k*3],0x00,3);
+
+	// add chunk to list
+	Chunk chunk;
+	chunk.name = name;
+	chunk.offset = offset;
+	chunk.size = size;
+	m_chunks.push_back(chunk);
+	
+	// keep sorted by chunk positions
+	SortChunks();
+
+	return(0);
+}
+
+// assign colors to palette
+int SpellPalette::AssignColors(std::vector<ImgQuantize::Pixel>& colors,std::vector<uint8_t> mask)
+{
+	if(mask.empty())
+		mask.assign(256,1);
+	if(mask.size() != 256)
+		return(1);
+
+	for(int k = 0; k < 256 ;k++)
+		mask[k] = !!(mask[k] && m_used[k]);
+
+	// place colors
+	auto pal = GetPal();
+	for(auto &col: colors)
+	{
+		auto p = std::ranges::find(mask,1);
+		if(p == mask.end())
+			return(1); // colors wont fit to slots
+		*p = 0;
+		auto id = p - mask.begin();
+		pal[id][0] = col.r;
+		pal[id][1] = col.g;
+		pal[id][2] = col.b;
+	}
+
+	return(0);
+}
+
+// get used color count
+int SpellPalette::GetUsedCount()
+{
+	return(std::ranges::count(m_used,1));
 }
 
 // get assigned range
@@ -246,7 +301,7 @@ std::string SpellPalette::GetRangeString(bool add_zero,std::vector<std::string> 
 	return(palstr);
 }
 
-// save palette to file
+// save entire palette to file
 int SpellPalette::Save(std::filesystem::path path)
 {
 	return(savedata(path,m_pal));
@@ -261,15 +316,24 @@ int SpellPalette::SaveChunks(std::filesystem::path directory_path)
 		if(chunk.offset + chunk.size > m_pal.size()/3)
 			return(1);
 
-		// try make file
-		auto path = std::filesystem::path(directory_path).append(chunk.name).wstring();
-		ofstreamext fw(path,std::ios::out | std::ios::binary | std::ios::trunc);
-		if(!fw.is_open())
-			return(1);
+		// create chunk
+		std::vector<uint8_t> pal(m_pal.begin() + chunk.offset*3,m_pal.begin() + (chunk.offset + chunk.size)*3);
 				
+
+		auto path = std::filesystem::path(directory_path).append(chunk.name);
+		if(std::filesystem::exists(path))
+		{
+			// skip chunks that already exist and are identical
+			std::vector<uint8_t> old_pal;
+			if(loaddata(path,old_pal))
+				return(1);
+			if(pal == old_pal)
+				continue;
+		}
+
 		// store chunk
-		fw.write((const char*)m_pal.data() + chunk.offset*3,chunk.size*3);
-		fw.close();
+		if(savedata(path, pal))
+			return(1);		
 	}
 
 	return(0);
@@ -587,6 +651,15 @@ int SpellPalette::AddUserRange(std::vector<uint8_t>& pixels)
 		m_used_user[pix] = 1;
 	return(0);
 }
+// add user range from range string (e.g.: "0-127,220-229")
+int SpellPalette::AddUserRangeStr(std::string range_string)
+{
+	auto used = ParseRangeStr(range_string);
+	if(used.empty())
+		return(1);
+	m_used_user = used;
+	return(0);
+}
 // get assigned user range
 std::tuple<int,int> SpellPalette::GetUserRange(int start)
 {
@@ -614,10 +687,49 @@ std::string SpellPalette::GetUserRangeString(bool add_zero)
 			was0 = true;
 		if(offset)
 			palstr += ", ";
-		palstr += string_format("%d-%d",p1,p2);
+		if(p1 == p2)
+			palstr += string_format("%d",p1);
+		else
+			palstr += string_format("%d-%d",p1,p2);
 		offset = p2 + 1;
 	}
 	if(!was0 && add_zero)
 		palstr = "0, " + palstr;
 	return(palstr);
+}
+// check if given chunk is in user range
+bool SpellPalette::isInUserRange(std::string chunk_name)
+{
+	auto chunk = GetChunk(chunk_name);
+	if(!chunk)
+		return(false);
+	for(auto k = chunk->offset; k < chunk->offset + chunk->size; k++)
+		if(m_used_user[k])
+			return(true);
+	return(false);
+}
+
+// parse range string to used vector
+std::vector<uint8_t> SpellPalette::ParseRangeStr(std::string range_string,int count)
+{
+	// parse used string
+	std::vector<uint8_t> blank;
+	std::vector<uint8_t> used(count,0);
+	auto chunks = get_text_lines(range_string,true,',');
+	for(auto& chunk: chunks)
+	{
+		auto list = regexp_get(chunk,"\\s*([\\d]+)\\s*-*\\s*([\\d]+)*");
+		if(list.size() < 1)
+			return(blank);
+		int from = std::atoi(list[0].c_str());
+		int to = -1;
+		if(list.size() >= 2 && !list[1].empty())
+			to = std::atoi(list[1].c_str());
+		if(from >= count || to >= count)
+			return(blank);
+		used[from] = 1;
+		if(to > 0)
+			std::fill(used.begin() + from,used.begin() + to + 1,1);
+	}
+	return(used);
 }

@@ -1227,20 +1227,29 @@ void FormSprite::OnExportClick(wxCommandEvent& event)
 		spell_data->export_path = export_dir;
 
 		// rather ask for permission
-		wxMessageDialog msg(NULL,"Files in the selected folder might be overwritten! Continue?","Export glyphs",wxYES_NO | wxNO_DEFAULT | wxICON_QUESTION);
+		wxMessageDialog msg(NULL,"Files in the selected folder might be overwritten! Continue?","Export glyphs",wxYES_NO | wxYES_DEFAULT | wxICON_QUESTION);
 		if(msg.ShowModal() != wxID_YES)
 			return;
 	}
 
 	Terrain* terr = FindTerrain();
 
-	// build common terrain palette
-	SpellPalette pal("MAP.PAL");
-	std::vector<uint8_t> pal_data(256*3);
-	memcpy(pal_data.data(),&terr->pal->GetPal()[0][0],128*3);
-	pal.Insert(pal_data,"MAP.PAL",0,128);
-	memcpy(pal_data.data(),&terr->pal->GetPal()[240][0],10*3);
-	pal.Insert(pal_data,"CYCLE.PAL",240,10);
+	// get palette
+	SpellPalette pal = *terr->pal;
+	
+	// replace cycle.pal colors
+	auto cycle = pal.GetChunk("CYCLE.PAL");
+	if(cycle)
+	{
+		// ###note: using magenta tones hoping it's not present in the other parts of palette
+		for(auto k = cycle->offset; k < cycle->offset + cycle->size; k++)
+		{
+			pal.m_pal[k*3 + 0] = 0xFF;
+			pal.m_pal[k*3 + 1] = k - cycle->offset;
+			pal.m_pal[k*3 + 2] = 0xFF;
+		}
+	}
+	
 	// export palette
 	auto pal_path = export_dir / "map.palinfo";
 	std::string pal_name = pal_path.filename().string();
@@ -1254,14 +1263,32 @@ void FormSprite::OnExportClick(wxCommandEvent& event)
 		auto png_path = export_dir / png_name;
 		SetStatusText(string_format("Exporting %d of %d: %ls",&item - list.data() + 1, list.size(), png_path.wstring().c_str()));
 
+		// render to pixel buffer and save
+		std::vector<uint8_t> pixels;
+		item->Export(png_path,pal,pixels);
+		
+		// remove transparent pixels
+		std::erase_if(pixels,[](const uint8_t pix) {return(pix == 0);});
+
+		// fixed part of palette
+		pal.ClearUserRange();
+		pal.AddUserRange("MAP.PAL");
+		pal.AddUserRange("UNITS.PAL");
+		// add extra colors based on pixels
+		pal.AddUserRange(pixels);
+		// check if there is cycle.pal used
+		auto has_cycle = pal.isInUserRange("CYCLE.PAL");
+		if(has_cycle)
+			pal.AddUserRange("CYCLE.PAL");
+
 		// generate info meta file
 		auto info_path = export_dir / png_name.stem().concat(".info");
 		item->ExportInfo(info_path, png_name, pal);
 		
 		// export bitmap
-		auto bmp = item->Render((uint8_t*)terr->pal->GetPal(), 1.0);
+		/*auto bmp = item->Render((uint8_t*)terr->pal->GetPal(), 1.0);
 		bmp->SaveFile(png_path.wstring(),wxBITMAP_TYPE_PNG);
-		delete bmp;
+		delete bmp;*/
 	}
 }
 

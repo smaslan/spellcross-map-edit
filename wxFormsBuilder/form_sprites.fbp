@@ -24460,7 +24460,7 @@
       <property name="window_name"></property>
       <property name="window_style">wxTAB_TRAVERSAL</property>
       <property name="xrc_skip_sizer">1</property>
-      <object class="wxMenuBar" expanded="false">
+      <object class="wxMenuBar" expanded="true">
         <property name="bg"></property>
         <property name="context_help"></property>
         <property name="context_menu">1</property>
@@ -24482,7 +24482,7 @@
         <property name="window_extra_style"></property>
         <property name="window_name"></property>
         <property name="window_style"></property>
-        <object class="wxMenu" expanded="false">
+        <object class="wxMenu" expanded="true">
           <property name="label">File</property>
           <property name="name">mmFile</property>
           <property name="permission">protected</property>
@@ -24497,6 +24497,19 @@
             <property name="name">mmOpen</property>
             <property name="permission">none</property>
             <property name="shortcut">Ctrl+O</property>
+            <property name="unchecked_bitmap"></property>
+          </object>
+          <object class="wxMenuItem" expanded="true">
+            <property name="bitmap"></property>
+            <property name="checked">0</property>
+            <property name="enabled">1</property>
+            <property name="help"></property>
+            <property name="id">wxID_MM_OPEN_BATCH</property>
+            <property name="kind">wxITEM_NORMAL</property>
+            <property name="label">Load batch</property>
+            <property name="name">mmOpenBatch</property>
+            <property name="permission">none</property>
+            <property name="shortcut">Ctrl+B</property>
             <property name="unchecked_bitmap"></property>
           </object>
           <object class="wxMenuItem" expanded="false">
@@ -24553,6 +24566,37 @@
             <property name="name">mmExit</property>
             <property name="permission">none</property>
             <property name="shortcut">ESC</property>
+            <property name="unchecked_bitmap"></property>
+          </object>
+        </object>
+        <object class="wxMenu" expanded="false">
+          <property name="label">View</property>
+          <property name="name">mmView</property>
+          <property name="permission">protected</property>
+          <object class="wxMenuItem" expanded="false">
+            <property name="bitmap"></property>
+            <property name="checked">1</property>
+            <property name="enabled">1</property>
+            <property name="help"></property>
+            <property name="id">wxID_MM_VIEW_FRAME</property>
+            <property name="kind">wxITEM_CHECK</property>
+            <property name="label">View image frame</property>
+            <property name="name">mmViewFrame</property>
+            <property name="permission">protected</property>
+            <property name="shortcut">Alt+F</property>
+            <property name="unchecked_bitmap"></property>
+          </object>
+          <object class="wxMenuItem" expanded="false">
+            <property name="bitmap"></property>
+            <property name="checked">1</property>
+            <property name="enabled">1</property>
+            <property name="help"></property>
+            <property name="id">wxID_MM_VIEW_REF</property>
+            <property name="kind">wxITEM_CHECK</property>
+            <property name="label">View references</property>
+            <property name="name">mmViewRef</property>
+            <property name="permission">protected</property>
+            <property name="shortcut">Alt+R</property>
             <property name="unchecked_bitmap"></property>
           </object>
         </object>
@@ -24637,7 +24681,7 @@
                     <property name="gripper">0</property>
                     <property name="hidden">0</property>
                     <property name="id">wxID_ANY</property>
-                    <property name="label">Others sharing palette:</property>
+                    <property name="label">Others resources:</property>
                     <property name="markup">0</property>
                     <property name="max_size"></property>
                     <property name="maximize_button">0</property>
@@ -25921,7 +25965,7 @@
                     <property name="gripper">0</property>
                     <property name="hidden">0</property>
                     <property name="id">wxID_ANY</property>
-                    <property name="label">Resource meta data:</property>
+                    <property name="label">Resource meta data (pop-up menu):</property>
                     <property name="markup">0</property>
                     <property name="max_size"></property>
                     <property name="maximize_button">0</property>
