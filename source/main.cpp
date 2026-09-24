@@ -2770,7 +2770,10 @@ void MainFrame::OnPasteBuf(wxCommandEvent& event)
         return;    
 
     auto pos = spell_map->GetSelection();
-    spell_map->PasteBuffer(spell_map->tiles,spell_map->anms,spell_map->pnms,spell_map->start,spell_map->escape,spell_map->target,spell_map->counter_attack_post_player,spell_map->counter_attack_post_enemy,pos);    
+    spell_map->PasteBuffer(spell_map->tiles,spell_map->anms,spell_map->pnms,
+        spell_map->start,spell_map->escape,spell_map->target,
+        spell_map->counter_attack_post_player,spell_map->counter_attack_post_enemy,spell_map->portals,
+        pos);    
     HistoryPush();
 
     // optional cycling of tool items
@@ -2881,7 +2884,10 @@ void MainFrame::OnCanvasLMouseDown(wxMouseEvent& event)
         {
             // something in copy buffer            
             auto pos = spell_map->GetSelection();
-            spell_map->PasteBuffer(spell_map->tiles,spell_map->anms,spell_map->pnms,spell_map->start,spell_map->escape,spell_map->target,spell_map->counter_attack_post_player,spell_map->counter_attack_post_enemy,pos);
+            spell_map->PasteBuffer(spell_map->tiles,spell_map->anms,spell_map->pnms,
+                spell_map->start,spell_map->escape,spell_map->target,
+                spell_map->counter_attack_post_player,spell_map->counter_attack_post_enemy,spell_map->portals,
+                pos);
             // optional cycling of tool items
             if(event.ControlDown() && spell_tool.isTool())
                 spell_map->SetBuffer(spell_tool,+1);
@@ -3126,7 +3132,10 @@ void MainFrame::OnCanvasLMouseUp(wxMouseEvent& event)
             {
                 if(event.ControlDown())
                     spell_map->SetBuffer(spell_tool,0);
-                spell_map->PasteBuffer(spell_map->tiles,spell_map->anms,spell_map->pnms,spell_map->start,spell_map->escape,spell_map->target,spell_map->counter_attack_post_player,spell_map->counter_attack_post_enemy,pos,false);
+                spell_map->PasteBuffer(spell_map->tiles,spell_map->anms,spell_map->pnms,
+                    spell_map->start,spell_map->escape,spell_map->target,
+                    spell_map->counter_attack_post_player,spell_map->counter_attack_post_enemy,spell_map->portals,
+                    pos,false);
             }
             //spell_map->SetBuffer(spell_tool);
             HistoryPush();

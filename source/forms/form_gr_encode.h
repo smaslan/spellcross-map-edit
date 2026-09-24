@@ -175,7 +175,7 @@ private:
 	std::vector<std::string> m_task_failed_list;
 	int m_thread_active;
 
-	int LoadResource(std::filesystem::path path, int frame_id=-1);
+	int LoadResource(std::filesystem::path path, int frame_id=0);
 	
 	void OnClose(wxCloseEvent& ev);
 	void OnCloseClick(wxCommandEvent& event);

@@ -4466,8 +4466,8 @@ int Terrain::AddSpecialTools()
 	}
 
 	// create counter attack post object
-	std::vector<std::string> pnm_names ={"CAPOS_PL","CAPOS_EN"};
-	tool_names = {"Counter Attack Player Post","Counter Attack Enemy Post"};
+	std::vector<std::string> pnm_names ={"CAPOS_PL","CAPOS_EN","PORT_POS"};
+	tool_names = {"Counter Attack Player Post","Counter Attack Enemy Post","Active Portal"};
 	for(int k = 0; k < pnm_names.size(); k++)
 	{
 		auto tool_id = GetToolSetItem(ts_id,tool_names[k]);

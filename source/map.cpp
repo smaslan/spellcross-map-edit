@@ -585,6 +585,7 @@ void SpellMap::Close()
 	tiles.clear();
 	anms.clear();
 	pnms.clear();
+	portals.clear();
 	counter_attack_post_player.clear();
 	counter_attack_post_enemy.clear();
 	// loose start/ciel
@@ -716,7 +717,10 @@ int SpellMap::Create(SpellData* spelldata, const char *terr_name, int x, int y, 
 		ca_start_aliance_sprite.frame_limit = ca_start_aliance_sprite.anim->frames.size();
 	ca_start_os_sprite.anim = spelldata->gres.GetPNM("CAPOS_EN");
 	if(ca_start_os_sprite.anim)
-		ca_start_os_sprite.frame_limit = ca_start_os_sprite.anim->frames.size();
+		ca_start_os_sprite.frame_limit = ca_start_os_sprite.anim->frames.size();	
+	portal_pos_sprite.anim = spelldata->gres.GetPNM("PORT_POS");
+	if(portal_pos_sprite.anim)
+		portal_pos_sprite.frame_limit = portal_pos_sprite.anim->frames.size();
 
 	// reset scroller
 	scroller.Reset();
@@ -838,7 +842,7 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 	data += 4;
 
 	// get L1 sprites list size
-	if(data + sizeof(uint32_t) >= dend)
+	if(data + sizeof(uint32_t) > dend)
 	{
 		last_error = string_format("Possibly corrupted map DTA file '%s'!",map_path);
 		Close();
@@ -854,7 +858,7 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 	}
 
 	// version check (actually dunno what is that but it's always the same and looks like version code)
-	if(data + sizeof(uint8_t) >= dend)
+	if(data + sizeof(uint8_t) > dend)
 	{
 		last_error = string_format("Possibly corrupted map DTA file '%s'!",map_path);
 		Close();
@@ -868,7 +872,7 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 	}
 
 	// get map size
-	if(data + 2*sizeof(uint16_t) >= dend)
+	if(data + 2*sizeof(uint16_t) > dend)
 	{
 		last_error = string_format("Possibly corrupted map DTA file '%s'!",map_path);
 		Close();
@@ -901,7 +905,7 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 	this->spelldata = spelldata;
 	
 	// load list of used L1 sprites
-	if(data + L1_count*8 >= dend)
+	if(data + L1_count*8 > dend)
 	{
 		last_error = string_format("Possibly corrupted map DTA file '%s'!",map_path);
 		Close();
@@ -932,7 +936,7 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 	}
 
 	// load L1 sprite indices
-	if(data + x_size*y_size*sizeof(uint16_t) >= dend)
+	if(data + x_size*y_size*sizeof(uint16_t) > dend)
 	{
 		last_error = string_format("Possibly corrupted map DTA file '%s'!",map_path);
 		Close();
@@ -975,7 +979,7 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 	//////////////
 
 	// read count of L2 sprites
-	if(data + sizeof(uint32_t) >= dend)
+	if(data + sizeof(uint32_t) > dend)
 	{
 		last_error = string_format("Possibly corrupted map DTA file '%s'!",map_path);
 		Close();
@@ -990,7 +994,7 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 	}
 	
 	// load list of used L2 sprites
-	if(data + L2_count*8 >= dend)
+	if(data + L2_count*8 > dend)
 	{
 		last_error = string_format("Possibly corrupted map DTA file '%s'!",map_path);
 		Close();
@@ -1020,7 +1024,7 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 	}
 
 	// load L2 sprite indices
-	if(data + tiles.size()*2 >= dend)
+	if(data + tiles.size()*2 > dend)
 	{
 		last_error = string_format("Possibly corrupted map DTA file '%s'!",map_path);
 		Close();
@@ -1052,7 +1056,7 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 	//////////////////////////////
 
 	// read count of ANM used
-	if(data + sizeof(uint32_t) >= dend)
+	if(data + sizeof(uint32_t) > dend)
 	{
 		last_error = string_format("Possibly corrupted map DTA file '%s'!",map_path);
 		Close();
@@ -1063,7 +1067,7 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 	// load list of used L3 sprites
 	if(L3_count)
 	{
-		if(data + L3_count*8 >= dend)
+		if(data + L3_count*8 > dend)
 		{
 			last_error = string_format("Possibly corrupted map DTA file '%s'!",map_path);
 			Close();
@@ -1095,7 +1099,7 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 		// decode animation locations
 		
 		// get total ANM items count
-		if(data + sizeof(uint32_t) >= dend)
+		if(data + sizeof(uint32_t) > dend)
 		{
 			last_error = string_format("Possibly corrupted map DTA file '%s'!",map_path);
 			Close();
@@ -1143,7 +1147,7 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 	//////////////////////////////
 
 	// read count of L4 animations
-	if(data + sizeof(uint32_t) >= dend)
+	if(data + sizeof(uint32_t) > dend)
 	{
 		last_error = string_format("Possibly corrupted map DTA file '%s'!",map_path);
 		Close();
@@ -1152,7 +1156,7 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 	int L4_count = *(int32_t*)data; data += 4;
 
 	// load list of used L3 sprites
-	if(data + L4_count*(8) >= dend)
+	if(data + L4_count*(8) > dend)
 	{
 		last_error = string_format("Possibly corrupted map DTA file '%s'!",map_path);
 		Close();
@@ -1185,7 +1189,7 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 	if(L4_count)
 	{
 		// get total PNM items count
-		if(data + sizeof(uint32_t) >= dend)
+		if(data + sizeof(uint32_t) > dend)
 		{
 			last_error = string_format("Possibly corrupted map DTA file '%s'!",map_path);
 			Close();
@@ -1194,7 +1198,7 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 		int L4_items = *(int32_t*)data; data += 4;
 
 		// for each item:
-		if(data + L4_items*(1+2+2+2+2+4+4) >= dend)
+		if(data + L4_items*(1+2+2+2+2+4+4) > dend)
 		{
 			last_error = string_format("Possibly corrupted map DTA file '%s'!",map_path);
 			Close();
@@ -1238,14 +1242,14 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 	///////////////////////////////////////////////
 	
 	// read count of L5 stuff
-	if(data + sizeof(uint32_t) >= dend)
+	if(data + sizeof(uint32_t) > dend)
 	{
 		last_error = string_format("Possibly corrupted map DTA file '%s'!",map_path);
 		Close();
 		return(1);
 	}
 	int L5_count = *(int32_t*)data; data += 4;
-	if(data + L5_count*sizeof(uint16_t) >= dend)
+	if(data + L5_count*sizeof(uint16_t) > dend)
 	{
 		last_error = string_format("Possibly corrupted map DTA file '%s'!",map_path);
 		Close();
@@ -1264,14 +1268,14 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 	////////////////////////////////////////////////
 
 	// read count of L6 stuff
-	if(data + sizeof(uint32_t) >= dend)
+	if(data + sizeof(uint32_t) > dend)
 	{
 		last_error = string_format("Possibly corrupted map DTA file '%s'!",map_path);
 		Close();
 		return(1);
 	}
 	int L6_count = *(int32_t*)data; data += 4;
-	if(data + L6_count*sizeof(uint16_t) >= dend)
+	if(data + L6_count*sizeof(uint16_t) > dend)
 	{
 		last_error = string_format("Possibly corrupted map DTA file '%s'!",map_path);
 		Close();
@@ -1289,7 +1293,7 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 	///// L7 - Sounds #1 /////
 	//////////////////////////
 
-	if(data + sizeof(uint32_t) >= dend)
+	if(data + sizeof(uint32_t) > dend)
 	{
 		last_error = string_format("Possibly corrupted map DTA file '%s'!",map_path);
 		Close();
@@ -1317,14 +1321,14 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 		}
 		L7_list.push_back(snd_ref);
 	}
-	if(data + sizeof(uint32_t) >= dend)
+	if(data + sizeof(uint32_t) > dend)
 	{
 		last_error = string_format("Possibly corrupted map DTA file '%s'!",map_path);
 		Close();
 		return(1);
 	}
 	int L7_count = *(int32_t*)data; data += 4;
-	if(data + L7_count*(2+1) >= dend)
+	if(data + L7_count*(2+1) > dend)
 	{
 		last_error = string_format("Possibly corrupted map DTA file '%s'!",map_path);
 		Close();
@@ -1349,7 +1353,7 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 	//////////////////////////
 	///// L8 - Sounds #2 /////
 	//////////////////////////
-	if(data + sizeof(uint32_t) >= dend)
+	if(data + sizeof(uint32_t) > dend)
 	{
 		last_error = string_format("Possibly corrupted map DTA file '%s'!",map_path);
 		Close();
@@ -1375,14 +1379,14 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 		}
 		L8_sounds.push_back(snd_ref);
 	}
-	if(data + sizeof(uint32_t) >= dend)
+	if(data + sizeof(uint32_t) > dend)
 	{
 		last_error = string_format("Possibly corrupted map DTA file '%s'!",map_path);
 		Close();
 		return(1);
 	}
 	int L8_count = *(int32_t*)data; data += 4;
-	if(data + L8_count*(2+1) >= dend)
+	if(data + L8_count*(2+1) > dend)
 	{
 		last_error = string_format("Possibly corrupted map DTA file '%s'!",map_path);
 		Close();
@@ -1399,6 +1403,29 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 			return(1);
 		}
 		sounds->sounds.emplace_back(MapXY(pxy% x_size,pxy / x_size), L8_sounds[sid],MapSound::SoundType::RANDOM);
+	}
+
+
+
+	//////////////////////////
+	///// Active portals /////
+	//////////////////////////
+
+	// optional secition to fix maps broken by earlier editor versions
+	if(data + sizeof(uint32_t) <= dend)
+	{
+		int portal_count = *(int32_t*)data; data += 4;
+		if(data + portal_count*sizeof(uint16_t) > dend)
+		{
+			last_error = string_format("Possibly corrupted map DTA file '%s'! Portals layer has wrong size.",map_path);
+			Close();
+			return(1);
+		}
+		for(int k = 0; k < portal_count; k++)
+		{
+			int pxy = *(uint16_t*)data; data += sizeof(uint16_t);
+			portals.push_back(MapXY(pxy % x_size,pxy / x_size));
+		}
 	}
 
 	
@@ -1746,6 +1773,9 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 	ca_start_os_sprite.anim = spelldata->gres.GetPNM("CAPOS_EN");
 	if(ca_start_os_sprite.anim)
 		ca_start_os_sprite.frame_limit = ca_start_os_sprite.anim->frames.size();
+	portal_pos_sprite.anim = spelldata->gres.GetPNM("PORT_POS");
+	if(portal_pos_sprite.anim)
+		portal_pos_sprite.frame_limit = portal_pos_sprite.anim->frames.size();
 
 	// map should be valid from this point
 	is_valid = true;
@@ -2155,9 +2185,11 @@ int SpellMap::SaveDTA(std::wstring path)
 		fw.write((uint8_t)sndid);
 	}
 
-
-	// write unknown termination (likely some other optional list, but dunno what is it)
-	fw.write((uint32_t)0);
+	// write portals
+	uint32_t portals_count = portals.size();
+	fw.write((uint32_t)portals_count);
+	for(auto &mxy: portals)
+		fw.write((uint16_t)ConvXY(mxy));
 		
 	// close file
 	fw.close();
@@ -3234,7 +3266,8 @@ void SpellMap::ClearBuffer()
 
 // paste from copy buffer
 void SpellMap::PasteBuffer(std::vector<MapSprite>& tiles, std::vector<MapLayer3>& anms, std::vector<MapLayer4>& pnms,
-	std::vector<MapXY>& start,std::vector<MapXY>& escape,std::vector<MapXY>& target,std::vector<MapXY>& ca_aliance,std::vector<MapXY>& ca_os,
+	std::vector<MapXY>& start,std::vector<MapXY>& escape,std::vector<MapXY>& target,
+	std::vector<MapXY>& ca_aliance,std::vector<MapXY>& ca_os,std::vector<MapXY>& portal_pos,
 	MapXY &posxy,bool center)
 {
 	if(copy_buf.pos.empty() || !posxy.IsSelected())
@@ -3271,11 +3304,11 @@ void SpellMap::PasteBuffer(std::vector<MapSprite>& tiles, std::vector<MapLayer3>
 			auto &tile = copy_buf.tiles[k];				
 			std::vector<MapXY> sspos ={MapXY(x,y)};
 			if(tile.L2 == start_sprite)
-				PlaceStartEscape(sspos,start,escape,target,ca_aliance,ca_os,SpellMap::SPEC_TILE_START);
+				PlaceStartEscape(sspos,start,escape,target,ca_aliance,ca_os,portal_pos,SpellMap::SPEC_TILE_START);
 			else if(tile.L2 == escape_sprite)
-				PlaceStartEscape(sspos,start,escape,target,ca_aliance,ca_os,SpellMap::SPEC_TILE_ESCAPE);
+				PlaceStartEscape(sspos,start,escape,target,ca_aliance,ca_os,portal_pos,SpellMap::SPEC_TILE_ESCAPE);
 			else if(tile.L2 == target_sprite)
-				PlaceStartEscape(sspos,start,escape,target,ca_aliance,ca_os,SpellMap::SPEC_TILE_TARGET);
+				PlaceStartEscape(sspos,start,escape,target,ca_aliance,ca_os,portal_pos,SpellMap::SPEC_TILE_TARGET);
 			/*else if(tile.L2 == ca_start_aliance_sprite)
 				PlaceStartEscape(sspos,start,escape,target,ca_aliance,ca_os,SpellMap::SPEC_TILE_CA_ALIANCE);
 			else if(tile.L2 == ca_start_os_sprite)
@@ -3325,9 +3358,11 @@ void SpellMap::PasteBuffer(std::vector<MapSprite>& tiles, std::vector<MapLayer3>
 				new_pnm.y_pos = y;
 
 				if(new_pnm.anim == ca_start_aliance_sprite.anim)
-					PlaceStartEscape(sspos,start,escape,target,ca_aliance,ca_os,SpellMap::SPEC_TILE_CA_ALIANCE);
+					PlaceStartEscape(sspos,start,escape,target,ca_aliance,ca_os,portal_pos,SpellMap::SPEC_TILE_CA_ALIANCE);
 				else if(new_pnm.anim == ca_start_os_sprite.anim)
-					PlaceStartEscape(sspos,start,escape,target,ca_aliance,ca_os,SpellMap::SPEC_TILE_CA_OS);
+					PlaceStartEscape(sspos,start,escape,target,ca_aliance,ca_os,portal_pos,SpellMap::SPEC_TILE_CA_OS);
+				else if(new_pnm.anim == portal_pos_sprite.anim)
+					PlaceStartEscape(sspos,start,escape,target,ca_aliance,ca_os,portal_pos,SpellMap::SPEC_TILE_PORTAL_POS);
 				else
 				{
 					// remove existing tile
@@ -4376,6 +4411,7 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 	std::vector<MapXY> targets = this->target;
 	std::vector<MapXY> counter_attack_start_os = this->counter_attack_post_enemy;
 	std::vector<MapXY> counter_attack_start_alinace = this->counter_attack_post_player;
+	std::vector<MapXY> portals = this->portals;
 	
 
 	// edit tool pre-processing:
@@ -4397,7 +4433,9 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 	if(msel.size())
 	{
 		// override layers by clipboard buffer
-		PasteBuffer(tiles,anms,pnms,start,escape,targets,counter_attack_start_alinace,counter_attack_start_os,msel[0]);
+		PasteBuffer(tiles,anms,pnms,start,escape,targets,
+			counter_attack_start_alinace,counter_attack_start_os,portals,
+			msel[0]);
 	}
 
 	int use_view_mask = game_mode || units_view_debug_mode;
@@ -4853,21 +4891,24 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 	}
 
 	// --- Render counter attack marks
-	if(wCounterStart)
+	//if(wCounterStart)
 	{
 		// for each special sprite type
-		std::vector<vector<MapXY>*> spec = {&counter_attack_start_os, &counter_attack_start_alinace};
-		std::vector<MapLayer4*> spec_sprite = {&ca_start_os_sprite, &ca_start_aliance_sprite};
+		std::vector<vector<MapXY>*> spec = {&counter_attack_start_os, &counter_attack_start_alinace, &portals};
+		std::vector<MapLayer4*> spec_sprite = {&ca_start_os_sprite, &ca_start_aliance_sprite, &portal_pos_sprite};
 		
 		for(int sid = 0; sid < spec.size(); sid++)
 		{
 			if(!spec_sprite[sid])
-				continue;
+				continue;				
 	
 			for(i = 0; i < spec[sid]->size(); i++)
 			{
 				MapXY* pos = &(*spec[sid])[i];
 				auto* pnm = spec_sprite[sid];
+
+				if(!wCounterStart && pnm != &portal_pos_sprite)
+					continue;
 
 				// skip if not in visible area
 				if(pos->x < xs_ofs || pos->x >= (xs_ofs + xs_size) || pos->y < ys_ofs * 2 || pos->y >= (ys_ofs * 2 + ys_size))
@@ -8253,6 +8294,12 @@ int SpellMap::Tick()
 			ca_start_os_sprite.frame_ofs++;
 			if(ca_start_os_sprite.frame_ofs >= ca_start_os_sprite.frame_limit)
 				ca_start_os_sprite.frame_ofs = 0;
+		}
+		if(portal_pos_sprite.anim)
+		{
+			portal_pos_sprite.frame_ofs++;
+			if(portal_pos_sprite.frame_ofs >= portal_pos_sprite.frame_limit)
+				portal_pos_sprite.frame_ofs = 0;
 		}
 
 		// animate unit pointer
@@ -12253,7 +12300,8 @@ int SpellMap::BuildHouseObjectsScan(std::vector<int> &used,std::vector<MapXY> &l
 
 // place/remove start/escape tiles to map data
 int SpellMap::PlaceStartEscape(vector<MapXY>& posxy,std::vector<MapXY>& start,std::vector<MapXY>& escape,std::vector<MapXY>& target,
-	std::vector<MapXY>& ca_alinace,std::vector<MapXY>& ca_os,int spec_tile_type)
+	std::vector<MapXY>& ca_alinace,std::vector<MapXY>& ca_os,std::vector<MapXY>& portal_pos,
+	int spec_tile_type)
 {
 	if(posxy.empty())
 		return(1);
@@ -12284,6 +12332,11 @@ int SpellMap::PlaceStartEscape(vector<MapXY>& posxy,std::vector<MapXY>& start,st
 	{
 		list = &ca_os;
 		other_lists ={&ca_alinace};
+	}
+	else if(spec_tile_type == SpellMap::SPEC_TILE_PORTAL_POS)
+	{
+		list = &portal_pos;
+		other_lists = {};
 	}
 	else
 		return(1);

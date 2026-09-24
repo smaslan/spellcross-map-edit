@@ -273,6 +273,7 @@ class SpellMap
 		Sprite* target_sprite;
 		MapLayer4 ca_start_aliance_sprite;
 		MapLayer4 ca_start_os_sprite;
+		MapLayer4 portal_pos_sprite;
 		// unit pointer animation
 		MapLayer4 pnm_sipka;
 
@@ -427,6 +428,7 @@ class SpellMap
 		vector<MapUnit*> Lunit; // units layer array
 		vector<uint8_t> select; // selection flags array
 		vector<uint32_t> L1_flags; // terrain class flags array
+		vector<MapXY> portals; // active porals list
 		// list of units
 		vector<MapUnit*> units;
 		// map events
@@ -952,7 +954,10 @@ class SpellMap
 		int SetBuffer(SpellTool& tool,int cycle=0,int init=-1);
 		void CutBuffer(std::vector<MapXY>& posxy,Layers layers);
 		void CopyBuffer(std::vector<MapXY> &posxy,Layers layers);
-		void PasteBuffer(std::vector<MapSprite>& tiles,std::vector<MapLayer3>& anms,std::vector<MapLayer4>& pnms,std::vector<MapXY>& start,std::vector<MapXY>& escape,std::vector<MapXY>& target,std::vector<MapXY>& ca_aliance,std::vector<MapXY>& ca_os,MapXY &posxy,bool center=true);
+		void PasteBuffer(std::vector<MapSprite>& tiles,std::vector<MapLayer3>& anms,std::vector<MapLayer4>& pnms,
+			std::vector<MapXY>& start,std::vector<MapXY>& escape,std::vector<MapXY>& target,
+			std::vector<MapXY>& ca_aliance,std::vector<MapXY>& ca_os,std::vector<MapXY>& portal_pos,
+			MapXY &posxy,bool center=true);
 		bool isCopyBufferFull();
 		int PasteRandSprites(std::vector<MapSprite>& tiles,std::vector<MapXY>& posxy,std::vector<Sprite*>& sprites,bool force_rand);
 		int DeleteSelObjects(std::vector<MapXY>& posxy,SpellMap::Layers layers);
@@ -962,9 +967,12 @@ class SpellMap
 			SPEC_TILE_ESCAPE,
 			SPEC_TILE_TARGET,
 			SPEC_TILE_CA_ALIANCE,
-			SPEC_TILE_CA_OS
+			SPEC_TILE_CA_OS,
+			SPEC_TILE_PORTAL_POS
 		};
-		int PlaceStartEscape(vector<MapXY>& posxy,std::vector<MapXY>& start,std::vector<MapXY>& escape,std::vector<MapXY>& target,std::vector<MapXY>& ca_alinace,std::vector<MapXY>& ca_os,int spec_tile_type);
+		int PlaceStartEscape(vector<MapXY>& posxy,std::vector<MapXY>& start,std::vector<MapXY>& escape,std::vector<MapXY>& target,
+			std::vector<MapXY>& ca_alinace,std::vector<MapXY>& ca_os,std::vector<MapXY>& portal_pos,
+			int spec_tile_type);
 		
 };
 
