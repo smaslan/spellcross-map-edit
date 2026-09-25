@@ -32,6 +32,7 @@
 #include <regex>
 #include <memory>
 #include <sstream>
+#include <algorithm>
 
 #include "wx/dcgraph.h"
 #include "wx/dcbuffer.h"
@@ -123,113 +124,149 @@ int Sprite::GetIndex()
 }
 
 
+
+// add int to pixel data
+void Sprite::PixelDataPutInt(int value,int pos)
+{
+	if(pos < 0)
+		pos = data.size();
+
+	int add = std::max<int>(pos + sizeof(int) - (int)data.size(), 0);
+	if(add)
+		data.resize(data.size() + add);
+
+	std::memcpy(data.data() + pos, &value, sizeof(int));
+}
+
+// add pixel data
+void Sprite::PixelDataPutData(uint8_t* ptr,int size)
+{
+	data.resize(data.size() + size);
+	std::memcpy(data.data() + data.size() - size, ptr, size);
+}
+
+// skip bytes in pixel data
+int Sprite::PixelDataIncrement(int step)
+{
+	int pos = data.size();
+	data.resize(data.size() + step);
+	return(pos);
+}
+
+
 // decode sprite from raw FS archive data, return bytes consumed
 // ###todo: check input memory overrun?
-int Sprite::Decode(uint8_t* src, const char* name)
+int Sprite::Decode(uint8_t* src, int size, std::string name)
 {
 	// store data start
 	uint8_t* source_start = src;
-	
-	// set width
+	uint8_t* dend = src + size;
+		
+	// set width (dummy size)
 	x_size = 80;
 
-	// get heigth
+	// get height
+	if(src + 2 > dend)
+		return(1);
 	y_size = *src;
 	src += 2;
 
 	// get land type
+	if(src + 2 > dend)
+		return(1);
 	land_type = *src;
 	src += 2;
 
 	// get vertical offset
+	if(src + 4 > dend)
+		return(1);
 	y_ofs = (int)*(int32_t*)src;
 	src += 4;
 
-	// allocate sprite data (maximum possible value)
-	data.resize((x_size + sizeof(int) * 2) * 256);
-	uint8_t *pdata = data.data();
+	// no transparency by default
+	has_transp = false;
 
-	//unsigned char* mp = mem;
-	int i,j,k;
+	// allocate pixel buffer
+	data.clear();
+	data.reserve(256*(256 + 2*sizeof(int)));
 
-	// no transparencies yet
-	has_transp = 0;
-
-	// for each sprite line
-	for (i = 0; i < y_size; i++)
+	// for each line
+	for(int y = 0; y < y_size; y++)
 	{
-		unsigned char* quad = pdata + sizeof(int)*2;
-		int oo;
-		int nn;
-		int	ss;
+		int line_len = 0;
 
 		// get line offset
-		oo = *src++;
-		src++;
+		if(src + sizeof(int16_t) > dend)
+			return(1);
+		int line_ofs = *(int16_t*)src; src += sizeof(int16_t);
+		
 		// get full blocks count
-		nn = *src++;
+		if(src + sizeof(int8_t) > dend)
+			return(1);
+		int full_chunks = *src++;
+		
 		// get transparent blocks count
-		ss = *src++;
+		if(src + sizeof(int8_t) > dend)
+			return(1);
+		int partial_chunks = *src++;
+		
+		// skip line params
+		int p_line_ofs = PixelDataIncrement(sizeof(int));
+		int p_line_len = PixelDataIncrement(sizeof(int));
 
-		// read full blocks into temp
-		std::memcpy((void*)quad, (void*)src, nn * 4);
-		quad += nn * 4;
-		src += nn * 4;
+		// put full chunks
+		if(src + full_chunks*4 > dend)
+			return(1);
+		PixelDataPutData(src, full_chunks*4);
+		src += full_chunks*4;
+		line_len += full_chunks*4;
 
-		// read transparent blocks into temp
-		for (j = 0; j < ss; j++)
+		// for each partial chunk:
+		for(int cid = 0; cid < partial_chunks; cid++)
 		{
-			unsigned char mask[4];
+			// last chunk
+			bool is_last = cid >= (partial_chunks - 1);
 
-			// copy chunk
-			std::memcpy((void*)quad, (void*)src, 4);
-			quad += 4;
+			if(src + 8 > dend)
+				return(1);			
+			auto pix = &src[0];
+			auto mask = &src[4];
+			
+			// last chunk valid len
+			int len = 4;
+			if(is_last)
+				for(int k = 0; k < 4; k++)
+					if(!mask[k])
+						len = k + 1;				
 
-			// generate transparency mark
-			for (k = 0; k < 4; k++)
-				mask[k] = (*src++ != 0x00) ? 0x00 : 0xFF;
+			// copy pixel data
+			for(int k = 0; k < len; k++)
+			{
+				uint8_t col = 0x00;
+				if(!mask[k])
+					col = pix[k];
+				data.push_back(col);
+			}
+			line_len += len;
 
-			// check for mark validity
-			if (memcmp((void*)src, (void*)mask, 4) != 0)
-				return(1);
-
-			// test if there is transparency
-			if (MaskHasTransp(mask) || ss > 1)
+			// check transparencies
+			if(partial_chunks > 1 || MaskHasTransp(mask))
 				has_transp = 1;
 
-			// skip mark
-			src += 4;
+			// next chunk
+			src += 8;
 		}
 
-		// full line len (in pixels now)
-		nn = nn * 4 + ss * 4;
-
-		// line data start
-		quad = pdata + sizeof(int)*2;
-
-		// detect real len (loose transparent garbage at end of line)
-		for (j = nn - 1; j >= 0; j--)
-			if (quad[j] != 0x00)
-				break;
-		nn = j + 1;
-
-		// store decoded line offset
-		*(int*)&pdata[0] = oo;
-		// store decoded line len
-		*(int*)&pdata[sizeof(int)] = nn;
-
-		// line decoding done
-		pdata += nn + 2*sizeof(int);
+		// store line params
+		PixelDataPutInt(line_ofs,p_line_ofs);
+		PixelDataPutInt(line_len,p_line_len);
 	}
 
 	// sprite data total len
-	int len = pdata - data.data();
-	data.resize(len);
 	data.shrink_to_fit();
 
 	// store sprite name
 	this->name = name;
-	//strcpy_s(this->name, sizeof(this->name), name);
 
 	// try init wall sprite parameters
 	InitWallParams();
@@ -237,8 +274,11 @@ int Sprite::Decode(uint8_t* src, const char* name)
 	// mark sprite as valid
 	is_dummy = false;
 
-	// return bytes consumed from the source
-	return(src - source_start);
+	// check consumed data size
+	if(src - source_start != size)
+		return(1);
+	
+	return(0);
 }
 
 // save indexed image data to DTA file
@@ -360,7 +400,7 @@ int Sprite::SaveSprite(std::filesystem::path path,std::vector<uint8_t>& buffer,i
 
 	// check it is decodable
 	Sprite spr;
-	if(spr.Decode(sprite.data(),"") != sprite.size())
+	if(spr.Decode(sprite.data(),sprite.size(),""))
 		return(1);
 
 	// empty sprite?
@@ -1010,13 +1050,12 @@ double Sprite::GetTileProjY(double x, double y)
 //=============================================================================
 AnimL1::AnimL1()
 {
-	name[0] = '\0';
 	frames.clear();
 }
 
 AnimL1::~AnimL1()
 {
-	name[0] = '\0';
+	name.clear();
 	// loose frames
 	for (unsigned k = 0; k < frames.size(); k++)
 		delete frames[k];
@@ -1024,7 +1063,7 @@ AnimL1::~AnimL1()
 }
 
 // decode animation file from buffer
-int AnimL1::Decode(uint8_t* data, char* name)
+int AnimL1::Decode(uint8_t* data, int size, std::string name)
 {
 	// get frames count
 	int count = *data++;
@@ -1040,7 +1079,7 @@ int AnimL1::Decode(uint8_t* data, char* name)
 		frames.push_back(frame);
 		
 		// decode sprite
-		int len = frames.back()->Decode(&data[*frame_data_offsets++], name);
+		int len = frames.back()->Decode(&data[*frame_data_offsets++], size, name);
 		if (!len)
 		{
 			// failed
@@ -1054,7 +1093,7 @@ int AnimL1::Decode(uint8_t* data, char* name)
 	y_ofs = frames.front()->y_ofs;
 
 	// store animation name
-	strcpy_s(this->name, sizeof(this->name), name);
+	this->name = name;
 
 	return(0);
 }
@@ -1234,7 +1273,7 @@ int AnimPNM::Encode(std::filesystem::path path,std::vector<std::unique_ptr<Spell
 #endif
 
 // decode animation file from buffer
-int AnimPNM::Decode(uint8_t* data, const char* name)
+int AnimPNM::Decode(uint8_t* data, std::string name)
 {
 	// get frames count
 	int count = *data++;
@@ -1355,7 +1394,6 @@ int AnimPNM::Decode(uint8_t* data, const char* name)
 		
 		// store name
 		spr->name = name;
-		//strcpy_s(spr->name, sizeof(spr->name), name);
 
 		// store frame geometry
 		spr->has_transp = 1;
@@ -2027,148 +2065,128 @@ int Terrain::Load(FSarchive *terrain_fs, SpellPalette *map_pal,SpellGraphics* gr
 	// --- read files from archive:
 	int sprite_index = 0;
 	int fcnt = 0;
-	for (int i = 0; i < terrain_fs->Count(); i++)
+	for(auto file: terrain_fs->GetFiles())
 	{		
-		const char* full_name;
-		uint8_t* data;
-		int size;
-		
 		// get file from archive
-		terrain_fs->GetFile(i, &data, &size, &full_name);
+		auto data = file->data.data();
+		int size = file->file_size;
+		auto full_name = file->name;
 
-		// local name copy
-		char name[14];
-		strcpy_s(name, sizeof(name), full_name);
+		// strip extension
+		auto name = std::filesystem::path(full_name).stem().string();
+		auto ext = std::filesystem::path(full_name).extension().string();
+		
+		if(iequals(ext,".DTA"))
+		{
+			///////////////////
+			///// Sprites /////
+			///////////////////					
 				
-		// split name and ext
-		char *pstr = strrchr(name, '.');
-		char* ext;
-		if (pstr)
-		{
-			*pstr = '\0';
-			ext = pstr + 1;
-		}
-		else
-		{
-			ext = &name[strlen(name) - 1];
-		}
-				
-		// check extension
-		if(ext)
-		{
-			// file with extension
+			// skip known faulty sprites
+			if(this->name == "DEVAST" && iequals(name,"DMA0_270"))
+				continue;
 
-			if (_strcmpi(ext, "DTA") == 0)
+			// add sprite list element
+			Sprite* sprite = new Sprite();
+			sprites.push_back(sprite);
+
+			// try decode sprite data
+			if(sprite->Decode(data, size, name))
+				return(1);
+
+			// set sprite index (linear unsorted)
+			sprite->SetIndex(sprite_index++);
+			sprite->terr = this;
+
+			if(status_item)
+				status_item(name);
+			fcnt++;
+		}
+		else if(iequals(ext,".ANM"))
+		{
+			/////////////////////////
+			///// ANM animation /////
+			/////////////////////////
+
+			// add animation to list
+			AnimL1* anim = new AnimL1();
+			anms.push_back(anim);
+
+			// try decode animation data
+			if (anim->Decode(data, size, name))
+			{
+				return(1);
+			}
+
+			if(status_item)
+				status_item(name);
+			fcnt++;
+		}
+		else if(iequals(ext,".PNM"))
+		{
+			/////////////////////////
+			///// PNM animation /////
+			/////////////////////////
+
+			// add animation to list
+			AnimPNM* pnm = new AnimPNM();
+			pnm->index = pnms.size();
+			pnms.push_back(pnm);
+				
+
+			// try decode animation data
+			if (pnm->Decode(data, name))
+			{
+				return(1);
+			}
+
+			if(status_item)
+				status_item(name);
+			fcnt++;
+		}
+		else if(iequals(ext,".PAL"))
+		{
+			if(size != 256)
 			{
 				///////////////////
-				///// Sprites /////
-				///////////////////					
-				
-				// skip known faulty sprites
-				if(this->name == "DEVAST" && _strcmpi(name,"DMA0_270") == 0)
-					continue;
+				///// Palette /////
+				///////////////////
 
-				// add sprite list element
-				Sprite* sprite = new Sprite();
-				sprites.push_back(sprite);
-
-				// try decode sprite data
-				auto len = sprite->Decode(data,name);
-				if(len != size)
-					return(1);
-				// set sprite index (linear unsorted)
-				sprite->SetIndex(sprite_index++);
-				sprite->terr = this;
-
-				if(status_item)
-					status_item(name);
-				fcnt++;
-			}
-			else if (_strcmpi(ext, "ANM") == 0)
-			{
-				/////////////////////////
-				///// ANM animation /////
-				/////////////////////////
-
-				// add animation to list
-				AnimL1* anim = new AnimL1();
-				anms.push_back(anim);
-
-				// try decode animation data
-				if (anim->Decode(data, name))
+				if(iequals(full_name, "map.pal") && size == 128*3)
 				{
-					return(1);
-				}
-
-				if(status_item)
-					status_item(name);
-				fcnt++;
-			}
-			else if (_strcmpi(ext, "PNM") == 0)
-			{
-				/////////////////////////
-				///// PNM animation /////
-				/////////////////////////
-
-				// add animation to list
-				AnimPNM* pnm = new AnimPNM();
-				pnm->index = pnms.size();
-				pnms.push_back(pnm);
-				
-
-				// try decode animation data
-				if (pnm->Decode(data, name))
-				{
-					return(1);
-				}
-
-				if(status_item)
-					status_item(name);
-				fcnt++;
-			}
-			else if (_strcmpi(ext, "PAL") == 0)
-			{
-				if (size != 256)
-				{
-					///////////////////
-					///// Palette /////
-					///////////////////
-
-					if(_strcmpi(full_name, "map.pal") == 0 && size == 128*3)
-					{
-						// "map.pal"
-						pal->Insert(data,"MAP.PAL",0,128);
+					// "map.pal"
+					pal->Insert(data,"MAP.PAL",0,128);
 						
-						if(status_item)
-							status_item(name);
-						fcnt++;
-					}
-					else if (_strcmpi(full_name, "cycle.pal") == 0 && size == 10*3)
-					{
-						// "cycle.pal"
-						pal->Insert(data,"CYCLE.PAL",240,10);
-						
-						if(status_item)
-							status_item(name);
-						fcnt++;
-					}
-
-				}
-				else
-				{
-					//////////////////
-					///// Filter /////
-					//////////////////
-					
-					// these are color reindexing filters, ie. 256 bytes represent new 256 colors, each points to some original color					
-					filter->AddFilter(data,full_name);
-
 					if(status_item)
 						status_item(name);
 					fcnt++;
 				}
+				else if (iequals(full_name, "cycle.pal") && size == 10*3)
+				{
+					// "cycle.pal"
+					pal->Insert(data,"CYCLE.PAL",240,10);
+						
+					if(status_item)
+						status_item(name);
+					fcnt++;
+				}
+
+			}
+			else
+			{
+				//////////////////
+				///// Filter /////
+				//////////////////
+					
+				// these are color reindexing filters, ie. 256 bytes represent new 256 colors, each points to some original color					
+				filter->AddFilter(data,full_name);
+
+				if(status_item)
+					status_item(name);
+				fcnt++;
 			}
 		}
+		
 	}
 	
 #ifndef MINIMAL_SPRITES
@@ -3544,7 +3562,7 @@ AnimL1* Terrain::GetANM(const char* name)
 {
 	for (unsigned k = 0; k < this->anms.size(); k++)
 	{
-		if (_strcmpi(this->anms[k]->name, name) == 0)
+		if (iequals(this->anms[k]->name, name))
 			return(this->anms[k]);
 	}
 	return(NULL);

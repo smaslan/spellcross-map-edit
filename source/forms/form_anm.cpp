@@ -557,7 +557,7 @@ void FormANM::SelectTerrain()
 	{
 		// ANM mode (always from terrain)
 		for(auto &anm: terr->anms)
-			if(wildcmp(filter.c_str(),anm->name))
+			if(wildcmp(filter,anm->name))
 				lbList->Append(anm->name);
 	}
 

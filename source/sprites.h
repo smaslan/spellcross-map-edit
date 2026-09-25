@@ -147,7 +147,7 @@ class Sprite
 		void Render(uint8_t* buffer, uint8_t* buf_end, int buf_x, int buf_y, int x_size, uint8_t* filter=NULL);
 		wxBitmap* Render(uint8_t* pal,double gamma=1.3, int x_size=-1, int y_size=-1, bool no_zoom=true);
 		int Export(std::filesystem::path image_path,SpellPalette& pal,std::vector<uint8_t>& buffer);
-		int Decode(uint8_t* data,const char* name);
+		int Decode(uint8_t* data, int size, std::string name);
 		static int SaveSprite(std::filesystem::path path,std::vector<uint8_t>& buffer,int x_buf_size,int x_offset,int y_offset,int land_type);
 		int ExportInfo(std::filesystem::path path,std::filesystem::path image_name,SpellPalette& palette);
 		void GetTileModel(TFxyz* vert, int* face=NULL, int* face_count=NULL,int triangle_faces=false);
@@ -319,6 +319,10 @@ class Sprite
 	private:
 		int MaskHasTransp(uint8_t* mask);
 		void InitWallParams();
+
+		int PixelDataIncrement(int step);
+		void PixelDataPutInt(int value, int pos=-1);
+		void PixelDataPutData(uint8_t* ptr,int size);
 		
 		
 
@@ -346,7 +350,7 @@ class AnimL1
 {
 	public:
 		// animation name
-		char name[MAX_SPRITE_NAME + 1];
+		std::string name;
 		// frames list
 		std::vector<Sprite*> frames;
 		// sprite size
@@ -358,7 +362,7 @@ class AnimL1
 		// void constructor
 		AnimL1();
 		~AnimL1();
-		int Decode(uint8_t* data, char* name);
+		int Decode(uint8_t* data, int size, std::string name);
 
 };
 
@@ -382,7 +386,7 @@ class AnimPNM
 		// void constructor
 		AnimPNM();
 		~AnimPNM();
-		int Decode(uint8_t* data, const char* name);
+		int Decode(uint8_t* data, std::string name);
 		static int Encode(std::filesystem::path path,std::vector<std::unique_ptr<SpellGraphicItem>>& frames);
 
 };

@@ -1844,20 +1844,11 @@ int SpellMap::SaveDTA(std::wstring path)
 	fw.write((uint16_t)y_size);
 
 	// terrain name	
-	char terr_name[13];
-	memset(terr_name,'\0',sizeof(terr_name));
-	strncpy(terr_name,terrain->name.c_str(),sizeof(terr_name));
-	fw.write(terr_name,sizeof(terr_name));
+	fw.write_str(terrain->name,13);
 
 	// write sprites names
 	for(auto spr: L1_list)
-	{
-		// non terminated 8 chars
-		char name[8];
-		memset(name,'\0',sizeof(name));
-		strncpy(name,spr->name.c_str(),sizeof(name));
-		fw.write(name,sizeof(name));
-	}
+		fw.write_str(spr->name,8);
 
 	// write L1 map
 	fw.write((char*)L1_map.data(),L1_map.size()*sizeof(uint16_t));
@@ -1905,13 +1896,7 @@ int SpellMap::SaveDTA(std::wstring path)
 
 	// write L2 sprites names
 	for(auto spr: L2_list)
-	{
-		// non terminated 8 chars
-		char name[8];
-		memset(name,'\0',sizeof(name));
-		strncpy(name,spr->name.c_str(),sizeof(name));
-		fw.write(name,sizeof(name));
-	}
+		fw.write_str(spr->name,8);
 
 	// write L2 map
 	fw.write((char*)L2_map.data(),L2_map.size()*sizeof(uint16_t));
@@ -1941,13 +1926,7 @@ int SpellMap::SaveDTA(std::wstring path)
 
 	// write ANM names list
 	for(auto anm: L3_list)
-	{
-		// write non terminated 8 char names
-		char name[8];
-		memset(name,'\0',sizeof(name));
-		strncpy(name,anm->name,sizeof(name));
-		fw.write(name,sizeof(name));
-	}
+		fw.write_str(anm->name,8);
 
 	// write ANM items count in map
 	if(L3_count)
@@ -2009,13 +1988,7 @@ int SpellMap::SaveDTA(std::wstring path)
 
 	// write PNM names list
 	for(auto pnm: L4_list)
-	{
-		// write non terminated 8 char names
-		char name[8];
-		memset(name,'\0',sizeof(name));
-		strncpy(name,pnm->name.c_str(),sizeof(name));
-		fw.write(name,sizeof(name));
-	}
+		fw.write_str(pnm->name,8);
 
 	// write PNM items count in map
 	if(L4_count)
