@@ -2,7 +2,7 @@
 // Spellcross video data handling routines.
 // 
 // This code is part of Spellcross Map Editor project.
-// (c) 2022, Stanislav Maslan, s.maslan@seznam.cz
+// (c) 2022-2026, Stanislav Maslan, s.maslan@seznam.cz
 // url: https://github.com/smaslan/spellcross-map-edit
 // Distributed under MIT license, https://opensource.org/licenses/MIT.
 //=============================================================================
@@ -52,6 +52,12 @@ SpellVideoResources::SpellVideoResources(std::vector<std::filesystem::path> fold
 		list = fs->GetFileNames("*.CAN");
 		for(auto &vid: list)
 			vid_list.emplace_back(vid, fs);
+		fs_used += list.size();
+
+		// scan for SMK videos (EN engine)
+		list = fs->GetFileNames("*.SMK");
+		for(auto& vid: list)
+			vid_list.emplace_back(vid,fs);
 		fs_used += list.size();
 
 		// scan for DPK videos
