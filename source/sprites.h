@@ -626,6 +626,7 @@ public:
 	int RenameToolSetItem(int toolset_id,std::string item, int position);
 	int RemoveToolSetItem(int toolset_id, int position);
 	int MoveToolSetItem(int toolset_id,int posa,int posb,bool insert=false);	
+	int MoveToolSetItemToOther(int toolset_a,int pos_a,int toolset_b,int pos_b=-1);
 	int AddToolSet(std::string& name,std::string title);
 	int AddToolSet(std::string &name,std::string title,int &position);
 	int RemoveToolSet(int position);
@@ -636,6 +637,7 @@ public:
 	wxBitmap* RenderToolSetItemImage(int tool_id, int item_id, double gamma=1.30, int x_size=-1, int y_size=-1, bool no_zoom=true);
 	std::tuple<int, int> GetToolSetItemImageSize(int tool_id, int item_id);
 
+	std::vector<Sprite*> GetToolSprites(int toolset_id,int tool_id);
 	std::vector<Sprite*> GetToolSprites(SpellTool &tool);
 	std::vector<SpellObject*> GetToolObjects(SpellTool& tool);
 	int AddSpecialTools();

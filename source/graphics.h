@@ -15,15 +15,15 @@ public:
         uint8_t g;
         uint8_t b;
         uint8_t a;
+        int id;
 
-        double distance_squared(const Pixel& other) const;
+        Pixel(uint8_t r=0,uint8_t g=0,uint8_t b=0,uint8_t a=0,int id=0) :
+            r(r), g(g), b(b), a(a), id(id) {};
+        int distance_squared(const Pixel& other) const;
+        int max_distance_linear(const Pixel& other) const;
         bool isBlack() const;
-        bool isTransparent() const;
+        bool isTransparent() const;   
     };
-    
-    static std::vector<Pixel> GenMedianCutPalette(std::vector<Pixel> &pixels,int targetColors);
-
-private:
 
     class Bucket
     {
@@ -36,27 +36,60 @@ private:
         Bucket(std::vector<Pixel>::iterator s,std::vector<Pixel>::iterator e);
         int getLongestSide() const;
     };
+    
+    static std::vector<Pixel> GenMedianCutPalette(std::vector<Pixel> &pixels,int targetColors);          
 
     // Node structure for the Octree
     class OctreeNode
     {
     public:
-        bool is_leaf = false;
-        Pixel color = {0, 0, 0}; // Valid only if is_leaf is true
-        std::unique_ptr<OctreeNode> children[8] = {nullptr};
+        int minR,maxR;
+        int minG,maxG;
+        int minB,maxB;
+        bool is_leaf;
+        int level;
+        Pixel leaf_color; // Valid only if is_leaf is true
+        int index;
+        std::unique_ptr<OctreeNode> children[8];
 
-        // Determines which of the 8 children a color belongs to at a specific bit depth
-        static int get_child_index(const Pixel& cls,int depth);
+        OctreeNode(int minR,int maxR,int minG, int maxG,int minB,int maxB, int level);
+        int MinDistanceSquared(const Pixel& target) const;
     };
 
     class ColorOctree
     {
     private:
         std::unique_ptr<OctreeNode> root;
-        static const int MAX_DEPTH = 8; // Max depth for 8-bit color channels
 
-        void insert_recursive(OctreeNode* node,const Pixel& color, int depth);        
-        void search_recursive(const OctreeNode* node,const Pixel& target,int depth,Pixel& best_match,double& min_dist_sq);
+        // Determines which of the 8 children a color belongs to at a specific bit depth
+        static int GetChildIndex(const Pixel& cls,int depth);
+
+        // priority queue item
+        class QueueItem
+        {
+        public:
+            const OctreeNode* node;
+            int distanceSq;
+            bool operator>(const QueueItem& other) const {
+                return distanceSq > other.distanceSq;
+            }
+        };
+
+        void searchClosestDFS(const OctreeNode* node,const Pixel& target,
+            const OctreeNode*& best1,int& bestDist1,
+            const OctreeNode*& best2,int& bestDist2) const;
+
+    public:
+        ColorOctree();
+        void Insert(const Pixel& color,int id);
+        std::pair<Pixel,Pixel> FindTwoNearestColors(const Pixel& target) const;
     };
+
+private:
+
+    
+
+
+    
     
 };

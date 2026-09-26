@@ -49,7 +49,7 @@ public:
 	wxBitmap* Render(bool transparent,bool invert=false);
 	wxCursor* RenderCUR(bool is_grayscale=true);	
 	int Encode(wxBitmap &bmp,std::vector<ImgQuantize::Pixel> &buffer, bool preproc_only=true, std::string name="",
-		SpellPalette *target_pal=NULL,double gamma=1.0,double sat=1.0,
+		SpellPalette *target_pal=NULL,double gamma=1.0,double chroma=0.0,double hue=0.0,
 		int x_res_size=0,int y_res_size=0,wxImageResizeQuality resampling_mode=wxIMAGE_QUALITY_BICUBIC,
 		int dither_dist=0,int alpha_threshold=128,int *shadow_color=NULL,uint8_t shadow_index=0);
 	int RenderMask(uint8_t* buf,uint8_t* buf_end);

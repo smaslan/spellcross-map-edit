@@ -28,7 +28,7 @@ FormSprite::FormSprite( wxWindow* parent,SpellData* spell_data,wxWindowID id, co
 	
 	
 	// === AUTO GENERATED STUFF STARTS HERE ===
-	// <wxFormsBuilder> - Section auto-inserted from 'forms.cpp' class 'FormSprite' on 2026-06-20 09:37:22
+	// <wxFormsBuilder> - Section auto-inserted from 'forms.cpp' class 'FormSprite' on 2026-09-25 22:01:07
 	this->SetSizeHints( wxSize( 1050,700 ), wxDefaultSize );
 	this->SetBackgroundColour( wxSystemSettings::GetColour( wxSYS_COLOUR_BTNFACE ) );
 	
@@ -45,7 +45,7 @@ FormSprite::FormSprite( wxWindow* parent,SpellData* spell_data,wxWindowID id, co
 	mnuFile->AppendSeparator();
 	
 	wxMenuItem* btnSelect;
-	btnSelect = new wxMenuItem( mnuFile, wxID_BTN_SELECT, wxString( wxT("Select and Close") ) + wxT('\t') + wxT("Enter"), wxEmptyString, wxITEM_NORMAL );
+	btnSelect = new wxMenuItem( mnuFile, wxID_BTN_SELECT, wxString( wxT("Select and Close") ) + wxT('\t') + wxT("Ctrl+Enter"), wxEmptyString, wxITEM_NORMAL );
 	mnuFile->Append( btnSelect );
 	
 	wxMenuItem* btnClose;
@@ -392,7 +392,7 @@ FormSprite::FormSprite( wxWindow* parent,SpellData* spell_data,wxWindowID id, co
 	this->Centre( wxBOTH );
 	
 
-	// </wxFormsBuilder> - Section auto-inserted from 'forms.cpp' class 'FormSprite' on 2026-06-20 09:37:22
+	// </wxFormsBuilder> - Section auto-inserted from 'forms.cpp' class 'FormSprite' on 2026-09-25 22:01:07
 	// === AUTO GENERATED STUFF ENDS HERE ===
 
 	chbSide->Append("Q1");
@@ -587,6 +587,9 @@ FormSprite::FormSprite( wxWindow* parent,SpellData* spell_data,wxWindowID id, co
 	Bind(wxEVT_MENU,&FormSprite::OnNewToolset,this,wxID_MM_NEW_TOOLSET);
 	Bind(wxEVT_MENU,&FormSprite::OnNewTool,this,wxID_MM_NEW_TOOL);
 	Bind(wxEVT_MENU,&FormSprite::OnEditToolset,this,wxID_MM_EDIT_TOOLSET);
+
+	Bind(wxEVT_TREE_KEY_DOWN,&FormSprite::OnObjectsTreeKeyDown,this,wxID_TREE_OBJECTS);
+	treeCtrlObjects->Bind(wxEVT_KILL_FOCUS,&FormSprite::OnTreeKillFocus,this);
 		
 	SpriteDropTarget* drop_target = new SpriteDropTarget(this);
 	treeCtrlObjects->SetDropTarget((wxDropTarget*)drop_target);
@@ -600,9 +603,6 @@ FormSprite::~FormSprite()
 {
 	delete imlist;
 }
-
-
-
 
 // rules popup menu
 void FormSprite::OnSpritePupupOpen(wxMouseEvent& event)
@@ -714,6 +714,20 @@ bool FormSprite::SpriteDropTarget::OnDropText(wxCoord x,wxCoord y,const wxString
 void FormSprite::OnDragSpriteEnd(wxTreeEvent& evt)
 {
 	//statBar->SetStatusText("end drag: ",0);
+}
+
+
+
+// hack to skip keyboard when not focused (some sort of bug?)
+void FormSprite::OnObjectsTreeKeyDown(wxTreeEvent& event)
+{
+	if(wxWindow::FindFocus() == treeCtrlObjects)
+		event.Skip();
+}
+// hack to loose focus from tree ctrl otherwise it consumes key events and always returns to focus
+void FormSprite::OnTreeKillFocus(wxFocusEvent& event) {
+	treeCtrlObjects->UnselectAll();
+	event.Skip();
 }
 
 
@@ -856,11 +870,27 @@ void FormSprite::OnTreeClassEndDrag(wxTreeEvent& evt)
 			treeCtrlObjects->Refresh();
 			evt.Veto();
 		}
+		else if(target_obj->m_class_id >= 0 && obj->m_class_id >= 0)
+		{
+			// to other toolset
+			auto terr = FindTerrain();			
+			terr->MoveToolSetItemToOther(obj->m_class_id,obj->m_tool_id,target_obj->m_class_id,target_obj->m_tool_id);
+			treeCtrlObjects->SelectItem(m_drag_item);
+			FillToolsTree();
+			treeCtrlObjects->Refresh();
+			evt.Veto();
+		}
 	}
-	else
+	else if(obj->m_spr && target_obj->m_class_id >= 0 && target_obj->m_tool_id >= 0 &&
+		((target_obj->m_class_id + 1) != obj->m_spr->GetToolClass() || (target_obj->m_tool_id + 1) != obj->m_spr->GetToolClassGroup()))
 	{
-		// moving tool item
-		
+		// moving tool item between tools
+		obj->m_spr->SetToolClass(target_obj->m_class_id+1);
+		obj->m_spr->SetToolClassGroup(target_obj->m_tool_id+1);
+		treeCtrlObjects->SelectItem(m_drag_item);
+		FillToolsTree();
+		treeCtrlObjects->Refresh();
+		evt.Veto();		
 	}
 }
 
@@ -1008,6 +1038,12 @@ void FormSprite::OnTreeClassMenuClick(wxCommandEvent& evt)
 // selected sprite in objects tree
 void FormSprite::OnTreeSelectionChanged(wxTreeEvent& evt)
 {
+	/*if(wxWindow::FindFocus() != treeCtrlObjects)
+	{
+		//evt.Skip();
+		return;
+	}*/
+
 	wxTreeItemId selectedNode = evt.GetItem();
 	auto* obj = (TreeNode*)treeCtrlObjects->GetItemData(selectedNode);
 	if(!obj)
@@ -1862,7 +1898,7 @@ int FormSprite::OnGetItemImage(long item)
 
 // change terrain click
 void FormSprite::OnTerrainChange(wxCommandEvent& event)
-{
+{		
 	SelectTerrain();
 	SelectQuad();
 	canvas->Refresh();

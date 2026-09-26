@@ -43,6 +43,7 @@
 #include "forms/form_sound.h"
 #include "forms/form_flags.h"
 #include "forms/form_new_map.h"
+#include "forms/form_trees_rand.h"
 
 #include <wx/ribbon/buttonbar.h>
 #include <wx/ribbon/panel.h>
@@ -62,6 +63,7 @@ private:
     SpellMap* spell_map;
     SpellData* spell_data;   
     SpellConfig m_config;
+    SpellTreeRandomizerRules m_tree_rand_rules;
 public:
     virtual bool OnInit();
     virtual int OnExit();
@@ -110,7 +112,7 @@ private:
 class MainFrame : public wxFrame
 {
 public:
-    MainFrame(SpellConfig* config, SpellMap *&map,SpellData *&spelldata);
+    MainFrame(SpellConfig* config, SpellMap *&map,SpellData *&spelldata,SpellTreeRandomizerRules &tree_rand_rules);
     void StatusStringCallback(std::string info);
     void CreateHUDbuttons();
 
@@ -179,6 +181,8 @@ private:
     void OnExportAllMapsRender(wxCommandEvent& event);
     void OnBatchMapsLoadSave(wxCommandEvent& event);
     void OnHistory(wxCommandEvent& event);
+    void OnTreesRandomizerPanel(wxCommandEvent& event);
+    void OnTreesRandomizer(wxCommandEvent& event);
 
     void OnToolBtnClick(wxRibbonButtonBarEvent& event);
     void OnToolBtnDropClick(wxRibbonButtonBarEvent& event);
@@ -247,6 +251,9 @@ private:
     SpellTool spell_tool;
     // new unit template
     MapUnitTemplate m_spell_unit_template;
+    // tree randomizer rules
+    SpellTreeRandomizerRules &m_tree_rand_rules;
+    SpellTreeRandomizer m_tree_rand;
 
     // last target selection
     MapXY select_pos;
@@ -273,6 +280,7 @@ private:
         form_map_options != NULL ||
         form_midi != NULL ||
         form_minimap != NULL ||
+        form_tree_rand != NULL ||
         form_units_list != NULL); };
 
     void ShowMessage(SpellTextRec *message, bool is_yesno, std::function<void(bool)> exit_cb=NULL);
@@ -302,6 +310,7 @@ private:
     FormMiniMap *form_minimap = NULL;
     FormMapUnits *form_units_list = NULL;
     FormSound *form_sounds = NULL;
+    FormTreeRand *form_tree_rand = NULL;
     
     // spellcross HUD interface stuff
     void OnPaintHUDbutton(wxPaintEvent& event);
@@ -338,7 +347,8 @@ private:
         ID_VIDEO_WIN,
         ID_MIDI_WIN,
         ID_MAP_UNITS_WIN,
-        ID_NEW_MAP
+        ID_NEW_MAP,
+        ID_TREE_RAND
     };
     static constexpr int ID_HUD_BASE = 3000;
     static constexpr int ID_TOOL_BASE = 10000;
@@ -470,7 +480,9 @@ enum
     ID_ViewMIDI,
     ID_EditTileFlags,
     ID_TextEdit,
-    ID_TextEditRaw
+    ID_TextEditRaw,
+    ID_TreeRand,
+    ID_TreeRandCfg
 };
 
 

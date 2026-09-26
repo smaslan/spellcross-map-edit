@@ -192,6 +192,9 @@
     <ClCompile Include="spell_palette.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="forms\form_trees_rand.cpp">
+      <Filter>Source Files\forms</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="fs_archive.h">
@@ -421,6 +424,9 @@
     </ClInclude>
     <ClInclude Include="spell_palette.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="forms\form_trees_rand.h">
+      <Filter>Header Files\forms</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

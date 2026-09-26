@@ -4935,6 +4935,46 @@ int Terrain::MoveToolSetItem(int toolset_id,int posa,int posb,bool insert)
 	RemoveToolSetItem(toolset_id,temp_pos);
 	return(0);
 }
+
+// move toolset item from a toolseta to toolsetb, from posa to posb
+int Terrain::MoveToolSetItemToOther(int toolset_a,int pos_a, int toolset_b,int pos_b)
+{
+	if(toolset_a < 0 || toolset_a >= tools.size() || pos_a < 0 || pos_a >= tools[toolset_a]->items.size()
+		|| toolset_b < 0 || toolset_b >= tools.size() || (pos_b >= 0 && pos_b >= tools[toolset_b]->items.size()))
+		return(1);
+	
+	// make target toolset item
+	if(AddToolSetItem(toolset_b, tools[toolset_a]->items[pos_a], pos_b))
+		return(1);
+
+	// move content
+	for(auto const& spr : sprites)
+	{
+		if(spr->GetToolClass() != toolset_a + 1)
+			continue;
+		auto tid = spr->GetToolClassGroup();
+		if(tid == pos_a + 1)
+		{
+			spr->SetToolClass(toolset_b + 1);
+			spr->SetToolClassGroup(pos_b + 1);
+		}
+	}
+	for(auto const& obj : objects)
+	{
+		if(obj->GetToolClass() != toolset_a + 1)
+			continue;
+		auto tid = obj->GetToolClassGroup();
+		if(tid == pos_a + 1)
+		{
+			obj->SetToolClass(toolset_b + 1);
+			obj->SetToolClassGroup(pos_b + 1);
+		}
+	}
+
+	// remove old tool
+	return(RemoveToolSetItem(toolset_a, pos_a));
+}
+
 // swap toolset items posa <-> posb
 int Terrain::SwapToolSetItems(int toolset_id, int posa, int posb)
 {
@@ -5028,6 +5068,14 @@ std::vector<Sprite*> Terrain::GetToolSprites(SpellTool &tool)
 
 	return(list);
 }
+// get all sprites matching given tool
+std::vector<Sprite*> Terrain::GetToolSprites(int toolset_id, int tool_id)
+{
+	SpellTool tool;
+	tool.Set(toolset_id,tool_id);
+	return(GetToolSprites(tool));
+}
+
 // get all objects matching given tool
 std::vector<SpellObject*> Terrain::GetToolObjects(SpellTool& tool)
 {

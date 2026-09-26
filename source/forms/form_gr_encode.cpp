@@ -400,7 +400,7 @@ wxThread::ExitCode ProcTh::Entry()
 				SpellGraphicItem gres;
 				std::vector<ImgQuantize::Pixel> buffer;
 				gres.Encode(source,buffer,true,info.name,
-					&pal,info.gamma,info.saturation,
+					&pal,info.gamma,info.chroma,info.hue,
 					info.x_size,info.y_size,(wxImageResizeQuality)info.resampling);
 
 				// remove transparents
@@ -443,7 +443,7 @@ wxThread::ExitCode ProcTh::Entry()
 			auto &gres = gres_list.back();
 			std::vector<ImgQuantize::Pixel> buffer;
 			gres->Encode(source,buffer,false,info.name,
-				&pal,info.gamma,info.saturation,
+				&pal,info.gamma,info.chroma,info.hue,
 				info.x_size,info.y_size,(wxImageResizeQuality)info.resampling,
 				m_config.dither_randomize,info.alpha_threshold,shadow_color,0xFD);
 
@@ -649,7 +649,8 @@ void SpellGresInfo::Clear()
 	shadow_color[1] = -1;
 	shadow_color[2] = -1;
 	gamma = 1.0;
-	saturation = 1.0;
+	chroma = 0.0;
+	hue = 0.0;
 	alpha_threshold = 128;
 	resampling = wxIMAGE_QUALITY_NEAREST;	
 	regen_pal = false;
@@ -773,7 +774,8 @@ int SpellGresInfo::LoadInfo(std::filesystem::path path)
 
 	// preprocessing color corrections
 	gamma = info_get_real(info,"gamma",1.0);
-	saturation = info_get_real(info,"saturation",1.0);
+	chroma = info_get_real(info,"chroma",0.0);
+	hue = info_get_real(info,"hue",0.0);
 
 	// non-zero to enable image centering to given width
 	center_width = info_get_int(info,"center_to_width",0);
@@ -850,7 +852,8 @@ int SpellGresInfo::SaveInfo(std::filesystem::path path)
 	info += info_make_string("resampling",res_it->second);
 
 	info += info_make_real("gamma",gamma);
-	info += info_make_real("saturation",saturation);
+	info += info_make_real("chroma",chroma);
+	info += info_make_real("hue",hue);
 
 	info += info_make_int("center_to_width",center_width);
 	info += info_make_int("tree_auto_y_offset",!!is_tree_auto_y_offset);
@@ -952,9 +955,10 @@ int FormGResEncoder::LoadResource(std::filesystem::path path,int frame_id)
 	pgProperties->Append(new wxIntPropertyExt(wxT("x-offset"),wxT(""),&m_info.x_offset));
 	pgProperties->Append(new wxIntPropertyExt(wxT("y-offset"),wxT(""),&m_info.y_offset));
 	pgProperties->Append(new wxEnumPropertyExt(wxT("Resampling mode"),wxT(""),MapToPGenumChoices(SpellGresInfo::c_resampling),&m_info.resampling));
-	pgProperties->Append(new wxRealPropertyExt(wxT("Gamma correction"),wxT(""),&m_info.gamma,2,0.1,3.0));
-	pgProperties->Append(new wxRealPropertyExt(wxT("Color saturation"),wxT(""),&m_info.saturation,2,0.0,3.0));
-	pgProperties->Append(new wxIntPropertyExt(wxT("Alpha threshold"),wxT(""),&m_info.alpha_threshold,0,255));
+	pgProperties->Append(new wxRealPropertyExt(wxT("Gamma correction"),wxT("gamma"),&m_info.gamma,2,0.1,3.0));
+	pgProperties->Append(new wxRealPropertyExt(wxT("Color chroma"),wxT("chroma"),&m_info.chroma,2,-1.0,1.0));
+	pgProperties->Append(new wxRealPropertyExt(wxT("Color hue"),wxT("hue"),&m_info.hue,2,-1.0,1.0));
+	pgProperties->Append(new wxIntPropertyExt(wxT("Alpha threshold"),wxT("alpha"),&m_info.alpha_threshold,0,255));
 	pgProperties->Append(new wxIntPropertyExt(wxT("Centering width"),wxT(""),&m_info.center_width,-1));
 	pgProperties->Append(new wxBoolPropertyExt(wxT("Auto y-offset for tree"),wxT(""),&m_info.is_tree_auto_y_offset));
 	pgProperties->Append(new wxIntPropertyExt(wxT("Land type"),wxT(""),&m_info.land_type,0,13));
@@ -1005,7 +1009,10 @@ void FormGResEncoder::OnPropPopupClick(wxPropertyGridEvent& event)
 	wxMenu menu;
 	menu.Append((int)POPUP_ACTIONS::COPY_PROP,string_format("Copy property \"%s\" to all resources",prop->GetLabel().ToStdString()));
 	menu.Append((int)POPUP_ACTIONS::COPY_ALL,"Copy all properties to all resources");
-	
+	menu.AppendSeparator();
+	menu.Append((int)POPUP_ACTIONS::COPY_COLOR_CORR,string_format("Copy color correction properties to all resources",prop->GetLabel().ToStdString()));
+	menu.Append((int)POPUP_ACTIONS::DEFAULT_COLOR_CORR,string_format("Reset color corrections",prop->GetLabel().ToStdString()));
+		
 	if(prop->GetName().CmpNoCase("colors") == 0)
 	{
 		menu.AppendSeparator();
@@ -1085,8 +1092,10 @@ void FormGResEncoder::OnRulesPopup(wxCommandEvent& event)
 				return;
 		}
 	}
-	else if(menu_id == POPUP_ACTIONS::COPY_ALL)
+	else if(menu_id == POPUP_ACTIONS::COPY_ALL || menu_id == POPUP_ACTIONS::COPY_COLOR_CORR)
 	{		
+		bool is_color_corr = menu_id == POPUP_ACTIONS::COPY_COLOR_CORR;
+
 		// for each listed resource:
 		auto sel_id = lboxList->GetSelection();
 		for(int k = 0; k < lboxList->GetCount(); k++)
@@ -1111,6 +1120,8 @@ void FormGResEncoder::OnRulesPopup(wxCommandEvent& event)
 					continue;
 				if(prop->GetName().CmpNoCase("name") == 0 || prop->GetName().CmpNoCase("image") == 0)
 					continue;
+				if(is_color_corr && !(!prop->GetName().CmpNoCase("gamma") || !prop->GetName().CmpNoCase("chroma") || !prop->GetName().CmpNoCase("hue") || !prop->GetName().CmpNoCase("alpha")))
+					continue;
 				obj->Update(prop);
 			}
 			
@@ -1127,6 +1138,15 @@ void FormGResEncoder::OnRulesPopup(wxCommandEvent& event)
 			if(m_info.LoadInfo(info_path))
 				return;
 		}
+	}
+	else if(menu_id == POPUP_ACTIONS::DEFAULT_COLOR_CORR)
+	{
+		m_info.gamma = 1.0;
+		m_info.chroma = 0.0;
+		m_info.hue = 0.0;
+		m_info.alpha_threshold = 128;
+		m_info.SaveInfo();
+		LoadResource(m_info.path);
 	}
 }
 
@@ -1418,7 +1438,7 @@ void FormGResEncoder::OnRegenClick(wxCommandEvent& event)
 	// re-encode
 	std::vector<ImgQuantize::Pixel> buffer;
 	m_gres.Encode(m_source,buffer,false,
-		m_info.name,&m_pal,m_info.gamma,m_info.saturation,
+		m_info.name,&m_pal,m_info.gamma,m_info.chroma,m_info.hue,
 		m_info.x_size,m_info.y_size,(wxImageResizeQuality)m_info.resampling,
 		slideMinDither->GetValue(),m_info.alpha_threshold,shadow_color,0xFD);
 
@@ -1650,7 +1670,7 @@ void FormGResEncoder::OnRegenPaletteClick(wxCommandEvent& event)
 		// load image pixels with preprocessing
 		std::vector<ImgQuantize::Pixel> buffer;
 		m_gres.Encode(m_source,buffer,true,"",
-			NULL,m_info.gamma,m_info.saturation,
+			NULL,m_info.gamma,m_info.chroma,m_info.hue,
 			m_info.x_size,m_info.y_size,(wxImageResizeQuality)m_info.resampling);
 		
 		// add pixels to collection

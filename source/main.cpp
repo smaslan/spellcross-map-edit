@@ -179,6 +179,8 @@ bool MyApp::OnInit()
     // last extract FS path
     spell_data->export_fs_path = char2wstring(ini.GetValue("STATE","extract_fs_path",wstring2string(m_config.spell_path).c_str()));
 
+    // try load trees randomzier presets
+    m_tree_rand_rules.LoadINIpresets(&ini,"PATH","tree_randomizer_preset");
 
     // --- load some map
     wstring map_path = char2wstring(ini.GetValue("STATE","last_map",""));
@@ -219,7 +221,7 @@ bool MyApp::OnInit()
                 
     // --- run main form    
     // main window frame
-    MainFrame* frame = new MainFrame(&m_config, spell_map, spell_data);
+    MainFrame* frame = new MainFrame(&m_config, spell_map, spell_data, m_tree_rand_rules);
     frame->SetSize(win_x_size,win_y_size);
     if(win_maximize)
         frame->Maximize();
@@ -256,6 +258,9 @@ int MyApp::OnExit()
     if(spell_data)
         ini.SetValue("STATE","extract_fs_path",wstring2string(spell_data->export_fs_path).c_str());
 
+    // trees randomizer preset(s)
+    m_tree_rand_rules.SaveINIpresets(&ini,"PATH","tree_randomizer_preset");
+
     // store sound/midi volumes
     if(spell_data->sounds)
         ini.SetLongValue("STATE", "sound_volume", 100.0*spell_data->sounds->channels->GetVolume());
@@ -282,10 +287,11 @@ int MyApp::OnExit()
 }
 
 // Main panel init
-MainFrame::MainFrame(SpellConfig* config, SpellMap *&map, SpellData *&spelldata):
+MainFrame::MainFrame(SpellConfig* config, SpellMap *&map, SpellData *&spelldata,SpellTreeRandomizerRules& tree_rand_rules):
     wxFrame(NULL, wxID_ANY, "Spellcross Map Editor", wxDefaultPosition, wxSize(1600,1000)),
     spell_data(spelldata),
-    spell_map(map)
+    spell_map(map),
+    m_tree_rand_rules(tree_rand_rules)
 {
     // store local reference to initial map and data
     m_spell_config = config;
@@ -415,6 +421,9 @@ MainFrame::MainFrame(SpellConfig* config, SpellMap *&map, SpellData *&spelldata)
     menuEdit->Append(ID_AddUnit,"Add unit\tCtrl+Shift+U","",wxITEM_NORMAL);
     menuEdit->Append(ID_CycleUnitRandomMode,"Change unit randomizer rule\tCtrl+Shift+R","",wxITEM_NORMAL);
     menuEdit->Append(ID_CycleUnitBehaveMode,"Change unit behave/spec. type\tCtrl+Shift+B","",wxITEM_NORMAL);
+    menuEdit->Append(wxID_ANY,"","",wxITEM_SEPARATOR);
+    menuEdit->Append(ID_TreeRandCfg,"Trees randomizer config\tCtrl+Shift+T","",wxITEM_NORMAL);
+    menuEdit->Append(ID_TreeRand,"Randomize trees\tCtrl+T","",wxITEM_NORMAL);
     AssignSVGresourceToMenu(menuEdit,ID_HistoryUndo,"IDR_UNDO");
     AssignSVGresourceToMenu(menuEdit,ID_HistoryRedo,"IDR_REDO");
     AssignSVGresourceToMenu(menuEdit,ID_EditMissionParams,"IDR_EDIT");
@@ -459,9 +468,10 @@ MainFrame::MainFrame(SpellConfig* config, SpellMap *&map, SpellData *&spelldata)
     menuTools->Append(ID_UpdateSprContext, "Update tile context from this map","",wxITEM_NORMAL);
     menuTools->Append(ID_UpdateSprContextMaps,"Update tile context from ALL maps","",wxITEM_NORMAL);
     menuTools->Append(ID_GenDMAobjects,"Generate DMAx_xxx objects from this map","",wxITEM_NORMAL);
-    menuTools->Append(ID_GenDMAobjectsMaps,"Generate DMAx_xxx objects from ALL maps","",wxITEM_NORMAL);
+    menuTools->Append(ID_GenDMAobjectsMaps,"Generate DMAx_xxx objects from ALL maps","",wxITEM_NORMAL);        
     menuTools->Append(wxID_ANY,"","",wxITEM_SEPARATOR);
     menuTools->Append(ID_ExtractFS,"Extract FS archive","",wxITEM_NORMAL);
+
     AssignSVGresourceToMenu(menuTools,ID_ViewSprites,"IDR_LAY_SPRITE");
     AssignSVGresourceToMenu(menuTools,ID_ViewAnms,"IDR_LAY_ANM");
     AssignSVGresourceToMenu(menuTools,ID_ViewPnms,"IDR_LAY_PNM");
@@ -633,6 +643,10 @@ MainFrame::MainFrame(SpellConfig* config, SpellMap *&map, SpellData *&spelldata)
     Bind(wxEVT_MENU,&MainFrame::OnCycleUnitRandMode,this,ID_CycleUnitRandomMode);
     Bind(wxEVT_MENU,&MainFrame::OnCycleUnitBehaveMode,this,ID_CycleUnitBehaveMode);
 
+    Bind(wxEVT_MENU,&MainFrame::OnTreesRandomizerPanel,this,ID_TreeRandCfg);
+    Bind(wxEVT_MENU,&MainFrame::OnTreesRandomizer,this,ID_TreeRand);
+        
+
     spell_map->SetMessageInterface(bind(&MainFrame::ShowMessage,this,placeholders::_1,placeholders::_2,placeholders::_3), bind(&MainFrame::CheckMessageState,this));    
     
     HistoryCheck();
@@ -675,6 +689,8 @@ void MainFrame::OnAbout(wxCommandEvent& event)
 // run configuration
 void MainFrame::OnConfig(wxCommandEvent& event)
 {
+    m_tree_rand.Clear();
+
     // close map
     std::filesystem::path map_path = "";
     if(spell_map->IsLoaded())
@@ -1049,6 +1065,14 @@ void MainFrame::OnClose(wxCloseEvent& ev)
         
         delete form_units_list;
         form_units_list = NULL;
+    }
+    else if(ev.GetId() == ID_TREE_RAND && form_tree_rand)
+    {
+        // tree randomizer done
+        m_tree_rand.Clear();
+
+        delete form_tree_rand;
+        form_tree_rand = NULL;
     }
     else
         ev.Skip();
@@ -2069,6 +2093,58 @@ void MainFrame::OnExtractFS(wxCommandEvent& event)
 
 
 
+
+
+// run trees randomizer panel launch
+void MainFrame::OnTreesRandomizerPanel(wxCommandEvent& event)
+{
+    if(!spell_data || !spell_map)
+        return;
+    if(!spell_map->IsLoaded())
+        return;
+    if(FindWindowById(ID_TREE_RAND))
+        return; 
+
+    form_tree_rand = new FormTreeRand(this,ID_TREE_RAND);
+    if(form_tree_rand->SetTerrain(spell_map->terrain, &m_tree_rand_rules))
+    {
+        wxMessageBox(string_format("Failed launching trees randomizer:\n%s",form_tree_rand->m_last_error));
+        delete form_tree_rand;
+        form_tree_rand = NULL;
+        return;
+    }
+    form_tree_rand->Show();
+}
+// run trees randomizer
+void MainFrame::OnTreesRandomizer(wxCommandEvent& event)
+{
+    if(!spell_data || !spell_map)
+        return;
+    if(!spell_map->IsLoaded())
+        return;
+    
+    // check rules
+    auto rules = m_tree_rand_rules.GetTerrain(spell_map->terrain->name);
+    if(!rules)
+    {
+        wxMessageBox("No tree randomizer rules set yet!","Trees randomize",wxICON_EXCLAMATION);
+        return;
+    }
+
+    // prepare rules
+    if(!m_tree_rand.m_is_prepared && m_tree_rand.PrepareRules(m_tree_rand_rules, spell_data))
+    {
+        wxMessageBox(string_format("Tree randomization preparation failed:\n%s",m_tree_rand.m_last_error),"Trees randomize",wxICON_EXCLAMATION);
+        return;
+    }
+    
+    // try randomize    
+    if(m_tree_rand.RandomizeMap(spell_map))
+    {
+        wxMessageBox(string_format("Tree randomization failed:\n%s",m_tree_rand.m_last_error),"Trees randomize",wxICON_EXCLAMATION);
+        return;
+    }
+}
 
 
 

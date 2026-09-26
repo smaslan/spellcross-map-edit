@@ -131,7 +131,8 @@ public:
 	bool is_tree_auto_y_offset;
 	int resampling;
 	double gamma;
-	double saturation;
+	double chroma;
+	double hue;
 	bool regen_pal;
 	RegenPalPreset regen_pal_preset;
 	bool save_pal;
@@ -201,6 +202,8 @@ private:
 	enum class POPUP_ACTIONS{
 		COPY_PROP = 0,
 		COPY_ALL,
+		COPY_COLOR_CORR,
+		DEFAULT_COLOR_CORR,
 		COLOR_INFO,
 		COLOR_UNITS,
 		COLOR_TERR,

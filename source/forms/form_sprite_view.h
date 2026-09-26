@@ -7,7 +7,7 @@
 
 #pragma once
 
-// <wxFormsBuilder-include> - Section auto-inserted from 'forms.h' class 'FormSprite' on 2026-06-20 09:37:23
+// <wxFormsBuilder-include> - Section auto-inserted from 'forms.h' class 'FormSprite' on 2026-09-25 22:01:08
 #include <wx/artprov.h>
 #include <wx/xrc/xmlres.h>
 #include <wx/string.h>
@@ -43,7 +43,7 @@
 #include <wx/scrolbar.h>
 #include <wx/bmpbuttn.h>
 
-// </wxFormsBuilder-include> - Section auto-inserted from 'forms.h' class 'FormSprite' on 2026-06-20 09:37:23
+// </wxFormsBuilder-include> - Section auto-inserted from 'forms.h' class 'FormSprite' on 2026-09-25 22:01:08
 
 #include <wx/dnd.h>
 
@@ -157,7 +157,7 @@ class FormSprite : public wxFrame
 		};
 
 	protected:
-		// <wxFormsBuilder> - Section auto-inserted from 'forms.h' class 'FormSprite' on 2026-06-20 09:37:23
+		// <wxFormsBuilder> - Section auto-inserted from 'forms.h' class 'FormSprite' on 2026-09-25 22:01:08
 		enum
 		{
 			wxID_BTN_SAVE = 5999,
@@ -264,7 +264,7 @@ class FormSprite : public wxFrame
 		wxTreeCtrl* treeCtrlObjects;
 		wxStatusBar* statBar;
 
-		// </wxFormsBuilder> - Section auto-inserted from 'forms.h' class 'FormSprite' on 2026-06-20 09:37:23
+		// </wxFormsBuilder> - Section auto-inserted from 'forms.h' class 'FormSprite' on 2026-09-25 22:01:08
 
 		wxTreeItemId m_drag_item;
 		class TreeNode : wxTreeItemData {
@@ -287,8 +287,11 @@ class FormSprite : public wxFrame
 		wxString OnGetItemText(long item);
 		int OnGetItemImage(long item);
 		
+		void OnTreeKillFocus(wxFocusEvent& event);
+
 		void OnDragSprite(wxListEvent& event);
 		void OnDragSpriteEnd(wxTreeEvent& evt);
+		void OnObjectsTreeKeyDown(wxTreeEvent& event);
 		void OnTreeClassBeginLabelEdit(wxTreeEvent& evt);
 		void OnTreeClassEndLabelEdit(wxTreeEvent& evt);
 		void OnTreeClassBeginDrag(wxTreeEvent& evt);

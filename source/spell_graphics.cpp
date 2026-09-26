@@ -581,7 +581,7 @@ void SpellGraphicItem::Clear()
 
 // encode bitmap to graphic resouce
 int SpellGraphicItem::Encode(wxBitmap& bmp,std::vector<ImgQuantize::Pixel> &buffer,bool preproc_only,std::string name,
-	SpellPalette* target_pal,double gamma,double sat,
+	SpellPalette* target_pal,double gamma,double chroma,double hue,
 	int x_res_size,int y_res_size,wxImageResizeQuality resampling_mode, 
 	int dither_dist,int alpha_threshold,int* shadow_color,uint8_t shadow_index)
 {
@@ -674,7 +674,7 @@ int SpellGraphicItem::Encode(wxBitmap& bmp,std::vector<ImgQuantize::Pixel> &buff
 
 	// apply color corrections
 	SpellPalette::Gamma(gamma,buffer.data(),buffer.size());
-	SpellPalette::Saturation(sat,buffer.data(),buffer.size());
+	SpellPalette::GimpChromaHue(chroma,hue,buffer.data(),buffer.size());
 
 	if(preproc_only)
 		return(0);
@@ -684,64 +684,72 @@ int SpellGraphicItem::Encode(wxBitmap& bmp,std::vector<ImgQuantize::Pixel> &buff
 		return(1);
 	palette = target_pal;
 	pal = palette->GetPal();
-
-	// make target palette with inverse gamma
-	int ipal[256][3];
-	std::copy(palette->m_pal.begin(),palette->m_pal.end(),ipal[0]);
+	
+	// prepare encoder palette
+	auto ipal = palette->GetPal();
 	uint8_t* mask = palette->m_used_user.data();
-
-
-	// encode
-	for(int p = 0; p < buffer.size(); p++)
+	ImgQuantize::ColorOctree octree;
+	for(int k = 0; k < 256 ; k++)
 	{
-		int rr = buffer[p].r;
-		int gg = buffer[p].g;
-		int bb = buffer[p].b;
-		int aa = buffer[p].a;
+		if(mask[k] || (!has_transparent && k == 0))
+			octree.Insert(ImgQuantize::Pixel(ipal[k][0],ipal[k][1],ipal[k][2],0,k), k);
+	}
 
-		int shadow_tolerance = 2;
-		bool is_shadow = shadow_color && (abs(shadow_color[0] - rr) < shadow_tolerance && abs(shadow_color[1] - gg) < shadow_tolerance && abs(shadow_color[2] - bb) < shadow_tolerance);
-		if(is_shadow)
+	// shadow index tolerance
+	int shadow_tolerance = 2;
+	ImgQuantize::Pixel shadow_clr;
+	if(shadow_color)
+		shadow_clr = ImgQuantize::Pixel(shadow_color[0],shadow_color[1],shadow_color[2]);
+
+	// dithering color distance limit
+	auto dither_lim = dither_dist*dither_dist;
+
+	// encode pixels
+	pixels.clear();
+	pixels.reserve(x_size*y_size);	
+	for(auto &pix: buffer)
+	{
+		if(shadow_color && pix.max_distance_linear(shadow_clr) < shadow_tolerance)
 		{
-			pixels[p] = shadow_index;
+			// shadow index
+			pixels.push_back(shadow_index);
 			continue;
 		}
 
-		int min_dist = 256*256*3;
-		int min_dist2 = 256*256*3;
-		int min_id = -1;
-		int min_id2 = -1;
-		for(int k = 1; k < 256; k++)
+		// encode transparent
+		if(has_transparent && pix.a < alpha_threshold)
 		{
-			if(!mask[k])
-				continue;
-			int dist = (ipal[k][0] - rr)*(ipal[k][0] - rr) + (ipal[k][1] - gg)*(ipal[k][1] - gg) + (ipal[k][2] - bb)*(ipal[k][2] - bb);
-			if(dist < min_dist)
-			{
-				min_id2 = min_id;
-				min_dist2 = min_dist;
-				min_id = k;
-			}
-			min_dist = min(min_dist,dist);
+			pixels.push_back(0);
+			continue;
 		}
-		if(min_dist > dither_dist*dither_dist)
-		{
-			// dithering mode
-			min_dist = std::sqrt(min_dist);
-			min_dist2 = std::sqrt(min_dist2);
-			if(std::rand() % (min_dist + min_dist2) < min_dist)
-				min_id = min_id2;
-		}
-		if(min_id < 0)
-			min_id = 0;
 
-		if(aa < alpha_threshold || (!has_transparent && (rr == 0 && gg == 0 && bb == 0)))
-			pixels[p] = 0;
-		else
-			pixels[p] = min_id;
+		// force black to id=0
+		if(!has_transparent && pix.isBlack())
+		{
+			pixels.push_back(0);
+			continue;
+		}
+
+		// find closest colors
+		auto [ca,cb] = octree.FindTwoNearestColors(pix);
+
+		if(ca.distance_squared(pix) <= dither_lim)
+		{
+			// closest color
+			pixels.push_back(ca.id);
+			continue;
+		}
+
+		// dithering mode
+		int id = ca.id;
+		int min_dist = std::sqrt(ca.distance_squared(pix));
+		int min_dist2 = std::sqrt(cb.distance_squared(pix));
+		if(std::rand() % (min_dist + min_dist2) < min_dist)
+			id = cb.id;
+		pixels.push_back(id);
 	}
 
-	return(1);
+	return(0);
 }
 
 

@@ -1,4 +1,4 @@
-// Graphics routines
+// Graphics routines and stuff
 // based on:
 //   https://indiegamedev.net/2020/01/17/median-cut-with-floyd-steinberg-dithering-in-c/
 // and google Gemini AI
@@ -6,6 +6,7 @@
 #include "graphics.h"
 #include <algorithm>
 #include <vector>
+#include <queue>
 
 // make new color bucket
 ImgQuantize::Bucket::Bucket(std::vector<ImgQuantize::Pixel>::iterator s,std::vector<ImgQuantize::Pixel>::iterator e)
@@ -158,7 +159,7 @@ std::vector<ImgQuantize::Pixel> ImgQuantize::GenMedianCutPalette(std::vector<Img
 
     for(auto& col: palette)
     {
-        Pixel pix = {col.r,col.g,col.b};
+        Pixel pix(col.r,col.g,col.b);
         pal.push_back(pix);
     }
 
@@ -167,14 +168,20 @@ std::vector<ImgQuantize::Pixel> ImgQuantize::GenMedianCutPalette(std::vector<Img
 
 
 
-
-
 // geometric distance of colors
-double ImgQuantize::Pixel::distance_squared(const Pixel& other) const {
+int ImgQuantize::Pixel::distance_squared(const Pixel& other) const {
     int dr = static_cast<int>(r) - other.r;
     int dg = static_cast<int>(g) - other.g;
     int db = static_cast<int>(b) - other.b;
     return(dr*dr + dg*dg + db*db);
+}
+
+// geometric distance of colors
+int ImgQuantize::Pixel::max_distance_linear(const Pixel& other) const {
+    int dr = static_cast<int>(r) - other.r;
+    int dg = static_cast<int>(g) - other.g;
+    int db = static_cast<int>(b) - other.b;    
+    return(std::max<int>({std::abs(dr),std::abs(dg),std::abs(db)}));
 }
 
 // is pixel black?
@@ -188,8 +195,51 @@ bool ImgQuantize::Pixel::isTransparent() const {
 }
 
 
+
+
+
+
+
+// node constructor
+ImgQuantize::OctreeNode::OctreeNode(int minR,int maxR,int minG, int maxG,int minB,int maxB, int level)
+    : minR(minR),maxR(maxR),minG(minG),maxG(maxG),minB(minB),maxB(maxB),level(level),is_leaf(false),leaf_color({0, 0, 0})
+{
+    for(int i = 0; i < 8; i++)
+        children[i] = nullptr;
+}
+
+// minimum vector distance from cube edges
+int ImgQuantize::OctreeNode::MinDistanceSquared(const Pixel& target) const
+{
+    int dr = 0, dg = 0, db = 0;
+
+    if(target.r < minR)
+        dr = minR - target.r;
+    else if(target.r > maxR)
+        dr = target.r - maxR;
+
+    if(target.g < minG)
+        dg = minG - target.g;
+    else if(target.g > maxG)
+        dg = target.g - maxG;
+
+    if(target.b < minB)
+        db = minB - target.b;
+    else if(target.b > maxB)
+        db = target.b - maxB;
+
+    return(dr*dr + dg*dg + db*db);
+}
+
+
+// init octree
+ImgQuantize::ColorOctree::ColorOctree()
+{
+    root = std::make_unique<OctreeNode>(0,255,0, 255,0,255, 0);
+}
+
 // Determines which of the 8 children a color belongs to at a specific bit depth
-int ImgQuantize::OctreeNode::get_child_index(const Pixel& cls,int depth) {
+int ImgQuantize::ColorOctree::GetChildIndex(const Pixel& cls,int depth) {
     int shift = 7 - depth;
     int r_bit = (cls.r >> shift) & 1;
     int g_bit = (cls.g >> shift) & 1;
@@ -197,50 +247,99 @@ int ImgQuantize::OctreeNode::get_child_index(const Pixel& cls,int depth) {
     return((r_bit << 2) | (g_bit << 1) | b_bit);
 }
 
-// insert node 
-void ImgQuantize::ColorOctree::insert_recursive(OctreeNode* node,const Pixel& color,int depth)
+// insert color to tree
+void ImgQuantize::ColorOctree::Insert(const Pixel& color,int id)
 {
-    if(depth == MAX_DEPTH) {
-        node->is_leaf = true;
-        node->color = color;
-        return;
-    }
+    OctreeNode* current = root.get();
 
-    int index = OctreeNode::get_child_index(color,depth);
-    if(!node->children[index]) {
-        node->children[index] = std::make_unique<OctreeNode>();
+    for(int level = 0; level < 8; ++level)
+    {
+        int index = GetChildIndex(color, level);
+        if(!current->children[index])
+        {
+            // get sub-cube dims
+            int midR = current->minR + (current->maxR - current->minR) / 2;
+            int midG = current->minG + (current->maxG - current->minG) / 2;
+            int midB = current->minB + (current->maxB - current->minB) / 2;
+            int nextMinR = (index & 4) ? midR + 1 : current->minR;
+            int nextMaxR = (index & 4) ? current->maxR : midR;
+            int nextMinG = (index & 2) ? midG + 1 : current->minG;
+            int nextMaxG = (index & 2) ? current->maxG : midG;
+            int nextMinB = (index & 1) ? midB + 1 : current->minB;
+            int nextMaxB = (index & 1) ? current->maxB : midB;
+            current->children[index] = std::make_unique<OctreeNode>(nextMinR,nextMaxR,nextMinG, nextMaxG,nextMinB,nextMaxB, level);
+        }
+        current = current->children[index].get();
     }
-
-    insert_recursive(node->children[index].get(),color,depth + 1);
+    current->is_leaf = true;
+    current->leaf_color = color;
+    current->leaf_color.id = id;
+    current->index = id;
 }
 
-void ImgQuantize::ColorOctree::search_recursive(const OctreeNode* node,const Pixel& target,int depth,Pixel& best_match,double& min_dist_sq)
+// receoursive search color using DFS method
+void ImgQuantize::ColorOctree::searchClosestDFS(const OctreeNode* node,const Pixel& target,
+    const OctreeNode*& best1,int& bestDist1,
+    const OctreeNode*& best2,int& bestDist2) const
 {
     if(!node)
-        return;        
+        return;
+
+    // initial pruning
+    if(node->MinDistanceSquared(target) >= bestDist2)
+        return;
     
+    // find 2 closest candidates
     if(node->is_leaf) {
-        double dist_sq = target.distance_squared(node->color);
-        if(dist_sq < min_dist_sq) {
-            min_dist_sq = dist_sq;
-            best_match = node->color;
+        int d = node->leaf_color.distance_squared(target);
+        if(d < bestDist1)
+        {
+            bestDist2 = bestDist1;
+            best2 = best1;
+            bestDist1 = d;
+            best1 = node;
+        }
+        else if(d < bestDist2)
+        {
+            bestDist2 = d;
+            best2 = node;
         }
         return;
     }
 
-    // 1. Prioritize the child node that matches the target's bit path
-    int preferred_index = OctreeNode::get_child_index(target,depth);
-    if(node->children[preferred_index]) {
-        search_recursive(node->children[preferred_index].get(),target,depth + 1,best_match,min_dist_sq);
-    }
-
-    // 2. Check remaining branches (pruning can be added here based on bounding boxes)
-    for(int i = 0; i < 8; ++i) {
-        if(i == preferred_index || !node->children[i]) continue;
-
-        search_recursive(node->children[i].get(),target,depth + 1,best_match,min_dist_sq);
+    // heuristic estimate of closest child using bit mask
+    int preferredIndex = GetChildIndex(target,node->level);
+    if(node->children[preferredIndex])
+        searchClosestDFS(node->children[preferredIndex].get(),target,best1,bestDist1,best2,bestDist2);
+    
+    // check other candidates
+    for(int i = 0; i < 8; ++i)
+    {
+        if(i != preferredIndex && node->children[i])
+            searchClosestDFS(node->children[i].get(),target,best1,bestDist1,best2,bestDist2);
     }
 }
 
+// find two nearest colors
+std::pair<ImgQuantize::Pixel,ImgQuantize::Pixel> ImgQuantize::ColorOctree::FindTwoNearestColors(const Pixel& target) const
+{
+    // initial distance to inf
+    const OctreeNode* best1 = nullptr;
+    const OctreeNode* best2 = nullptr;
+    int bestDist1 = std::numeric_limits<int>::max();
+    int bestDist2 = std::numeric_limits<int>::max();
+
+    // resoursive search
+    searchClosestDFS(root.get(),target, best1,bestDist1, best2,bestDist2);
+
+    // ensure we always return something
+    Pixel best_color(0,0,0,0,0);
+    Pixel secondary_color(0,0,0,0,0);
+    if(best1)
+        secondary_color = best_color = best1->leaf_color;
+    if(best2)
+        secondary_color = best2->leaf_color;
+    return(std::make_pair(best_color,secondary_color));
+}
 
 
