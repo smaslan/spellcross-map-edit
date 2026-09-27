@@ -233,7 +233,7 @@ If you like to make your own builds you certainly can. The project was made in p
 Here are available release builds for 64-bit Windows. It was tested in Windows 10, but should work in Windows 11 as well. There is no installation, just download ZIP file, unpack it where you like it and run it. There may a bit issue with Windows 11 security settings though. So far I do not have certificate so I cannot build a signed trusted installer. This may result in problems with Windows "Smart App Control" or "App Install Control" or whatever it is called depending on your system setup. But I'm working on it!
 Also, you can star my project here on GitHub if you like to help me out on a way to get the certificate.   
 
-- [V0.90 beta, 27th Septmeber 2026 (7zip file)](./builds/Spellcross-Map-Editor-V0.90-beta.7z) 
+- [V0.90 beta, 27th Septmeber 2026 (7zip file)](./builds/x64/Spellcross-Map-Editor-V0.90-beta.7z) 
   - First release (careful, not fully tested).
   - Not finished. 
   - Very very buggy.
