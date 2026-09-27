@@ -63,7 +63,7 @@ private:
     SpellMap* spell_map;
     SpellData* spell_data;   
     SpellConfig m_config;
-    SpellTreeRandomizerRules m_tree_rand_rules;
+    SpellTreeRandomizerRules m_tree_rand_rules;    
 public:
     virtual bool OnInit();
     virtual int OnExit();
@@ -254,6 +254,7 @@ private:
     // tree randomizer rules
     SpellTreeRandomizerRules &m_tree_rand_rules;
     SpellTreeRandomizer m_tree_rand;
+    std::filesystem::path m_tree_rand_classes_dir;
 
     // last target selection
     MapXY select_pos;
@@ -389,7 +390,9 @@ private:
         ID_POP_SELECT_SOUND,
         ID_POP_EDIT_SOUND,
         ID_POP_REM_SOUND,
-        ID_POP_UNIT_TO_SEE_PLACE
+        ID_POP_UNIT_TO_SEE_PLACE,
+        ID_POP_PERSIST_SEL_CLEAR,
+        ID_POP_PERSIST_SEL_ALL
     };
 
     // maximum size of minimap panel
@@ -482,6 +485,7 @@ enum
     ID_TextEdit,
     ID_TextEditRaw,
     ID_TreeRand,
+    ID_TreeRandAll,
     ID_TreeRandCfg
 };
 

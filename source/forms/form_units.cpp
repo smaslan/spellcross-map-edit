@@ -5,12 +5,17 @@
 // PLEASE DO *NOT* EDIT THIS FILE!
 ///////////////////////////////////////////////////////////////////////////
 
+#ifndef WX_PRECOMP
+#include <wx/wx.h>
+#endif
+
 #include "form_units.h"
 #include "spell_palette.h"
 #include "spell_filter.h"
 #include "other.h"
 #include "wx_other.h"
 
+#include <wx/icon.h>
 #include <wx/rawbmp.h>
 #include <wx/filedlg.h>
 

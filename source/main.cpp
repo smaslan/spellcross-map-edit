@@ -180,7 +180,9 @@ bool MyApp::OnInit()
     spell_data->export_fs_path = char2wstring(ini.GetValue("STATE","extract_fs_path",wstring2string(m_config.spell_path).c_str()));
 
     // try load trees randomzier presets
-    m_tree_rand_rules.LoadINIpresets(&ini,"PATH","tree_randomizer_preset");
+    m_tree_rand_rules.LoadINIpresets(&ini,"STATE","tree_randomizer_preset");
+    // randomizer tree classes
+    m_tree_rand_rules.m_tree_classes_dir = (GetExecutableDir() / char2wstring(ini.GetValue("DATA","tree_randomizer_classes_dir","data/tree_randomizer"))).lexically_normal();
 
     // --- load some map
     wstring map_path = char2wstring(ini.GetValue("STATE","last_map",""));
@@ -254,12 +256,12 @@ int MyApp::OnExit()
 
     // last export path
     if(spell_data)
-        ini.SetValue("STATE","export_path",wstring2string(spell_data->export_path).c_str());
+        ini.SetValue("STATE","export_path",wstring2string(spell_data->export_path).c_str(),"; last export path");
     if(spell_data)
-        ini.SetValue("STATE","extract_fs_path",wstring2string(spell_data->export_fs_path).c_str());
+        ini.SetValue("STATE","extract_fs_path",wstring2string(spell_data->export_fs_path).c_str(),"; last extract FS archive path");
 
     // trees randomizer preset(s)
-    m_tree_rand_rules.SaveINIpresets(&ini,"PATH","tree_randomizer_preset");
+    m_tree_rand_rules.SaveINIpresets(&ini,"STATE","tree_randomizer_preset");
 
     // store sound/midi volumes
     if(spell_data->sounds)
@@ -394,9 +396,9 @@ MainFrame::MainFrame(SpellConfig* config, SpellMap *&map, SpellData *&spelldata,
     menuEdit->Append(wxID_ANY,"","",wxITEM_SEPARATOR);
     menuEdit->Append(ID_EditMissionParams,"Mission parameters","",wxITEM_NORMAL);
     menuEdit->Append(wxID_ANY,"","",wxITEM_SEPARATOR);
-    menuEdit->AppendSubMenu(menuLayer,"Select layer(s)","");
+    menuEdit->AppendSubMenu(menuLayer,"Select layer(s) filter","");
     menuEdit->Append(ID_SelectAll,"Select all tiles\tCtrl+A","",wxITEM_NORMAL);
-    menuEdit->Append(ID_DeselectAll,"Deselect all tiles\tCtrl+Shift+A","",wxITEM_NORMAL);
+    menuEdit->Append(ID_DeselectAll,"Deselect all tiles\tCtrl+Shift+Insert","",wxITEM_NORMAL);
     menuEdit->Append(ID_SelectDeselect,"Select/deselect tiles\tCtrl+Insert","",wxITEM_NORMAL);
     menuEdit->Append(wxID_ANY,"","",wxITEM_SEPARATOR);
     menuEdit->Append(ID_CopyBuf,"Copy selection to buffer\tCtrl+C","",wxITEM_NORMAL);
@@ -422,8 +424,9 @@ MainFrame::MainFrame(SpellConfig* config, SpellMap *&map, SpellData *&spelldata,
     menuEdit->Append(ID_CycleUnitRandomMode,"Change unit randomizer rule\tCtrl+Shift+R","",wxITEM_NORMAL);
     menuEdit->Append(ID_CycleUnitBehaveMode,"Change unit behave/spec. type\tCtrl+Shift+B","",wxITEM_NORMAL);
     menuEdit->Append(wxID_ANY,"","",wxITEM_SEPARATOR);
-    menuEdit->Append(ID_TreeRandCfg,"Trees randomizer config\tCtrl+Shift+T","",wxITEM_NORMAL);
-    menuEdit->Append(ID_TreeRand,"Randomize trees\tCtrl+T","",wxITEM_NORMAL);
+    menuEdit->Append(ID_TreeRandCfg,"Trees randomizer config\tCtrl+Alt+T","",wxITEM_NORMAL);
+    menuEdit->Append(ID_TreeRand,"Randomize cursor/selected trees\tCtrl+T","",wxITEM_NORMAL);
+    menuEdit->Append(ID_TreeRandAll,"Randomize all trees\tCtrl+Shift+T","",wxITEM_NORMAL);
     AssignSVGresourceToMenu(menuEdit,ID_HistoryUndo,"IDR_UNDO");
     AssignSVGresourceToMenu(menuEdit,ID_HistoryRedo,"IDR_REDO");
     AssignSVGresourceToMenu(menuEdit,ID_EditMissionParams,"IDR_EDIT");
@@ -436,6 +439,9 @@ MainFrame::MainFrame(SpellConfig* config, SpellMap *&map, SpellData *&spelldata,
     AssignSVGresourceToMenu(menuEdit,ID_CreateNewObject,"IDR_NEW");
     AssignSVGresourceToMenu(menuEdit,ID_ElevUp,"IDR_UP");
     AssignSVGresourceToMenu(menuEdit,ID_ElevDown,"IDR_DOWN");
+    AssignSVGresourceToMenu(menuEdit,ID_TreeRandCfg,"IDR_RANDOM");
+    AssignSVGresourceToMenu(menuEdit,ID_TreeRand,"IDR_RANDOM");
+    AssignSVGresourceToMenu(menuEdit,ID_TreeRandAll,"IDR_RANDOM");
 
 
     
@@ -645,6 +651,7 @@ MainFrame::MainFrame(SpellConfig* config, SpellMap *&map, SpellData *&spelldata,
 
     Bind(wxEVT_MENU,&MainFrame::OnTreesRandomizerPanel,this,ID_TreeRandCfg);
     Bind(wxEVT_MENU,&MainFrame::OnTreesRandomizer,this,ID_TreeRand);
+    Bind(wxEVT_MENU,&MainFrame::OnTreesRandomizer,this,ID_TreeRandAll);
         
 
     spell_map->SetMessageInterface(bind(&MainFrame::ShowMessage,this,placeholders::_1,placeholders::_2,placeholders::_3), bind(&MainFrame::CheckMessageState,this));    
@@ -695,7 +702,7 @@ void MainFrame::OnConfig(wxCommandEvent& event)
     std::filesystem::path map_path = "";
     if(spell_map->IsLoaded())
     {
-        wxMessageDialog dlg(this, "Opened map will be closed and all Spellcross data will be reloaded! Continue?", "Spellcross configuration", wxYES_NO | wxNO_DEFAULT | wxICON_WARNING);
+        wxMessageDialog dlg(this, "Opened map will be closed and all Spellcross data will be reloaded! Continue?", "Spellcross configuration", wxYES_NO | wxYES_DEFAULT | wxICON_WARNING);
         if(dlg.ShowModal() != wxID_YES)
             return;
         map_path = spell_map->GetTopPath();
@@ -707,11 +714,17 @@ void MainFrame::OnConfig(wxCommandEvent& event)
     form_config.ShowModal();
 
     // loose old spellcross data
+    auto snd_vol = spell_data->sounds->channels->GetVolume();
+    auto mus_vol = spell_data->midi->GetVolume();
     spell_data->Cleanup();
         
     // try reload spellcross data
     if(LoadSpellData(this, *m_spell_config,spell_data))
-        Close();
+        Close();     
+
+    // reset volumes
+    spell_data->sounds->channels->SetVolume(snd_vol);
+    spell_data->midi->SetVolume(mus_vol);
     
     // ###note: This is absolutely needed because RtAudio seems to messup with threading concurency model for main UI thread,
     // which results in file dialog calls (and god knows what else) to hangup? Maybe it will be fixed in new version of wxWidgets? 
@@ -724,6 +737,10 @@ void MainFrame::OnConfig(wxCommandEvent& event)
     // try reload map
     if(!map_path.empty())
         spell_map->Load(map_path, spell_data);
+
+    // reload tools
+    LoadToolsetRibbon();
+
     canvas->Refresh();
 }
 
@@ -2122,6 +2139,8 @@ void MainFrame::OnTreesRandomizer(wxCommandEvent& event)
         return;
     if(!spell_map->IsLoaded())
         return;
+    bool is_all = event.GetId() == ID_TreeRandAll;
+    
     
     // check rules
     auto rules = m_tree_rand_rules.GetTerrain(spell_map->terrain->name);
@@ -2139,11 +2158,12 @@ void MainFrame::OnTreesRandomizer(wxCommandEvent& event)
     }
     
     // try randomize    
-    if(m_tree_rand.RandomizeMap(spell_map))
+    if(m_tree_rand.RandomizeMap(spell_map, is_all))
     {
         wxMessageBox(string_format("Tree randomization failed:\n%s",m_tree_rand.m_last_error),"Trees randomize",wxICON_EXCLAMATION);
         return;
     }
+    HistoryPush();
 }
 
 
@@ -2579,6 +2599,16 @@ void MainFrame::OnCanvasPopupSelect(wxCommandEvent& event)
             form_sounds->Show();
         }
     }
+    else if(menu_id == ID_POP_PERSIST_SEL_CLEAR)
+    {
+        // clear map selection
+        spell_map->SelectTiles(SpellMap::SELECT_CLEAR);
+    }
+    else if(menu_id == ID_POP_PERSIST_SEL_ALL)
+    {
+        // map selection all
+        spell_map->SelectTiles(SpellMap::SELECT_ADD);
+    }
 
     UpdateMapStatus();
 }
@@ -2622,7 +2652,7 @@ void MainFrame::OnCanvasRMouse(wxMouseEvent& event)
 
             wxMenu menu;
             menu.SetClientData(cur_unit);
-
+            
             if(wEvents && cur_evt)
             {
                 menu.Append(ID_POP_SELECT_EVENT,"Select event");
@@ -2743,6 +2773,13 @@ void MainFrame::OnCanvasRMouse(wxMouseEvent& event)
                 menu.Append(ID_POP_REM_SOUND,"Remove sound");
             }
                         
+            if(menu.GetMenuItemCount())
+                menu.AppendSeparator();
+            menu.Append(ID_POP_PERSIST_SEL_ALL,"Selection all tiles");
+            if(spell_map->GetPersistSelectionsCount())
+                menu.Append(ID_POP_PERSIST_SEL_CLEAR,"Clear all selections");
+            
+                        
             
             if(menu.GetMenuItemCount())
             {
@@ -2795,10 +2832,10 @@ void MainFrame::OnCopyBuf(wxCommandEvent& event)
     
     // get layers mask
     SpellMap::Layers lay;
-    lay.lay1 = GetMenuBar()->FindItem(ID_SelectLay1)->IsChecked();
-    lay.lay2 = GetMenuBar()->FindItem(ID_SelectLay2)->IsChecked();
-    lay.anm = GetMenuBar()->FindItem(ID_SelectLayANM)->IsChecked();
-    lay.pnm = GetMenuBar()->FindItem(ID_SelectLayPNM)->IsChecked();
+    lay.lay1 = GetMenuBar()->FindItem(ID_SelectLay1)->IsChecked() && GetMenuBar()->FindItem(ID_ViewTer)->IsChecked();
+    lay.lay2 = GetMenuBar()->FindItem(ID_SelectLay2)->IsChecked() && GetMenuBar()->FindItem(ID_ViewObj)->IsChecked();
+    lay.anm = GetMenuBar()->FindItem(ID_SelectLayANM)->IsChecked() && GetMenuBar()->FindItem(ID_ViewAnm)->IsChecked();
+    lay.pnm = GetMenuBar()->FindItem(ID_SelectLayPNM)->IsChecked() && GetMenuBar()->FindItem(ID_ViewPnm)->IsChecked();
     
     // get selected area (preference of persistent selection over cursor)
     std::vector<MapXY> list;
@@ -2807,7 +2844,10 @@ void MainFrame::OnCopyBuf(wxCommandEvent& event)
         list = spell_map->GetSelections();
     
     if(event.GetId() == ID_CutBuf)
+    {
         spell_map->CutBuffer(list, lay);
+        HistoryPush();
+    }
     else
         spell_map->CopyBuffer(list, lay);
     

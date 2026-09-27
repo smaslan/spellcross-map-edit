@@ -154,9 +154,20 @@ Another text related tool is `Tools->Raw text view/editor`. Intention of this to
 
 ![Raw text viewer](./doc/fig/scr_raw_text_view.png)
 
+
+### Trees randomizer
+
+The trees are a bit bland in the game so I needed a way to replace them in the maps. So I made a simple randomizer tool to do that. In the menu `Edit->Trees randomzier config` you can create randomization rule sets from->to with probabilities. The randomizer is using tree groups/names store in `*.info` files in application subfolder `data/tree_randomizer/`. These files are exports from Objects editor (see above). The files are not necessary but makes its use easier.    
+Once you setup the randomizer, you can apply it via menus `Edit->Randomize...` either to entire map or to cursor or persistent selection ranges.
+
+![Trees randomzier config](./doc/fig/scr_tree_rand.png)
+
+
 ### Graphics encoder
 
-When I started experimenting with mods, I needed to change some of the graphics as well. In past I did that by standalone tools, but it was not very practical so I integrated graphic resources encoder directly to the editor. You can run the encoder via menu `Tools->Graphics encoder`. Simplest way to use it is to export some graphics e.g. from `Graphics viewer` or `Sprite viewer` and just modify the generated PNG files, then use this tool to re-encode back to the Spellcross format(s). The encoder always need three files: PNG file with the graphics itself, metadata `*.info` file with parameters of the graphic resource (format, size, colors, ...) and finally color palette file `*palinfo` with target color palette to which the resource should be encoded. When you open graphical resource in this tool it should also list all other resources in the folder that share the same color palette. This is needed in case you decide to regenerate palette as it is often shared for multiple resources. Hence, you have to re-encode all resources, not just the one modified. However, I would not recommend to regenerate color palettes because they are often composed of several chunks that are shared in different parts of the game engine, so likelyhood you messup something is rather high unless you know exactly how it works. Regeneration of palettes make sense almost exclusively for unit info renders where each image has its own palette.
+When I started experimenting with mods, I needed to change some of the graphics as well. In past I did that by standalone tools, but it was not very practical so I integrated graphic resources encoder directly to the editor. You can run the encoder via menu `Tools->Graphics encoder`. Simplest way to use it is to export some graphics e.g. from `Graphics viewer` or `Sprite viewer` and just modify the generated PNG files, then use this tool to re-encode back to the Spellcross format(s). The encoder always need three files: PNG file with the graphics itself, metadata `*.info` file with parameters of the graphic resource (format, size, colors, ...) and finally color palette file `*palinfo` with target color palette to which the resource should be encoded. This file can be obtained from palette viewer or from exported graphic resource. When you open graphical resource in this tool it should also list all other resources in the folder that share the same color palette. This is needed in case you decide to regenerate palette as it is often shared for multiple resources. Hence, you have to re-encode all resources, not just the one modified. However, I would not recommend to regenerate color palettes because they are often composed of several chunks that are shared in different parts of the game engine, so likelyhood you messup something is rather high unless you know exactly how it works. Regeneration of palettes make sense almost exclusively for unit info renders where each image has its own palette. Alternatively you can open batch of resources (images) in which case each loaded resource will have different palette. This is useful for generating e.g. INFO.FS unit renders. When you open images and the `*.info` resources are not found, the tool will offer automatic generation of defaults ones.
+
+![Graphic resource encoder](./doc/fig/scr_grp_encoder.png)
 
 The encoder can now encode following data:
  - Sprites (terrain and object) to `*.DTA` files.
@@ -182,14 +193,19 @@ Metadata `*.info` file recognizes following items:
    - 'Bilinear': bilinear interpolation.
    - 'Bicubic': bicubic interpolation.
  - `gamma`: gamma correction for source image preprocessing.
+ - `chroma`: chroma correction for source image preprocessing.
+ - `hue`: hue shift correction for source image preprocessing.
  - `landtype`: terrain tile shape index 0 to 13 for 'DTA' format. Objects such as trees should be 0, terrain sprites must be 1 to 13.
  - `center_to_width`: Auto center image to given width. This is useful e.g. for 'DTA' object sprites which are mostly aligned to center of 80 pixels box. Use 0 to disable.
  - `tree_auto_y_offset`: Non-zero value to enable auto calculation of `yoffset` value for typical tree sprites. The `yoffset` is then extra offset added to the auto calculated value.
  - `transparent`: Non-zero marks image as transparent.
  - `alpha_threshold`: 8-bit alpha channel threshold value to quantize alpha-blended images. Default is half-range 128.
- - `shadow_color`: 8-bit 'R,G,B' color designating shadow for `UNITS.FSU` format. This color will be encoded as a Spellcross shadow index 0xFD.
+ - `shadow_color`: 8-bit 'R,G,B' color designating shadow for 'UNITS.FSU' format. This color will be encoded as a Spellcross shadow index 0xFD.
  - `palette`: name of color palette file `*.palinfo` to be used to encode the image.
- - `colors`: string defining range of color palette indices to be used for encoding. E.g. '0-127,250-253' will encode to color indices 0-127 and 250-253.
+ - `colors`: string defining range of color palette indices to be used for encoding. E.g. '0-127,250-253' will limit encoding to color indices 0-127 and 250-253.
+ - `regen_palette`: regenerate palette on resource save.
+ - `regen_palette_preset`: preset name for the palette regeneration on resource save. So far only 'INFO.FS' is available.
+ - `export_palette`: non-zero to export palettes on resource save.
 
 
 ## Game mode

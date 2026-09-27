@@ -3471,6 +3471,12 @@ vector<MapXY> SpellMap::GetPersistSelections()
 		}
 	return(list);
 }
+// get persist selections count
+int SpellMap::GetPersistSelectionsCount()
+{
+	auto count = std::ranges::count(select,1);
+	return(count);
+}
 
 
 

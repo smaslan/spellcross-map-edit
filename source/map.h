@@ -765,6 +765,7 @@ class SpellMap
 		int SoundEdit(SpellSample* new_sound,MapSound::SoundType type=MapSound::SoundType::BOTH,MapXY* pos=NULL);
 		MapSound* SoundAdd(SpellSample* new_sound,MapSound::SoundType type,MapXY* pos=NULL);
 		vector<MapXY> GetPersistSelections();
+		int GetPersistSelectionsCount();
 		void SelectTiles(vector<MapXY> tiles,int mode);
 		void SelectTiles(int mode);
 		int IvalidateTiles(vector<MapXY> tiles,std::function<void(std::string)> status_cb=NULL);

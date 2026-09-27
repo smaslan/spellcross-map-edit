@@ -145,6 +145,20 @@ FormAbout::FormAbout( wxWindow* parent,std::string ver_label, wxWindowID id, con
 	wxAcceleratorTable accel(entries.size(),entries.data());
 	this->SetAcceleratorTable(accel);
 
+	#ifdef _DEBUG
+		#ifdef _DLL
+			ver_label += " (debug dll-wxWidgets)";
+		#else
+			ver_label += " (debug static-wxWidgets)";
+		#endif
+	#else
+		#ifdef _DLL
+			ver_label += " (release dll-wxWidgets)";
+		#else
+			ver_label += " (release static-wxWidgets)";
+		#endif
+	#endif
+
 	txtVersion->SetValue(ver_label);
 			
 	auto desc = "Very experimental editor for Spellcross map files and collection of Spellcross data loaders, viewers, exportes and encoders.\n"
