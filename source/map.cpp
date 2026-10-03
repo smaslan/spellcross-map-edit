@@ -10957,7 +10957,9 @@ int SpellMap::EditElev(int step,TScroll* scroll)
 	}*/
 
 	// apply textures
-	ReTexture(flag);
+	//ReTexture(flag);
+	//EditElevText(flag);
+
 
 
 	// loose memory

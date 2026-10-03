@@ -1012,7 +1012,20 @@ void FormGResEncoder::OnPropPopupClick(wxPropertyGridEvent& event)
 	menu.AppendSeparator();
 	menu.Append((int)POPUP_ACTIONS::COPY_COLOR_CORR,string_format("Copy color correction properties to all resources",prop->GetLabel().ToStdString()));
 	menu.Append((int)POPUP_ACTIONS::DEFAULT_COLOR_CORR,string_format("Reset color corrections",prop->GetLabel().ToStdString()));
-		
+	
+	wxMenu *menu_x_ofs = new wxMenu();
+	menu_x_ofs->Append((int)POPUP_ACTIONS::RAND_OFS_X3,string_format("3 pixels"));
+	menu_x_ofs->Append((int)POPUP_ACTIONS::RAND_OFS_X5,string_format("5 pixels"));
+	menu_x_ofs->Append((int)POPUP_ACTIONS::RAND_OFS_X7,string_format("7 pixels"));
+	menu_x_ofs->SetClientData(prop);
+	menu.AppendSubMenu(menu_x_ofs,"Randomize all resource x-offset");
+	wxMenu* menu_y_ofs = new wxMenu();
+	menu_y_ofs->Append((int)POPUP_ACTIONS::RAND_OFS_Y3,string_format("3 pixels"));
+	menu_y_ofs->Append((int)POPUP_ACTIONS::RAND_OFS_Y5,string_format("5 pixels"));
+	menu_y_ofs->Append((int)POPUP_ACTIONS::RAND_OFS_Y7,string_format("7 pixels"));
+	menu_y_ofs->SetClientData(prop);
+	menu.AppendSubMenu(menu_y_ofs,"Randomize all resource y-offset");
+
 	if(prop->GetName().CmpNoCase("colors") == 0)
 	{
 		menu.AppendSeparator();
@@ -1022,8 +1035,11 @@ void FormGResEncoder::OnPropPopupClick(wxPropertyGridEvent& event)
 		menu.Append((int)POPUP_ACTIONS::COLOR_TERR_CYCLE,"Set for terrain sprites witch CYCLE.PAL");
 	}
 
+
 	menu.SetClientData(prop);
-		
+	
+	//this->Bind(wxEVT_MENU,&FormGResEncoder::OnRulesPopup,this,(int)POPUP_ACTIONS::COPY_PROP,(int)POPUP_ACTIONS::RAND_OFS_Y7);
+	//menu_x_ofs->Connect(wxEVT_COMMAND_MENU_SELECTED,wxCommandEventHandler(FormGResEncoder::OnRulesPopup),NULL,this);
 	menu.Connect(wxEVT_COMMAND_MENU_SELECTED,wxCommandEventHandler(FormGResEncoder::OnRulesPopup),NULL,this);
 	PopupMenu(&menu);
 }
@@ -1148,8 +1164,55 @@ void FormGResEncoder::OnRulesPopup(wxCommandEvent& event)
 		m_info.SaveInfo();
 		LoadResource(m_info.path);
 	}
-}
+	else if(menu_id == POPUP_ACTIONS::RAND_OFS_X3 || menu_id == POPUP_ACTIONS::RAND_OFS_X5 || menu_id == POPUP_ACTIONS::RAND_OFS_X7 ||
+		menu_id == POPUP_ACTIONS::RAND_OFS_Y3 || menu_id == POPUP_ACTIONS::RAND_OFS_Y5 || menu_id == POPUP_ACTIONS::RAND_OFS_Y7)
+	{
+		bool is_y_ofs = menu_id == POPUP_ACTIONS::RAND_OFS_Y3 || menu_id == POPUP_ACTIONS::RAND_OFS_Y5 || menu_id == POPUP_ACTIONS::RAND_OFS_Y7;
+		int ofs_mag = 0;
+		if(menu_id == POPUP_ACTIONS::RAND_OFS_Y3 || menu_id == POPUP_ACTIONS::RAND_OFS_X3)
+			ofs_mag = 3;
+		else if(menu_id == POPUP_ACTIONS::RAND_OFS_Y5 || menu_id == POPUP_ACTIONS::RAND_OFS_X5)
+			ofs_mag = 5;
+		else if(menu_id == POPUP_ACTIONS::RAND_OFS_Y7 || menu_id == POPUP_ACTIONS::RAND_OFS_X7)
+			ofs_mag = 7;
 
+		srand_init();
+
+		// for each listed resource:
+		auto sel_id = lboxList->GetSelection();
+		for(int k = 0; k < lboxList->GetCount(); k++)
+		{
+			auto data = static_cast<wxStringClientData*>(lboxList->GetClientObject(k));
+			if(!data)
+				continue;
+			auto info_path = std::filesystem::path(data->GetData().ToStdWstring());
+
+			// try load resource info
+			if(m_info.LoadInfo(info_path))
+				continue;
+
+			// randomize offset
+			int ofs = std::rand() % (2*ofs_mag + 1) - ofs_mag;
+			if(is_y_ofs)
+				m_info.y_offset = ofs;
+			else
+				m_info.x_offset = ofs;
+
+			// try save changes
+			m_info.SaveInfo();
+		}
+		// reload original resource:
+		if(sel_id >= 0)
+		{
+			auto data = static_cast<wxStringClientData*>(lboxList->GetClientObject(sel_id));
+			if(!data)
+				return;
+			auto info_path = std::filesystem::path(data->GetData().ToStdWstring());
+			if(m_info.LoadInfo(info_path))
+				return;
+		}
+	}
+}
 
 // open glyph resource
 void FormGResEncoder::OnOpenClick(wxCommandEvent& event)

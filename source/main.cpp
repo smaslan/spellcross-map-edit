@@ -817,20 +817,22 @@ void MainFrame::SetStatusTextUnit(MapUnit *unit)
         return;
     }
     if(!unit)
+        unit = spell_map->GetCursorUnit();
+    if(!unit)
         unit = spell_map->GetSelectedUnit();
     if(!unit)
     {
         SetStatusTextUnit("");
         return;
     }
-    SetStatusTextUnit(string_format("Unit #%d: %ls, %s, randomizer = %s",unit->id,unit->unit->name.c_str(),unit->GetUnitConfigString().c_str(),unit->GetRandomizerModeName().c_str()));
+    SetStatusTextUnit(string_format("Unit #%d: %s, %s, randomizer = %s",unit->id,unit->unit->name,unit->GetUnitConfigString(),unit->GetRandomizerModeName()));
 }
 
 // update map status (units, events, etc.)
 void MainFrame::UpdateMapStatus(SpellMap* map)
 {
     if(spell_map && spell_map->IsLoaded())
-        SetTitle(string_format("Spellcross Map Editor (%ls)",spell_map->GetTopPath().c_str()));
+        SetTitle(string_format("Spellcross Map Editor (%s)",spell_map->GetTopPath()));
     else
         SetTitle(string_format("Spellcross Map Editor"));
     SetStatusTextUnits(map);
@@ -2201,10 +2203,10 @@ void MainFrame::OnCreateNewObject(wxCommandEvent& event)
 
         // get layers mask
         SpellMap::Layers lay;
-        lay.lay1 = GetMenuBar()->FindItem(ID_SelectLay1)->IsChecked();
-        lay.lay2 = GetMenuBar()->FindItem(ID_SelectLay2)->IsChecked();
-        lay.anm = GetMenuBar()->FindItem(ID_SelectLayANM)->IsChecked();
-        lay.pnm = GetMenuBar()->FindItem(ID_SelectLayPNM)->IsChecked();
+        lay.lay1 = GetMenuBar()->FindItem(ID_SelectLay1)->IsChecked() && GetMenuBar()->FindItem(ID_ViewTer)->IsChecked();
+        lay.lay2 = GetMenuBar()->FindItem(ID_SelectLay2)->IsChecked() && GetMenuBar()->FindItem(ID_ViewObj)->IsChecked();
+        lay.anm = GetMenuBar()->FindItem(ID_SelectLayANM)->IsChecked() && GetMenuBar()->FindItem(ID_ViewAnm)->IsChecked();
+        lay.pnm = GetMenuBar()->FindItem(ID_SelectLayPNM)->IsChecked() && GetMenuBar()->FindItem(ID_ViewPnm)->IsChecked();
 
         auto posxy = spell_map->GetPersistSelections();
         auto L1_list = spell_map->GetL1sprites(posxy);
