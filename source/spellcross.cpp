@@ -702,6 +702,7 @@ void SpellData::Cleanup()
 		delete pal;
 	pal_list.clear();
 	gres.Clear();
+	gres_info.Clear();
 }
 
 // check last error message
@@ -973,7 +974,7 @@ int SpellData::LoadInfoGraphics(FSarchive* fs,std::function<void(std::string)> s
 				continue;
 			// found matching resource
 
-			SpellPalette *pal;
+			SpellPalette *pal = NULL;
 			if(item.palette.empty())
 			{
 				// no palette, check if dedicated exists?
@@ -992,10 +993,16 @@ int SpellData::LoadInfoGraphics(FSarchive* fs,std::function<void(std::string)> s
 				break;
 			
 			// try load resource
+			int err = 0;
 			if(item.palette.empty() && item.type == SpellGrpParams::GrpType::RAW)
-				gres_info.AddRaw(data,flen,item.width,0,name,pal,item.solid);
+				err = gres_info.AddRaw(data,flen,item.width,0,name,pal,item.solid);
 			else if(item.type == SpellGrpParams::GrpType::RAW)
-				gres.AddRaw(data,flen,item.width,0,name,pal,item.solid);
+				err = gres.AddRaw(data,flen,item.width,0,name,pal,item.solid);
+			if(err)
+			{
+				last_error = string_format("Adding graphics resource \"%s\" from INFO.FS failed! Possibly duplicate name of resource?",name);
+				return(1);
+			}
 			break;
 		}
 

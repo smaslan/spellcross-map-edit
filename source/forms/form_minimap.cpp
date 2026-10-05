@@ -1,5 +1,6 @@
 #include "form_minimap.h"
 #include "spellcross.h"
+#include "spell_palette.h"
 #include "map.h"
 #include "fs_archive.h"
 #include "other.h"
@@ -66,7 +67,7 @@ FormMiniMap::FormMiniMap(wxPanel* parent,wxWindowID win_id,SpellData* spell_data
     // convert frame to RGB frame buffer
     m_frame = new wxBitmap(x_size, y_size, 24); 
     uint8_t *fptr = &buf[0];
-    uint8_t (*pal)[3] = horz->pal;
+    auto pal = horz->palette->GetPal();
     wxNativePixelData fdata(*m_frame);
     wxNativePixelData::Iterator f(fdata);
     wxNativePixelData pdata(*m_minimap.bmp);

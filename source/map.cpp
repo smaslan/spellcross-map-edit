@@ -2501,7 +2501,16 @@ int SpellMap::ConvXY(MapXY &mxy)
 {
 	return(ConvXY(&mxy));
 }
-
+// is x,y within valid range?
+int SpellMap::isXYok(int x,int y)
+{
+	return(x >=0 && x < x_size && y >=0 && y < y_size);
+}
+// is x,y within valid range?
+int SpellMap::isXYok(MapXY& mxy)
+{
+	return(mxy.x >=0 && mxy.x < x_size&& mxy.y >=0 && mxy.y < y_size);
+}
 
 
 // check any unit was moved and eventually clear moved flags
@@ -10227,6 +10236,8 @@ int SpellMap::EditElevNbrQuad(int x, int y, int elv, int* min)
 {
 	int i,j;
 
+	n_EditElevNbrQuad++;
+
 	// no quad yet
 	int hquad[4];
 
@@ -10243,9 +10254,7 @@ int SpellMap::EditElevNbrQuad(int x, int y, int elv, int* min)
 
 			// neighbour position
 			MapXY nxy = GetNeighborTile8D(x,y,tile);
-
-			// skip if outside map
-			if(nxy.x < 0 || nxy.x >= x_size || nxy.y < 0 || nxy.y >= y_size)
+			if(!nxy.isOK())
 				continue;
 
 			// neighbour higher?
@@ -10284,6 +10293,8 @@ int SpellMap::EditElevNbrDbl(int x,int y,int elv)
 	int j, k;
 	int hdbl[4] = {0,0,0,0};
 
+	n_EditElevNbrDbl++;
+
 	// --- for each corner ---
 	for(j = 0; j < 4; j++)
 	{
@@ -10294,9 +10305,7 @@ int SpellMap::EditElevNbrDbl(int x,int y,int elv)
 
 			// neighbour position
 			MapXY nxy = GetNeighborTile8D(x,y,tile);
-
-			// done if outside map
-			if(nxy.x < 0 || nxy.x >= x_size || nxy.y < 0 || nxy.y >= y_size)
+			if(!nxy.isOK())
 				continue;
 
 			// higher?
@@ -10308,7 +10317,7 @@ int SpellMap::EditElevNbrDbl(int x,int y,int elv)
 	return((hdbl[0]&hdbl[2]&!hdbl[1]&!hdbl[3]) || (hdbl[1]&hdbl[3]&!hdbl[0]&!hdbl[2]));
 }
 
-void SpellMap::EditElevNbrRule(uint8_t* flag,TTileElevMod* mod,int x,int y,int elv)
+void SpellMap::EditElevNbrRule(std::vector<uint8_t>& flag,TTileElevMod* mod,int x,int y,int elv)
 {
 	int mxy = ConvXY(x,y);
 
@@ -10337,9 +10346,11 @@ void SpellMap::EditElevNbrRule(uint8_t* flag,TTileElevMod* mod,int x,int y,int e
 	}
 }
 
-void SpellMap::EditElevNbr(uint8_t* flag,int elv,int edir,int x,int y)
+void SpellMap::EditElevNbr(std::vector<uint8_t> &flag,int elv,int edir,int x,int y)
 {
 	int i;
+
+	n_EditElevNbr++;
 
 	if(edir != 0)
 		flag[ConvXY(x,y)] = 1;
@@ -10354,9 +10365,7 @@ void SpellMap::EditElevNbr(uint8_t* flag,int elv,int edir,int x,int y)
 	{
 		// neighbour position
 		MapXY nxy = GetNeighborTile8D(x,y,i);
-
-		// done if outside map
-		if(nxy.x < 0 || nxy.x >= x_size || nxy.y < 0 || nxy.y >= y_size)
+		if(!nxy.isOK())
 			continue;
 
 		// get neighbour elev
@@ -10402,9 +10411,7 @@ void SpellMap::EditElevNbr(uint8_t* flag,int elv,int edir,int x,int y)
 
 			// neighbour position
 			MapXY nxy = GetNeighborTile8D(x,y,tile);
-
-			// done if outside map
-			if(nxy.x < 0 || nxy.x >= x_size || nxy.y < 0 || nxy.y >= y_size)
+			if(!nxy.isOK())
 				continue;
 
 			// neighbour elevation
@@ -10435,9 +10442,7 @@ void SpellMap::EditElevNbr(uint8_t* flag,int elv,int edir,int x,int y)
 
 			// neighbour position
 			MapXY nxy = GetNeighborTile8D(x,y,tile);
-
-			// done if outside map
-			if(nxy.x < 0 || nxy.x >= x_size || nxy.y < 0 || nxy.y >= y_size)
+			if(!nxy.isOK())
 				continue;
 
 			// neighbour elevation
@@ -10464,9 +10469,7 @@ void SpellMap::EditElevNbr(uint8_t* flag,int elv,int edir,int x,int y)
 	{
 		// neighbour position
 		MapXY nxy = GetNeighborTile8D(x,y,i);
-
-		// done if outside map
-		if(nxy.x < 0 || nxy.x >= x_size || nxy.y < 0 || nxy.y >= y_size)
+		if(!nxy.isOK())
 			continue;
 
 		// get neighbour elev
@@ -10502,7 +10505,7 @@ void SpellMap::EditElevNbr(uint8_t* flag,int elv,int edir,int x,int y)
 	}
 }
 
-void SpellMap::EditElevSlope(uint8_t* flag)
+void SpellMap::EditElevSlope(std::vector<uint8_t>& flag)
 {
 	int i,j,k,m;
 
@@ -10518,9 +10521,7 @@ void SpellMap::EditElevSlope(uint8_t* flag)
 			{
 				// neighbour position				
 				MapXY nxy = GetNeighborTile8D(i,j,k);
-
-				// done if outside map
-				if(nxy.x < 0 || nxy.x >= x_size || nxy.y < 0 || nxy.y >= y_size)
+				if(!nxy.isOK())
 					continue;
 
 				// mark neigbours
@@ -10553,9 +10554,7 @@ void SpellMap::EditElevSlope(uint8_t* flag)
 
 						// neighbour position
 						MapXY nxy = GetNeighborTile8D(i,j,tile);
-
-						// done if outside map
-						if(nxy.x < 0 || nxy.x >= x_size || nxy.y < 0 || nxy.y >= y_size)
+						if(!nxy.isOK())
 							continue;
 
 						// current alt
@@ -10590,7 +10589,7 @@ void SpellMap::EditElevSlope(uint8_t* flag)
 }
 
 // fix textures after elevation change (only basic, need to implement full map retexture)
-void SpellMap::EditElevText(uint8_t* flag)
+void SpellMap::EditElevText(std::vector<uint8_t>& flag)
 {
 	int i,j,k;
 
@@ -10604,9 +10603,7 @@ void SpellMap::EditElevText(uint8_t* flag)
 			{
 				// neighbour position
 				MapXY nxy = GetNeighborTile8D(i,j,k);
-
-				// done if outside map
-				if(nxy.x < 0 || nxy.x >= x_size || nxy.y < 0 || nxy.y >= y_size)
+				if(!nxy.isOK())
 					continue;
 
 				// mark neigbours
@@ -10621,12 +10618,13 @@ void SpellMap::EditElevText(uint8_t* flag)
 	{
 		for(i = 0; i < x_size; i++)
 		{
-			if(flag[ConvXY(i,j)] > 0)
+			auto pos = ConvXY(i,j);
+			if(flag[pos] > 0)
 			{
 				// center tile alt
-				int alt = tiles[ConvXY(i,j)].elev;
+				int alt = tiles[pos].elev;
 
-				Sprite *sprite = tiles[ConvXY(i,j)].L1;
+				Sprite *sprite = tiles[pos].L1;
 				char slp = sprite->GetSlope();
 
 				int msk = 0;
@@ -10637,8 +10635,10 @@ void SpellMap::EditElevText(uint8_t* flag)
 					for(k = 0; k < 4; k++)
 					{
 						// neighbour tile
-						int tile = (7+k*2)%8;
+						int tile = (7 + k*2)%8;
 						MapXY nxy = GetNeighborTile8D(i,j,tile);
+						if(!nxy.isOK())
+							continue;
 
 						// center tile alt
 						int nalt = tiles[ConvXY(nxy)].elev;
@@ -10653,17 +10653,17 @@ void SpellMap::EditElevText(uint8_t* flag)
 					int did = (7+2*sid)%8;
 					int uid = (7+2*(sid+2))%8;
 
-					MapXY dxy = GetNeighborTile8D(i,j,did);
+					MapXY dxy = GetNeighborTile8D(i,j,did);					
 					MapXY uxy = GetNeighborTile8D(i,j,uid);
-					//MapXY sxy = GetTileNeihgborXY(i,j,uid);
-
-					if(tiles[ConvXY(dxy)].elev == alt)
-						msk |= (1<<sid);
+					if(dxy.isOK() && uxy.isOK())
+					{
+						if(tiles[ConvXY(dxy)].elev == alt)
+							msk |= (1<<sid);
 										
-					Sprite *sprite = tiles[ConvXY(uxy)].L1;
-					if(sprite->GetSlope() == 'A')
-						msk |= (1<<((sid+2)%4));
-
+						Sprite *sprite = tiles[ConvXY(uxy)].L1;
+						if(sprite->GetSlope() == 'A')
+							msk |= (1<<((sid+2)%4));
+					}
 				}
 				else if(slp == 'C' || slp == 'E' || slp == 'H' || slp == 'K')
 				{
@@ -10675,15 +10675,17 @@ void SpellMap::EditElevText(uint8_t* flag)
 					MapXY dnaxy = GetNeighborTile8D(i,j,dna);
 					MapXY dnbxy = GetNeighborTile8D(i,j,dnb);
 					MapXY uxy = GetNeighborTile8D(i,j,uid);
-					
-					if(tiles[ConvXY(dnaxy)].elev == alt)
-						msk |= (1<<((sid+3)%4));
-					if(tiles[ConvXY(dnbxy)].elev == alt)
-						msk |= (1<<((sid+0)%4));
+					if(dnaxy.isOK() && dnbxy.isOK() && uxy.isOK())
+					{
+						if(tiles[ConvXY(dnaxy)].elev == alt)
+							msk |= (1<<((sid+3)%4));
+						if(tiles[ConvXY(dnbxy)].elev == alt)
+							msk |= (1<<((sid+0)%4));
 
-					Sprite* sprite = tiles[ConvXY(uxy)].L1;
-					if(sprite->GetSlope() == 'A')
-						mskh |= (1<<((sid+2)%4));
+						Sprite* sprite = tiles[ConvXY(uxy)].L1;
+						if(sprite->GetSlope() == 'A')
+							mskh |= (1<<((sid+2)%4));
+					}
 				}
 				else
 				{
@@ -10694,27 +10696,30 @@ void SpellMap::EditElevText(uint8_t* flag)
 					int did = (2+sid*2)%8;
 
 					MapXY axy = GetNeighborTile8D(i,j,una);
-					Sprite* spr1 = tiles[ConvXY(axy)].L1;
 					MapXY bxy = GetNeighborTile8D(i,j,unb);
-					Sprite* spr2 = tiles[ConvXY(bxy)].L1;
-					if(spr1->GetSlope() == 'A' && spr2->GetSlope() == 'A')
-					{
-						msk |= (1<<((sid+0)%4));
-						msk |= (1<<((sid+3)%4));
-					}
-
 					MapXY dxy = GetNeighborTile8D(i,j,did);
-					if(tiles[ConvXY(dxy)].elev == alt)
-						mskh |= (1<<((sid+2)%4));
+					if(axy.isOK() && bxy.isOK() && dxy.isOK())
+					{
+						Sprite* spr1 = tiles[ConvXY(axy)].L1;
+						Sprite* spr2 = tiles[ConvXY(bxy)].L1;
+
+						if(spr1->GetSlope() == 'A' && spr2->GetSlope() == 'A')
+						{
+							msk |= (1<<((sid+0)%4));
+							msk |= (1<<((sid+3)%4));
+						}
+					
+						if(tiles[ConvXY(dxy)].elev == alt)
+							mskh |= (1<<((sid+2)%4));
+					}
 				}
 
 				// search suitable sprite
 				char name[9] = "PLxdd_??";
 				name[2] = slp;
-				name[3] = msk + '0' + ((msk>9)?('A'-'0'-10):0);
-				name[4] = mskh + '0' + ((mskh>9)?('A'-'0'-10):0);
-				Sprite *spr = terrain->GetSpriteWild(name, Terrain::RANDOM);
-				
+				name[3] = num2hex(msk);
+				name[4] = num2hex(mskh);
+				Sprite *spr = terrain->GetSpriteWild(name, Terrain::RANDOM);				
 				if(spr)
 				{
 					// update sprite
@@ -10740,8 +10745,8 @@ MapXY SpellMap::GetNeighborTile(MapXY xy,int quad)
 MapXY SpellMap::GetNeighborTile(int x,int y,int quad)
 {
 	MapXY tile;
-	if(quad > 4 || quad < 0)
-		return(tile);
+	if(quad >= 4 || quad < 0)
+		return(tile);	
 
 	// get neighbor
 	const int y_ofs[4] ={-1,-1,+1,+1};
@@ -10758,9 +10763,9 @@ MapXY SpellMap::GetNeighborTile(int x,int y,int quad)
 		tile.x = x + x_ofs[quad];
 	}
 	tile.y = y + y_ofs[quad];
-
-	// check range
-	if(tile.y < 0 || tile.y >= y_size || tile.x < 0 || tile.x >= x_size)
+	
+	// check range	
+	if(!isXYok(tile))
 	{
 		tile.x = -1;
 		tile.y = -1;
@@ -10782,7 +10787,7 @@ MapXY SpellMap::GetNeighborTile8D(int x, int y, int angle)
 	MapXY nxy;	
 	nxy.x = x + ((y&1)?xlstb[angle]:xlsta[angle]);
 	nxy.y = y + ylst[angle];
-	if(nxy.x < 0 || nxy.x >= x_size || nxy.y < 0 || nxy.y >= y_size)
+	if(!isXYok(nxy))
 		nxy = {-1,-1};
 	return(nxy);
 }
@@ -10834,9 +10839,7 @@ int SpellMap::EditElev(int step,TScroll* scroll)
 			for(j=0;j<8;j++)
 			{
 				MapXY nxy = GetNeighborTile8D(msel[i],j);
-				
-				// done if outside map
-				if(nxy.x < 0 || nxy.x >= x_size || nxy.y < 0 || nxy.y >= y_size)
+				if(!nxy.isOK())
 					continue;
 
 				// tile alt
@@ -10871,8 +10874,8 @@ int SpellMap::EditElev(int step,TScroll* scroll)
 				elv += step;
 				if(elv < ELEV_MIN)
 					elv = ELEV_MIN;
-				if(elv > ELEV_MAX-1)
-					elv = ELEV_MAX-1;
+				if(elv > ELEV_MAX)
+					elv = ELEV_MAX;
 				tiles[mxy].elev = elv;
 
 				// add tile to list of modified
@@ -10890,7 +10893,7 @@ int SpellMap::EditElev(int step,TScroll* scroll)
 			{				
 				// skip if outside map
 				MapXY nxy = GetNeighborTile8D(msel[i],j);
-				if(nxy.x < 0 || nxy.x >= x_size || nxy.y < 0 || nxy.y >= y_size)
+				if(!nxy.isOK())
 					continue;
 				
 				// tile alt down
@@ -10902,8 +10905,8 @@ int SpellMap::EditElev(int step,TScroll* scroll)
 					alt += step;
 					if(alt < ELEV_MIN)
 						alt = ELEV_MIN;
-					if(alt > ELEV_MAX-1)
-						alt = ELEV_MAX-1;
+					if(alt > ELEV_MAX)
+						alt = ELEV_MAX;
 					tiles[ConvXY(nxy)].elev = alt;
 					
 					// add tile to list of modified
@@ -10917,9 +10920,12 @@ int SpellMap::EditElev(int step,TScroll* scroll)
 		}
 	}
 
+	n_EditElevNbr = 0;
+	n_EditElevNbrQuad = 0;
+	n_EditElevNbrDbl = 0;
+
 	// allocate modification flag array
-	uint8_t *flag = new uint8_t[x_size*y_size];
-	std::memset((void*)flag, 0x00,x_size*y_size*sizeof(uint8_t));
+	std::vector<uint8_t> flag(x_size* y_size,0);
 
 	for(i = 0; i < elist.size(); i++)
 	{
@@ -10958,12 +10964,7 @@ int SpellMap::EditElev(int step,TScroll* scroll)
 
 	// apply textures
 	//ReTexture(flag);
-	//EditElevText(flag);
-
-
-
-	// loose memory
-	delete[] flag;
+	EditElevText(flag);
 
 	//DrawCMapSectorForce();
 

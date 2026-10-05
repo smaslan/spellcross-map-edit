@@ -347,17 +347,19 @@ class SpellMap
 		static constexpr int MSYOFST = 6; // map render Y-offset from top in tiles
 
 		static constexpr int ELEV_MIN = 0; // minimum tile elevation
-		static constexpr int ELEV_MAX = 8; // maximum tile elevation
+		static constexpr int ELEV_MAX = 4; // maximum tile elevation
 
-		
+		int n_EditElevNbr;
+		int n_EditElevNbrQuad;
+		int n_EditElevNbrDbl;
 		int GetFlagHeight(MapXY* sel);
 		int GetFlagFlag(MapXY* sel);		
 		int EditElevNbrQuad(int x,int y,int elv,int* min);
 		int EditElevNbrDbl(int x,int y,int elv);
-		void EditElevNbrRule(uint8_t* flag,TTileElevMod* mod,int x,int y,int elv);
-		void EditElevNbr(uint8_t* flag,int elv,int edir,int x,int y);
-		void EditElevSlope(uint8_t* flag);
-		void EditElevText(uint8_t* flag);
+		void EditElevNbrRule(std::vector<uint8_t> &flag,TTileElevMod* mod,int x,int y,int elv);
+		void EditElevNbr(std::vector<uint8_t> &flag,int elv,int edir,int x,int y);
+		void EditElevSlope(std::vector<uint8_t> &flag);
+		void EditElevText(std::vector<uint8_t> &flag);
 		int BuildHouseObjectsScan(std::vector<int>& used,std::vector<MapXY>& list,int x,int y);
 
 		// shading flags stuff
@@ -884,6 +886,8 @@ class SpellMap
 		int ConvXY(int x, int y);
 		int ConvXY(MapXY &mxy);
 		int ConvXY(MapXY *mxy);
+		int isXYok(int x,int y);
+		int isXYok(MapXY& mxy);
 
 			
 		int GetElevation(TScroll* scroll=NULL);

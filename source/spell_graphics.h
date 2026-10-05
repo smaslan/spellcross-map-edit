@@ -33,7 +33,7 @@ public:
 	std::string full_name; // with extension if exists
 	std::vector<uint8_t> pixels;
 	SpellPalette* palette;
-	uint8_t (*pal)[3];
+	//uint8_t (*pal)[3];
 
 	// auxiliary data
 	struct {

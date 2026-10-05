@@ -674,7 +674,7 @@ void FormText::OnPaintText(wxPaintEvent& event)
 	{
 		// known panel
 		panel->Render(buf, buf_end, x_size, 0, 0);
-		pal = panel->pal;
+		pal = panel->palette->GetPal();
 	}
 	else
 	{

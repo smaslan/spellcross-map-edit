@@ -66,10 +66,14 @@ int SpellGraphics::AddRaw(uint8_t* data,int dlen,int x_size,int y_size,const cha
 	// fix size (crop size to actual dims, because LZ sometimes contains extra byte for whatever reason)
 	if(x_size && y_size)
 		dlen = x_size*y_size;
-	
+
+	// check duplicates
+	auto grp = GetResource(name);
+	if(grp)
+		return(1);	
 	// make new record
-	auto grp = new SpellGraphicItem();
-	items.emplace_back(grp);
+	grp = new SpellGraphicItem();
+	items.push_back(grp);
 	
 	
 	// store name
@@ -89,7 +93,7 @@ int SpellGraphics::AddRaw(uint8_t* data,int dlen,int x_size,int y_size,const cha
 	
 	// link to external palette	
 	grp->palette = pal;
-	grp->pal = (uint8_t(*)[3])pal->m_pal.data();
+	//grp->pal = (uint8_t(*)[3])pal->m_pal.data();
 	
 	// store size
 	grp->x_size = x_size;
@@ -104,9 +108,13 @@ int SpellGraphics::AddRaw(uint8_t* data,int dlen,int x_size,int y_size,const cha
 // load ICO/PNM file (same as for PNM animations frames)
 int SpellGraphics::AddICO(uint8_t* data,int dlen,const char* name,SpellPalette *pal,bool is_solid)
 {
+	// check duplicates
+	auto grp = GetResource(name);
+	if(grp)
+		return(1);
 	// make new record
-	auto grp = new SpellGraphicItem();
-	items.emplace_back(grp);
+	grp = new SpellGraphicItem();
+	items.push_back(grp);
 
 	// store name (loose extension)
 	grp->full_name = name;
@@ -187,7 +195,7 @@ int SpellGraphics::AddICO(uint8_t* data,int dlen,const char* name,SpellPalette *
 	
 	// link to external palette	
 	grp->palette = pal;
-	grp->pal = (uint8_t(*)[3])pal->m_pal.data();
+	//grp->pal = (uint8_t(*)[3])pal->m_pal.data();
 
 	return(0);
 }
@@ -207,9 +215,14 @@ int SpellGraphics::AddCUR(uint8_t* data,int dlen,const char* name,SpellPalette* 
 	if(&data[x_size*y_size] > data_end)
 		return(1);
 
+	// check duplicates
+	auto grp = GetResource(name);
+	if(grp)
+		return(1);
 	// make new record
-	auto grp = new SpellGraphicItem();
-	items.emplace_back(grp);
+	grp = new SpellGraphicItem();
+	items.push_back(grp);
+
 	grp->x_size = x_size;
 	grp->y_size = y_size;
 	grp->x_ofs = 0;
@@ -218,7 +231,7 @@ int SpellGraphics::AddCUR(uint8_t* data,int dlen,const char* name,SpellPalette* 
 	
 	// link to external palette	
 	grp->palette = pal;
-	grp->pal = (uint8_t(*)[3])pal->m_pal.data();
+	//grp->pal = (uint8_t(*)[3])pal->m_pal.data();
 
 	// copy image data
 	grp->pixels.resize(x_size*y_size);
@@ -234,9 +247,13 @@ int SpellGraphics::AddCUR(uint8_t* data,int dlen,const char* name,SpellPalette* 
 // make "round" LED indicator for mission hud
 int SpellGraphics::AddLED(int color,const char* name,SpellPalette* pal)
 {
-	// make item
-	auto grp = new SpellGraphicItem();
-	items.emplace_back(grp);
+	// check duplicates
+	auto grp = GetResource(name);
+	if(grp)
+		return(1);
+	// make new record
+	grp = new SpellGraphicItem();
+	items.push_back(grp);
 
 	// store name (loose extension)
 	grp->full_name = name;
@@ -251,7 +268,7 @@ int SpellGraphics::AddLED(int color,const char* name,SpellPalette* pal)
 
 	// link to external palette	
 	grp->palette = pal;
-	grp->pal = (uint8_t(*)[3])pal->m_pal.data();
+	//grp->pal = (uint8_t(*)[3])pal->m_pal.data();
 
 	// make LED
 	grp->pixels.assign(4*4,0);
@@ -462,8 +479,9 @@ wxBitmap* SpellGraphicItem::Render(bool transparent,bool invert)
 }
 wxBitmap *SpellGraphicItem::Render(int surf_x, int surf_y, bool transparent, bool invert)
 {
-	if(!pal)
+	if(!palette)
 		return(NULL);
+	auto pal = palette->GetPal();
 
 	if(surf_x < 0 || surf_y < 0)
 	{
@@ -570,7 +588,6 @@ void SpellGraphicItem::Clear()
 	name = "";
 	full_name = "";
 	palette = NULL;
-	pal = NULL;
 	pixels.clear();
 	x_size = 0;
 	y_size = 0;
@@ -683,7 +700,7 @@ int SpellGraphicItem::Encode(wxBitmap& bmp,std::vector<ImgQuantize::Pixel> &buff
 	if(!target_pal)
 		return(1);
 	palette = target_pal;
-	pal = palette->GetPal();
+	auto pal = palette->GetPal();
 	
 	// prepare encoder palette
 	auto ipal = palette->GetPal();
@@ -757,6 +774,10 @@ int SpellGraphicItem::Encode(wxBitmap& bmp,std::vector<ImgQuantize::Pixel> &buff
 wxCursor* SpellGraphicItem::RenderCUR(bool is_grayscale)
 {
 	wxCursor* cursor;
+
+	if(!palette)
+		return(NULL);
+	auto pal = palette->GetPal();
 
 	if(is_grayscale)
 	{

@@ -1498,6 +1498,10 @@ void FormGResEncoder::OnRegenClick(wxCommandEvent& event)
 	if(m_info.isUnitsFSU())
 		shadow_color = m_info.shadow_color;
 
+	// define usable range of palette
+	m_pal.ClearUserRange();
+	m_pal.AddUserRangeStr(m_info.colors_str);
+
 	// re-encode
 	std::vector<ImgQuantize::Pixel> buffer;
 	m_gres.Encode(m_source,buffer,false,

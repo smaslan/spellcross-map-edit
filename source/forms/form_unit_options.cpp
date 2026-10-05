@@ -1,4 +1,5 @@
 #include "form_unit_options.h"
+#include "spell_palette.h"
 #include "map.h"
 
 #include <wx/rawbmp.h>
@@ -111,7 +112,7 @@ void FormUnitOpts::OnPaintTab(wxPaintEvent& event)
     m_spelldata->font->Render(buf,&buf[back.size()],x_size,3,29,54,13,info_label,0xFF,0xFE,SpellFont::FontShadow::RIGHT_DOWN);
     
     // render 24bit RGB data to raw bmp buffer
-    uint8_t (*pal)[3] = m_spelldata->gres.wm_sel_tab->pal;
+    auto pal = m_spelldata->gres.wm_sel_tab->palette->GetPal();
     wxBitmap bmp(x_size,y_size,24);    
     wxNativePixelData pdata(bmp);
     wxNativePixelData::Iterator p(pdata);

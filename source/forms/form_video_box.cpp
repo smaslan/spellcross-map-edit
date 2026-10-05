@@ -89,7 +89,7 @@ FormVideoBox::FormVideoBox(wxPanel* parent,wxWindowID win_id,SpellData* spell_da
     // convert frame to RGB frame buffer
     m_frame = new wxBitmap(x_size,y_size,24);        
     uint8_t* ptr = &buf[0];
-    uint8_t (*pal)[3] = horz->pal;
+    auto pal = horz->palette->GetPal();
     wxNativePixelData pdata(*m_frame);
     wxNativePixelData::Iterator p(pdata);
     for(int y = 0; y < y_size; y++)
