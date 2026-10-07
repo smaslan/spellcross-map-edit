@@ -2222,6 +2222,21 @@ int Terrain::Load(FSarchive *terrain_fs, SpellPalette *map_pal,SpellGraphics* gr
 	return(0);	
 }
 
+// prepare sorted list for fast sorted search
+void Terrain::GetSpriteSortedPrepare()
+{
+	sprites_sorted = sprites;
+	std::ranges::sort(sprites_sorted,[](const Sprite* a,const Sprite* b) {return(b->name > a->name);});
+}
+// fast search in pre-sorted list
+Sprite* Terrain::GetSpriteSorted(std::string& name)
+{
+	auto sid = std::ranges::lower_bound(sprites_sorted,name,{},&Sprite::name);
+	if(sid == sprites_sorted.end())
+		return(NULL);
+	return(*sid);
+}
+
 // get sprite pointer by its name
 Sprite* Terrain::GetSprite(const char* name)
 {

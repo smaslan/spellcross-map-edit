@@ -534,6 +534,7 @@ public:
 	std::string name;
 	// sprites of particular layers
 	std::vector<Sprite*> sprites;
+	std::vector<Sprite*> sprites_sorted;
 	// sprites context
 	//SpriteContext* context;
 	// Layer 1 animations (ANM)
@@ -557,6 +558,8 @@ public:
 	Terrain(SpellData &spell_data);
 	~Terrain();
 	int Load(FSarchive *terrain_fs, SpellPalette *pal, SpellGraphics *gres, SpellL2classes* L2=NULL,std::function<void(std::string)> status_item=NULL);
+	void GetSpriteSortedPrepare();
+	Sprite* GetSpriteSorted(std::string &name);
 	Sprite* GetSprite(const char* name);
 	Sprite* GetSprite(int index);
 	int GetSpriteID(Sprite *spr);

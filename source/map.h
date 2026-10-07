@@ -352,6 +352,9 @@ class SpellMap
 		int n_EditElevNbr;
 		int n_EditElevNbrQuad;
 		int n_EditElevNbrDbl;
+		int n_EditElevSlope;
+		int n_EditElevSlope_find;
+
 		int GetFlagHeight(MapXY* sel);
 		int GetFlagFlag(MapXY* sel);		
 		int EditElevNbrQuad(int x,int y,int elv,int* min);

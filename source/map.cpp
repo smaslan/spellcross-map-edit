@@ -10509,6 +10509,8 @@ void SpellMap::EditElevSlope(std::vector<uint8_t>& flag)
 {
 	int i,j,k,m;
 
+	n_EditElevSlope++;
+
 	const char slopes[16] = {'A','K','C','M','E','A','D','B','H','J','A','L','G','I','F','A'};
 
 	// === mark modified area ===
@@ -10568,12 +10570,14 @@ void SpellMap::EditElevSlope(std::vector<uint8_t>& flag)
 				}
 				char slp = slopes[corn];
 				
+				n_EditElevSlope_find++;
+
 				// try to get some tile of requested slope
-				char sprname[9] = "PLx00_00"; // this should exist in each terrain
+				std::string sprname = "PLx00_00"; // this should exist in each terrain
 				sprname[2] = slp;
-				Sprite *sprite = terrain->GetSprite(sprname);
+				Sprite* sprite = terrain->GetSpriteSorted(sprname);
 				if(!sprite)
-					continue; // skip if not found, but this should not happen
+					continue;
 
 				// assign new sprite to L1
 				tiles[ConvXY(i,j)].SetL1(sprite);
@@ -10594,7 +10598,7 @@ void SpellMap::EditElevText(std::vector<uint8_t>& flag)
 	int i,j,k;
 
 	// === mark modified area ===
-	for(j = 0; j < y_size; j++)
+	/*for(j = 0; j < y_size; j++)
 	{
 		for(i = 0; i < x_size; i++)
 		{
@@ -10611,7 +10615,7 @@ void SpellMap::EditElevText(std::vector<uint8_t>& flag)
 					flag[ConvXY(nxy)] = 3;
 			}
 		}
-	}
+	}*/
 
 	// === find land slopes for each modified tile ===
 	for(j = 0; j < y_size; j++)
@@ -10923,9 +10927,14 @@ int SpellMap::EditElev(int step,TScroll* scroll)
 	n_EditElevNbr = 0;
 	n_EditElevNbrQuad = 0;
 	n_EditElevNbrDbl = 0;
+	n_EditElevSlope = 0;
+	n_EditElevSlope_find = 0;
 
+	// prepare for fast sprite search
+	terrain->GetSpriteSortedPrepare();
+	
 	// allocate modification flag array
-	std::vector<uint8_t> flag(x_size* y_size,0);
+	std::vector<uint8_t> flag(x_size*y_size,0);
 
 	for(i = 0; i < elist.size(); i++)
 	{
