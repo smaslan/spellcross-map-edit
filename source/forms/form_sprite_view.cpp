@@ -697,7 +697,7 @@ bool FormSprite::SpriteDropTarget::OnDropText(wxCoord x,wxCoord y,const wxString
 		if(spr->name.compare(data) == 0)
 			return false;
 	
-	auto *sprite = terr->GetSprite(data);
+	auto *sprite = terr->GetSprite(data.ToStdString());
 	if(!sprite)
 		return false;
 	sprite->SetToolClass(class_id + 1);

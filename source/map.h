@@ -910,7 +910,7 @@ class SpellMap
 		public:
 			MapXY pos;
 			Sprite::WallParams *par = NULL;
-			int edges[4] = {-1,-1,-1,-1};
+			std::vector<int> edges = {-1,-1,-1,-1};
 			int tot_num = 0;
 			int match_num = 0;
 			int exact_num = 0;

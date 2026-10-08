@@ -925,7 +925,7 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 		}
 
 		// try to get sprite's data
-		sprite = terrain->GetSprite(name.c_str());
+		sprite = terrain->GetSprite(name);
 		if (!sprite)
 		{
 			// not found!
@@ -1013,7 +1013,7 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 		}
 
 		// try to get sprite's data
-		sprite = terrain->GetSprite(name.c_str());
+		sprite = terrain->GetSprite(name);
 		if (!sprite)
 		{
 			// not found!
@@ -10575,7 +10575,7 @@ void SpellMap::EditElevSlope(std::vector<uint8_t>& flag)
 				// try to get some tile of requested slope
 				std::string sprname = "PLx00_00"; // this should exist in each terrain
 				sprname[2] = slp;
-				Sprite* sprite = terrain->GetSpriteSorted(sprname);
+				Sprite* sprite = terrain->GetSprite(sprname);
 				if(!sprite)
 					continue;
 
@@ -10929,9 +10929,6 @@ int SpellMap::EditElev(int step,TScroll* scroll)
 	n_EditElevNbrDbl = 0;
 	n_EditElevSlope = 0;
 	n_EditElevSlope_find = 0;
-
-	// prepare for fast sprite search
-	terrain->GetSpriteSortedPrepare();
 	
 	// allocate modification flag array
 	std::vector<uint8_t> flag(x_size*y_size,0);
@@ -12865,14 +12862,9 @@ int SpellMap::EditWall(vector<MapXY>& selection,SpellTool* tool,std::function<vo
 					continue;
 				ntile->SetL2(list[0],list[0]->GetMapFlags());
 			}
-			// pick second side if only one side connected?
-			if(std::count_if(std::begin(par.edges),std::end(par.edges),[](int k){return(k > 0);}) == 1)
-			{
-				auto nid = std::find(std::begin(par.edges),std::end(par.edges),1) - std::begin(par.edges);
-				par.edges[(nid + 2) % 4] = 1;
-			}
+
 			// if more than two sides connected, remove one
-			if(std::count_if(std::begin(par.edges),std::end(par.edges),[](int k) {return(k > 0);}) > 2)
+			if(std::ranges::count_if(par.edges, [](int k){return(k > 0);}) > 2)
 			{
 				if(par.edges[0] && par.edges[2])
 				{
@@ -12885,10 +12877,29 @@ int SpellMap::EditWall(vector<MapXY>& selection,SpellTool* tool,std::function<vo
 					par.edges[2] = -1;
 				}
 			}
-			// try pick matching wall segment
-			auto list = terrain->FindWallSprites(wall_type,par.edges,wall_par->damage,1,true);
+
+			// we have just one side connecte: try ending segment
+			std::vector<Sprite*> list;
+			bool was_single = std::ranges::count_if(par.edges,[](int k){return(k > 0);}) == 1;
+			if(was_single)
+			{
+				auto nid = std::ranges::find(par.edges,1) - par.edges.begin();
+				par.edges.assign(4,0);
+				par.edges[nid] = 1;
+				list = terrain->FindWallSprites(wall_type,par.edges,wall_par->damage,1,true);
+			}			
+			if(list.empty() && was_single)
+			{
+				// not found end segment, assume straight segment instead
+				auto nid = std::ranges::find(par.edges,1) - par.edges.begin();
+				/*par.edges.assign(4,-1);
+				par.edges[(nid + 0) % 4] = 1;*/
+				par.edges[(nid + 2) % 4] = 1;
+			}
+			list = terrain->FindWallSprites(wall_type,par.edges,wall_par->damage,1,true);			
 			if(list.empty())
 				continue;
+
 			tile->SetL2(list[0],list[0]->GetMapFlags());
 			if(copy_buf.pos.size() == 1)
 				SetBuffer(list[0]);

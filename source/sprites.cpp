@@ -2018,7 +2018,8 @@ Terrain::Terrain(SpellData &spell_data) :
 	sprites.clear();
 	anms.clear();
 	last_gamma = 0.0;
-	context_path = L"";		
+	context_path = L"";
+	m_sprites_sorted.clear();	
 }
 
 Terrain::~Terrain()
@@ -2208,7 +2209,7 @@ int Terrain::Load(FSarchive *terrain_fs, SpellPalette *map_pal,SpellGraphics* gr
 			// try to find desctructible sprite pair alternative
 			if(!destr.alt_name.empty())
 			{
-				sprite->destructible_alt = GetSprite(destr.alt_name.c_str());
+				sprite->destructible_alt = GetSprite(destr.alt_name);
 				if(!sprite->destructible_alt)
 					sprite->destructible = NULL;
 			}
@@ -2223,39 +2224,46 @@ int Terrain::Load(FSarchive *terrain_fs, SpellPalette *map_pal,SpellGraphics* gr
 }
 
 // prepare sorted list for fast sorted search
-void Terrain::GetSpriteSortedPrepare()
+void Terrain::PrepareSortedSprites()
 {
-	sprites_sorted = sprites;
-	std::ranges::sort(sprites_sorted,[](const Sprite* a,const Sprite* b) {return(b->name > a->name);});
-}
-// fast search in pre-sorted list
-Sprite* Terrain::GetSpriteSorted(std::string& name)
-{
-	auto sid = std::ranges::lower_bound(sprites_sorted,name,{},&Sprite::name);
-	if(sid == sprites_sorted.end())
-		return(NULL);
-	return(*sid);
+	m_sprites_sorted = sprites;
+	std::ranges::sort(m_sprites_sorted,[](const Sprite* a,const Sprite* b) {return(b->name > a->name);});
 }
 
 // get sprite pointer by its name
-Sprite* Terrain::GetSprite(const char* name)
+Sprite* Terrain::GetSprite(const std::string &name)
 {
-	for (unsigned k = 0; k < this->sprites.size(); k++)
-	{
-		if (_strcmpi(this->sprites[k]->name.c_str(), name) == 0)
-			return(this->sprites[k]);
-	}
-	return(NULL);
+	if(m_sprites_sorted.empty() || m_sprites_sorted.size() != sprites.size())
+		PrepareSortedSprites();
+
+	/*for (unsigned k = 0; k < this->sprites.size(); k++)
+{
+	if (_strcmpi(this->sprites[k]->name.c_str(), name) == 0)
+		return(this->sprites[k]);
+}*/
+
+	auto sid = std::ranges::lower_bound(m_sprites_sorted,name,{},&Sprite::name);
+	if(sid == m_sprites_sorted.end())
+		return(NULL);
+	return(*sid);
 }
 // get sprite ID by its name
-int Terrain::GetSpriteID(const char* name)
+int Terrain::GetSpriteID(const std::string &name)
 {
-	for(unsigned k = 0; k < this->sprites.size(); k++)
+	if(m_sprites_sorted.empty() || m_sprites_sorted.size() != sprites.size())
+		PrepareSortedSprites();
+
+	auto sid = std::ranges::lower_bound(m_sprites_sorted,name,{},&Sprite::name);
+	if(sid == m_sprites_sorted.end())
+		return(-1);
+	return((*sid)->GetIndex());
+
+	/*for(unsigned k = 0; k < this->sprites.size(); k++)
 	{
 		if(_strcmpi(this->sprites[k]->name.c_str(),name) == 0)
 			return(k);
 	}
-	return(-1);
+	return(-1);*/
 }
 // get sprite pointer by index
 Sprite* Terrain::GetSprite(int index)
@@ -2469,7 +2477,7 @@ int Terrain::InitSpriteContext(std::filesystem::path &path)
 				dummy_name = "DUMMY";
 			else
 				dummy_name[2] = tile_name[2];
-			auto dummy = GetSprite(dummy_name.c_str());
+			auto dummy = GetSprite(dummy_name);
 			if(dummy)
 				spr = new Sprite(*dummy);
 			else
@@ -3280,20 +3288,31 @@ void Sprite::InitWallParams()
 	wall_params.class_id = hex2num(name.at(3)) & 7;
 	wall_params.type_id = wall_params.class_id;
 	wall_params.damage = !!(hex2num(name.at(3)) & 8);
+	bool is_end = name.at(6) == '1';
 	int flags = hex2num(name.at(4));
-	if(wall_params.class_id == 2 && hex2num(name.at(7)) == 1)
+	if(wall_params.class_id == 2 && hex2num(name.at(7)) > 0)
 		wall_params.type_id = 4; // stone wall is subclass of concrete wall
-	if(wall_params.class_id == 1 && wall_params.damage &&
+	if(wall_params.class_id == 1 && wall_params.damage && !is_end &&
 		(((flags == 0x05 || flags == 0x0A) && hex2num(name.at(7)) == 2) ||
 			(flags != 0x05 && flags != 0x0A && hex2num(name.at(7)) == 1)))
 	{
 		wall_params.type_id = 5; // wooden fence is subclass of fence
 		wall_params.damage = false; // and has no damaged/undamaged version
 	}
-	wall_params.q[0] = !!(flags & 2);
-	wall_params.q[1] = !!(flags & 4);
-	wall_params.q[2] = !!(flags & 8);
-	wall_params.q[3] = !!(flags & 1);
+	if(flags == 0x02)
+	{
+		// special pilebox: assume no connection (maybe to be extended in future)
+		std::fill(std::begin(wall_params.q),std::end(wall_params.q),0);
+		return;
+	}
+	bool end_q4 = flags == 0x05 && is_end && ((wall_params.type_id == 0 && name[7] == '0') || (wall_params.type_id == 1 && name[7] == '4') || (wall_params.type_id == 4 && name[7] == '2'));
+	bool end_q2 = flags == 0x05 && is_end && ((wall_params.type_id == 0 && name[7] == '1') || (wall_params.type_id == 1 && name[7] == '5') || (wall_params.type_id == 4 && name[7] == '3'));
+	bool end_q3 = flags == 0x0A && is_end && ((wall_params.type_id == 0 && name[7] == '0') || (wall_params.type_id == 1 && name[7] == '5') || (wall_params.type_id == 4 && name[7] == '3'));
+	bool end_q1 = flags == 0x0A && is_end && ((wall_params.type_id == 0 && name[7] == '1') || (wall_params.type_id == 1 && name[7] == '4') || (wall_params.type_id == 4 && name[7] == '2'));
+	wall_params.q[0] = !!(flags & 2) && !end_q1;
+	wall_params.q[1] = !!(flags & 4) && !end_q2;
+	wall_params.q[2] = !!(flags & 8) && !end_q3;
+	wall_params.q[3] = !!(flags & 1) && !end_q4;
 }
 
 // generate neighbor lists for known wall sprites (based on sprite names)
@@ -3333,7 +3352,7 @@ int Terrain::GenWallNeighbors()
 }
 
 // get list of viable sprites matching wall type, 4 edge continuation flags (-1: don't care, 1/0 - continues or not) and damage state
-std::vector<Sprite*> Terrain::FindWallSprites(int type_id, int *edges, bool damage,int min_match, bool rand)
+std::vector<Sprite*> Terrain::FindWallSprites(int type_id, std::vector<int> &edges, bool damage,int min_match, bool rand)
 {
 	std::vector<Sprite*> list;
 	for(auto &spr: sprites)
@@ -4499,7 +4518,7 @@ int Terrain::AddSpecialTools()
 			AddToolSetItem(ts_id,tool_names[k], pos);
 		}
 		tool_id = GetToolSetItem(ts_id,tool_names[k]);
-		auto sprite = GetSprite(sprite_names[k].c_str());
+		auto sprite = GetSprite(sprite_names[k]);
 		if(sprite)
 		{
 			sprite->land_type = 0; // ### fix for CIEL which has wrong land type, may move to sprites loader??

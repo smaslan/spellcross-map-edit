@@ -506,6 +506,9 @@ class Terrain
 private:
 	SpellData &m_spell_data;
 
+	// sorted sprites list
+	std::vector<Sprite*> m_sprites_sorted;
+	
 	//double gamma;
 	double last_gamma;
 	uint8_t gamma_pal[256][3];
@@ -516,6 +519,8 @@ private:
 
 	// tools list
 	std::vector<SpellToolsGroup*> tools;
+
+	void PrepareSortedSprites();
 
 	void RandomizeSpriteContextTh(std::vector<Sprite*> *spr,int ofs,int step);
 	int SwapToolSetItems(int toolset_id,int posa,int posb);
@@ -533,8 +538,7 @@ public:
 	// terrain name
 	std::string name;
 	// sprites of particular layers
-	std::vector<Sprite*> sprites;
-	std::vector<Sprite*> sprites_sorted;
+	std::vector<Sprite*> sprites;	
 	// sprites context
 	//SpriteContext* context;
 	// Layer 1 animations (ANM)
@@ -557,13 +561,11 @@ public:
 	// void contructor
 	Terrain(SpellData &spell_data);
 	~Terrain();
-	int Load(FSarchive *terrain_fs, SpellPalette *pal, SpellGraphics *gres, SpellL2classes* L2=NULL,std::function<void(std::string)> status_item=NULL);
-	void GetSpriteSortedPrepare();
-	Sprite* GetSpriteSorted(std::string &name);
-	Sprite* GetSprite(const char* name);
+	int Load(FSarchive *terrain_fs, SpellPalette *pal, SpellGraphics *gres, SpellL2classes* L2=NULL,std::function<void(std::string)> status_item=NULL);	
+	Sprite* GetSprite(const std::string& name);
 	Sprite* GetSprite(int index);
 	int GetSpriteID(Sprite *spr);
-	int GetSpriteID(const char* name);
+	int GetSpriteID(const std::string& name);
 	int GetSpriteCount();
 	Sprite* GetSpriteWild(const char* wild,WildMode mode);
 	AnimL1* GetANM(std::string name);
@@ -589,7 +591,7 @@ public:
 	int FixSpriteLandTypes();
 	int InitSpriteMapTileFlags();
 	int GenWallNeighbors();
-	std::vector<Sprite*> FindWallSprites(int type_id,int* edges,bool damage,int min_match=1,bool rand=false);
+	std::vector<Sprite*> FindWallSprites(int type_id,std::vector<int>& edges,bool damage,int min_match=1,bool rand=false);
 	int UpdateTileGlyphs();
 	Sprite *GetTileGlyph(Sprite *sprite,uint32_t flags = 0);
 
