@@ -10,6 +10,8 @@
 
 //#include "sprites.h"
 #include <vector>
+#include <map>
+#include <string>
 #include "cstdint"
 
 #include <wx/rawbmp.h>
@@ -45,8 +47,8 @@ public:
 	void Clear();
 	uint8_t *GetPixels(int y = 0, int x = 0);
 	int Render(uint8_t *buf,uint8_t* buf_end,int buf_x_size,int x_pos,int y_pos,int in_black=false,int* y_buffer=NULL);
-	wxBitmap* Render(int x_size=-1,int y_size=-1,bool transparent=false,bool invert=false);
-	wxBitmap* Render(bool transparent,bool invert=false);
+	wxBitmap* Render(int x_size=-1,int y_size=-1,bool transparent=false,bool invert=false,double gamma=1.0);
+	wxBitmap* Render(bool transparent,bool invert=false,double gamma=1.0);
 	wxCursor* RenderCUR(bool is_grayscale=true);	
 	int Encode(wxBitmap &bmp,std::vector<ImgQuantize::Pixel> &buffer, bool preproc_only=true, std::string name="",
 		SpellPalette *target_pal=NULL,double gamma=1.0,double chroma=0.0,double hue=0.0,
@@ -89,12 +91,16 @@ public:
 	SpellGraphicItem *GetResource(int index);
 	SpellGraphicItem* GetResource(std::string& name);
 	SpellGraphicItem *GetResource(const char *name);
+	std::map<int,std::string> GetResourceMap();
+	std::map<int,std::string> GetUnitGlyphsMap();
+	
 	wxCursor* RenderCUR(const char* name);
 
 	// PNM animations	
 	int AddPNM(uint8_t* data,int dlen,const char* name);
 	AnimPNM* GetPNM(std::string& name);
 	AnimPNM *GetPNM(const char *name);
+	std::map<int,std::string> GetPNMmap();
 
 	// direct links to common items
 	SpellGraphicItem *wm_hud;
@@ -171,5 +177,6 @@ public:
 	int SortProjectiles();
 	SpellProjectile* GetProjectile(std::string& name);
 	SpellProjectile *GetProjectile(const char *name);
+	std::map<int,std::string> GetProjectilesMap();
 };
 

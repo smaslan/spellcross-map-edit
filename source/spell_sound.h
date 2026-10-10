@@ -17,6 +17,7 @@
 #include "RtAudio.h"
 #include "cstdint"
 #include <vector>
+#include <map>
 #include <list>
 #include <string>
 
@@ -179,6 +180,12 @@ public:
     SpellSound* GetSpecialClass(int index);
     SpellSound* GetObjectHitClass(int index);
     SpellSound* GetObjectDestructClass(int index);
+
+    std::map<int,std::string> GetAttackClassMap();
+    std::map<int,std::string> GetMoveClassMap();
+    std::map<int,std::string> GetReportClassMap();
+    std::map<int,std::string> GetHitClassMap();
+    std::map<int,std::string> GetSpecialClassMap();
 
     class AuxSamples{
     public:

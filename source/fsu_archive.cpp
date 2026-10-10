@@ -233,12 +233,20 @@ bool FSUarchive::Compare(FSUarchive* ref)
 }
 
 // get resource names list
-std::vector<std::string> FSUarchive::GetResourceNanes()
+std::vector<std::string> FSUarchive::GetResourceNames()
 {
 	std::vector<std::string> names_list;
 	for(auto &item: m_list)
 		names_list.push_back(item->name);
 	return(names_list);
+}
+// get resources map
+std::map<int,std::string> FSUarchive::GetResourceMap()
+{
+	std::map<int,std::string> list;
+	for(int k = 0; k < m_list.size(); k++)
+		list.insert({k,m_list[k]->name});
+	return(list);
 }
 
 //---------------------------------------------------------------------------

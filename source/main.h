@@ -44,6 +44,7 @@
 #include "forms/form_flags.h"
 #include "forms/form_new_map.h"
 #include "forms/form_trees_rand.h"
+#include "forms/form_units_edit.h"
 
 #include <wx/ribbon/buttonbar.h>
 #include <wx/ribbon/panel.h>
@@ -183,6 +184,7 @@ private:
     void OnHistory(wxCommandEvent& event);
     void OnTreesRandomizerPanel(wxCommandEvent& event);
     void OnTreesRandomizer(wxCommandEvent& event);
+    void OnUnitsEditor(wxCommandEvent& event);
 
     void OnToolBtnClick(wxRibbonButtonBarEvent& event);
     void OnToolBtnDropClick(wxRibbonButtonBarEvent& event);
@@ -282,7 +284,8 @@ private:
         form_midi != NULL ||
         form_minimap != NULL ||
         form_tree_rand != NULL ||
-        form_units_list != NULL); };
+        form_units_list != NULL ||
+        form_units_edit != NULL); };
 
     void ShowMessage(SpellTextRec *message, bool is_yesno, std::function<void(bool)> exit_cb=NULL);
     bool CheckMessageState();
@@ -312,6 +315,7 @@ private:
     FormMapUnits *form_units_list = NULL;
     FormSound *form_sounds = NULL;
     FormTreeRand *form_tree_rand = NULL;
+    FormUnitsEdit* form_units_edit = NULL;
     
     // spellcross HUD interface stuff
     void OnPaintHUDbutton(wxPaintEvent& event);
@@ -349,7 +353,8 @@ private:
         ID_MIDI_WIN,
         ID_MAP_UNITS_WIN,
         ID_NEW_MAP,
-        ID_TREE_RAND
+        ID_TREE_RAND,
+        ID_UNITS_EDIT_WIN
     };
     static constexpr int ID_HUD_BASE = 3000;
     static constexpr int ID_TOOL_BASE = 10000;
@@ -486,7 +491,8 @@ enum
     ID_TextEditRaw,
     ID_TreeRand,
     ID_TreeRandAll,
-    ID_TreeRandCfg
+    ID_TreeRandCfg,
+    ID_UnitsEditor
 };
 
 

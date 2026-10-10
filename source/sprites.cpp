@@ -583,10 +583,12 @@ void Sprite::Render(uint8_t* buffer, uint8_t* buf_end, int buf_x, int buf_y, int
 }
 
 // render sprite to EMPTY bitmap (it will set its format and size)
-wxBitmap *Sprite::Render(uint8_t *pal, double gamma, int bmp_x_size, int bmp_y_size, bool no_zoom)
+wxBitmap *Sprite::Render(uint8_t *pal, double gamma, int bmp_x_size, int bmp_y_size, bool no_zoom,bool keep_offset)
 {
 	int tmp_x;
 	int tmp_y;
+	int x_size = this->x_size + keep_offset*x_ofs;
+	int y_size = this->y_size + keep_offset*y_ofs;
 	if (bmp_x_size >= 0 && bmp_y_size >= 0)
 	{
 		// resampling active
@@ -606,8 +608,8 @@ wxBitmap *Sprite::Render(uint8_t *pal, double gamma, int bmp_x_size, int bmp_y_s
 	else
 	{
 		// 1:1 render
-		tmp_x = x_size;
-		tmp_y = y_size;
+		tmp_x = x_size + keep_offset*x_ofs;
+		tmp_y = y_size + keep_offset*y_ofs;
 	}
 	
 	// allocate render buffer for indexed image
@@ -628,7 +630,7 @@ wxBitmap *Sprite::Render(uint8_t *pal, double gamma, int bmp_x_size, int bmp_y_s
 	std::memset((void*)buf,230,surf_x*surf_y);
 
 	// render tile aligned to left
-	this->Render(buf, buf_end, org_x -this->x_ofs,org_y-this->y_ofs, surf_x);
+	this->Render(buf, buf_end, org_x - this->x_ofs*!keep_offset, org_y - this->y_ofs*!keep_offset, surf_x);
 	
 	// apply gamma correction to palette:		
 	// male local copy of palette	

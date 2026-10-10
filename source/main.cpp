@@ -476,6 +476,7 @@ MainFrame::MainFrame(SpellConfig* config, SpellMap *&map, SpellData *&spelldata,
     menuTools->Append(ID_GenDMAobjects,"Generate DMAx_xxx objects from this map","",wxITEM_NORMAL);
     menuTools->Append(ID_GenDMAobjectsMaps,"Generate DMAx_xxx objects from ALL maps","",wxITEM_NORMAL);        
     menuTools->Append(wxID_ANY,"","",wxITEM_SEPARATOR);
+    menuTools->Append(ID_UnitsEditor,"Units DEF editor","",wxITEM_NORMAL);
     menuTools->Append(ID_ExtractFS,"Extract FS archive","",wxITEM_NORMAL);
 
     AssignSVGresourceToMenu(menuTools,ID_ViewSprites,"IDR_LAY_SPRITE");
@@ -492,6 +493,7 @@ MainFrame::MainFrame(SpellConfig* config, SpellMap *&map, SpellData *&spelldata,
     AssignSVGresourceToMenu(menuTools,ID_ViewVideo,"IDR_VIDEO");
     AssignSVGresourceToMenu(menuTools,ID_ViewMIDI,"IDR_MUSIC");
     AssignSVGresourceToMenu(menuTools,ID_ExtractFS,"IDR_SAVE");
+    AssignSVGresourceToMenu(menuTools,ID_UnitsEditor,"IDR_LAY_UNIT");
 
         
     // Help menu
@@ -617,6 +619,7 @@ MainFrame::MainFrame(SpellConfig* config, SpellMap *&map, SpellData *&spelldata,
     Bind(wxEVT_MENU,&MainFrame::OnExportMapRender,this,ID_ExportMapImg);    
     Bind(wxEVT_MENU,&MainFrame::OnExportAllMapsRender,this,ID_ExportMapsImg);    
     Bind(wxEVT_MENU,&MainFrame::OnBatchMapsLoadSave,this,ID_BatchMapsLoadSave);
+    Bind(wxEVT_MENU,&MainFrame::OnUnitsEditor,this,ID_UnitsEditor);
     Bind(wxEVT_MENU,&MainFrame::OnExtractFS,this,ID_ExtractFS);
 
     
@@ -1092,6 +1095,12 @@ void MainFrame::OnClose(wxCloseEvent& ev)
 
         delete form_tree_rand;
         form_tree_rand = NULL;
+    }
+    else if(ev.GetId() == ID_UNITS_EDIT_WIN && form_units_edit)
+    {
+        // tree randomizer done        
+        delete form_units_edit;
+        form_units_edit = NULL;
     }
     else
         ev.Skip();
@@ -2111,7 +2120,17 @@ void MainFrame::OnExtractFS(wxCommandEvent& event)
 }
 
 
+// run trees randomizer panel launch
+void MainFrame::OnUnitsEditor(wxCommandEvent& event)
+{
+    if(!spell_data)
+        return;
+    if(FindWindowById(ID_UNITS_EDIT_WIN))
+        return;
 
+    form_units_edit = new FormUnitsEdit(this,ID_UNITS_EDIT_WIN,spell_data);
+    form_units_edit->Show();
+}
 
 
 // run trees randomizer panel launch

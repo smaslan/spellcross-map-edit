@@ -442,6 +442,68 @@ SpellSound* SpellSounds::GetObjectDestructClass(int index)
     return(sound);
 }
 
+// get list of attack sound classes
+std::map<int,std::string> SpellSounds::GetAttackClassMap()
+{
+    std::map<int,std::string> list;
+    for(auto &item: attack_sounds)
+    {
+        auto label = string_format("#%02d: %s",item.index, item.name);
+        list.insert({item.index, label});
+    }
+    return(list);
+}
+
+// get list of movement sound classes
+std::map<int,std::string> SpellSounds::GetMoveClassMap()
+{
+    std::map<int,std::string> list;
+    for(auto& item: move_sounds)
+    {
+        auto label = string_format("#%02d: %s",item.index,item.name);
+        list.insert({item.index, label});
+    }
+    return(list);
+}
+
+// get list of reporting sound classes
+std::map<int,std::string> SpellSounds::GetReportClassMap()
+{
+    std::map<int,std::string> list;
+    for(auto& item: report_sounds)
+    {
+        auto label = string_format("#%02d: %s",item.index,item.name);
+        list.insert({item.index, label});
+    }
+    return(list);
+}
+
+// get list of hit sound classes
+std::map<int,std::string> SpellSounds::GetHitClassMap()
+{
+    std::map<int,std::string> list;
+    for(auto& item: hit_sounds)
+    {
+        auto label = string_format("#%02d: %s",item.index,item.name);
+        list.insert({item.index, label});
+    }
+    return(list);
+}
+
+// get list of special action sound classes
+std::map<int,std::string> SpellSounds::GetSpecialClassMap()
+{
+    std::map<int,std::string> list;
+    for(auto& item: spec_sounds)
+    {
+        auto label = string_format("#%02d: %s",item.index,item.name);
+        list.insert({item.index, label});
+    }
+    return(list);
+}
+
+
+
 
 
 void SpellSounds::ParseSoundClasses2(FSarchive* fs, const char *name, vector<SpellSoundClassFile> *cls)
@@ -475,6 +537,9 @@ vector<SpellSoundClassFile> SpellSounds::ParseSoundClasses(string text)
 
             SpellSoundClassFile cls;
             cls.name = match[2].str();
+            auto name_tok = regexp_get(cls.name,"\\s*-*\\s(.*)");
+            if(!name_tok.empty())
+                cls.name = name_tok[0];
             cls.index = atoi(match[1].str().c_str());
             auto ss = stringstream{match[4]};
             int first = true;

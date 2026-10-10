@@ -306,6 +306,30 @@ int SpellGraphics::Count()
 	return(items.size());
 }
 
+// get list of all resources
+std::map<int,std::string> SpellGraphics::GetResourceMap()
+{
+	std::map<int,std::string> list;
+	for(int k = 0; k < items.size(); k++)
+		list.insert({k,items[k]->name});
+	return(list);
+}
+
+// get unit glyph list
+std::map<int,std::string> SpellGraphics::GetUnitGlyphsMap()
+{
+	std::map<int,std::string> list;
+	int k = 0;
+	for(auto &item: items)
+	{
+		if(!wildcmp("I_*.LZ",item->full_name))
+			continue;
+		list.insert({k++,item->name});
+	}
+	return(list);
+}
+
+
 // return pointer to pixel data
 uint8_t* SpellGraphicItem::GetPixels(int y,int x)
 {
@@ -473,11 +497,11 @@ int SpellGraphicItem::RenderMask(uint8_t* buf, uint8_t *buf_end)
 
 
 // render glyph to bmp
-wxBitmap* SpellGraphicItem::Render(bool transparent,bool invert)
+wxBitmap* SpellGraphicItem::Render(bool transparent,bool invert,double gamma)
 {
-	return(Render(-1,-1,transparent,invert));
+	return(Render(-1,-1,transparent,invert,gamma));
 }
-wxBitmap *SpellGraphicItem::Render(int surf_x, int surf_y, bool transparent, bool invert)
+wxBitmap *SpellGraphicItem::Render(int surf_x, int surf_y, bool transparent, bool invert,double gamma)
 {
 	if(!palette)
 		return(NULL);
@@ -514,6 +538,9 @@ wxBitmap *SpellGraphicItem::Render(int surf_x, int surf_y, bool transparent, boo
 	else
 		std::memcpy(tpal, pal, 256*3);
 
+	if(gamma != 1.0)
+		apply_gamma(&tpal[0][0],gamma);
+
 	if(transparent)
 	{
 		// render 32bit RGBA data to raw bmp buffer
@@ -528,7 +555,7 @@ wxBitmap *SpellGraphicItem::Render(int surf_x, int surf_y, bool transparent, boo
 			{
 				int is_visible = y >= y_ofs && y < y_ofs+y_size && x >= x_ofs && x < x_ofs+x_size && buf < end;
 				// visible area
-				if(buf < end)
+				if(is_visible)
 				{
 					*scan++ = tpal[*buf][2];
 					*scan++ = tpal[*buf][1];
@@ -541,7 +568,8 @@ wxBitmap *SpellGraphicItem::Render(int surf_x, int surf_y, bool transparent, boo
 					*scan++ = 0;
 				}
 				*scan++ = ((*buf != 0 || !is_transparent) && is_visible)*255; // alpha channel
-				buf++;
+				if(is_visible)
+					buf++;
 			}
 			p.OffsetY(data,1);
 		}
@@ -872,6 +900,16 @@ AnimPNM* SpellGraphics::GetPNM(const char* name)
 	return(NULL);
 }
 
+// get list of PNM resources
+std::map<int,std::string> SpellGraphics::GetPNMmap()
+{
+	std::map<int,std::string> list;
+	for(int k = 0; k < m_pnms.size(); k++)
+		list.insert({k,m_pnms[k]->name});
+	return(list);
+}
+
+
 
 // get used colors range string
 std::string SpellGraphicItem::GetColorRangeString()
@@ -1005,6 +1043,15 @@ SpellProjectile* SpellGraphics::GetProjectile(const char* name)
 		if(strcmp(proj.name, name) == 0)
 			return(&proj);
 	return(NULL);
+}
+
+// get list of projectil names
+std::map<int,std::string> SpellGraphics::GetProjectilesMap()
+{
+	std::map<int,std::string> list;
+	for(int k = 0; k < projectiles.size(); k++)
+		list.insert({k,projectiles[k].name});
+	return(list);
 }
 
 

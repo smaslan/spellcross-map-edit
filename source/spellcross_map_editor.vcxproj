@@ -52,6 +52,7 @@
     <ClCompile Include="forms\form_text_edit.cpp" />
     <ClCompile Include="forms\form_trees_rand.cpp" />
     <ClCompile Include="forms\form_units.cpp" />
+    <ClCompile Include="forms\form_units_edit.cpp" />
     <ClCompile Include="forms\form_unit_options.cpp" />
     <ClCompile Include="forms\form_video.cpp" />
     <ClCompile Include="forms\form_video_box.cpp" />
@@ -128,6 +129,7 @@
     <ClInclude Include="forms\form_text_edit.h" />
     <ClInclude Include="forms\form_trees_rand.h" />
     <ClInclude Include="forms\form_units.h" />
+    <ClInclude Include="forms\form_units_edit.h" />
     <ClInclude Include="forms\form_unit_options.h" />
     <ClInclude Include="forms\form_video.h" />
     <ClInclude Include="forms\form_video_box.h" />

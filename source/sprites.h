@@ -145,7 +145,7 @@ class Sprite
 		//void Render(uint8_t* buffer,uint8_t* buf_end,int buf_x,int buf_y, int x_size);
 		void Render(std::vector<uint8_t>& buf,int buf_x,int buf_y,int x_size,uint8_t* filter=NULL);
 		void Render(uint8_t* buffer, uint8_t* buf_end, int buf_x, int buf_y, int x_size, uint8_t* filter=NULL);
-		wxBitmap* Render(uint8_t* pal,double gamma=1.3, int x_size=-1, int y_size=-1, bool no_zoom=true);
+		wxBitmap* Render(uint8_t* pal,double gamma=1.3, int x_size=-1, int y_size=-1, bool no_zoom=true,bool keep_offset=false);
 		int Export(std::filesystem::path image_path,SpellPalette& pal,std::vector<uint8_t>& buffer);
 		int Decode(uint8_t* data, int size, std::string name);
 		static int SaveSprite(std::filesystem::path path,std::vector<uint8_t>& buffer,int x_buf_size,int x_offset,int y_offset,int land_type);

@@ -195,6 +195,9 @@
     <ClCompile Include="forms\form_trees_rand.cpp">
       <Filter>Source Files\forms</Filter>
     </ClCompile>
+    <ClCompile Include="forms\form_units_edit.cpp">
+      <Filter>Source Files\forms</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="fs_archive.h">
@@ -426,6 +429,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="forms\form_trees_rand.h">
+      <Filter>Header Files\forms</Filter>
+    </ClInclude>
+    <ClInclude Include="forms\form_units_edit.h">
       <Filter>Header Files\forms</Filter>
     </ClInclude>
   </ItemGroup>
