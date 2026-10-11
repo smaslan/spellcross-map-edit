@@ -192,8 +192,30 @@ bool MyApp::OnInit()
     // randomizer tree classes
     m_tree_rand_rules.m_tree_classes_dir = (GetExecutableDir() / char2wstring(ini.GetValue("DATA","tree_randomizer_classes_dir","data/tree_randomizer"))).lexically_normal();
 
-    // --- load some map
+    // Spellcross Reloaded can request a fresh copy of the currently played
+    // mission. Explicit command-line selection overrides the editor's last
+    // opened map, but does not import any tactical save / live unit state.
+    // Usage: spellcross_map_editor.exe --open-map "C:\\...\\M01_01A.DEF"
     wstring map_path = char2wstring(ini.GetValue("STATE","last_map",""));
+    if (argc >= 2 && wxString(argv[1]) == "--open-map")
+    {
+        if (argc != 3)
+        {
+            wxMessageBox("Usage: spellcross_map_editor.exe --open-map <mission.DEF>",
+                "Spellcross Map Editor", wxOK | wxICON_ERROR);
+            return false;
+        }
+        const std::filesystem::path requested(wxString(argv[2]).ToStdWstring());
+        std::error_code ec;
+        if (!std::filesystem::is_regular_file(requested, ec) || ec)
+        {
+            wxMessageBox("Requested original mission file does not exist:\n" +
+                wxString(requested.wstring()),
+                "Spellcross Map Editor", wxOK | wxICON_ERROR);
+            return false;
+        }
+        map_path = requested.wstring();
+    }
     spell_map = new SpellMap();
     spell_map->hide_map_load_warnings = m_config.hide_map_warnings;
     if(!map_path.empty())
