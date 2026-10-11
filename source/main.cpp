@@ -192,8 +192,30 @@ bool MyApp::OnInit()
     // randomizer tree classes
     m_tree_rand_rules.m_tree_classes_dir = (GetExecutableDir() / char2wstring(ini.GetValue("DATA","tree_randomizer_classes_dir","data/tree_randomizer"))).lexically_normal();
 
-    // --- load some map
+    // Spellcross Reloaded can request a fresh copy of the currently played
+    // mission. Explicit command-line selection overrides the editor's last
+    // opened map, but does not import any tactical save / live unit state.
+    // Usage: spellcross_map_editor.exe --open-map "C:\\...\\M01_01A.DEF"
     wstring map_path = char2wstring(ini.GetValue("STATE","last_map",""));
+    if (argc >= 2 && wxString(argv[1]) == "--open-map")
+    {
+        if (argc != 3)
+        {
+            wxMessageBox("Usage: spellcross_map_editor.exe --open-map <mission.DEF>",
+                "Spellcross Map Editor", wxOK | wxICON_ERROR);
+            return false;
+        }
+        const std::filesystem::path requested(wxString(argv[2]).ToStdWstring());
+        std::error_code ec;
+        if (!std::filesystem::is_regular_file(requested, ec) || ec)
+        {
+            wxMessageBox("Requested original mission file does not exist:\n" +
+                wxString(requested.wstring()),
+                "Spellcross Map Editor", wxOK | wxICON_ERROR);
+            return false;
+        }
+        map_path = requested.wstring();
+    }
     spell_map = new SpellMap();
     spell_map->hide_map_load_warnings = m_config.hide_map_warnings;
     if(!map_path.empty())
@@ -419,6 +441,10 @@ MainFrame::MainFrame(SpellConfig* config, SpellMap *&map, SpellData *&spelldata,
     menuEdit->Append(ID_Dummy,"Paste from tool with auto map\tShift+Left Click","",wxITEM_NORMAL);
     menuEdit->Append(ID_Dummy,"Change tool size\tWheel","",wxITEM_NORMAL);
     menuEdit->Append(ID_Dummy,"Cycle tool items\tCtrl+Wheel","",wxITEM_NORMAL);
+    menuEdit->Append(ID_CycleBrushNext,"Rotate flat tile clockwise\tR",
+        "Rotate a flat ground tile 90 degrees, preserving a reproducible map sprite ID.");
+    menuEdit->Append(ID_CycleBrushPrevious,"Rotate flat tile counter-clockwise\tShift+R",
+        "Rotate a flat ground tile 90 degrees counter-clockwise.");
     menuEdit->Append(wxID_ANY,"","",wxITEM_SEPARATOR);
     menuEdit->Append(ID_InvalidateSel,"Invalidate selection\tCtrl+I","",wxITEM_NORMAL);
     menuEdit->Append(ID_DeleteSel,"Delete stuff\tShift+Delete","",wxITEM_NORMAL);
@@ -520,7 +546,9 @@ MainFrame::MainFrame(SpellConfig* config, SpellMap *&map, SpellData *&spelldata,
     SetMenuBar(menuBar);
     
     
-    std::vector<int> sbar_w = {45,45,45,60,100,100,100,350,120,-1};
+    // Dedicated last field for brush state. The existing unit-status field
+    // (index 9) changes on every hover and must not erase tool diagnostics.
+    std::vector<int> sbar_w = {45,45,45,60,100,100,100,260,115,330,-1};
     CreateStatusBar(sbar_w.size());
     SetStatusWidths(sbar_w.size(),sbar_w.data());
     SetStatusText("");
@@ -567,6 +595,15 @@ MainFrame::MainFrame(SpellConfig* config, SpellMap *&map, SpellData *&spelldata,
     canvas->Bind(wxEVT_KEY_DOWN,&MainFrame::OnCanvasKeyDown,this);
     canvas->Bind(wxEVT_LEFT_DOWN,&MainFrame::OnCanvasLMouseDown,this);
     canvas->Bind(wxEVT_LEFT_UP,&MainFrame::OnCanvasLMouseUp,this);
+    canvas->Bind(wxEVT_MOUSE_CAPTURE_LOST,
+        [this](wxMouseCaptureLostEvent&)
+        {
+            if (m_moveObjectPreview && spell_map)
+                spell_map->ClearBuffer();
+            m_moveObjectPreview = false;
+            m_moveObjectArmed = false;
+            m_drag_sel_start.Clear();
+        });
 
     //canvas->Bind(wxEVT_LEFT_DCLICK,&MainFrame::OnCanvasLMouseDown,this);
     canvas->Bind(wxEVT_THREAD,&MainFrame::OnThreadCanvas,this);
@@ -647,6 +684,8 @@ MainFrame::MainFrame(SpellConfig* config, SpellMap *&map, SpellData *&spelldata,
     Bind(wxEVT_MENU,&MainFrame::OnCopyBuf,this,ID_CopyBuf);
     Bind(wxEVT_MENU,&MainFrame::OnCopyBuf,this,ID_CutBuf);
     Bind(wxEVT_MENU,&MainFrame::OnPasteBuf,this,ID_PasteBuf);
+    Bind(wxEVT_MENU,&MainFrame::OnCycleBrushVariant,this,ID_CycleBrushNext);
+    Bind(wxEVT_MENU,&MainFrame::OnCycleBrushVariant,this,ID_CycleBrushPrevious);
     Bind(wxEVT_MENU,&MainFrame::OnClearBuf,this,ID_ClearBuf);
     Bind(wxEVT_MENU,&MainFrame::OnChangeElevation,this,ID_ElevUp);
     Bind(wxEVT_MENU,&MainFrame::OnChangeElevation,this,ID_ElevDown);
@@ -3009,6 +3048,36 @@ void MainFrame::OnCanvasLMouseDown(wxMouseEvent& event)
         wxQueueEvent(form_minimap->form,new wxCloseEvent(evt));
     }
        
+    // Drag-to-move is available only when not painting with an active
+    // brush. It preserves the underlying L1 terrain and never changes
+    // the map until mouse-up validates the destination.
+    if (event.LeftDown() && !spell_map->isGameMode() &&
+        !spell_map->isCopyBufferFull() && !event.ShiftDown() &&
+        !event.ControlDown() && !event.AltDown())
+    {
+        MapXY grabbed = spell_map->GetSelection();
+        if (grabbed.IsSelected() &&
+            spell_map->CheckObj(&grabbed) &&
+            !spell_map->GetCursorUnit())
+        {
+            m_moveObjectSource = grabbed;
+            m_moveObjectArmed = true;
+            m_moveObjectPreview = false;
+            m_drag_sel_start.Clear();
+            if (canvas && !canvas->HasCapture())
+                canvas->CaptureMouse();
+            SetStatusTextLast("Dragging object: move to a free tile and release.");
+            return;
+        }
+        if (grabbed.IsSelected() && !spell_map->GetCursorUnit())
+        {
+            auto* tile = spell_map->GetTile(&grabbed);
+            if (tile && tile->L1 &&
+                (tile->L1->GetFlags() & Sprite::LandFlags::IS_OBJECT))
+                SetStatusTextLast("This L1 building cannot be moved safely: its original terrain background is unknown.");
+        }
+    }
+
     // get selection
     auto xy_list = spell_map->GetSelections();
 
@@ -3029,6 +3098,14 @@ void MainFrame::OnCanvasLMouseDown(wxMouseEvent& event)
         {
             // something in copy buffer            
             auto pos = spell_map->GetSelection();
+            // Snapshot the actual destination before/after the paste. The
+            // renderer copies the live tile vector and overlays the brush,
+            // so this distinguishes a failed write from an invisible layer.
+            auto* beforeTile = pos.IsSelected() ? spell_map->GetTile(&pos) : nullptr;
+            const std::string oldL1 = beforeTile && beforeTile->L1
+                ? beforeTile->L1->name : "-";
+            const std::string oldL2 = beforeTile && beforeTile->L2
+                ? beforeTile->L2->name : "-";
             spell_map->PasteBuffer(spell_map->tiles,spell_map->anms,spell_map->pnms,
                 spell_map->start,spell_map->escape,spell_map->target,
                 spell_map->counter_attack_post_player,spell_map->counter_attack_post_enemy,spell_map->portals,
@@ -3037,6 +3114,20 @@ void MainFrame::OnCanvasLMouseDown(wxMouseEvent& event)
             if(event.ControlDown() && spell_tool.isTool())
                 spell_map->SetBuffer(spell_tool,+1);
             HistoryPush();
+            auto* afterTile = pos.IsSelected() ? spell_map->GetTile(&pos) : nullptr;
+            const std::string newL1 = afterTile && afterTile->L1
+                ? afterTile->L1->name : "-";
+            const std::string newL2 = afterTile && afterTile->L2
+                ? afterTile->L2->name : "-";
+            if (!pos.IsSelected())
+                SetStatusTextLast("Paint skipped: map cursor has no valid tile.");
+            else
+                SetStatusTextLast(string_format(
+                    "Paint (%d,%d) L1:%s>%s L2:%s>%s (v1=%d,v2=%d)",
+                    pos.x, pos.y, oldL1.c_str(), newL1.c_str(),
+                    oldL2.c_str(), newL2.c_str(),
+                    static_cast<int>(menuView->FindItem(ID_ViewTer)->IsChecked()),
+                    static_cast<int>(menuView->FindItem(ID_ViewObj)->IsChecked())));
             Refresh();
         }
         else
@@ -3248,6 +3339,41 @@ void MainFrame::OnCanvasLMouseDown(wxMouseEvent& event)
 // canvas left up (end of drag selection)
 void MainFrame::OnCanvasLMouseUp(wxMouseEvent& event)
 {
+    if (m_moveObjectArmed)
+    {
+        // Finish the drag before normal brush drag-paint processing.
+        if (canvas && canvas->HasCapture())
+            canvas->ReleaseMouse();
+        const MapXY source = m_moveObjectSource;
+        MapXY dest = spell_map->GetSelection();
+        m_moveObjectArmed = false;
+        if (m_moveObjectPreview)
+        {
+            spell_map->ClearBuffer(); // remove ghost, never paint it twice
+            m_moveObjectPreview = false;
+        }
+        m_drag_sel_start.Clear();
+        spell_map->scroller.ResizeSelection(0);
+        if (dest.IsSelected() && dest != source)
+        {
+            std::string error;
+            if (spell_map->MovePlacedObject(source, dest, error))
+            {
+                HistoryPush();
+                SetStatusTextLast(string_format(
+                    "Moved object from (%d,%d) to (%d,%d). Undo is available.",
+                    source.x, source.y, dest.x, dest.y));
+            }
+            else
+                SetStatusTextLast(error);
+        }
+        else
+            SetStatusTextLast("Object move canceled.");
+        UpdateMapStatus();
+        canvas->Refresh();
+        return;
+    }
+
     auto m_drag_sel_end = spell_map->GetSelection();
     if(m_drag_sel_start == m_drag_sel_end)
         return;
@@ -3432,6 +3558,21 @@ void MainFrame::OnCanvasMouseMove(wxMouseEvent& event)
     // cursor unit status
     SetStatusTextUnit(cur_unit);
 
+    if (m_moveObjectArmed && event.LeftIsDown())
+    {
+        if (mxy.IsSelected() && mxy != m_moveObjectSource &&
+            !m_moveObjectPreview)
+        {
+            auto* grabbed = spell_map->CheckObj(&m_moveObjectSource);
+            if (grabbed && grabbed->L2 &&
+                spell_map->SetBuffer(grabbed->L2) == 0)
+                m_moveObjectPreview = true;
+        }
+        // Don't start the existing click-and-drag paint selection.
+        canvas->Refresh();
+        return;
+    }
+
     if(event.LeftIsDown())
     {
         if(/*spell_map->scroller.GetSize() == 1 && */m_drag_sel_start.IsSelected() && m_drag_sel_start != mxy)
@@ -3470,10 +3611,15 @@ void MainFrame::OnCanvasMouseWheel(wxMouseEvent& event)
 // on canvas key down
 void MainFrame::OnCanvasKeyDown(wxKeyEvent& event)
 {
-    int key = event.GetKeyCode();
-    if(event.ControlDown())
+    const int key = event.GetKeyCode();
+    if (!event.ControlDown() && !event.AltDown() && (key == 'R' || key == 'r'))
     {
+        wxCommandEvent command(wxEVT_MENU,
+            event.ShiftDown() ? ID_CycleBrushPrevious : ID_CycleBrushNext);
+        OnCycleBrushVariant(command);
+        return;
     }
+    event.Skip();
 }
 
 
@@ -3518,145 +3664,199 @@ bool MainFrame::CheckMessageState()
 //--------------------------------------------------------------------------------------------------------------------
 // Tool bar stuff
 //--------------------------------------------------------------------------------------------------------------------
+// R / Shift+R turn the complete flat L1 tile brush by 90 degrees in
+// isometric world space. Keep all tiles in multi-cell brushes together.
+void MainFrame::OnCycleBrushVariant(wxCommandEvent& event)
+{
+    if (!spell_map || !spell_map->IsLoaded() || !spell_map->terrain ||
+        !spell_map->isCopyBufferFull())
+    {
+        SetStatusTextLast("Select a flat terrain/road brush first.");
+        return;
+    }
+
+    const int direction = event.GetId() == ID_CycleBrushPrevious ? -1 : 1;
+    std::string error;
+    if (!spell_map->RotateFlatBuffer(direction, error))
+    {
+        SetStatusTextLast(error);
+        return;
+    }
+
+    const auto count = spell_map->copy_buf.tiles.size();
+    SetStatusTextLast(string_format(
+        "Rotated %u flat tile%s by %s90 degrees. Left-click to paint.",
+        static_cast<unsigned>(count), count == 1 ? "" : "s",
+        direction > 0 ? "+" : "-"));
+    if (canvas)
+    {
+        canvas->SetFocus();
+        canvas->Refresh();
+    }
+}
+
 // tool selected
 void MainFrame::OnToolBtnClick(wxRibbonButtonBarEvent& event)
 {
-    // get button id
-    int id = event.GetId();
+    if (!spell_map || !spell_map->IsLoaded() || !spell_map->terrain || !ribbonBar)
+        return;
 
-    // no tool selection
+    const int id = event.GetId();
+    const int relative = id - ID_TOOL_BASE;
+    if (relative < 0)
+        return;
+    const int tool_id = relative / ID_TOOL_CLASS_STEP;
+    const int item_id = relative % ID_TOOL_CLASS_STEP;
+    if (tool_id >= spell_map->terrain->GetToolsCount())
+        return;
+
+    // wxRibbonButtonBarEvent knows its actual source bar. Never infer it
+    // from ribbon page children: panel hierarchies differ by wxWidgets builds.
+    wxRibbonButtonBar* sourceBar = event.GetBar();
+    if (!sourceBar || !sourceBar->GetItemById(id))
+    {
+        SetStatusTextLast("Could not resolve the clicked ribbon tool. Select it again.");
+        return;
+    }
+
+    auto* button = sourceBar->GetItemById(id);
+    auto* object = static_cast<SpellObject*>(sourceBar->GetItemClientData(button));
     spell_tool.Set();
+    const int result = object
+        ? spell_map->SetBuffer(object)
+        : ([&]() -> int {
+            spell_tool.Set(tool_id, item_id);
+            // Start predictably at the first variant. R / Shift+R then
+            // cycle the original game's available variants.
+            return spell_map->SetBuffer(spell_tool, 0, 0);
+        })();
 
-    if(!spell_map->IsLoaded())
+    if (result != 0 || !spell_map->isCopyBufferFull())
+    {
+        const auto sprites = object ? std::vector<Sprite*>{}
+            : spell_map->terrain->GetToolSprites(spell_tool);
+        const auto objects = object ? std::vector<SpellObject*>{}
+            : spell_map->terrain->GetToolObjects(spell_tool);
+        SetStatusTextLast(string_format("Tool %s: no usable buffer (%u sprites, %u objects).",
+            object ? object->GetDescription().c_str()
+                   : spell_map->terrain->GetToolSetItem(tool_id, item_id).c_str(),
+            static_cast<unsigned>(sprites.size()), static_cast<unsigned>(objects.size())));
+        spell_tool.Set();
         return;
-    if(!ribbonBar)
-        return;
+    }
 
-    int tool_id = (id - ID_TOOL_BASE)/ID_TOOL_CLASS_STEP;
-    int item_id = (id - ID_TOOL_BASE)%ID_TOOL_CLASS_STEP;
-
-    // very schmutzig way to deselect all other tool buttons
-    for(int tid = 0; tid < ribbonBar->GetPageCount(); tid++)
-    {        
-        // get button bar
-        wxRibbonPage* page = ribbonBar->GetPage(tid);
-        auto wlist = page->GetChildren();
-        if(!wlist.size())
-            continue;
-        wxRibbonPanel* panel = (wxRibbonPanel*)wlist[0];
-        auto clist = panel->GetChildren();
-        if(!clist.size())
-            continue;
-        wxRibbonButtonBar* btns = (wxRibbonButtonBar*)clist[0];
-
-        // for each button:
-        for(int iid = 0; iid < btns->GetButtonCount(); iid++)
+    // Include the actual source sprite/layer in the status text. A valid
+    // ribbon thumbnail does not prove the source sprite is used correctly by
+    // the on-map renderer; this separates source selection from placement.
+    if (object)
+        SetStatusTextLast(string_format("Brush: %s (object, L1/L2/PNM); left-click to paint.",
+            object->GetDescription().c_str()));
+    else
+    {
+        const auto sprites = spell_map->terrain->GetToolSprites(spell_tool);
+        const auto objects = spell_map->terrain->GetToolObjects(spell_tool);
+        if (!sprites.empty())
         {
-            int btn_id = ID_TOOL_BASE + tid*ID_TOOL_CLASS_STEP + iid;         
-            if(id == btn_id)
-            {            
-                // this button (event caller):
-                
-                // some tool selected: setup tool pointer
-                SpellObject *obj = (SpellObject*)btns->GetItemClientData(btns->GetItemById(btn_id));
-                if(obj)
-                {
-                    // tool is object
-                    // unset tool (depreceted method)
-                    spell_tool.Set();
-                    // place tool to clipboard (new method)
-                    spell_map->SetBuffer(obj);
-                }
-                else
-                {
-                    spell_tool.Set(tid, iid); // tool is class
-                    if(spell_tool.isTool())
-                        spell_map->SetBuffer(spell_tool,0);
-                }               
-            }
+            const auto* sprite = sprites.front();
+            SetStatusTextLast(string_format("Brush: %s -> %s, L%d, yofs=%d (v1=%d,v2=%d).",
+                spell_map->terrain->GetToolSetItem(tool_id, item_id).c_str(),
+                sprite->name.c_str(), sprite->land_type == 0 ? 2 : 1,
+                sprite->y_ofs,
+                static_cast<int>(menuView->FindItem(ID_ViewTer)->IsChecked()),
+                static_cast<int>(menuView->FindItem(ID_ViewObj)->IsChecked())));
         }
+        else
+            SetStatusTextLast(string_format("Brush: %s (%u objects).",
+                spell_map->terrain->GetToolSetItem(tool_id, item_id).c_str(),
+                static_cast<unsigned>(objects.size())));
+    }
+    if (canvas)
+    {
+        canvas->SetFocus();
+        canvas->Refresh();
     }
 }
 // tool drop down selected
 void MainFrame::OnToolBtnDropClick(wxRibbonButtonBarEvent& event)
 {
-    // get button id
-    int id = event.GetId();
-
-    // no tool selection
-    spell_tool.Set();
-
-    if(!spell_map->IsLoaded())
-        return;
-    if(!ribbonBar)
+    if (!spell_map || !spell_map->IsLoaded() || !spell_map->terrain)
         return;
 
-    int tool_id = (id - ID_TOOL_BASE)/ID_TOOL_CLASS_STEP;
-    int item_id = (id - ID_TOOL_BASE)%ID_TOOL_CLASS_STEP;
+    auto* bar = event.GetBar();
+    const int id = event.GetId();
+    if (!bar || !bar->GetItemById(id) || id < ID_TOOL_BASE)
+        return;
 
-    // very schmutzig way to deselect all other tool buttons
-    for(int tid = 0; tid < ribbonBar->GetPageCount(); tid++)
+    const int tool_id = (id - ID_TOOL_BASE) / ID_TOOL_CLASS_STEP;
+    const int item_id = (id - ID_TOOL_BASE) % ID_TOOL_CLASS_STEP;
+    if (tool_id >= spell_map->terrain->GetToolsCount())
+        return;
+
+    auto* object = static_cast<SpellObject*>(
+        bar->GetItemClientData(bar->GetItemById(id)));
+    if (object)
     {
-        // get button bar
-        wxRibbonPage* page = ribbonBar->GetPage(tid);
-        auto wlist = page->GetChildren();
-        if(!wlist.size())
-            continue;
-        wxRibbonPanel* panel = (wxRibbonPanel*)wlist[0];
-        auto clist = panel->GetChildren();
-        if(!clist.size())
-            continue;
-        wxRibbonButtonBar* btns = (wxRibbonButtonBar*)clist[0];
+        spell_tool.Set();
+        if (spell_map->SetBuffer(object) == 0)
+            SetStatusTextLast("Object brush ready; left-click to place.");
+        return;
+    }
 
-        // for each button:
-        for(int iid = 0; iid < btns->GetButtonCount(); iid++)
+    spell_tool.Set(tool_id, item_id);
+    // Give the main click and dropdown the same predictable behavior:
+    // the default sprite is selected immediately, even when user cancels
+    // the variant menu.
+    if (spell_map->SetBuffer(spell_tool, 0, 0) != 0)
+    {
+        spell_tool.Set();
+        SetStatusTextLast("This tool has no usable sprite/object variants.");
+        return;
+    }
+
+    wxMenu menu;
+    const auto sprites = spell_map->terrain->GetToolSprites(spell_tool);
+    const auto objects = spell_map->terrain->GetToolObjects(spell_tool);
+    const bool spriteMode = !sprites.empty();
+    int variantId = 0;
+    if (spriteMode)
+    {
+        for (auto* sprite : sprites)
         {
-            int btn_id = ID_TOOL_BASE + tid*ID_TOOL_CLASS_STEP + iid;
-
-            if(id == btn_id)
+            auto* item = menu.Append(variantId++, sprite->name);
+            auto* bitmap = sprite->Render(
+                (uint8_t*)spell_map->terrain->pal->GetPal(), 1.3, 64, 64, true);
+            if (bitmap)
             {
-                // this button (event caller):
-                SpellObject* obj = (SpellObject*)btns->GetItemClientData(btns->GetItemById(btn_id));
-                if(obj)
-                {
-                    // tool is object
-
-                }
-                else
-                {
-                    spell_tool.Set(tid,iid); // tool is class
-                    
-                    wxMenu menu;
-                    //menu.SetClientObject(new SpellTool(spell_tool));
-                    auto list = spell_map->terrain->GetToolSprites(spell_tool);
-                    int item_id = 0;
-                    for(auto item: list)
-                    {
-                        auto mmi = menu.Append(item_id++,item->name);
-                        auto bmp = item->Render((uint8_t*)spell_map->terrain->pal->GetPal(),1.3,64,64,true);
-                        auto img = bmp->ConvertToImage(); // this does something to alpha channel so it is correctly recognized by menu
-                        mmi->SetBitmap(img);
-                        delete bmp;
-                    }
-                    auto obj_list = spell_map->terrain->GetToolObjects(spell_tool);
-                    for(auto item: obj_list)
-                    {
-                        auto mmi = menu.Append(item_id++,item->GetDescription());
-                        auto bmp = item->RenderPreview(1.3,128,64,true);
-                        auto img = bmp->ConvertToImage(); // this does something to alpha channel so it is correctly recognized by menu
-                        mmi->SetBitmap(img);
-                        delete bmp;
-                    }
-
-                    if(menu.GetMenuItemCount())
-                    {
-                        menu.Connect(wxEVT_COMMAND_MENU_SELECTED,wxCommandEventHandler(MainFrame::OnToolItemPopupSelect),NULL,this);
-                        PopupMenu(&menu);
-                    }
-                    
-                }
+                item->SetBitmap(bitmap->ConvertToImage());
+                delete bitmap;
             }
         }
+    }
+    else
+    {
+        for (auto* obj : objects)
+        {
+            auto* item = menu.Append(variantId++, obj->GetDescription());
+            auto* bitmap = obj->RenderPreview(1.3, 128, 64, true);
+            if (bitmap)
+            {
+                item->SetBitmap(bitmap->ConvertToImage());
+                delete bitmap;
+            }
+        }
+    }
+
+    if (menu.GetMenuItemCount())
+    {
+        menu.Bind(wxEVT_MENU, &MainFrame::OnToolItemPopupSelect, this);
+        PopupMenu(&menu);
+        menu.Unbind(wxEVT_MENU, &MainFrame::OnToolItemPopupSelect, this);
+    }
+    SetStatusTextLast("Brush ready: left-click to paint; R / Shift+R cycles variants.");
+    if (canvas)
+    {
+        canvas->SetFocus();
+        canvas->Refresh();
     }
 }
 // on tool item pupup selection

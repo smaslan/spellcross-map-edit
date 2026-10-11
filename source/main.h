@@ -186,6 +186,7 @@ private:
     void OnTreesRandomizer(wxCommandEvent& event);
     void OnUnitsEditor(wxCommandEvent& event);
 
+    void OnCycleBrushVariant(wxCommandEvent& event);
     void OnToolBtnClick(wxRibbonButtonBarEvent& event);
     void OnToolBtnDropClick(wxRibbonButtonBarEvent& event);
     void OnToolItemPopupSelect(wxCommandEvent& event);
@@ -232,6 +233,11 @@ private:
 
 
     MapXY m_drag_sel_start;
+    // Armed on left-down over an existing L2 map object while no brush is
+    // active. Moving starts only after the cursor reaches another tile.
+    bool m_moveObjectArmed = false;
+    bool m_moveObjectPreview = false;
+    MapXY m_moveObjectSource;
     
     // map render buffer
     wxBitmap m_buffer;    
@@ -492,7 +498,9 @@ enum
     ID_TreeRand,
     ID_TreeRandAll,
     ID_TreeRandCfg,
-    ID_UnitsEditor
+    ID_UnitsEditor,
+    ID_CycleBrushNext,
+    ID_CycleBrushPrevious
 };
 
 
