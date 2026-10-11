@@ -42,11 +42,20 @@ More screenshots and explanations are in the [editor guide](./doc/UPSTREAM_EDITO
 
 The fork deliberately keeps these changes separate from the editor's core editing features, making it easier to continue incorporating improvements from Mašláň's upstream project.
 
-### Tile painting and brush variants (development preview)
+### Tile painting and rotation (development preview, unreleased)
 
-In the map editor, select a **terrain/object brush** from the ribbon above the map, then **left-click the map** to place it. If a tool has no valid matching sprites or objects, the status bar now reports that instead of silently doing nothing. You can also select an individual sprite through **Tools → Sprites viewer**. The map editing area supports Undo/Redo and the original copy/paste workflow.
+Select a brush in the terrain ribbon and left-click the map to paint. The map status bar reports selected and placed sprites; the editor supports Undo/Redo.
 
-For brushes containing multiple original graphics, press **R** to select the next stored variant and **Shift+R** to go backwards; **Ctrl+mouse wheel** continues to cycle tool items. These shortcuts select existing game sprites. They **do not freely rotate arbitrary terrain pixels**: Spellcross uses 13 terrain tile shapes (A–M), and a physical 90° rotation would require compatible original or newly encoded graphics to remain valid in a saved map.
+**Flat, single-cell L1 terrain tiles** (including straight roads and flat paths) can now be turned in the *isometric ground plane* without pre-made original directions:
+
+- **R** – 90° clockwise.
+- **Shift+R** – 90° counter-clockwise.
+- Four presses restore the original orientation. The preview at the cursor updates before placement.
+- **Ctrl+mouse wheel** continues to cycle through original predefined sprites and tool variants (and resets a custom rotation).
+
+The palette-indexed, rotated tile is generated on demand, not baked into the original commercial `.FS` files. Map files save a deterministic eight-character virtual sprite name (`R0Axxxxx`) identifying the original terrain sprite and quarter turn. **Both the Reloaded game and this fork of the editor must contain the new virtual-rotation decoder** to reopen those modified maps. Original retail Spellcross, the upstream editor v0.90 and older Reloaded builds cannot resolve virtual sprite names. Back up maps and distribute changes only with a matching new game build.
+
+Rotation is intentionally limited to the flat `A` terrain shape with normal ground elevation (0 pixel sprite offset); sloped `B`–`M` terrain, 3D houses, multi-cell objects and animations are excluded. Nearest-neighbour resampling may produce minor pixel jaggies on angled road edges.
 
 ## Download and first use (recommended)
 
