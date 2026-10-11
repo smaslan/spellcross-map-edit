@@ -3575,37 +3575,30 @@ bool MainFrame::CheckMessageState()
 //--------------------------------------------------------------------------------------------------------------------
 // Tool bar stuff
 //--------------------------------------------------------------------------------------------------------------------
-// R / Shift+R turn the actual flat L1 tile by 90 degrees in isometric
-// world space. Generated names are resolved by both editor and game on load.
+// R / Shift+R turn the complete flat L1 tile brush by 90 degrees in
+// isometric world space. Keep all tiles in multi-cell brushes together.
 void MainFrame::OnCycleBrushVariant(wxCommandEvent& event)
 {
     if (!spell_map || !spell_map->IsLoaded() || !spell_map->terrain ||
-        !spell_map->isCopyBufferFull() || spell_map->copy_buf.tiles.empty())
+        !spell_map->isCopyBufferFull())
     {
-        SetStatusTextLast("Select a flat terrain tile brush first.");
+        SetStatusTextLast("Select a flat terrain/road brush first.");
         return;
     }
 
-    Sprite* current = spell_map->copy_buf.tiles.front().L1;
     const int direction = event.GetId() == ID_CycleBrushPrevious ? -1 : 1;
-    Sprite* rotated = spell_map->terrain->GetFlatRotatedSprite(current, direction);
-    if (!rotated)
+    std::string error;
+    if (!spell_map->RotateFlatBuffer(direction, error))
     {
-        SetStatusTextLast("Rotation supports flat, single-tile L1 terrain only. "
-            "Use Ctrl+Wheel to cycle predefined object/slope variants.");
+        SetStatusTextLast(wxString::FromUTF8(error.c_str()));
         return;
     }
 
-    if (spell_map->SetBuffer(rotated) != 0)
-    {
-        SetStatusTextLast("Could not prepare the rotated flat tile.");
-        return;
-    }
-
+    const auto count = spell_map->copy_buf.tiles.size();
     SetStatusTextLast(string_format(
-        "Rotated tile: %s (R=90 deg, Shift+R=-90 deg). "
-        "Move mouse for preview; left-click to paint.",
-        rotated->name.c_str()));
+        "Rotated %u flat tile%s by %s90 degrees. Left-click to paint.",
+        static_cast<unsigned>(count), count == 1 ? "" : "s",
+        direction > 0 ? "+" : "-"));
     if (canvas)
     {
         canvas->SetFocus();
