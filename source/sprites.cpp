@@ -10,6 +10,7 @@
 #define _HAS_STD_BYTE 0
 
 #include "sprites.h"
+#include "flat_tile_rotation.h"
 #include "other.h"
 #include "fs_archive.h"
 #include "fsu_archive.h"
@@ -2232,9 +2233,67 @@ void Terrain::PrepareSortedSprites()
 	std::ranges::sort(m_sprites_sorted,[](const Sprite* a,const Sprite* b) {return(b->name > a->name);});
 }
 
+// Resolve a projected 90-degree flat tile rotation into a real Sprite object.
+// A virtual sprite name encodes the index of its original retail-archive tile
+// and quarter-turn orientation. Construct variants lazily to avoid multiplying
+// thousands of terrain sprites in memory on each game launch.
+Sprite* Terrain::GetFlatRotatedSprite(Sprite* current, int quarterTurns)
+{
+    if (!current)
+        return nullptr;
+
+    unsigned originalIndex = 0;
+    int oldRotation = 0;
+    if (!spellcross_flat_rotation::DecodeName(
+            current->name, originalIndex, oldRotation))
+    {
+        // Use the *actual* slot in the original terrain list; index fields
+        // may be changed by editor context re-indexing.
+        auto found = std::find(sprites.begin(), sprites.end(), current);
+        if (found == sprites.end())
+            return nullptr;
+        originalIndex = static_cast<unsigned>(found - sprites.begin());
+    }
+    if (originalIndex >= sprites.size() ||
+        originalIndex > spellcross_flat_rotation::kMaximumSourceIndex)
+        return nullptr;
+
+    Sprite* original = sprites[originalIndex];
+    if (!spellcross_flat_rotation::IsFlatSprite(original) ||
+        spellcross_flat_rotation::DecodeName(original->name, originalIndex, oldRotation))
+        return nullptr;
+
+    const int targetRotation = ((oldRotation + quarterTurns) % 4 + 4) % 4;
+    if (targetRotation == 0)
+        return original;
+
+    const std::string name = spellcross_flat_rotation::EncodeName(
+        originalIndex, targetRotation);
+    for (Sprite* candidate : sprites)
+        if (candidate && candidate->name == name)
+            return candidate;
+
+    Sprite* generated = spellcross_flat_rotation::Generate(
+        original, originalIndex, targetRotation);
+    if (!generated)
+        return nullptr;
+    generated->SetIndex(static_cast<int>(sprites.size()));
+    generated->terr = this;
+    sprites.push_back(generated);
+    return generated;
+}
+
 // get sprite pointer by its name
 Sprite* Terrain::GetSprite(const std::string &name)
 {
+    unsigned originalIndex = 0;
+    int rotation = 0;
+    if (spellcross_flat_rotation::DecodeName(name, originalIndex, rotation))
+    {
+        if (originalIndex >= sprites.size())
+            return nullptr;
+        return GetFlatRotatedSprite(sprites[originalIndex], rotation);
+    }
 	if(m_sprites_sorted.empty() || m_sprites_sorted.size() != sprites.size())
 		PrepareSortedSprites();
 
