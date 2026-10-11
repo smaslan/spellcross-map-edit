@@ -3247,6 +3247,9 @@ void SpellMap::ClearBuffer()
 }
 
 // paste from copy buffer
+// IMPORTANT: A null L2 means a normal terrain tile, not a special START/CIEL/
+// target marker. Compare special sprite pointers only when both are valid.
+// Otherwise non-object L1 brushes silently do nothing if a marker is absent.
 void SpellMap::PasteBuffer(std::vector<MapSprite>& tiles, std::vector<MapLayer3>& anms, std::vector<MapLayer4>& pnms,
 	std::vector<MapXY>& start,std::vector<MapXY>& escape,std::vector<MapXY>& target,
 	std::vector<MapXY>& ca_aliance,std::vector<MapXY>& ca_os,std::vector<MapXY>& portal_pos,
@@ -3285,11 +3288,11 @@ void SpellMap::PasteBuffer(std::vector<MapSprite>& tiles, std::vector<MapLayer3>
 		{
 			auto &tile = copy_buf.tiles[k];				
 			std::vector<MapXY> sspos ={MapXY(x,y)};
-			if(tile.L2 == start_sprite)
+			if(tile.L2 && start_sprite && tile.L2 == start_sprite)
 				PlaceStartEscape(sspos,start,escape,target,ca_aliance,ca_os,portal_pos,SpellMap::SPEC_TILE_START);
-			else if(tile.L2 == escape_sprite)
+			else if(tile.L2 && escape_sprite && tile.L2 == escape_sprite)
 				PlaceStartEscape(sspos,start,escape,target,ca_aliance,ca_os,portal_pos,SpellMap::SPEC_TILE_ESCAPE);
-			else if(tile.L2 == target_sprite)
+			else if(tile.L2 && target_sprite && tile.L2 == target_sprite)
 				PlaceStartEscape(sspos,start,escape,target,ca_aliance,ca_os,portal_pos,SpellMap::SPEC_TILE_TARGET);
 			/*else if(tile.L2 == ca_start_aliance_sprite)
 				PlaceStartEscape(sspos,start,escape,target,ca_aliance,ca_os,SpellMap::SPEC_TILE_CA_ALIANCE);
@@ -3339,11 +3342,11 @@ void SpellMap::PasteBuffer(std::vector<MapSprite>& tiles, std::vector<MapLayer3>
 				new_pnm.x_pos = x;
 				new_pnm.y_pos = y;
 
-				if(new_pnm.anim == ca_start_aliance_sprite.anim)
+				if(new_pnm.anim && ca_start_aliance_sprite.anim && new_pnm.anim == ca_start_aliance_sprite.anim)
 					PlaceStartEscape(sspos,start,escape,target,ca_aliance,ca_os,portal_pos,SpellMap::SPEC_TILE_CA_ALIANCE);
-				else if(new_pnm.anim == ca_start_os_sprite.anim)
+				else if(new_pnm.anim && ca_start_os_sprite.anim && new_pnm.anim == ca_start_os_sprite.anim)
 					PlaceStartEscape(sspos,start,escape,target,ca_aliance,ca_os,portal_pos,SpellMap::SPEC_TILE_CA_OS);
-				else if(new_pnm.anim == portal_pos_sprite.anim)
+				else if(new_pnm.anim && portal_pos_sprite.anim && new_pnm.anim == portal_pos_sprite.anim)
 					PlaceStartEscape(sspos,start,escape,target,ca_aliance,ca_os,portal_pos,SpellMap::SPEC_TILE_PORTAL_POS);
 				else
 				{
