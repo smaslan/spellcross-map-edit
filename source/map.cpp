@@ -3495,7 +3495,7 @@ bool SpellMap::MovePlacedObject(MapXY source, MapXY target, std::string& error)
     for (const MapXY to : destination)
     {
         const bool occupiedBySelf = isInOriginalFootprint(to);
-        if (!occupiedBySelf && tiles[ConvXY(to)].L2)
+        if (!occupiedBySelf && tiles[ConvXY(to.x, to.y)].L2)
         {
             error = "Destination is occupied by another object.";
             return false;
