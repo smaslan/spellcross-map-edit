@@ -34,6 +34,7 @@
 
 #include "resource.h"
 #include "main.h"
+#include "reloaded_bootstrap.h"
 #include "other.h"
 #include "simpleini.h"
 #include "spellcross.h"
@@ -132,7 +133,14 @@ bool MyApp::OnInit()
 
     // load config.ini
     ini.SetUnicode();
-    ini.LoadFile("config.ini");
+    const std::filesystem::path editor_exe_dir = GetExecutableDir();
+    const std::filesystem::path editor_config = reloaded_bootstrap::ConfigFile(editor_exe_dir);
+    ini.LoadFile(editor_config.wstring().c_str());
+
+    std::filesystem::path game_dir, cd_dir, support_dir, mod_dir;
+    if (!reloaded_bootstrap::Prepare(ini, editor_exe_dir,
+                                     game_dir, cd_dir, support_dir, mod_dir))
+        return false;
 
     // spellcross data path
     m_config.spell_path = iniLoadPathHist(ini, "SPELCROS", "spell_path",m_config.spell_path_hist);
@@ -275,7 +283,7 @@ int MyApp::OnExit()
     iniSavePathHist(ini,"SPELCROS","mod_path",m_config.spell_mod_path, m_config.spell_mod_path_hist,"; spellcross mod path (optional)");
 
     // save INI
-    ini.SaveFile("config.ini");
+    ini.SaveFile(reloaded_bootstrap::ConfigFile(GetExecutableDir()).wstring().c_str());
 
     // loose map
     if(spell_map)
