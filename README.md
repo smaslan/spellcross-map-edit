@@ -4,7 +4,9 @@
 
 This repository is a **fork of [Stanislav Mašláň's original Spellcross Map Editor](https://github.com/smaslan/spellcross-map-edit)**, not a replacement for it and not the playable Spellcross Reloaded game.
 
-**Repository status:** v0.8.2 editor integration is merged into `main` ([PR #3](https://github.com/luboshorak/spellcross-reloaded-editor/pull/3)) alongside [the game integration](https://github.com/luboshorak/spellcross-reloaded/pull/43), but is **not yet Windows build/runtime validated or published**. The latest downloadable combined package is still [v0.8.1](https://github.com/luboshorak/spellcross-reloaded/releases/tag/v0.8.1). Mašláň created the editor, reverse-engineered the original file formats and wrote the underlying map/resource editing tools. This fork keeps that work available while adding the data-loading and build compatibility changes needed to ship it alongside Reloaded.
+Mašláň created the editor, reverse-engineered the original file formats and wrote the underlying map/resource editing tools. This fork keeps that work available while adding the data-loading and build compatibility changes needed to ship it alongside Reloaded.
+
+**Repository status:** v0.8.2 editor integration is merged into `main` ([PR #3](https://github.com/luboshorak/spellcross-reloaded-editor/pull/3)) alongside [the game integration](https://github.com/luboshorak/spellcross-reloaded/pull/43), but is **not yet Windows build/runtime validated or published**. The latest downloadable combined package is still [v0.8.1](https://github.com/luboshorak/spellcross-reloaded/releases/tag/v0.8.1).
 
 | Looking for… | Go to |
 | --- | --- |
