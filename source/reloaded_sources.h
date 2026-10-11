@@ -73,8 +73,14 @@ inline fs::path FindEditorAssets(const fs::path& exe_dir) {
 }
 
 inline fs::path FindWorkspaceRoot(const fs::path& exe_dir) {
-    for (const auto& dir : Ancestors(exe_dir))
+    for (const auto& dir : Ancestors(exe_dir)) {
+        // Developer checkout.
         if (IsDir(dir / "spellcross-map-edit-main")) return dir;
+        // Portable combined release: Spellcross.exe at the root, editor in
+        // Editor/. Its root config.ini and game_data/ belong to both tools.
+        if (IsFile(dir / "Spellcross.exe") &&
+            IsFile(dir / "data" / "units.fsa")) return dir;
+    }
     return exe_dir;
 }
 
