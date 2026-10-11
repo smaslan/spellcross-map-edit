@@ -105,18 +105,18 @@ inline bool Prepare(CSimpleIniA& ini, const fs::path& executable_dir,
     if (mod_dir.empty()) mod_dir.clear();
     if (ini.GetValue("STATE", "last_map", nullptr) == nullptr)
         ini.SetValue("STATE", "last_map", "");
-    ini.SetValue("SPELCROS", "spell_path", reloaded_sources::fs::path(data_dir).u8string().c_str());
-    ini.SetValue("SPELCROS", "spellcd_path", reloaded_sources::fs::path(cd_dir).u8string().c_str());
+    ini.SetValue("SPELCROS", "spell_path", data_dir.string().c_str());
+    ini.SetValue("SPELCROS", "spellcd_path", cd_dir.string().c_str());
     if (!mod_dir.empty())
-        ini.SetValue("SPELCROS", "mod_path", reloaded_sources::fs::path(mod_dir).u8string().c_str());
+        ini.SetValue("SPELCROS", "mod_path", mod_dir.string().c_str());
     // An absolute path is intentional: std::filesystem::path / absolute path
     // discards the left operand in the legacy FormLoader.
-    ini.SetValue("DATA", "spec_data_path", assets_dir.u8string().c_str());
-    ini.SetValue("DATA", "units_aux_data_path", (assets_dir / "units.fsa").u8string().c_str());
+    ini.SetValue("DATA", "spec_data_path", assets_dir.string().c_str());
+    ini.SetValue("DATA", "units_aux_data_path", (assets_dir / "units.fsa").string().c_str());
     for (const auto* terrain : {"T11", "PUST", "DEVAST"}) {
         const auto key = std::string("TERRAIN::") + terrain;
         const fs::path ctx = assets_dir / (std::string(terrain) + ".con");
-        if (IsFile(ctx)) ini.SetValue(key.c_str(), "context_path", ctx.u8string().c_str());
+        if (IsFile(ctx)) ini.SetValue(key.c_str(), "context_path", ctx.string().c_str());
     }
     if (ini.SaveFile(config.wstring().c_str()) != SI_OK) {
         wxMessageBox("Cannot save editor configuration alongside its executable.",
