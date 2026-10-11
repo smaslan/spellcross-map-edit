@@ -3059,6 +3059,14 @@ void MainFrame::OnCanvasLMouseDown(wxMouseEvent& event)
         {
             // something in copy buffer            
             auto pos = spell_map->GetSelection();
+            // Snapshot the actual destination before/after the paste. The
+            // renderer copies the live tile vector and overlays the brush,
+            // so this distinguishes a failed write from an invisible layer.
+            auto* beforeTile = pos.IsSelected() ? spell_map->GetTile(&pos) : nullptr;
+            const std::string oldL1 = beforeTile && beforeTile->L1
+                ? beforeTile->L1->name : "-";
+            const std::string oldL2 = beforeTile && beforeTile->L2
+                ? beforeTile->L2->name : "-";
             spell_map->PasteBuffer(spell_map->tiles,spell_map->anms,spell_map->pnms,
                 spell_map->start,spell_map->escape,spell_map->target,
                 spell_map->counter_attack_post_player,spell_map->counter_attack_post_enemy,spell_map->portals,
@@ -3067,9 +3075,20 @@ void MainFrame::OnCanvasLMouseDown(wxMouseEvent& event)
             if(event.ControlDown() && spell_tool.isTool())
                 spell_map->SetBuffer(spell_tool,+1);
             HistoryPush();
-            SetStatusTextLast(pos.IsSelected()
-                ? string_format("Brush paste triggered at x=%d, y=%d.", pos.x, pos.y)
-                : "Brush paste skipped: cursor is outside a valid tile.");
+            auto* afterTile = pos.IsSelected() ? spell_map->GetTile(&pos) : nullptr;
+            const std::string newL1 = afterTile && afterTile->L1
+                ? afterTile->L1->name : "-";
+            const std::string newL2 = afterTile && afterTile->L2
+                ? afterTile->L2->name : "-";
+            if (!pos.IsSelected())
+                SetStatusTextLast("Paint skipped: map cursor has no valid tile.");
+            else
+                SetStatusTextLast(string_format(
+                    "Paint (%d,%d) L1:%s>%s L2:%s>%s (v1=%d,v2=%d)",
+                    pos.x, pos.y, oldL1.c_str(), newL1.c_str(),
+                    oldL2.c_str(), newL2.c_str(),
+                    static_cast<int>(menuView->FindItem(ID_ViewTer)->IsChecked()),
+                    static_cast<int>(menuView->FindItem(ID_ViewObj)->IsChecked())));
             Refresh();
         }
         else
@@ -3636,13 +3655,31 @@ void MainFrame::OnToolBtnClick(wxRibbonButtonBarEvent& event)
         return;
     }
 
+    // Include the actual source sprite/layer in the status text. A valid
+    // ribbon thumbnail does not prove the source sprite is used correctly by
+    // the on-map renderer; this separates source selection from placement.
     if (object)
-        SetStatusTextLast(string_format("Brush: %s (object); left-click to paint.",
+        SetStatusTextLast(string_format("Brush: %s (object, L1/L2/PNM); left-click to paint.",
             object->GetDescription().c_str()));
     else
-        SetStatusTextLast(string_format("Brush: %s (%u sprites); R / Shift+R changes variant.",
-            spell_map->terrain->GetToolSetItem(tool_id, item_id).c_str(),
-            static_cast<unsigned>(spell_map->terrain->GetToolSprites(spell_tool).size())));
+    {
+        const auto sprites = spell_map->terrain->GetToolSprites(spell_tool);
+        const auto objects = spell_map->terrain->GetToolObjects(spell_tool);
+        if (!sprites.empty())
+        {
+            const auto* sprite = sprites.front();
+            SetStatusTextLast(string_format("Brush: %s -> %s, L%d, yofs=%d (v1=%d,v2=%d).",
+                spell_map->terrain->GetToolSetItem(tool_id, item_id).c_str(),
+                sprite->name.c_str(), sprite->land_type == 0 ? 2 : 1,
+                sprite->y_ofs,
+                static_cast<int>(menuView->FindItem(ID_ViewTer)->IsChecked()),
+                static_cast<int>(menuView->FindItem(ID_ViewObj)->IsChecked())));
+        }
+        else
+            SetStatusTextLast(string_format("Brush: %s (%u objects).",
+                spell_map->terrain->GetToolSetItem(tool_id, item_id).c_str(),
+                static_cast<unsigned>(objects.size())));
+    }
     if (canvas)
     {
         canvas->SetFocus();
