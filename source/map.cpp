@@ -3359,6 +3359,199 @@ void SpellMap::CutBuffer(std::vector<MapXY>& posxy,SpellMap::Layers layers)
 		DeleteSelObjects(posxy,layers);
 }
 
+// Move a placed map object without flattening or cloning its terrain.
+//
+// Only layer-2 sprites are movable without losing the original background:
+// an L1 building overwrites its original ground, which cannot be reconstructed
+// from the loaded map. If a placed L2 object matches a known multi-cell L2
+// prefab, move the full footprint. Preserve both native map layers otherwise.
+// PNM/ANM overlays at those cells follow their objects when not obstructed.
+bool SpellMap::MovePlacedObject(MapXY source, MapXY target, std::string& error)
+{
+    error.clear();
+    if (!source.IsSelected() || !target.IsSelected() ||
+        source == target || !IsLoaded() ||
+        source.x >= x_size || source.y >= y_size ||
+        target.x >= x_size || target.y >= y_size)
+    {
+        error = "Invalid move destination.";
+        return false;
+    }
+    const int sourceIndex = ConvXY(source);
+    if (sourceIndex < 0 || !tiles[sourceIndex].L2)
+    {
+        error = "Drag a placed L2 object, not bare terrain.";
+        return false;
+    }
+    Sprite* selectedSprite = tiles[sourceIndex].L2;
+    if (selectedSprite == start_sprite || selectedSprite == escape_sprite ||
+        selectedSprite == target_sprite)
+    {
+        error = "Mission start/escape/target positions cannot be dragged as objects.";
+        return false;
+    }
+
+    // Default: a single L2 sprite. Look for a larger, exact prefab first.
+    std::vector<MapXY> footprint = {source};
+    if (terrain)
+    {
+        for (SpellObject* object : terrain->objects)
+        {
+            if (!object)
+                continue;
+            std::vector<MapXY> offsets;
+            std::vector<MapSprite> parts;
+            std::vector<MapLayer4> effects;
+            if (object->GetObjectData(&offsets, &parts, &effects) != 0 ||
+                offsets.size() < 2 || offsets.size() > 512 ||
+                offsets.size() != parts.size() || offsets.size() <= footprint.size())
+                continue;
+
+            // L1 house structures cannot be restored safely, even when all
+            // their sprites are known. An animated template must be handled
+            // explicitly instead of silently leaving its smoke behind.
+            bool supported = true;
+            for (const auto& piece : parts)
+                if (!piece.L2 || piece.L1)
+                    supported = false;
+            if (!supported)
+                continue;
+
+            for (size_t anchorPart = 0; anchorPart < parts.size(); ++anchorPart)
+            {
+                if (parts[anchorPart].L2 != selectedSprite)
+                    continue;
+                const int anchorY = source.y - offsets[anchorPart].y;
+                const int anchorX = source.x - offsets[anchorPart].x +
+                    (((anchorY & 1) && (offsets[anchorPart].y & 1)) ? 1 : 0);
+                if (anchorX < 0 || anchorY < 0)
+                    continue;
+                std::vector<MapXY> candidate;
+                bool matches = true;
+                for (size_t i = 0; i < offsets.size(); ++i)
+                {
+                    MapXY pos(
+                        anchorX + offsets[i].x -
+                            (((anchorY & 1) && (offsets[i].y & 1)) ? 1 : 0),
+                        anchorY + offsets[i].y);
+                    if (pos.x < 0 || pos.y < 0 || pos.x >= x_size || pos.y >= y_size)
+                    {
+                        matches = false;
+                        break;
+                    }
+                    if (tiles[ConvXY(pos)].L2 != parts[i].L2)
+                    {
+                        matches = false;
+                        break;
+                    }
+                    candidate.push_back(pos);
+                }
+                if (matches)
+                    footprint = std::move(candidate);
+            }
+        }
+    }
+
+    // Move by the cursor's actual staggered-world vector. Y parity keeps
+    // every translated cell on a valid native Spellcross grid coordinate.
+    const int sourceH = 2 * source.x + ((source.y & 1) ? 0 : 1);
+    const int targetH = 2 * target.x + ((target.y & 1) ? 0 : 1);
+    const int deltaH = targetH - sourceH;
+    const int deltaY = target.y - source.y;
+    std::vector<MapXY> destination;
+    destination.reserve(footprint.size());
+    for (MapXY pos : footprint)
+    {
+        const int y = pos.y + deltaY;
+        const int h = 2 * pos.x + ((pos.y & 1) ? 0 : 1) + deltaH;
+        const int numerator = h - ((y & 1) ? 0 : 1);
+        if (numerator % 2 != 0)
+        {
+            error = "Object destination does not align to the map grid.";
+            return false;
+        }
+        MapXY to(numerator / 2, y);
+        if (to.x < 0 || to.y < 0 || to.x >= x_size || to.y >= y_size)
+        {
+            error = "Object would extend outside the map.";
+            return false;
+        }
+        destination.push_back(to);
+    }
+
+    for (const MapXY to : destination)
+    {
+        const bool occupiedBySelf = std::find(footprint.begin(), footprint.end(), to) != footprint.end();
+        if (!occupiedBySelf && tiles[ConvXY(to)].L2)
+        {
+            error = "Destination is occupied by another object.";
+            return false;
+        }
+    }
+    auto animationAt = [](const auto& layer, MapXY pos) {
+        return std::any_of(layer.begin(), layer.end(), [&](const auto& anim) {
+            return anim.x_pos == pos.x && anim.y_pos == pos.y;
+        });
+    };
+    for (size_t i = 0; i < destination.size(); ++i)
+    {
+        if (std::find(footprint.begin(), footprint.end(), destination[i]) != footprint.end())
+            continue;
+        if ((animationAt(anms, footprint[i]) && animationAt(anms, destination[i])) ||
+            (animationAt(pnms, footprint[i]) && animationAt(pnms, destination[i])))
+        {
+            error = "Destination has an animation that would be overwritten.";
+            return false;
+        }
+    }
+
+    // Snapshot before changing anything; do not overwrite cells within the
+    // same moving footprint until all old object fragments are removed.
+    std::vector<Sprite*> movingSprites;
+    std::vector<uint8_t> movingFlags;
+    for (MapXY pos : footprint)
+    {
+        const auto& cell = tiles[ConvXY(pos)];
+        movingSprites.push_back(cell.L2);
+        movingFlags.push_back(cell.flags);
+    }
+    LockMap();
+    HaltUnitRanging(true);
+    for (MapXY pos : footprint)
+    {
+        auto& cell = tiles[ConvXY(pos)];
+        cell.L2 = nullptr;
+        cell.flags = cell.L1 ? cell.L1->GetMapFlags() : 0;
+    }
+    for (size_t i = 0; i < destination.size(); ++i)
+    {
+        auto& cell = tiles[ConvXY(destination[i])];
+        cell.L2 = movingSprites[i];
+        cell.flags = movingFlags[i];
+    }
+    // Move matching ANM/PNM overlays in a single sweep, also when source and
+    // destination overlap. Their coordinates are absolute map coordinates.
+    for (auto& anim : anms)
+        for (size_t i = 0; i < footprint.size(); ++i)
+            if (anim.x_pos == footprint[i].x && anim.y_pos == footprint[i].y)
+            {
+                anim.x_pos = destination[i].x;
+                anim.y_pos = destination[i].y;
+                break;
+            }
+    for (auto& anim : pnms)
+        for (size_t i = 0; i < footprint.size(); ++i)
+            if (anim.x_pos == footprint[i].x && anim.y_pos == footprint[i].y)
+            {
+                anim.x_pos = destination[i].x;
+                anim.y_pos = destination[i].y;
+                break;
+            }
+    ResumeUnitRanging(false);
+    ReleaseMap();
+    return true;
+}
+
 // clear copy buffer
 void SpellMap::ClearBuffer()
 {
