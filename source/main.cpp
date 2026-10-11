@@ -3069,6 +3069,13 @@ void MainFrame::OnCanvasLMouseDown(wxMouseEvent& event)
             SetStatusTextLast("Dragging object: move to a free tile and release.");
             return;
         }
+        if (grabbed.IsSelected() && !spell_map->GetCursorUnit())
+        {
+            auto* tile = spell_map->GetTile(&grabbed);
+            if (tile && tile->L1 &&
+                (tile->L1->GetFlags() & Sprite::LandFlags::IS_OBJECT))
+                SetStatusTextLast("This L1 building cannot be moved safely: its original terrain background is unknown.");
+        }
     }
 
     // get selection
