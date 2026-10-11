@@ -546,7 +546,9 @@ MainFrame::MainFrame(SpellConfig* config, SpellMap *&map, SpellData *&spelldata,
     SetMenuBar(menuBar);
     
     
-    std::vector<int> sbar_w = {45,45,45,60,100,100,100,350,120,-1};
+    // Dedicated last field for brush state. The existing unit-status field
+    // (index 9) changes on every hover and must not erase tool diagnostics.
+    std::vector<int> sbar_w = {45,45,45,60,100,100,100,260,115,330,-1};
     CreateStatusBar(sbar_w.size());
     SetStatusWidths(sbar_w.size(),sbar_w.data());
     SetStatusText("");
@@ -3065,6 +3067,9 @@ void MainFrame::OnCanvasLMouseDown(wxMouseEvent& event)
             if(event.ControlDown() && spell_tool.isTool())
                 spell_map->SetBuffer(spell_tool,+1);
             HistoryPush();
+            SetStatusTextLast(pos.IsSelected()
+                ? string_format("Brush paste triggered at x=%d, y=%d.", pos.x, pos.y)
+                : "Brush paste skipped: cursor is outside a valid tile.");
             Refresh();
         }
         else
@@ -3619,16 +3624,25 @@ void MainFrame::OnToolBtnClick(wxRibbonButtonBarEvent& event)
 
     if (result != 0 || !spell_map->isCopyBufferFull())
     {
+        const auto sprites = object ? std::vector<Sprite*>{}
+            : spell_map->terrain->GetToolSprites(spell_tool);
+        const auto objects = object ? std::vector<SpellObject*>{}
+            : spell_map->terrain->GetToolObjects(spell_tool);
+        SetStatusTextLast(string_format("Tool %s: no usable buffer (%u sprites, %u objects).",
+            object ? object->GetDescription().c_str()
+                   : spell_map->terrain->GetToolSetItem(tool_id, item_id).c_str(),
+            static_cast<unsigned>(sprites.size()), static_cast<unsigned>(objects.size())));
         spell_tool.Set();
-        SetStatusTextLast(
-            "This tool has no usable sprites/objects. Check terrain context "
-            "and tool classes, or choose a sprite in Tools > Sprites viewer.");
         return;
     }
 
-    SetStatusTextLast(object
-        ? "Object selected: left-click to place it on the map."
-        : "Tile brush ready: left-click to place; R / Shift+R cycles available variants.");
+    if (object)
+        SetStatusTextLast(string_format("Brush: %s (object); left-click to paint.",
+            object->GetDescription().c_str()));
+    else
+        SetStatusTextLast(string_format("Brush: %s (%u sprites); R / Shift+R changes variant.",
+            spell_map->terrain->GetToolSetItem(tool_id, item_id).c_str(),
+            static_cast<unsigned>(spell_map->terrain->GetToolSprites(spell_tool).size())));
     if (canvas)
     {
         canvas->SetFocus();
