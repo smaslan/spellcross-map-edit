@@ -2,7 +2,9 @@
 
 **A standalone map and resource editor for [Spellcross (1997)](https://en.wikipedia.org/wiki/Spellcross), maintained here as the editor component of [Spellcross Reloaded](https://github.com/luboshorak/spellcross-reloaded).**
 
-This repository is a **fork of [Stanislav Mašláň's original Spellcross Map Editor](https://github.com/smaslan/spellcross-map-edit)**, not a replacement for it and not the playable Spellcross Reloaded game. Mašláň created the editor, reverse-engineered the original file formats and wrote the underlying map/resource editing tools. This fork keeps that work available while adding the data-loading and build compatibility changes needed to ship it alongside Reloaded.
+This repository is a **fork of [Stanislav Mašláň's original Spellcross Map Editor](https://github.com/smaslan/spellcross-map-edit)**, not a replacement for it and not the playable Spellcross Reloaded game.
+
+**Repository status:** v0.8.2 editor integration is merged into `main` ([PR #3](https://github.com/luboshorak/spellcross-reloaded-editor/pull/3)) alongside [the game integration](https://github.com/luboshorak/spellcross-reloaded/pull/43), but is **not yet Windows build/runtime validated or published**. The latest downloadable combined package is still [v0.8.1](https://github.com/luboshorak/spellcross-reloaded/releases/tag/v0.8.1). Mašláň created the editor, reverse-engineered the original file formats and wrote the underlying map/resource editing tools. This fork keeps that work available while adding the data-loading and build compatibility changes needed to ship it alongside Reloaded.
 
 | Looking for… | Go to |
 | --- | --- |
@@ -42,13 +44,21 @@ More screenshots and explanations are in the [editor guide](./doc/UPSTREAM_EDITO
 
 The fork deliberately keeps these changes separate from the editor's core editing features, making it easier to continue incorporating improvements from Mašláň's upstream project.
 
-### Drag placed map objects (development preview)
+### v0.8.2 integration features (merged, awaiting Windows acceptance)
+
+- **Game-to-editor handoff:** the executable accepts `--open-map "<path-to-mission.DEF>"` and opens the referenced original mission for editing. The tactical game can launch it after a save/open/cancel confirmation; this does not transfer live battle state or `.scsave` files.
+- **Ribbon brush and placement corrections:** button dispatch handles standard and hybrid brush tools, while a dedicated status-bar field reports brush sprites and results of map placement. Null sprite/animation guards prevent a missing special mission marker from intercepting normal terrain painting.
+- **Rotation and object movement:** the flat L1 rotation and L2 drag/drop workflows below are integrated in `main` but remain experimental. Test them on disposable/backed-up maps before distributing changes.
+
+For a reproducible Windows test, check **Land, Road, Bridges, Houses, Alliance, OS Objects** against known-working **Trees/Walls/Special** brushes; test Undo, saved map reopening and playable-game loading as well as object drag/drop and rotation.
+
+### Drag placed map objects (v0.8.2 experimental integration)
 
 With **no painting brush selected**, hold the left mouse button on an existing **L2 object**, drag it to a free map location, and release. The source object is removed only if the destination is valid, and the move is added to Undo history. The preview is displayed while dragging. Where an exact original multi-cell L2 prefab can be recognized, its pieces move together.
 
 The move deliberately **does not alter L1 ground tiles**. Buildings with baked-in L1 graphics cannot yet be moved safely because the map does not preserve the original landscape underneath them. Dragging a mission marker or dropping onto an occupied L2 cell is rejected with a status message. Clear an active tile brush before dragging existing objects.
 
-### Tile painting and rotation (development preview, unreleased)
+### Tile painting and rotation (v0.8.2 experimental integration)
 
 Select a brush in the terrain ribbon and left-click the map to paint. The map status bar reports selected and placed sprites; the editor supports Undo/Redo.
 
@@ -66,7 +76,7 @@ Rotation is intentionally limited to the flat `A` terrain shape with normal grou
 
 ## Download and first use (recommended)
 
-The simplest way to run this editor is to download **[Spellcross_Reloaded_v0.8.1.zip](https://github.com/luboshorak/spellcross-reloaded/releases/tag/v0.8.1)**, which contains both programs:
+The latest **published** combined release is **[Spellcross_Reloaded_v0.8.1.zip](https://github.com/luboshorak/spellcross-reloaded/releases/tag/v0.8.1)**, which contains both programs. To try the merged v0.8.2 features before release, build both projects from `main` of the game repository with its pinned editor submodule (instructions below); no validated v0.8.2 ZIP is published yet.
 
 ~~~text
 Spellcross.exe                     playable game
@@ -83,7 +93,7 @@ game_data/DATA/                   created when original data are imported
 4. To edit a mission, extract the appropriate files from the original retail **COMMON.FS** using the editor's **Tools → Extract FS archive** function or an external extraction tool. Open the extracted **DTA** map or **DEF** mission script.
 5. Save modified maps under a **new filename** and keep backups. Different DEF scripts can reference the same DTA map.
 
-The original retail archives are **not** supplied with the project. You must provide them from your own Spellcross copy. The importer works with a *mounted* ISO/CD directory, not a raw `.iso` filename. A Windows x64 [Visual C++ Redistributable](https://aka.ms/vc14/vc_redist.x64.exe) may be required.
+The original retail archives are **not** supplied with the project. You must provide them from your own Spellcross copy. **The v0.8.2 game** can import directly from an unmounted raw ISO 9660 `.iso` file; **the editor's own importer** uses a mounted CD/ISO folder (or can reuse archives already imported by the game). The published v0.8.1 game also uses mounted CD/ISO input. A Windows x64 [Visual C++ Redistributable](https://aka.ms/vc14/vc_redist.x64.exe) may be required.
 
 ### Running the editor on its own
 
@@ -105,7 +115,7 @@ cd spellcross-reloaded
 
 See [combined release build instructions](https://github.com/luboshorak/spellcross-reloaded/blob/main/packaging/README.md) for the required Windows tools and MP4 video inputs. If working directly on this editor fork, use **source/spellcross_map_editor.sln** and make sure the auxiliary **data/** files are accessible when running the built executable.
 
-The game includes this editor as a **Git submodule** at `external/map-editor`. Editing this fork does **not** automatically update the version pinned by the game: the game repository must explicitly update the submodule reference.
+The game includes this editor as a **Git submodule** at `external/map-editor`. Editing this fork does **not** automatically update the version pinned by the game: the game repository must explicitly update the submodule reference. The current v0.8.2 integration pins editor commit [`c486943`](https://github.com/luboshorak/spellcross-reloaded-editor/commit/c486943e7c2114a25405e41359ed44cda01be0b9), which includes the `ConvXY` compile-fix; the editor `main` merge contains that commit.
 
 ## Origins, credits and license
 
