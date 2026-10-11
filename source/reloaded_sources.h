@@ -164,6 +164,47 @@ inline Discovered FromReloadedIni(const fs::path& ini_file) {
     return result;
 }
 
+// Reloaded stores individual absolute/relative archives in [FILES].
+// Keep them as direct references; a single "game folder" can no longer
+// represent every installation layout.
+inline std::map<std::string, fs::path>& ArchiveOverrides() {
+    static std::map<std::string, fs::path> paths;
+    return paths;
+}
+
+inline void ReadArchiveOverrides(const fs::path& ini_path) {
+    if (!IsFile(ini_path)) return;
+    CSimpleIniA ini;
+    ini.SetUnicode();
+    if (ini.LoadFile(ini_path.wstring().c_str()) != SI_OK) return;
+    const std::array<std::pair<const char*, const char*>, 13> keys = {{
+        {"common_fs", "COMMON.FS"},
+        {"info_fs", "INFO.FS"},
+        {"t11_fs", "T11.FS"},
+        {"pust_fs", "PUST.FS"},
+        {"devast_fs", "DEVAST.FS"},
+        {"units_fsu", "UNITS.FSU"},
+        {"texts_fs", "TEXTS.FS"},
+        {"samples_fs", "SAMPLES.FS"},
+        {"music_fs", "MUSIC.FS"},
+        {"research_fs", "RESEARCH.FS"},
+        {"movie_fs", "MOVIE.FS"},
+        {"speaker_fs", "SPEAKER.FS"},
+        {"movies_fs", "MOVIES.FS"}
+    }};
+    for (const auto& [key, name] : keys) {
+        auto value = ResolveValue(ini_path, ini.GetValue("FILES", key, ""));
+        if (IsFile(value) && Lower(value.filename().string()) == Lower(name))
+            ArchiveOverrides()[Lower(name)] = value;
+    }
+}
+
+inline fs::path FindOverriddenArchive(const std::string& filename) {
+    auto it = ArchiveOverrides().find(Lower(filename));
+    if (it == ArchiveOverrides().end() || !IsFile(it->second)) return {};
+    return it->second;
+}
+
 inline fs::path FindInstallDta(const fs::path& selection) {
     auto p = FileIn(selection, "INSTALL.DTA");
     if (!p.empty()) return p;
