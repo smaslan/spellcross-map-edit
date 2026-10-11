@@ -3123,6 +3123,130 @@ int SpellMap::SetBuffer(SpellTool &tool,int cycle,int init)
 	return(0);
 }
 
+// Rotate a whole flat brush on Spellcross's staggered diamond grid.
+//
+// Each cell center has doubled horizontal coordinate H = 2*x + (y even).
+// Rotating grid deltas (H,Y) clockwise gives (-Y,H); both have the same
+// parity, so converting back to integer (x,y) remains exact.
+//
+// Pixel rotation uses the same clockwise convention through
+// Terrain::GetFlatRotatedSprite. Do not modify the clipboard until every
+// piece has passed validation; unsupported L2/animations/slopes stay intact.
+bool SpellMap::RotateFlatBuffer(int quarterTurns, std::string& error)
+{
+    error.clear();
+    const size_t count = copy_buf.tiles.size();
+    if (count == 0 || count != copy_buf.pos.size())
+    {
+        error = "No complete tile brush is selected.";
+        return false;
+    }
+    if (count > 4096)
+    {
+        error = "This brush is too large to rotate safely.";
+        return false;
+    }
+    for (const auto& layer : copy_buf.anms)
+    {
+        if (layer.anim)
+        {
+            error = "Animated terrain cannot be freely rotated.";
+            return false;
+        }
+    }
+    for (const auto& layer : copy_buf.pnms)
+    {
+        if (layer.anim)
+        {
+            error = "Objects containing PNM animations cannot be freely rotated.";
+            return false;
+        }
+    }
+
+    // A generated flat L1 sprite is permitted; a multi-part building with L2
+    // sprites, raised terrain or empty ground is not.
+    for (const auto& tile : copy_buf.tiles)
+    {
+        if (!tile.L1 || tile.L2 || tile.elev != 0)
+        {
+            error = "Only flat L1 ground/roads without raised or L2 parts can rotate.";
+            return false;
+        }
+    }
+
+    const int direction = quarterTurns >= 0 ? 1 : -1;
+    std::vector<Sprite*> newSprites;
+    newSprites.reserve(count);
+    for (const auto& tile : copy_buf.tiles)
+    {
+        Sprite* rotated = terrain->GetFlatRotatedSprite(tile.L1, direction);
+        if (!rotated)
+        {
+            error = "This brush includes an unsupported slope or non-flat sprite: " +
+                tile.L1->name;
+            return false;
+        }
+        newSprites.push_back(rotated);
+    }
+
+    const MapXY pivot = copy_buf.pos.front();
+    const int pivotH = pivot.x * 2 + ((pivot.y & 1) == 0 ? 1 : 0);
+    std::vector<MapXY> newPositions;
+    newPositions.reserve(count);
+    int minX = 0;
+    int minY = 0;
+    for (const MapXY& old : copy_buf.pos)
+    {
+        const int h = old.x * 2 + ((old.y & 1) == 0 ? 1 : 0);
+        const int dh = h - pivotH;
+        const int dy = old.y - pivot.y;
+
+        const int newH = pivotH + (direction > 0 ? -dy : dy);
+        const int newY = pivot.y + (direction > 0 ? dh : -dh);
+        const int parityOffset = (newY & 1) == 0 ? 1 : 0;
+        const int numerator = newH - parityOffset;
+        if ((numerator & 1) != 0)
+        {
+            error = "Rotated tile coordinates are not aligned to the map grid.";
+            return false;
+        }
+        const MapXY rotated(numerator / 2, newY);
+        newPositions.push_back(rotated);
+        minX = std::min(minX, rotated.x);
+        minY = std::min(minY, rotated.y);
+    }
+
+    // Offset every cell together so clipboard positions remain nonnegative.
+    // Use an EVEN Y offset to keep the alternating map-row alignment.
+    const int shiftX = -minX;
+    const int shiftY = 2 * ((-minY + 1) / 2);
+    for (auto& p : newPositions)
+    {
+        p.x += shiftX;
+        p.y += shiftY;
+    }
+
+    LockMap();
+    for (size_t i = 0; i < count; ++i)
+    {
+        copy_buf.pos[i] = newPositions[i];
+        copy_buf.tiles[i].L1 = newSprites[i];
+        copy_buf.tiles[i].flags = newSprites[i]->GetMapFlags();
+    }
+    // Object brushes may include empty PNM placeholders, one per tile.
+    // Their coordinates should follow the corresponding tile, too.
+    if (copy_buf.pnms.size() == count)
+    {
+        for (size_t i = 0; i < count; ++i)
+        {
+            copy_buf.pnms[i].x_pos = newPositions[i].x;
+            copy_buf.pnms[i].y_pos = newPositions[i].y;
+        }
+    }
+    ReleaseMap();
+    return true;
+}
+
 // copy map data for copy&paste actions
 void SpellMap::CopyBuffer(std::vector<MapXY>& posxy,SpellMap::Layers layers)
 {
