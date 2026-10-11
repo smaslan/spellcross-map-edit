@@ -3383,6 +3383,15 @@ bool SpellMap::MovePlacedObject(MapXY source, MapXY target, std::string& error)
         error = "Drag a placed L2 object, not bare terrain.";
         return false;
     }
+    // A housing/structure graphic baked into L1 cannot be lifted safely:
+    // the original ground tile underneath it was overwritten in the source
+    // map, so moving only its L2 part would tear the building apart.
+    if (tiles[sourceIndex].L1 &&
+        (tiles[sourceIndex].L1->GetFlags() & Sprite::LandFlags::IS_OBJECT))
+    {
+        error = "This building uses baked-in L1 parts. Move only standalone L2 objects.";
+        return false;
+    }
     Sprite* selectedSprite = tiles[sourceIndex].L2;
     if (selectedSprite == start_sprite || selectedSprite == escape_sprite ||
         selectedSprite == target_sprite)
