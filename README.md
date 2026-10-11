@@ -46,16 +46,17 @@ The fork deliberately keeps these changes separate from the editor's core editin
 
 Select a brush in the terrain ribbon and left-click the map to paint. The map status bar reports selected and placed sprites; the editor supports Undo/Redo.
 
-**Flat, single-cell L1 terrain tiles** (including straight roads and flat paths) can now be turned in the *isometric ground plane* without pre-made original directions:
+**Flat L1 terrain tiles and complete multi-cell flat brushes** (including roads, paths and flat road prefabs) can now be turned in the *isometric ground plane* without pre-made original directions:
 
 - **R** – 90° clockwise.
 - **Shift+R** – 90° counter-clockwise.
-- Four presses restore the original orientation. The preview at the cursor updates before placement.
+- Four presses restore the original orientation and the relative arrangement of tiles. The full brush preview at the cursor updates before placement.
+- Multi-cell rotation transforms each flat sprite **and** its relative position on the staggered map grid; complex L2/animated/raised objects are rejected safely.
 - **Ctrl+mouse wheel** continues to cycle through original predefined sprites and tool variants (and resets a custom rotation).
 
 The palette-indexed, rotated tile is generated on demand, not baked into the original commercial `.FS` files. Map files save a deterministic eight-character virtual sprite name (`R0Axxxxx`) identifying the original terrain sprite and quarter turn. **Both the Reloaded game and this fork of the editor must contain the new virtual-rotation decoder** to reopen those modified maps. Original retail Spellcross, the upstream editor v0.90 and older Reloaded builds cannot resolve virtual sprite names. Back up maps and distribute changes only with a matching new game build.
 
-Rotation is intentionally limited to the flat `A` terrain shape with normal ground elevation (0 pixel sprite offset); sloped `B`–`M` terrain, 3D houses, multi-cell objects and animations are excluded. Nearest-neighbour resampling may produce minor pixel jaggies on angled road edges.
+Rotation is intentionally limited to the flat `A` terrain shape with normal ground elevation (0 pixel sprite offset). Multi-cell brushes work only when **all** constituent tiles are flat L1 sprites, with no L2 parts or animations. Sloped `B`–`M` terrain, 3D houses, raised objects and animations remain excluded. Nearest-neighbour resampling may produce minor pixel jaggies on angled road edges.
 
 ## Download and first use (recommended)
 
