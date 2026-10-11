@@ -441,6 +441,10 @@ MainFrame::MainFrame(SpellConfig* config, SpellMap *&map, SpellData *&spelldata,
     menuEdit->Append(ID_Dummy,"Paste from tool with auto map\tShift+Left Click","",wxITEM_NORMAL);
     menuEdit->Append(ID_Dummy,"Change tool size\tWheel","",wxITEM_NORMAL);
     menuEdit->Append(ID_Dummy,"Cycle tool items\tCtrl+Wheel","",wxITEM_NORMAL);
+    menuEdit->Append(ID_CycleBrushNext,"Next brush variant\tR",
+        "Cycle through compatible sprites already present in the game data.");
+    menuEdit->Append(ID_CycleBrushPrevious,"Previous brush variant\tShift+R",
+        "Cycle backwards through the available sprite variants.");
     menuEdit->Append(wxID_ANY,"","",wxITEM_SEPARATOR);
     menuEdit->Append(ID_InvalidateSel,"Invalidate selection\tCtrl+I","",wxITEM_NORMAL);
     menuEdit->Append(ID_DeleteSel,"Delete stuff\tShift+Delete","",wxITEM_NORMAL);
@@ -669,6 +673,8 @@ MainFrame::MainFrame(SpellConfig* config, SpellMap *&map, SpellData *&spelldata,
     Bind(wxEVT_MENU,&MainFrame::OnCopyBuf,this,ID_CopyBuf);
     Bind(wxEVT_MENU,&MainFrame::OnCopyBuf,this,ID_CutBuf);
     Bind(wxEVT_MENU,&MainFrame::OnPasteBuf,this,ID_PasteBuf);
+    Bind(wxEVT_MENU,&MainFrame::OnCycleBrushVariant,this,ID_CycleBrushNext);
+    Bind(wxEVT_MENU,&MainFrame::OnCycleBrushVariant,this,ID_CycleBrushPrevious);
     Bind(wxEVT_MENU,&MainFrame::OnClearBuf,this,ID_ClearBuf);
     Bind(wxEVT_MENU,&MainFrame::OnChangeElevation,this,ID_ElevUp);
     Bind(wxEVT_MENU,&MainFrame::OnChangeElevation,this,ID_ElevDown);
@@ -3492,10 +3498,15 @@ void MainFrame::OnCanvasMouseWheel(wxMouseEvent& event)
 // on canvas key down
 void MainFrame::OnCanvasKeyDown(wxKeyEvent& event)
 {
-    int key = event.GetKeyCode();
-    if(event.ControlDown())
+    const int key = event.GetKeyCode();
+    if (!event.ControlDown() && !event.AltDown() && (key == 'R' || key == 'r'))
     {
+        wxCommandEvent command(wxEVT_MENU,
+            event.ShiftDown() ? ID_CycleBrushPrevious : ID_CycleBrushNext);
+        OnCycleBrushVariant(command);
+        return;
     }
+    event.Skip();
 }
 
 
@@ -3540,63 +3551,111 @@ bool MainFrame::CheckMessageState()
 //--------------------------------------------------------------------------------------------------------------------
 // Tool bar stuff
 //--------------------------------------------------------------------------------------------------------------------
+// Cycle original graphics alternatives from the selected terrain tool.
+// The map file stores sprite IDs, not arbitrary pixel rotations. Never rotate
+// raw bitmaps: Spellcross's A-M tile shapes must remain valid.
+void MainFrame::OnCycleBrushVariant(wxCommandEvent& event)
+{
+    if (!spell_map || !spell_map->IsLoaded() || !spell_map->terrain ||
+        !spell_tool.isTool())
+    {
+        SetStatusTextLast("Select a terrain/object brush from the ribbon first.");
+        return;
+    }
+    auto sprites = spell_map->terrain->GetToolSprites(spell_tool);
+    auto objects = spell_map->terrain->GetToolObjects(spell_tool);
+    const size_t count = sprites.empty() ? objects.size() : sprites.size();
+    if (count <= 1)
+    {
+        SetStatusTextLast("This brush has no other stored orientation/variant.");
+        return;
+    }
+    const int direction = event.GetId() == ID_CycleBrushPrevious ? -1 : 1;
+    if (spell_map->SetBuffer(spell_tool, direction) != 0)
+    {
+        SetStatusTextLast("Failed selecting the next brush variant.");
+        return;
+    }
+    SetStatusTextLast("Brush variant changed. Left-click to place it.");
+    if (canvas)
+        canvas->Refresh();
+}
+
 // tool selected
 void MainFrame::OnToolBtnClick(wxRibbonButtonBarEvent& event)
 {
-    // get button id
-    int id = event.GetId();
-
-    // no tool selection
-    spell_tool.Set();
-
-    if(!spell_map->IsLoaded())
-        return;
-    if(!ribbonBar)
+    if (!spell_map || !spell_map->IsLoaded() || !spell_map->terrain || !ribbonBar)
         return;
 
-    int tool_id = (id - ID_TOOL_BASE)/ID_TOOL_CLASS_STEP;
-    int item_id = (id - ID_TOOL_BASE)%ID_TOOL_CLASS_STEP;
+    const int id = event.GetId();
+    const int relative = id - ID_TOOL_BASE;
+    if (relative < 0)
+        return;
+    const int tool_id = relative / ID_TOOL_CLASS_STEP;
+    const int item_id = relative % ID_TOOL_CLASS_STEP;
+    if (tool_id >= spell_map->terrain->GetToolsCount())
+        return;
 
-    // very schmutzig way to deselect all other tool buttons
-    for(int tid = 0; tid < ribbonBar->GetPageCount(); tid++)
-    {        
-        // get button bar
-        wxRibbonPage* page = ribbonBar->GetPage(tid);
-        auto wlist = page->GetChildren();
-        if(!wlist.size())
+    // The click event belongs to its button bar, not necessarily to the
+    // first child of a ribbon page. Find the actual button by its event ID.
+    wxRibbonButtonBar* sourceBar = nullptr;
+    for (size_t pageIndex = 0; pageIndex < ribbonBar->GetPageCount(); ++pageIndex)
+    {
+        auto* page = ribbonBar->GetPage(pageIndex);
+        if (!page)
             continue;
-        wxRibbonPanel* panel = (wxRibbonPanel*)wlist[0];
-        auto clist = panel->GetChildren();
-        if(!clist.size())
-            continue;
-        wxRibbonButtonBar* btns = (wxRibbonButtonBar*)clist[0];
-
-        // for each button:
-        for(int iid = 0; iid < btns->GetButtonCount(); iid++)
+        for (auto* child : page->GetChildren())
         {
-            int btn_id = ID_TOOL_BASE + tid*ID_TOOL_CLASS_STEP + iid;         
-            if(id == btn_id)
-            {            
-                // this button (event caller):
-                
-                // some tool selected: setup tool pointer
-                SpellObject *obj = (SpellObject*)btns->GetItemClientData(btns->GetItemById(btn_id));
-                if(obj)
+            auto* panel = dynamic_cast<wxRibbonPanel*>(child);
+            if (!panel)
+                continue;
+            for (auto* panelChild : panel->GetChildren())
+            {
+                auto* candidate = dynamic_cast<wxRibbonButtonBar*>(panelChild);
+                if (candidate && candidate->GetItemById(id))
                 {
-                    // tool is object
-                    // unset tool (depreceted method)
-                    spell_tool.Set();
-                    // place tool to clipboard (new method)
-                    spell_map->SetBuffer(obj);
+                    sourceBar = candidate;
+                    break;
                 }
-                else
-                {
-                    spell_tool.Set(tid, iid); // tool is class
-                    if(spell_tool.isTool())
-                        spell_map->SetBuffer(spell_tool,0);
-                }               
             }
+            if (sourceBar) break;
         }
+        if (sourceBar) break;
+    }
+    if (!sourceBar)
+    {
+        SetStatusTextLast("Cannot identify selected editor tool button.");
+        return;
+    }
+
+    auto* button = sourceBar->GetItemById(id);
+    auto* object = static_cast<SpellObject*>(sourceBar->GetItemClientData(button));
+    spell_tool.Set();
+    const int result = object
+        ? spell_map->SetBuffer(object)
+        : ([&]() -> int {
+            spell_tool.Set(tool_id, item_id);
+            // Start predictably at the first variant. R / Shift+R then
+            // cycle the original game's available variants.
+            return spell_map->SetBuffer(spell_tool, 0, 0);
+        })();
+
+    if (result != 0 || !spell_map->isCopyBufferFull())
+    {
+        spell_tool.Set();
+        SetStatusTextLast(
+            "This tool has no usable sprites/objects. Check terrain context "
+            "and tool classes, or choose a sprite in Tools > Sprites viewer.");
+        return;
+    }
+
+    SetStatusTextLast(object
+        ? "Object selected: left-click to place it on the map."
+        : "Tile brush ready: left-click to place; R / Shift+R cycles available variants.");
+    if (canvas)
+    {
+        canvas->SetFocus();
+        canvas->Refresh();
     }
 }
 // tool drop down selected
