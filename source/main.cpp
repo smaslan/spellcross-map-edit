@@ -3596,35 +3596,12 @@ void MainFrame::OnToolBtnClick(wxRibbonButtonBarEvent& event)
     if (tool_id >= spell_map->terrain->GetToolsCount())
         return;
 
-    // The click event belongs to its button bar, not necessarily to the
-    // first child of a ribbon page. Find the actual button by its event ID.
-    wxRibbonButtonBar* sourceBar = nullptr;
-    for (size_t pageIndex = 0; pageIndex < ribbonBar->GetPageCount(); ++pageIndex)
+    // wxRibbonButtonBarEvent knows its actual source bar. Never infer it
+    // from ribbon page children: panel hierarchies differ by wxWidgets builds.
+    wxRibbonButtonBar* sourceBar = event.GetBar();
+    if (!sourceBar || !sourceBar->GetItemById(id))
     {
-        auto* page = ribbonBar->GetPage(pageIndex);
-        if (!page)
-            continue;
-        for (auto* child : page->GetChildren())
-        {
-            auto* panel = dynamic_cast<wxRibbonPanel*>(child);
-            if (!panel)
-                continue;
-            for (auto* panelChild : panel->GetChildren())
-            {
-                auto* candidate = dynamic_cast<wxRibbonButtonBar*>(panelChild);
-                if (candidate && candidate->GetItemById(id))
-                {
-                    sourceBar = candidate;
-                    break;
-                }
-            }
-            if (sourceBar) break;
-        }
-        if (sourceBar) break;
-    }
-    if (!sourceBar)
-    {
-        SetStatusTextLast("Cannot identify selected editor tool button.");
+        SetStatusTextLast("Could not resolve the clicked ribbon tool. Select it again.");
         return;
     }
 
@@ -3661,83 +3638,84 @@ void MainFrame::OnToolBtnClick(wxRibbonButtonBarEvent& event)
 // tool drop down selected
 void MainFrame::OnToolBtnDropClick(wxRibbonButtonBarEvent& event)
 {
-    // get button id
-    int id = event.GetId();
-
-    // no tool selection
-    spell_tool.Set();
-
-    if(!spell_map->IsLoaded())
-        return;
-    if(!ribbonBar)
+    if (!spell_map || !spell_map->IsLoaded() || !spell_map->terrain)
         return;
 
-    int tool_id = (id - ID_TOOL_BASE)/ID_TOOL_CLASS_STEP;
-    int item_id = (id - ID_TOOL_BASE)%ID_TOOL_CLASS_STEP;
+    auto* bar = event.GetBar();
+    const int id = event.GetId();
+    if (!bar || !bar->GetItemById(id) || id < ID_TOOL_BASE)
+        return;
 
-    // very schmutzig way to deselect all other tool buttons
-    for(int tid = 0; tid < ribbonBar->GetPageCount(); tid++)
+    const int tool_id = (id - ID_TOOL_BASE) / ID_TOOL_CLASS_STEP;
+    const int item_id = (id - ID_TOOL_BASE) % ID_TOOL_CLASS_STEP;
+    if (tool_id >= spell_map->terrain->GetToolsCount())
+        return;
+
+    auto* object = static_cast<SpellObject*>(
+        bar->GetItemClientData(bar->GetItemById(id)));
+    if (object)
     {
-        // get button bar
-        wxRibbonPage* page = ribbonBar->GetPage(tid);
-        auto wlist = page->GetChildren();
-        if(!wlist.size())
-            continue;
-        wxRibbonPanel* panel = (wxRibbonPanel*)wlist[0];
-        auto clist = panel->GetChildren();
-        if(!clist.size())
-            continue;
-        wxRibbonButtonBar* btns = (wxRibbonButtonBar*)clist[0];
+        spell_tool.Set();
+        if (spell_map->SetBuffer(object) == 0)
+            SetStatusTextLast("Object brush ready; left-click to place.");
+        return;
+    }
 
-        // for each button:
-        for(int iid = 0; iid < btns->GetButtonCount(); iid++)
+    spell_tool.Set(tool_id, item_id);
+    // Give the main click and dropdown the same predictable behavior:
+    // the default sprite is selected immediately, even when user cancels
+    // the variant menu.
+    if (spell_map->SetBuffer(spell_tool, 0, 0) != 0)
+    {
+        spell_tool.Set();
+        SetStatusTextLast("This tool has no usable sprite/object variants.");
+        return;
+    }
+
+    wxMenu menu;
+    const auto sprites = spell_map->terrain->GetToolSprites(spell_tool);
+    const auto objects = spell_map->terrain->GetToolObjects(spell_tool);
+    const bool spriteMode = !sprites.empty();
+    int variantId = 0;
+    if (spriteMode)
+    {
+        for (auto* sprite : sprites)
         {
-            int btn_id = ID_TOOL_BASE + tid*ID_TOOL_CLASS_STEP + iid;
-
-            if(id == btn_id)
+            auto* item = menu.Append(variantId++, sprite->name);
+            auto* bitmap = sprite->Render(
+                (uint8_t*)spell_map->terrain->pal->GetPal(), 1.3, 64, 64, true);
+            if (bitmap)
             {
-                // this button (event caller):
-                SpellObject* obj = (SpellObject*)btns->GetItemClientData(btns->GetItemById(btn_id));
-                if(obj)
-                {
-                    // tool is object
-
-                }
-                else
-                {
-                    spell_tool.Set(tid,iid); // tool is class
-                    
-                    wxMenu menu;
-                    //menu.SetClientObject(new SpellTool(spell_tool));
-                    auto list = spell_map->terrain->GetToolSprites(spell_tool);
-                    int item_id = 0;
-                    for(auto item: list)
-                    {
-                        auto mmi = menu.Append(item_id++,item->name);
-                        auto bmp = item->Render((uint8_t*)spell_map->terrain->pal->GetPal(),1.3,64,64,true);
-                        auto img = bmp->ConvertToImage(); // this does something to alpha channel so it is correctly recognized by menu
-                        mmi->SetBitmap(img);
-                        delete bmp;
-                    }
-                    auto obj_list = spell_map->terrain->GetToolObjects(spell_tool);
-                    for(auto item: obj_list)
-                    {
-                        auto mmi = menu.Append(item_id++,item->GetDescription());
-                        auto bmp = item->RenderPreview(1.3,128,64,true);
-                        auto img = bmp->ConvertToImage(); // this does something to alpha channel so it is correctly recognized by menu
-                        mmi->SetBitmap(img);
-                        delete bmp;
-                    }
-
-                    if(menu.GetMenuItemCount())
-                    {
-                        menu.Connect(wxEVT_COMMAND_MENU_SELECTED,wxCommandEventHandler(MainFrame::OnToolItemPopupSelect),NULL,this);
-                        PopupMenu(&menu);
-                    }
-                    
-                }
+                item->SetBitmap(bitmap->ConvertToImage());
+                delete bitmap;
             }
         }
+    }
+    else
+    {
+        for (auto* obj : objects)
+        {
+            auto* item = menu.Append(variantId++, obj->GetDescription());
+            auto* bitmap = obj->RenderPreview(1.3, 128, 64, true);
+            if (bitmap)
+            {
+                item->SetBitmap(bitmap->ConvertToImage());
+                delete bitmap;
+            }
+        }
+    }
+
+    if (menu.GetMenuItemCount())
+    {
+        menu.Bind(wxEVT_MENU, &MainFrame::OnToolItemPopupSelect, this);
+        PopupMenu(&menu);
+        menu.Unbind(wxEVT_MENU, &MainFrame::OnToolItemPopupSelect, this);
+    }
+    SetStatusTextLast("Brush ready: left-click to paint; R / Shift+R cycles variants.");
+    if (canvas)
+    {
+        canvas->SetFocus();
+        canvas->Refresh();
     }
 }
 // on tool item pupup selection
