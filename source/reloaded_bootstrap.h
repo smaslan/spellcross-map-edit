@@ -82,7 +82,7 @@ inline bool Prepare(CSimpleIniA& ini, const fs::path& executable_dir,
             std::vector<fs::path> imported;
             std::string error;
             if (!ExtractInstallDtaDataFiles(install, destination, imported, error)) {
-                wxMessageBox(wxString::FromUTF8(error), "Spellcross import", wxOK | wxICON_ERROR);
+                wxMessageBox(wxString::FromUTF8(error.c_str()), "Spellcross import", wxOK | wxICON_ERROR);
                 return false;
             }
             CopyCdSidecar(install.parent_path(), destination, "INFO.FS");
