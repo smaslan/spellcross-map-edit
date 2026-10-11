@@ -39,6 +39,7 @@ inline bool Prepare(CSimpleIniA& ini, const fs::path& executable_dir,
                  root / "spellcross-map-edit-main" / "source" / "config.ini",
                  root / "spellcross-map-edit-main" / "config.ini",
                  root / "config.ini" }) {
+            ReadArchiveOverrides(old_ini);
             const auto found = FromReloadedIni(old_ini);
             if (!found.data_dir.empty()) { data_dir = found.data_dir; cd_dir = found.cd_dir; break; }
             // Separate per-file roots can be supported only when the required
