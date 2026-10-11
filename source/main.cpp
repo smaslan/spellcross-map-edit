@@ -595,6 +595,15 @@ MainFrame::MainFrame(SpellConfig* config, SpellMap *&map, SpellData *&spelldata,
     canvas->Bind(wxEVT_KEY_DOWN,&MainFrame::OnCanvasKeyDown,this);
     canvas->Bind(wxEVT_LEFT_DOWN,&MainFrame::OnCanvasLMouseDown,this);
     canvas->Bind(wxEVT_LEFT_UP,&MainFrame::OnCanvasLMouseUp,this);
+    canvas->Bind(wxEVT_MOUSE_CAPTURE_LOST,
+        [this](wxMouseCaptureLostEvent&)
+        {
+            if (m_moveObjectPreview && spell_map)
+                spell_map->ClearBuffer();
+            m_moveObjectPreview = false;
+            m_moveObjectArmed = false;
+            m_drag_sel_start.Clear();
+        });
 
     //canvas->Bind(wxEVT_LEFT_DCLICK,&MainFrame::OnCanvasLMouseDown,this);
     canvas->Bind(wxEVT_THREAD,&MainFrame::OnThreadCanvas,this);
@@ -3039,6 +3048,29 @@ void MainFrame::OnCanvasLMouseDown(wxMouseEvent& event)
         wxQueueEvent(form_minimap->form,new wxCloseEvent(evt));
     }
        
+    // Drag-to-move is available only when not painting with an active
+    // brush. It preserves the underlying L1 terrain and never changes
+    // the map until mouse-up validates the destination.
+    if (event.LeftDown() && !spell_map->isGameMode() &&
+        !spell_map->isCopyBufferFull() && !event.ShiftDown() &&
+        !event.ControlDown() && !event.AltDown())
+    {
+        MapXY grabbed = spell_map->GetSelection();
+        if (grabbed.IsSelected() &&
+            spell_map->CheckObj(&grabbed) &&
+            !spell_map->GetCursorUnit())
+        {
+            m_moveObjectSource = grabbed;
+            m_moveObjectArmed = true;
+            m_moveObjectPreview = false;
+            m_drag_sel_start.Clear();
+            if (canvas && !canvas->HasCapture())
+                canvas->CaptureMouse();
+            SetStatusTextLast("Dragging object: move to a free tile and release.");
+            return;
+        }
+    }
+
     // get selection
     auto xy_list = spell_map->GetSelections();
 
@@ -3300,6 +3332,41 @@ void MainFrame::OnCanvasLMouseDown(wxMouseEvent& event)
 // canvas left up (end of drag selection)
 void MainFrame::OnCanvasLMouseUp(wxMouseEvent& event)
 {
+    if (m_moveObjectArmed)
+    {
+        // Finish the drag before normal brush drag-paint processing.
+        if (canvas && canvas->HasCapture())
+            canvas->ReleaseMouse();
+        const MapXY source = m_moveObjectSource;
+        MapXY dest = spell_map->GetSelection();
+        m_moveObjectArmed = false;
+        if (m_moveObjectPreview)
+        {
+            spell_map->ClearBuffer(); // remove ghost, never paint it twice
+            m_moveObjectPreview = false;
+        }
+        m_drag_sel_start.Clear();
+        spell_map->scroller.ResizeSelection(0);
+        if (dest.IsSelected() && dest != source)
+        {
+            std::string error;
+            if (spell_map->MovePlacedObject(source, dest, error))
+            {
+                HistoryPush();
+                SetStatusTextLast(string_format(
+                    "Moved object from (%d,%d) to (%d,%d). Undo is available.",
+                    source.x, source.y, dest.x, dest.y));
+            }
+            else
+                SetStatusTextLast(error);
+        }
+        else
+            SetStatusTextLast("Object move canceled.");
+        UpdateMapStatus();
+        canvas->Refresh();
+        return;
+    }
+
     auto m_drag_sel_end = spell_map->GetSelection();
     if(m_drag_sel_start == m_drag_sel_end)
         return;
@@ -3483,6 +3550,21 @@ void MainFrame::OnCanvasMouseMove(wxMouseEvent& event)
 
     // cursor unit status
     SetStatusTextUnit(cur_unit);
+
+    if (m_moveObjectArmed && event.LeftIsDown())
+    {
+        if (mxy.IsSelected() && mxy != m_moveObjectSource &&
+            !m_moveObjectPreview)
+        {
+            auto* grabbed = spell_map->CheckObj(&m_moveObjectSource);
+            if (grabbed && grabbed->L2 &&
+                spell_map->SetBuffer(grabbed->L2) == 0)
+                m_moveObjectPreview = true;
+        }
+        // Don't start the existing click-and-drag paint selection.
+        canvas->Refresh();
+        return;
+    }
 
     if(event.LeftIsDown())
     {
