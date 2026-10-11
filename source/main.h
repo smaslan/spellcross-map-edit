@@ -186,6 +186,7 @@ private:
     void OnTreesRandomizer(wxCommandEvent& event);
     void OnUnitsEditor(wxCommandEvent& event);
 
+    void OnCycleBrushVariant(wxCommandEvent& event);
     void OnToolBtnClick(wxRibbonButtonBarEvent& event);
     void OnToolBtnDropClick(wxRibbonButtonBarEvent& event);
     void OnToolItemPopupSelect(wxCommandEvent& event);
@@ -492,7 +493,9 @@ enum
     ID_TreeRand,
     ID_TreeRandAll,
     ID_TreeRandCfg,
-    ID_UnitsEditor
+    ID_UnitsEditor,
+    ID_CycleBrushNext,
+    ID_CycleBrushPrevious
 };
 
 
