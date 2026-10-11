@@ -3479,9 +3479,13 @@ bool SpellMap::MovePlacedObject(MapXY source, MapXY target, std::string& error)
         destination.push_back(to);
     }
 
+    const auto isInOriginalFootprint = [&](const MapXY& p) {
+        return std::any_of(footprint.begin(), footprint.end(),
+            [&](const MapXY& old) { return old.x == p.x && old.y == p.y; });
+    };
     for (const MapXY to : destination)
     {
-        const bool occupiedBySelf = std::find(footprint.begin(), footprint.end(), to) != footprint.end();
+        const bool occupiedBySelf = isInOriginalFootprint(to);
         if (!occupiedBySelf && tiles[ConvXY(to)].L2)
         {
             error = "Destination is occupied by another object.";
@@ -3495,7 +3499,7 @@ bool SpellMap::MovePlacedObject(MapXY source, MapXY target, std::string& error)
     };
     for (size_t i = 0; i < destination.size(); ++i)
     {
-        if (std::find(footprint.begin(), footprint.end(), destination[i]) != footprint.end())
+        if (isInOriginalFootprint(destination[i]))
             continue;
         if ((animationAt(anms, footprint[i]) && animationAt(anms, destination[i])) ||
             (animationAt(pnms, footprint[i]) && animationAt(pnms, destination[i])))
