@@ -441,10 +441,10 @@ MainFrame::MainFrame(SpellConfig* config, SpellMap *&map, SpellData *&spelldata,
     menuEdit->Append(ID_Dummy,"Paste from tool with auto map\tShift+Left Click","",wxITEM_NORMAL);
     menuEdit->Append(ID_Dummy,"Change tool size\tWheel","",wxITEM_NORMAL);
     menuEdit->Append(ID_Dummy,"Cycle tool items\tCtrl+Wheel","",wxITEM_NORMAL);
-    menuEdit->Append(ID_CycleBrushNext,"Next brush variant\tR",
-        "Cycle through compatible sprites already present in the game data.");
-    menuEdit->Append(ID_CycleBrushPrevious,"Previous brush variant\tShift+R",
-        "Cycle backwards through the available sprite variants.");
+    menuEdit->Append(ID_CycleBrushNext,"Rotate flat tile clockwise\tR",
+        "Rotate a flat ground tile 90 degrees, preserving a reproducible map sprite ID.");
+    menuEdit->Append(ID_CycleBrushPrevious,"Rotate flat tile counter-clockwise\tShift+R",
+        "Rotate a flat ground tile 90 degrees counter-clockwise.");
     menuEdit->Append(wxID_ANY,"","",wxITEM_SEPARATOR);
     menuEdit->Append(ID_InvalidateSel,"Invalidate selection\tCtrl+I","",wxITEM_NORMAL);
     menuEdit->Append(ID_DeleteSel,"Delete stuff\tShift+Delete","",wxITEM_NORMAL);
@@ -3575,34 +3575,42 @@ bool MainFrame::CheckMessageState()
 //--------------------------------------------------------------------------------------------------------------------
 // Tool bar stuff
 //--------------------------------------------------------------------------------------------------------------------
-// Cycle original graphics alternatives from the selected terrain tool.
-// The map file stores sprite IDs, not arbitrary pixel rotations. Never rotate
-// raw bitmaps: Spellcross's A-M tile shapes must remain valid.
+// R / Shift+R turn the actual flat L1 tile by 90 degrees in isometric
+// world space. Generated names are resolved by both editor and game on load.
 void MainFrame::OnCycleBrushVariant(wxCommandEvent& event)
 {
     if (!spell_map || !spell_map->IsLoaded() || !spell_map->terrain ||
-        !spell_tool.isTool())
+        !spell_map->isCopyBufferFull() || spell_map->copy_buf.tiles.empty())
     {
-        SetStatusTextLast("Select a terrain/object brush from the ribbon first.");
+        SetStatusTextLast("Select a flat terrain tile brush first.");
         return;
     }
-    auto sprites = spell_map->terrain->GetToolSprites(spell_tool);
-    auto objects = spell_map->terrain->GetToolObjects(spell_tool);
-    const size_t count = sprites.empty() ? objects.size() : sprites.size();
-    if (count <= 1)
-    {
-        SetStatusTextLast("This brush has no other stored orientation/variant.");
-        return;
-    }
+
+    Sprite* current = spell_map->copy_buf.tiles.front().L1;
     const int direction = event.GetId() == ID_CycleBrushPrevious ? -1 : 1;
-    if (spell_map->SetBuffer(spell_tool, direction) != 0)
+    Sprite* rotated = spell_map->terrain->GetFlatRotatedSprite(current, direction);
+    if (!rotated)
     {
-        SetStatusTextLast("Failed selecting the next brush variant.");
+        SetStatusTextLast("Rotation supports flat, single-tile L1 terrain only. "
+            "Use Ctrl+Wheel to cycle predefined object/slope variants.");
         return;
     }
-    SetStatusTextLast("Brush variant changed. Left-click to place it.");
+
+    if (spell_map->SetBuffer(rotated) != 0)
+    {
+        SetStatusTextLast("Could not prepare the rotated flat tile.");
+        return;
+    }
+
+    SetStatusTextLast(string_format(
+        "Rotated tile: %s (R=90 deg, Shift+R=-90 deg). "
+        "Move mouse for preview; left-click to paint.",
+        rotated->name.c_str()));
     if (canvas)
+    {
+        canvas->SetFocus();
         canvas->Refresh();
+    }
 }
 
 // tool selected
