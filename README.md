@@ -42,6 +42,12 @@ More screenshots and explanations are in the [editor guide](./doc/UPSTREAM_EDITO
 
 The fork deliberately keeps these changes separate from the editor's core editing features, making it easier to continue incorporating improvements from Mašláň's upstream project.
 
+### Tile painting and brush variants (development preview)
+
+In the map editor, select a **terrain/object brush** from the ribbon above the map, then **left-click the map** to place it. If a tool has no valid matching sprites or objects, the status bar now reports that instead of silently doing nothing. You can also select an individual sprite through **Tools → Sprites viewer**. The map editing area supports Undo/Redo and the original copy/paste workflow.
+
+For brushes containing multiple original graphics, press **R** to select the next stored variant and **Shift+R** to go backwards; **Ctrl+mouse wheel** continues to cycle tool items. These shortcuts select existing game sprites. They **do not freely rotate arbitrary terrain pixels**: Spellcross uses 13 terrain tile shapes (A–M), and a physical 90° rotation would require compatible original or newly encoded graphics to remain valid in a saved map.
+
 ## Download and first use (recommended)
 
 The simplest way to run this editor is to download **[Spellcross_Reloaded_v0.8.1.zip](https://github.com/luboshorak/spellcross-reloaded/releases/tag/v0.8.1)**, which contains both programs:
