@@ -2277,6 +2277,12 @@ Sprite* Terrain::GetFlatRotatedSprite(Sprite* current, int quarterTurns)
         original, originalIndex, targetRotation);
     if (!generated)
         return nullptr;
+    // These are placement-only derivatives, not separate ribbon/context tools.
+    // The original tile retains all class information; a rotated copy must
+    // not appear as a random preset in the original brush.
+    generated->SetToolClass(0);
+    generated->SetToolClassGroup(0);
+    generated->SetGlyphFlags(0);
     generated->SetIndex(static_cast<int>(sprites.size()));
     generated->terr = this;
     sprites.push_back(generated);
@@ -2737,7 +2743,7 @@ int Terrain::SaveSpriteContext(wstring& path)
 	for(auto &spr: sprites)
 	{
 		// skip removed
-		if(spr->is_removed)
+		if(spr->is_removed || spellcross_flat_rotation::IsVirtualName(spr->name))
 			continue;
 		// reindex
 		spr->index = sid++;
@@ -2755,7 +2761,7 @@ int Terrain::SaveSpriteContext(wstring& path)
 	// --- for each sprite:
 	for(auto& spr: sprites)
 	{
-		if(spr->is_removed)
+		if(spr->is_removed || spellcross_flat_rotation::IsVirtualName(spr->name))
 			continue;
 			
 		// for each tile side:
