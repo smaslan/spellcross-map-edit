@@ -963,6 +963,8 @@ class SpellMap
 		// Rotate a complete flat L1 brush (including relative tile coordinates).
 		// Does not touch clipboard or map on unsupported/failed transforms.
 		bool RotateFlatBuffer(int quarterTurns,std::string& error);
+		// Atomically relocate a placed L2 object (or matched L2 prefab).
+		bool MovePlacedObject(MapXY source,MapXY target,std::string& error);
 		void CutBuffer(std::vector<MapXY>& posxy,Layers layers);
 		void CopyBuffer(std::vector<MapXY> &posxy,Layers layers);
 		void PasteBuffer(std::vector<MapSprite>& tiles,std::vector<MapLayer3>& anms,std::vector<MapLayer4>& pnms,
