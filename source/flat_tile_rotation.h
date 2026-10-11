@@ -42,6 +42,13 @@ namespace spellcross_flat_rotation
         return rotation != 0;
     }
 
+    inline bool IsVirtualName(const std::string& name)
+    {
+        unsigned originalIndex = 0;
+        int rotation = 0;
+        return DecodeName(name, originalIndex, rotation);
+    }
+
     inline std::string EncodeName(unsigned originalIndex, int rotation)
     {
         if (originalIndex > kMaximumSourceIndex || rotation < 1 || rotation > 3)
