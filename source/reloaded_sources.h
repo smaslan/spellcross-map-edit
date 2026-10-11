@@ -79,7 +79,9 @@ inline fs::path FindWorkspaceRoot(const fs::path& exe_dir) {
 }
 
 inline bool HasGameCommon(const fs::path& dir) {
-    return !FileIn(dir, "COMMON.FS").empty();
+    return !FileIn(dir, "COMMON.FS").empty() &&
+           !FileIn(dir, "UNITS.FSU").empty() &&
+           !FileIn(dir, "TEXTS.FS").empty();
 }
 
 inline fs::path FindGameData(const fs::path& exe_dir) {
