@@ -960,6 +960,9 @@ class SpellMap
 		int SetBuffer(AnimL1* anm);
 		int SetBuffer(AnimPNM* pnm,int x_ofs=0,int y_ofs=0);
 		int SetBuffer(SpellTool& tool,int cycle=0,int init=-1);
+		// Rotate a complete flat L1 brush (including relative tile coordinates).
+		// Does not touch clipboard or map on unsupported/failed transforms.
+		bool RotateFlatBuffer(int quarterTurns,std::string& error);
 		void CutBuffer(std::vector<MapXY>& posxy,Layers layers);
 		void CopyBuffer(std::vector<MapXY> &posxy,Layers layers);
 		void PasteBuffer(std::vector<MapSprite>& tiles,std::vector<MapLayer3>& anms,std::vector<MapLayer4>& pnms,
