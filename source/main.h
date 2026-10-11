@@ -233,6 +233,11 @@ private:
 
 
     MapXY m_drag_sel_start;
+    // Armed on left-down over an existing L2 map object while no brush is
+    // active. Moving starts only after the cursor reaches another tile.
+    bool m_moveObjectArmed = false;
+    bool m_moveObjectPreview = false;
+    MapXY m_moveObjectSource;
     
     // map render buffer
     wxBitmap m_buffer;    
