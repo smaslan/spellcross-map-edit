@@ -42,6 +42,12 @@ More screenshots and explanations are in the [editor guide](./doc/UPSTREAM_EDITO
 
 The fork deliberately keeps these changes separate from the editor's core editing features, making it easier to continue incorporating improvements from Mašláň's upstream project.
 
+### Drag placed map objects (development preview)
+
+With **no painting brush selected**, hold the left mouse button on an existing **L2 object**, drag it to a free map location, and release. The source object is removed only if the destination is valid, and the move is added to Undo history. The preview is displayed while dragging. Where an exact original multi-cell L2 prefab can be recognized, its pieces move together.
+
+The move deliberately **does not alter L1 ground tiles**. Buildings with baked-in L1 graphics cannot yet be moved safely because the map does not preserve the original landscape underneath them. Dragging a mission marker or dropping onto an occupied L2 cell is rejected with a status message. Clear an active tile brush before dragging existing objects.
+
 ### Tile painting and rotation (development preview, unreleased)
 
 Select a brush in the terrain ribbon and left-click the map to paint. The map status bar reports selected and placed sprites; the editor supports Undo/Redo.
