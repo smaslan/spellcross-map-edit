@@ -3590,7 +3590,7 @@ void MainFrame::OnCycleBrushVariant(wxCommandEvent& event)
     std::string error;
     if (!spell_map->RotateFlatBuffer(direction, error))
     {
-        SetStatusTextLast(wxString::FromUTF8(error.c_str()));
+        SetStatusTextLast(error);
         return;
     }
 
