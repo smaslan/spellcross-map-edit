@@ -23,7 +23,7 @@ FormUnitsEdit::FormUnitsEdit( wxWindow* parent, wxWindowID id,SpellData *spell_d
 	: wxFrame( parent, id, title, pos, size, style ),
 	m_spell_data(spell_data)
 {
-	// <wxFormsBuilder> - Section auto-inserted from 'forms.cpp' class 'FormUnitsEdit' on 2026-10-10 19:31:05
+	// <wxFormsBuilder> - Section auto-inserted from 'forms.cpp' class 'FormUnitsEdit' on 2026-10-10 21:29:03
 	this->SetSizeHints( wxDefaultSize, wxDefaultSize );
 	this->SetBackgroundColour( wxSystemSettings::GetColour( wxSYS_COLOUR_MENU ) );
 	
@@ -342,19 +342,26 @@ FormUnitsEdit::FormUnitsEdit( wxWindow* parent, wxWindowID id,SpellData *spell_d
 	pageGrp->SetSizer( bSizer134 );
 	pageGrp->Layout();
 	bSizer134->Fit( pageGrp );
-	pageProps->AddPage( pageGrp, wxT("Graphics"), true );
+	pageProps->AddPage( pageGrp, wxT("Graphics"), false );
 	pageSound = new wxPanel( pageProps, wxID_PAGE_SOUND, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL );
 	wxBoxSizer* bSizer135;
 	bSizer135 = new wxBoxSizer( wxVERTICAL );
 	
 	pgPropSound = new wxPropertyGrid(pageSound, wxID_PG_PROP_SOUND, wxDefaultPosition, wxDefaultSize, wxPG_DEFAULT_STYLE);
-	bSizer135->Add( pgPropSound, 1, wxALL|wxEXPAND, 5 );
+	bSizer135->Add( pgPropSound, 0, wxALL|wxEXPAND, 5 );
+	
+	m_staticText170 = new wxStaticText( pageSound, wxID_ANY, wxT("Sound resource (double-click to play):"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText170->Wrap( -1 );
+	bSizer135->Add( m_staticText170, 0, wxTOP|wxRIGHT|wxLEFT, 5 );
+	
+	pgSndRes = new wxPropertyGrid(pageSound, wxID_PG_SND_RES, wxDefaultPosition, wxDefaultSize, wxPG_DEFAULT_STYLE);
+	bSizer135->Add( pgSndRes, 1, wxEXPAND|wxBOTTOM|wxRIGHT|wxLEFT, 5 );
 	
 	
 	pageSound->SetSizer( bSizer135 );
 	pageSound->Layout();
 	bSizer135->Fit( pageSound );
-	pageProps->AddPage( pageSound, wxT("Sounds"), false );
+	pageProps->AddPage( pageSound, wxT("Sounds"), true );
 	pageAction = new wxPanel( pageProps, wxID_PAGE_ACTION, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL );
 	wxBoxSizer* bSizer136;
 	bSizer136 = new wxBoxSizer( wxHORIZONTAL );
@@ -426,7 +433,7 @@ FormUnitsEdit::FormUnitsEdit( wxWindow* parent, wxWindowID id,SpellData *spell_d
 	this->Centre( wxBOTH );
 	
 
-	// </wxFormsBuilder> - Section auto-inserted from 'forms.cpp' class 'FormUnitsEdit' on 2026-10-10 19:31:05
+	// </wxFormsBuilder> - Section auto-inserted from 'forms.cpp' class 'FormUnitsEdit' on 2026-10-10 21:29:03
 
 	RescaleWindowDPI(this);
 	
@@ -498,6 +505,8 @@ FormUnitsEdit::FormUnitsEdit( wxWindow* parent, wxWindowID id,SpellData *spell_d
 	lboxTargetDef->Bind(wxEVT_RIGHT_DOWN,&FormUnitsEdit::OnDefsPupupOpen,this);
 	lboxUnits->Bind(wxEVT_RIGHT_DOWN,&FormUnitsEdit::OnUnitsPupupOpen,this);
 
+	pgSndRes->Bind(wxEVT_PG_DOUBLE_CLICK,&FormUnitsEdit::OnSndDoubleClick,this);
+	
 
 	// make animation timer
 	m_rel_time = 0;
@@ -1218,7 +1227,7 @@ void FormUnitsEdit::OnSelectUnit(wxCommandEvent& event)
 	auto snd_move_names = m_spell_data->sounds->GetMoveClassMap();
 	auto snd_report_names = m_spell_data->sounds->GetReportClassMap();
 	auto snd_hit_names = m_spell_data->sounds->GetHitClassMap();
-	auto snd_spec_names = m_spell_data->sounds->GetReportClassMap();
+	auto snd_spec_names = m_spell_data->sounds->GetSpecialClassMap();
 
 	pgPropSound->Freeze();
 	pgPropSound->Clear();
@@ -1234,8 +1243,10 @@ void FormUnitsEdit::OnSelectUnit(wxCommandEvent& event)
 		
 	pgPropSound->Thaw();
 	pgPropSound->FitColumns();
-	setPGsize(pgPropSound);
-	
+	setPGsize(pgPropSound,15,getPGcount(pgPropSound));
+	pgPropSound->Layout();
+	pgPropSound->GetParent()->Layout();
+
 
 	// special action stuff
 
@@ -1277,7 +1288,95 @@ void FormUnitsEdit::OnSelectUnit(wxCommandEvent& event)
 	//SetPQselectionByID(pgPropAction,act_prop_sel);
 
 	RefreshGrp(true);
+	FillSounds();
 }
+
+// fill sounds
+void FormUnitsEdit::FillSounds()
+{	
+	pgSndRes->Clear();
+	
+	if(!m_unit)
+		return;
+
+	// fill props
+	pgSndRes->Freeze();
+	pgSndRes->Clear();
+	wxPGProperty* grp = NULL;
+
+	grp = pgSndRes->Append(new wxPropertyCategory("Unit reporting:"));	
+	auto snd = m_spell_data->sounds->GetReportClass(m_unit->ssel);
+	pgSndRes->AppendIn(grp,new wxStringProperty("Report A",wxT(""),snd->GetSampleName(0)));
+	pgSndRes->AppendIn(grp,new wxStringProperty("Report B",wxT(""),snd->GetSampleName(1)));
+	delete snd;	
+	snd = m_spell_data->sounds->GetContactClass(m_unit->ssel);
+	pgSndRes->AppendIn(grp,new wxStringProperty("Contact",wxT(""),snd->GetSampleName()));
+	delete snd;
+
+	grp = pgSndRes->Append(new wxPropertyCategory("Unit move:"));
+	snd = m_spell_data->sounds->GetMoveClass(m_unit->smov);
+	pgSndRes->AppendIn(grp,new wxStringProperty("Start",wxT(""),snd->GetSampleName(0)));
+	pgSndRes->AppendIn(grp,new wxStringProperty("Go",wxT(""),snd->GetSampleName(1)));
+	pgSndRes->AppendIn(grp,new wxStringProperty("Stop",wxT(""),snd->GetSampleName(2)));
+	delete snd;
+
+	grp = pgSndRes->Append(new wxPropertyCategory("Unit hit:"));
+	snd = m_spell_data->sounds->GetHitClass(m_unit->shit);	
+	pgSndRes->AppendIn(grp,new wxStringProperty("Hit",wxT(""),snd->GetSampleName()));
+	delete snd;
+	snd = m_spell_data->sounds->GetDieClass(m_unit->shit);	
+	pgSndRes->AppendIn(grp,new wxStringProperty("Die",wxT(""),snd->GetSampleName()));
+	delete snd;
+
+	grp = pgSndRes->Append(new wxPropertyCategory("Light attack:"));
+	auto attack_snd = m_spell_data->sounds->GetAttackClass(m_unit->slig);	
+	pgSndRes->AppendIn(grp,new wxStringProperty("Shot",wxT(""),attack_snd->shot->GetSampleName()));
+	pgSndRes->AppendIn(grp,new wxStringProperty("Hit flash",wxT(""),attack_snd->hit_flash->GetSampleName()));
+	pgSndRes->AppendIn(grp,new wxStringProperty("Hit armor",wxT(""),attack_snd->hit_armor->GetSampleName()));
+	pgSndRes->AppendIn(grp,new wxStringProperty("Missed",wxT(""),attack_snd->hit_miss->GetSampleName()));
+	delete attack_snd;
+
+	grp = pgSndRes->Append(new wxPropertyCategory("Armored attack:"));
+	attack_snd = m_spell_data->sounds->GetAttackClass(m_unit->sarm);
+	pgSndRes->AppendIn(grp,new wxStringProperty("Shot",wxT(""),attack_snd->shot->GetSampleName()));
+	pgSndRes->AppendIn(grp,new wxStringProperty("Hit flash",wxT(""),attack_snd->hit_flash->GetSampleName()));
+	pgSndRes->AppendIn(grp,new wxStringProperty("Hit armor",wxT(""),attack_snd->hit_armor->GetSampleName()));
+	pgSndRes->AppendIn(grp,new wxStringProperty("Missed",wxT(""),attack_snd->hit_miss->GetSampleName()));
+	delete attack_snd;
+
+	grp = pgSndRes->Append(new wxPropertyCategory("Air attack:"));
+	attack_snd = m_spell_data->sounds->GetAttackClass(m_unit->sair);
+	pgSndRes->AppendIn(grp,new wxStringProperty("Shot",wxT(""),attack_snd->shot->GetSampleName()));
+	pgSndRes->AppendIn(grp,new wxStringProperty("Hit flash",wxT(""),attack_snd->hit_flash->GetSampleName()));
+	pgSndRes->AppendIn(grp,new wxStringProperty("Hit armor",wxT(""),attack_snd->hit_armor->GetSampleName()));
+	pgSndRes->AppendIn(grp,new wxStringProperty("Missed",wxT(""),attack_snd->hit_miss->GetSampleName()));
+	delete attack_snd;
+
+	grp = pgSndRes->Append(new wxPropertyCategory("Other:"));
+	snd = m_spell_data->sounds->GetSpecialClass(m_unit->snd_action_id);
+	pgSndRes->AppendIn(grp,new wxStringProperty("Special action",wxT(""),snd->GetSampleName()));
+	delete snd;
+	
+	pgSndRes->Thaw();
+	pgSndRes->FitColumns();
+	setPGsize(pgSndRes);
+}
+
+void FormUnitsEdit::OnSndDoubleClick(wxPropertyGridEvent& event)
+{
+	wxPGProperty* prop = event.GetProperty();
+	if(prop)
+	{
+		auto snd_name = prop->GetValue().GetString().ToStdString();
+		auto snd = m_spell_data->sounds->GetSound(snd_name.c_str());
+		if(snd)
+			snd->PlayAsync();		
+	}
+
+	// Always call event.Skip() if you want the default action to also process
+	event.Skip();
+}
+
 
 // unit drag/drop stuff
 void FormUnitsEdit::OnUnitBeginDrag(wxListEvent& event)
@@ -1442,7 +1541,7 @@ void FormUnitsEdit::OnPGpropChange(wxPropertyGridEvent& event)
 			wxCommandEvent evt;
 			OnSelectUnit(evt);
 		}
-
+		FillSounds();
 		RefreshGrp(true);
 	}
 }

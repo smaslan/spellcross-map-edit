@@ -16,6 +16,7 @@
 #include <string>
 #include <tuple>
 #include <map>
+#include <filesystem>
 
 #include "fs_archive.h"
 #include "fsu_archive.h"

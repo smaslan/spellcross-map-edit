@@ -124,6 +124,7 @@ public:
     int16_t* cb_GetSmplData(int16_t* buffer, int count);
     int isAutoDelete();
     SpellSample *GetSample(int id=0);
+    std::string GetSampleName(int id=0);
     void cb_user_callback();
 };
 

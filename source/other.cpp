@@ -211,11 +211,11 @@ std::string wstring2stringCP895(std::wstring str)
 }
 
 // string to upper case
-std::string &toupper(std::string& str)
+std::string toupper(const std::string &str)
 {
-    for(auto &sym: str)
-        sym = toupper(sym);
-    return(str);
+    auto res = str;
+    std::ranges::transform(str,res.begin(),[](unsigned char c){return(std::toupper(c));});
+    return(res);
 }
 
 // inplace replacement of key occurences to rep

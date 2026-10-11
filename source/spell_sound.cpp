@@ -930,6 +930,15 @@ SpellSample* SpellSound::GetSample(int id)
     return(samples[id]);
 }
 
+// get spellcross sample name
+std::string SpellSound::GetSampleName(int id)
+{
+    if(id >= samples.size() || !samples[id])
+        return("<none>");
+    return(samples[id]->name);
+}
+
+
 // set relative volume of left/right channel
 int SpellSound::SetPanning(double left_vol,double right_vol)
 {
