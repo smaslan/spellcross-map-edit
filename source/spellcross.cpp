@@ -8,6 +8,7 @@
 // Distributed under MIT license, https://opensource.org/licenses/MIT.
 //=============================================================================
 #include "spellcross.h"
+#include "reloaded_sources.h"
 #include "sprites.h"
 #include "fs_archive.h"
 #include "fsu_archive.h"
@@ -172,6 +173,22 @@ int SpellData::FindArchive(std::vector<std::filesystem::path> &paths, std::strin
 	if(dir_path)
 		dir_path->clear();
 	arch_path.clear();
+
+    // Keep the mod directory highest priority. Then consult explicit [FILES]
+    // references exported by Reloaded, before falling back to legacy roots.
+    if (!paths.empty()) {
+        auto mod_archive = reloaded_sources::FileIn(paths.front(), name);
+        if (!mod_archive.empty()) {
+            arch_path = mod_archive;
+            if (dir_path) *dir_path = mod_archive.parent_path();
+            return 0;
+        }
+    }
+    if (auto direct = reloaded_sources::FindOverriddenArchive(name); !direct.empty()) {
+        arch_path = direct;
+        if (dir_path) *dir_path = direct.parent_path();
+        return 0;
+    }
 
 	for(auto &dir: paths)
 	{

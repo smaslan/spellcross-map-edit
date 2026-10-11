@@ -807,7 +807,7 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 				}
 
 				// make map path				
-				dta_path = (std::filesystem::path(map_path).parent_path() / std::filesystem::path(cmd->parameters.at(0))).wstring() + ".DTA";
+				dta_path = (std::filesystem::path(map_path).parent_path() / std::filesystem::path(cmd->parameters.at(0))).wstring() + L".DTA";
 				break;
 			}
 		}

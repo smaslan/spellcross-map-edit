@@ -445,7 +445,7 @@ int UnitRandomizer::RandomizeMap(std::string& def, SpellUnits* units,UnitRandomi
 				return(1);
 			}
 			// fix health
-			int unit_health = std::max((int)(std::min(health,1.0)*(double)unit->cnt),1);
+			int unit_health = (std::max)((int)((std::min)(health,1.0)*(double)unit->cnt),1);
 			
 			// rebuild unit command
 			cmd.parameters[1] = string_format("%d",unit_id);
@@ -628,7 +628,7 @@ int UnitRandomizerGlobRule::Randomize(int src_unit_id, int &uid)
 	std::partial_sum(probab_list.begin(),probab_list.end(),prob.begin());
 	
 	double rng = (double)std::rand()/(float)(RAND_MAX)*100.0;
-	uid = unit_list[std::min((int)(std::upper_bound(prob.begin(), prob.end(), rng) - prob.begin()), (int)prob.size() - 1)];
+	uid = unit_list[(std::min)((int)(std::upper_bound(prob.begin(), prob.end(), rng) - prob.begin()), (int)prob.size() - 1)];
 	return(0);
 }
 
@@ -1291,7 +1291,7 @@ SpellTreeRandomizerItem* SpellTreeRandomizerRule::GetRandomTree()
 	if(m_pdf.empty() || m_pdf.size() != rand_trees.size())
 		return(NULL);
 	double rng = (double)std::rand()/(float)(RAND_MAX)*100.0;
-	return(&rand_trees[std::min((int)(std::upper_bound(m_pdf.begin(),m_pdf.end(),rng) - m_pdf.begin()),(int)m_pdf.size() - 1)]);
+	return(&rand_trees[(std::min)((int)(std::upper_bound(m_pdf.begin(),m_pdf.end(),rng) - m_pdf.begin()),(int)m_pdf.size() - 1)]);
 }
 
 // try load toolset from exported info from map editor
