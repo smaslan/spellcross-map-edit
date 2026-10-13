@@ -418,6 +418,7 @@ enum
     ID_SaveDEF,
     ID_NewMap,
     ID_Config,
+    ID_ReloadData,
     ID_mmGameMode,
     ID_mmResetViewMap,
     ID_mmUnitViewMode,

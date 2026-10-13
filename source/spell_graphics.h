@@ -77,7 +77,9 @@ class SpellGraphics
 private:
 	std::vector<SpellGraphicItem*> items;	
 	std::vector<SpellProjectile> projectiles;
+	
 public:
+	std::vector<std::string> m_info_res;
 	std::vector<AnimPNM*> m_pnms;
 	
 	SpellGraphics();

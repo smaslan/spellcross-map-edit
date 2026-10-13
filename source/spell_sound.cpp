@@ -575,10 +575,10 @@ vector<SpellSoundClassFile> SpellSounds::ParseSoundClasses(string text)
 // get sound data by name
 SpellSample *SpellSounds::GetSample(const char *name)
 {
-    for(auto & smpl : samples)
-        if(strcmp(smpl.name,name)==0)
-            return(&smpl);
-    return(NULL);
+    auto sid = std::ranges::find_if(samples, [name](const SpellSample &item){return(iequals(item.name,name));});
+    if(sid == samples.end())
+        return(NULL);
+    return(&*sid);
 }
 
 // get sound data by id
@@ -656,6 +656,8 @@ void SpellSound::SpellSoundInit()
     right_vol = 65535;
     force_loop = false;
     auto_delete = false;
+    volume = 1.0;
+    force_volume = false;
 }
 // define movement sound (start-move-stop)
 SpellSound::SpellSound(SoundChannels* channels,SpellSoundClassFile &move_class)
@@ -696,6 +698,8 @@ SpellSound::SpellSound(SpellSound& ref)
     fs = ref.fs;
     left_vol = 65535;
     right_vol = 65535;
+    volume = 1.0;
+    force_volume = false;
     force_loop = ref.force_loop;
     dac = NULL;
     sub_id = samples.size();
@@ -876,9 +880,11 @@ int16_t *SpellSound::cb_GetSmplData(int16_t* buffer, int count)
     if(!smpl)
         return(NULL);
     auto *data = &smpl->data[smpl->channels*pos];
-    pos += count;
+    pos += count;    
 
     double volume = streams->GetVolume();
+    if(force_volume)
+        volume = this->volume;
     uint32_t g_vol = (uint32_t)(65534.0*volume);
     uint32_t left  = (g_vol*left_vol)>>16;
     uint32_t right  = (g_vol*right_vol)>>16;
@@ -947,9 +953,23 @@ int SpellSound::SetPanning(double left_vol,double right_vol)
     return(0);
 }
 
+// override global volume
+void SpellSound::SetVolume(double volume)
+{
+    this->volume = std::max<double>(std::min<double>(volume,1.0),0.0);
+    force_volume = true;
+}
+
 // async playback
 void SpellSound::PlayAsync()
 {
+    Play(true);
+}
+
+// async playback with volume override
+void SpellSound::PlayAsync(double volume)
+{
+    SetVolume(volume);
     Play(true);
 }
 

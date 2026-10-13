@@ -98,6 +98,13 @@ In the unit panel you can set basic stuff like XP level, HP and name. There is a
 ![Units panel](./doc/fig/scr_units.png)
 
 
+### Units Editor
+
+Another integrated tool is units editor for editing JEDNOTKY.DEF file with units definitions accessible via `View->Units DEF editor`. It's designed to open and edit one or more JEDNOTKY.DEF files, but not the definitions currently loaded by the Map Editor. It's purpose is to create or modify DEF file(s) for mods. It also allows to copy unit records between several DEF files. Unlike the legacy tool [Spellcross Units Editor](https://spellcross.kvalitne.cz/units/spell_units/spell_uniteditor.html) it enables to select and view graphics and sound resources, not just their names.  
+
+![Units Editor panel](./doc/fig/scr_units_edit.png)
+
+
 ### Events and Objectives
 
 Spellcross supports several types of events and mission objectives. First enable `Events` layer via menu `View`. Most common event is `SeePlace` which is used to spawn unit(s) when the tile is seen first time. This is used for two reasons. First, to overcome units count limit of 50 per map and second, to not allow the unit to move until seen. Another event is `MissionStart` which is mostly used to spawn player units or show initial text message. Any event except the `MissionStart` can be selected by left-click in the map. You can edit it via right-click pop-up menu. For some events you can mark it as Objectives. You can add mission texts or videos from the available resources. Linking spawned units is done in the map (see above).
