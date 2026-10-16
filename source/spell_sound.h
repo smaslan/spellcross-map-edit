@@ -83,6 +83,8 @@ private:
     int force_loop;
     int32_t left_vol;
     int32_t right_vol;
+    double volume;
+    bool force_volume;
 
     void SpellSoundInit();
 
@@ -111,8 +113,10 @@ public:
     ~SpellSound();
 
     int SetPanning(double left_vol=1.0,double right_vol=1.0);
+    void SetVolume(double volume);
     int Play(bool auto_delete=false, bool loop=false, std::function<void(void)> frame_callback=NULL, double frame_step=0.02);
     void PlayAsync();
+    void PlayAsync(double volume);
     double GetPlaybackTime();
     int StopMove();
     int Stop(double wait=0.0);
@@ -124,6 +128,7 @@ public:
     int16_t* cb_GetSmplData(int16_t* buffer, int count);
     int isAutoDelete();
     SpellSample *GetSample(int id=0);
+    std::string GetSampleName(int id=0);
     void cb_user_callback();
 };
 

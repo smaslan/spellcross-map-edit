@@ -27,7 +27,7 @@ std::wstring char2wstringCP852(const char* str);
 std::wstring char2wstringCP895(const char* str);
 char wchar2charCP895(wchar_t sym);
 std::string wstring2stringCP895(std::wstring str);
-std::string& toupper(std::string& str);
+std::string toupper(const std::string& str);
 
 /*template <typename T>
 decltype(auto) string_format_convertor(T&& val) {

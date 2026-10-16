@@ -16,6 +16,7 @@
 #include <string>
 #include <tuple>
 #include <map>
+#include <filesystem>
 
 #include "fs_archive.h"
 #include "fsu_archive.h"
@@ -284,6 +285,11 @@ class SpellUnitRec
 
 //private:	
 
+		std::string GetSpecActionParName(int par_id);
+		bool isSpecActionUnitID(int par_id=3);
+		std::string GetDieActionParName(int par_id);
+		bool isDieActionUnitID(int par_id=3);
+
 	// special actions
 	static constexpr int SPEC_ACT_TOGGLE_RADAR = 1; // 1  - enable/disable radar (par3-radar indirect sight range)
 	static constexpr int SPEC_ACT_SHOW_TURRET = 2; // 2  - show tank turret (UDES) (par3-unit to transform to)
@@ -294,6 +300,7 @@ class SpellUnitRec
 	static constexpr int SPEC_ACT_AIRCRAFT_UP = 7; // 7  - aircraft up (par3-unit to transform to)
 	static constexpr int SPEC_ACT_AIRCRAFT_DOWN = 8; // 8  - aircraft land (par3-unit to transform to)
 	static constexpr int SPEC_ACT_PARALYZE = 9; // 9  - paralyze enemy (harpya) (par1-range, par2-???, par3-???)
+	static constexpr int SPEC_ACT_DEADLY_SIGHT = 10; // 10  - deadly sight (not used) (par1-range, par2-???, par3-???)
 	static constexpr int SPEC_ACT_FREEZE = 11; // 11 - freeze enemy units (par1-range, par2-???, par3-???)
 	static constexpr int SPEC_ACT_DRAGON_FEAR = 12; // 12 - dragons fear (par1-range, par2-???, par3-???)
 	static constexpr int SPEC_ACT_AUTODESTRUCT = 13; // 13 - autodestruction (par1-range, par2-intensity, par3-???)

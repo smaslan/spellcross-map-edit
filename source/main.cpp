@@ -357,6 +357,7 @@ MainFrame::MainFrame(SpellConfig* config, SpellMap *&map, SpellData *&spelldata,
     menuFile->Append(ID_NewMap,"&Ceate new Map\tCtrl-N","Create new map.");
     menuFile->AppendSeparator();
     menuFile->Append(ID_Config,"Configuration","Open new Spellcross Map Editor configuration.");
+    menuFile->Append(ID_ReloadData,"Reload data","Reload Spellcross data.");
     menuFile->AppendSeparator();
     menuFile->Append(wxID_EXIT);
     AssignSVGresourceToMenu(menuFile,ID_OpenMap,"IDR_OPEN3");
@@ -366,6 +367,7 @@ MainFrame::MainFrame(SpellConfig* config, SpellMap *&map, SpellData *&spelldata,
     AssignSVGresourceToMenu(menuFile,ID_SaveDEF,"IDR_SAVE");
     AssignSVGresourceToMenu(menuFile,ID_NewMap,"IDR_NEW");
     AssignSVGresourceToMenu(menuFile,ID_Config,"IDR_SETUP");
+    AssignSVGresourceToMenu(menuFile,ID_ReloadData,"IDR_RELOAD");
     AssignSVGresourceToMenu(menuFile,wxID_EXIT,"IDR_CLOSE");
     
 
@@ -490,7 +492,8 @@ MainFrame::MainFrame(SpellConfig* config, SpellMap *&map, SpellData *&spelldata,
     menuTools->Append(ID_EncodeGRes,"Graphics endoder","",wxITEM_NORMAL);
     menuTools->Append(ID_TextEdit,"Text view/editor","",wxITEM_NORMAL);
     menuTools->Append(ID_TextEditRaw,"Raw text view/editor","",wxITEM_NORMAL);
-    menuTools->Append(ID_EditUnit,"Units viewer/editor\tCtrl+U","",wxITEM_NORMAL);
+    menuTools->Append(ID_EditUnit,"Map units viewer/editor\tCtrl+U","",wxITEM_NORMAL);
+    menuTools->Append(ID_UnitsEditor,"Units DEF editor","",wxITEM_NORMAL);
     menuTools->Append(ID_EditEvent,"Event viewer/editor\tCtrl+E","",wxITEM_NORMAL);
     menuTools->Append(ID_ViewVideo,"Video viewer","",wxITEM_NORMAL);
     menuTools->Append(ID_ViewMIDI,"MIDI player","",wxITEM_NORMAL);
@@ -509,8 +512,7 @@ MainFrame::MainFrame(SpellConfig* config, SpellMap *&map, SpellData *&spelldata,
     menuTools->Append(ID_UpdateSprContextMaps,"Update tile context from ALL maps","",wxITEM_NORMAL);
     menuTools->Append(ID_GenDMAobjects,"Generate DMAx_xxx objects from this map","",wxITEM_NORMAL);
     menuTools->Append(ID_GenDMAobjectsMaps,"Generate DMAx_xxx objects from ALL maps","",wxITEM_NORMAL);        
-    menuTools->Append(wxID_ANY,"","",wxITEM_SEPARATOR);
-    menuTools->Append(ID_UnitsEditor,"Units DEF editor","",wxITEM_NORMAL);
+    menuTools->Append(wxID_ANY,"","",wxITEM_SEPARATOR);    
     menuTools->Append(ID_ExtractFS,"Extract FS archive","",wxITEM_NORMAL);
 
     AssignSVGresourceToMenu(menuTools,ID_ViewSprites,"IDR_LAY_SPRITE");
@@ -623,6 +625,7 @@ MainFrame::MainFrame(SpellConfig* config, SpellMap *&map, SpellData *&spelldata,
     Bind(wxEVT_MENU,&MainFrame::OnNewMap,this,ID_NewMap);
     Bind(wxEVT_MENU,&MainFrame::OnAbout, this, wxID_ABOUT);
     Bind(wxEVT_MENU,&MainFrame::OnConfig,this,ID_Config);
+    Bind(wxEVT_MENU,&MainFrame::OnConfig,this,ID_ReloadData);
     Bind(wxEVT_MENU,&MainFrame::OnExit, this, wxID_EXIT);
 
     Bind(wxEVT_MENU,&MainFrame::OnSwitchGameMode,this,ID_mmGameMode);
@@ -746,8 +749,9 @@ void MainFrame::OnAbout(wxCommandEvent& event)
 // run configuration
 void MainFrame::OnConfig(wxCommandEvent& event)
 {
+    bool is_reload = event.GetId() == ID_ReloadData;
     m_tree_rand.Clear();
-
+    
     // close map
     std::filesystem::path map_path = "";
     if(spell_map->IsLoaded())
@@ -760,8 +764,11 @@ void MainFrame::OnConfig(wxCommandEvent& event)
     spell_map->Close();
 
     // show config dialogue
-    FormConfig form_config(this,ID_CONFIG_WIN,m_spell_config);
-    form_config.ShowModal();
+    if(!is_reload)
+    {
+        FormConfig form_config(this,ID_CONFIG_WIN,m_spell_config);
+        form_config.ShowModal();
+    }
 
     // loose old spellcross data
     auto snd_vol = spell_data->sounds->channels->GetVolume();

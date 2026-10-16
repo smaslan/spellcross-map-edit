@@ -1033,7 +1033,39 @@ int SpellData::LoadInfoGraphics(FSarchive* fs,std::function<void(std::string)> s
 		last_error = string_format("Missing mandatory graphics resource: INFOPAN.LZ from INFO.FS!");
 		return(1); // missing item!
 	}
+
+
+	// --- load root resource names
+
+	// first make exclusion list from *.LST files
+	std::vector<std::string> used_list;
+	for(auto& file: fs->GetFiles())
+	{
+		if(wildcmp("*.LST",file->name))
+		{
+			std::string list(file->data.begin(),file->data.end());
+			auto items = get_text_lines(list);
+			used_list.insert(used_list.end(),items.begin(),items.end());
+			std::string name = std::filesystem::path(file->name).stem().string();
+			gres_info.m_info_res.push_back(name);
+			used_list.push_back(name);
+		}		
+	}
+
+	// now add rest of items that are not part of *.LST
+	for(auto& file: fs->GetFiles())
+	{
+		if(!wildcmp("*.LZ",file->name))
+			continue;
+		std::string name = std::filesystem::path(file->name).stem().string();
+		if(iequals(used_list,name) >= 0)
+			continue;
+		gres_info.m_info_res.push_back(name);		
+	}
 	
+	// sort'em
+	std::ranges::sort(gres_info.m_info_res);
+		
 	return(0);
 }
 

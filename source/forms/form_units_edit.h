@@ -7,7 +7,7 @@
 
 #pragma once
 
-// <wxFormsBuilder-include> - Section auto-inserted from 'forms.h' class 'FormUnitsEdit' on 2026-10-10 19:31:05
+// <wxFormsBuilder-include> - Section auto-inserted from 'forms.h' class 'FormUnitsEdit' on 2026-10-12 19:24:03
 #include <wx/artprov.h>
 #include <wx/xrc/xmlres.h>
 #include <wx/string.h>
@@ -43,7 +43,7 @@
 #include <wx/scrolbar.h>
 #include <wx/bmpbuttn.h>
 
-// </wxFormsBuilder-include> - Section auto-inserted from 'forms.h' class 'FormUnitsEdit' on 2026-10-10 19:31:05
+// </wxFormsBuilder-include> - Section auto-inserted from 'forms.h' class 'FormUnitsEdit' on 2026-10-12 19:24:03
 
 #include <wx/timer.h>
 
@@ -87,6 +87,11 @@ class FormUnitsEdit : public wxFrame
 		void OnPaintFSU(wxPaintEvent& event);
 		void OnPaintPNM(wxPaintEvent& event);
 		void RefreshGrp(bool all=false);
+		void FillSounds();
+		void OnSndDoubleClick(wxPropertyGridEvent& event);
+
+		void OnUnitPropsPupupOpen(wxPropertyGridEvent& event);
+		void OnUnitPropsPupup(wxCommandEvent& event);
 
 		void OnTimer(wxTimerEvent& event);
 		int m_rel_time;
@@ -106,12 +111,13 @@ class FormUnitsEdit : public wxFrame
 			SEL_ALL_UNITS,
 			CLR_ALL_UNITS,
 			ADD_UNIT,
-			COPY_TO_TARGET
+			COPY_TO_TARGET,
+			RESET_ANIM_FRAMES
 		};
 
 	protected:
 		
-		// <wxFormsBuilder> - Section auto-inserted from 'forms.h' class 'FormUnitsEdit' on 2026-10-10 19:31:05
+		// <wxFormsBuilder> - Section auto-inserted from 'forms.h' class 'FormUnitsEdit' on 2026-10-12 19:24:03
 		enum
 		{
 			wxID_MM_OPEN_DEF = 5999,
@@ -142,6 +148,7 @@ class FormUnitsEdit : public wxFrame
 			wxID_CANVAS_AIR_HIT_PNM,
 			wxID_PAGE_SOUND,
 			wxID_PG_PROP_SOUND,
+			wxID_PG_SND_RES,
 			wxID_PAGE_ACTION,
 			wxID_PG_PROP_ACTION,
 			wxID_CANVAS_GRP_SPEC,
@@ -192,6 +199,8 @@ class FormUnitsEdit : public wxFrame
 		wxPanel* canvasAirHitPNM;
 		wxPanel* pageSound;
 		wxPropertyGrid* pgPropSound;
+		wxStaticText* m_staticText170;
+		wxPropertyGrid* pgSndRes;
 		wxPanel* pageAction;
 		wxPropertyGrid* pgPropAction;
 		wxStaticText* m_staticText1412;
@@ -199,7 +208,7 @@ class FormUnitsEdit : public wxFrame
 		wxStaticText* m_staticText14121;
 		wxPanel* canvasGrpDie;
 
-		// </wxFormsBuilder> - Section auto-inserted from 'forms.h' class 'FormUnitsEdit' on 2026-10-10 19:31:05
+		// </wxFormsBuilder> - Section auto-inserted from 'forms.h' class 'FormUnitsEdit' on 2026-10-12 19:24:03
 
 	public:
 

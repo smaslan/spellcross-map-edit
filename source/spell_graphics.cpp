@@ -310,8 +310,10 @@ int SpellGraphics::Count()
 std::map<int,std::string> SpellGraphics::GetResourceMap()
 {
 	std::map<int,std::string> list;
-	for(int k = 0; k < items.size(); k++)
-		list.insert({k,items[k]->name});
+	/*for(int k = 0; k < items.size(); k++)
+		list.insert({k,items[k]->name});*/
+	for(int k = 0; k < m_info_res.size(); k++)
+		list.insert({k,m_info_res[k]});
 	return(list);
 }
 

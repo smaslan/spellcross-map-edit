@@ -82,3 +82,9 @@ More on the build tools, optional `-WxRoot` and video inputs: [combined build gu
 The editor uses libraries including [wxWidgets](https://www.wxwidgets.org/), [SimpleIni](https://github.com/brofield/simpleini), [RtAudio](https://github.com/thestk/rtaudio), [cxxmidi](https://github.com/5tan/cxxmidi) and [Spellcross Mod Launcher](https://github.com/smaslan/Spellcross-Mod-Launcher).
 
 The editor code is available under the [MIT License](./LICENSE), with original authorship retained. That license does not cover the commercial Spellcross game assets. This is an independent fan project.
+
+## Unit definitions editor
+
+Open **View → Units DEF editor** to edit one or more `JEDNOTKY.DEF` files for mods. You can copy unit definitions between files and preview their graphics and sounds. This tool edits separately opened files; it does not change the definitions currently loaded by the map editor.
+
+![Units editor](./doc/fig/scr_units_edit.png)
