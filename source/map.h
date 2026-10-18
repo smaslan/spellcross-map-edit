@@ -15,6 +15,7 @@
 #include <queue>
 #include <thread>
 #include <mutex>
+#include <condition_variable>
 #include <list>
 #include <string>
 #include <tuple>
@@ -582,7 +583,8 @@ class SpellMap
 			std::thread* thread;
 			std::mutex result_lock; // result access lock
 			std::mutex ctrl_lock; // worker control lock
-			std::mutex queue_lock; // task queue lock
+			std::mutex queue_lock; // task queue lock (deprecated for ViewRange tasks)
+			std::condition_variable task_cv; // notify worker about new tasks / resume
 			std::deque<Task> pending; // pending worker tasks
 			enum ThreadCtrl
 			{
@@ -660,7 +662,8 @@ class SpellMap
 			std::thread* thread;
 			std::mutex result_lock; // result data lock
 			std::mutex ctrl_lock; // thread control lock
-			std::mutex queue_lock; // task queue lock
+			std::mutex queue_lock; // task queue lock (deprecated for MoveRange tasks)
+			std::condition_variable task_cv; // notify worker about new tasks / resume
 			std::deque<Task> pending; // tasks queue
 			enum ThreadCtrl
 			{

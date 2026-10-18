@@ -1146,6 +1146,8 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 	///// L4 - PNM animation /////
 	//////////////////////////////
 
+	auto ofs = data - map_buffer.data();
+
 	// read count of L4 animations
 	if(data + sizeof(uint32_t) > dend)
 	{
@@ -2561,7 +2563,7 @@ void SpellMap::InvalidateUnitsView()
 // this sorts units list for proper render order, call after load or units changes
 void SpellMap::SortUnits()
 {	
-	HaltUnitRanging();
+	HaltUnitRanging(true);
 
 	// clear units layer array
 	Lunit.assign(x_size*y_size, NULL);
@@ -5399,7 +5401,8 @@ SpellMap::MoveRange::~MoveRange()
 	ctrl_lock.lock();
 	is_halted = false;
 	state = ThreadCtrl::EXIT;
-	ctrl_lock.unlock();	
+	task_cv.notify_all();
+	ctrl_lock.unlock();    
 	thread->join();
 	delete thread;
 
@@ -5417,11 +5420,11 @@ void SpellMap::MoveRange::Halt(bool clear_tasks)
 	ctrl_lock.lock();
 	was_halted++;
 	is_halted = true;
-	ctrl_lock.unlock();
-	
-	// wait till thread halted
-	while(state == ThreadCtrl::BUSY)
-		std::this_thread::sleep_for(1ms);
+	task_cv.notify_all();
+	// wait till thread halted (state != BUSY)
+	std::unique_lock<std::mutex> lk(ctrl_lock, std::adopt_lock);
+	task_cv.wait(lk, [&]{ return state != ThreadCtrl::BUSY; });
+	lk.unlock();
 
 	if(clear_tasks)
 	{
@@ -5451,8 +5454,10 @@ void SpellMap::MoveRange::Resume(bool resume)
 			is_halted = false;
 		}		
 	}
-	was_halted = is_halted;
+	// keep is_halted consistent with counter
+	is_halted = (was_halted > 0);
 	ctrl_lock.unlock();
+	task_cv.notify_all();
 }
 
 // init range calculation
@@ -5503,43 +5508,49 @@ void SpellMap::MoveRange::Worker()
 	{		
 		MapUnit* unit = NULL;
 
-		ctrl_lock.lock();
+		std::unique_lock<std::mutex> lk(ctrl_lock);
 		if(state == ThreadCtrl::EXIT)
 		{
-			// terminate
-			state = IDLE;
-			ctrl_lock.unlock();
-			break;
+			state = ThreadCtrl::IDLE;
+			task_cv.notify_all();
+			return;
 		}
-		else if(is_halted)
+
+		if(is_halted)
 		{
-			// go to halt state
-			if(pending.empty())
+			state = ThreadCtrl::HALTED;
+			task_cv.notify_all();
+			task_cv.wait(lk, [&]{ return state == ThreadCtrl::EXIT || !is_halted; });
+			if(state == ThreadCtrl::EXIT)
 			{
-				// go to IDLE if nothing to do
 				state = ThreadCtrl::IDLE;
+				task_cv.notify_all();
+				return;
 			}
-			else			
-				state = ThreadCtrl::HALTED;
+			continue;
 		}
-		else if(!pending.empty())
+
+		if(!pending.empty())
 		{
-			// take some task
 			auto task = pending.front();
 			pending.pop_front();
 			unit = task.unit;
 			state = ThreadCtrl::BUSY;
+			// proceed to process with lock released
+			lk.unlock();
 		}
 		else
 		{
-			// nothing to do: idle
 			state = ThreadCtrl::IDLE;
-		}
-		ctrl_lock.unlock();		
-		if(!unit)
-		{
-			// chill out till caller wants to do stuff..
-			this_thread::sleep_for(1ms);
+			task_cv.notify_all();
+			task_cv.wait(lk, [&]{ return state == ThreadCtrl::EXIT || is_halted || !pending.empty(); });
+			if(state == ThreadCtrl::EXIT)
+			{
+				state = ThreadCtrl::IDLE;
+				task_cv.notify_all();
+				return;
+			}
+			// re-evaluate loop
 			continue;
 		}
 
@@ -6952,6 +6963,7 @@ SpellMap::ViewRange::~ViewRange()
 	// terminate thread
 	ctrl_lock.lock();
 	state = EXIT;
+	task_cv.notify_all();
 	ctrl_lock.unlock();
 	thread->join();
 	delete thread;
@@ -7008,17 +7020,26 @@ int SpellMap::ViewRange::WaitIdle()
 //  returns previous state so it can be resumed
 bool SpellMap::ViewRange::Halt(bool clear_tasks)
 {	
+	// request halt and wait until worker finishes current task
 	ctrl_lock.lock();
 	was_halted++;
 	is_halted = true;
 	ctrl_lock.unlock();
-	
-	while(state == ThreadCtrl::IDLE)
+
+	// wait while worker is busy processing a task; once it's not BUSY it's safe to modify map data
+	while (true)
+	{
+		ctrl_lock.lock();
+		ThreadCtrl cur = state;
+		ctrl_lock.unlock();
+		if(cur != ThreadCtrl::BUSY)
+			break;
 		std::this_thread::sleep_for(1ms);
+	}
 
 	if(clear_tasks)
 		ClearTasks();
-	
+
 	return(was_halted);
 }
 // resume execution of tasks after Halt(), optional resume=false will restore state before Halt()
@@ -7039,8 +7060,10 @@ void SpellMap::ViewRange::Resume(bool resume)
 			is_halted = false;
 		}
 	}
-	was_halted = is_halted;
+	// keep is_halted consistent with counter
+	is_halted = (was_halted > 0);
 	ctrl_lock.unlock();
+	task_cv.notify_all();
 }
 
 // stop all pending calculations (thread safe)
@@ -7069,12 +7092,10 @@ int SpellMap::ViewRange::PrepareUnitsViewMask(bool immediate)
 		Halt(true);		
 	}
 	
-	// add task
-	queue_lock.lock();
+	// add task (protected by ctrl_lock)
 	ctrl_lock.lock();
 	pending.emplace_back((MapUnit*)NULL, ClearMode::NONE, Action::MASK, false);
 	ctrl_lock.unlock();
-	queue_lock.unlock();
 
 	// optional wait to finish
 	if(immediate)
@@ -7288,11 +7309,10 @@ int SpellMap::ViewRange::ClearUnitsView(ClearMode clear, bool immediate)
 	else
 	{
 		// task mode
-		queue_lock.lock();
+		// protect pending with ctrl_lock only
 		ctrl_lock.lock();
 		pending.emplace_back((MapUnit*)NULL, clear, Action::CLEAR, false);
 		ctrl_lock.unlock();
-		queue_lock.unlock();
 	}
 
 	return(0);
@@ -7356,31 +7376,34 @@ void SpellMap::ViewRange::ClearEvents(bool cleanup)
 // add unit to task list with filtering of duplicite tasks (thread safe)
 int SpellMap::ViewRange::AddViewUnitTask(MapUnit* unit,ClearMode clear,bool rec_events,bool force)
 {
-	queue_lock.lock();
-	ctrl_lock.lock();	
-	if(!force)
+	// protect pending with ctrl_lock only
+	ctrl_lock.lock();
+	if(!is_halted)
 	{
-		for(int k = pending.size()-1; k >=0 ; k--)
+		if(!force)
 		{
-			auto *task = &pending.at(k);
-			if(task->action != Action::NONE)
-				break;				
-			if(!task->unit)
-				continue;
-			if(task->unit->id != unit->id)
-				continue;
-			if(task->unit->coor != unit->coor)
-				continue;		
-			// dupla found
-			ctrl_lock.unlock();
-			queue_lock.unlock();
-			return(1);
+			for(int k = pending.size()-1; k >=0 ; k--)
+			{
+				auto *task = &pending.at(k);
+				if(task->action != Action::NONE)
+					break;                
+				if(!task->unit)
+					continue;
+				if(task->unit->id != unit->id)
+					continue;
+				if(task->unit->coor != unit->coor)
+					continue;        
+				// duplicate found
+				ctrl_lock.unlock();
+				return(1);
+			}
 		}
+		// no duplicate found: add task    
+		pending.emplace_back(unit,clear,Action::NONE,rec_events);
 	}
-	// no dupla found: add task	
-	pending.emplace_back(unit,clear,Action::NONE,rec_events);
 	ctrl_lock.unlock();
-	queue_lock.unlock();
+	// notify worker about new task (if any)
+	task_cv.notify_one();
 
 	return(0);
 }
@@ -7404,11 +7427,11 @@ void SpellMap::ViewRange::AddUnitView(MapUnit *unit, ClearMode clear, int *new_c
 // calculate unit view (thread safe), immediate = true wait for result
 int SpellMap::ViewRange::CalcAttackRange(MapUnit *unit, bool immediate)
 {
-	queue_lock.lock();
+	// protect pending with ctrl_lock only
 	ctrl_lock.lock();
 	pending.emplace_back(unit, ClearMode::NONE, Action::FIRE, false);
 	ctrl_lock.unlock();
-	queue_lock.unlock();
+	task_cv.notify_one();
 
 	// optional wait to finish
 	if(immediate)
@@ -7479,7 +7502,7 @@ int SpellMap::ViewRange::AttackRangeInit()
 
 // view/attack calculator worker thread
 void SpellMap::ViewRange::Worker()
-{	
+{
 	while(true)
 	{
 		// task data
@@ -7488,41 +7511,55 @@ void SpellMap::ViewRange::Worker()
 		Action action = Action::NONE;
 		int detect_events = false;
 
-		// new task?
-		ctrl_lock.lock();
+		// wait for work or exit or resume
+		std::unique_lock<std::mutex> lk(ctrl_lock);
+		// if exit requested, terminate
 		if(state == EXIT)
 		{
-			// terminate thread
 			state = IDLE;
-			ctrl_lock.unlock();
+			task_cv.notify_all();
 			return;
 		}
-		else if(is_halted)
+
+		// if halted and no exit -> wait until resumed or exit
+		if(is_halted)
 		{
-			// halted state
 			state = HALTED;
-		}
-		else if(!pending.empty())
-		{
-			// new task
-			state = BUSY;
-			target = pending.front().unit;
-			clear = pending.front().clear;
-			action = pending.front().action;
-			detect_events = pending.front().detect_events;
-			pending.pop_front();			
-		}
-		else
-		{
-			// nothing to do...
-			state = IDLE;
-		}
-		ctrl_lock.unlock();
-		if(!target && action == Action::NONE)
-		{
-			std::this_thread::sleep_for(2ms);
+			task_cv.notify_all();
+			task_cv.wait(lk, [&]{ return state == EXIT || !is_halted; });
+			if(state == EXIT)
+			{
+				state = IDLE;
+				task_cv.notify_all();
+				return;
+			}
+			// loop to re-evaluate pending/tasks
 			continue;
-		}		
+		}
+
+		if(pending.empty())
+		{
+			state = IDLE;
+			task_cv.notify_all();
+			task_cv.wait(lk, [&]{ return state == EXIT || is_halted || !pending.empty(); });
+			if(state == EXIT)
+			{
+				state = IDLE;
+				task_cv.notify_all();
+				return;
+			}
+			// if woke due to is_halted, loop and handle above
+			continue;
+		}
+
+		// have task
+		state = BUSY;
+		target = pending.front().unit;
+		clear = pending.front().clear;
+		action = pending.front().action;
+		detect_events = pending.front().detect_events;
+		pending.pop_front();
+		lk.unlock();
 
 		// fire range calculation mode?
 		int is_fire = (action == Action::FIRE);
@@ -8003,11 +8040,10 @@ int SpellMap::ViewRange::StoreUnitsView(bool immediate)
 	else
 	{
 		// task mode
-		queue_lock.lock();
+		// protect pending with ctrl_lock only
 		ctrl_lock.lock();
 		pending.emplace_back((MapUnit*)NULL, ClearMode::NONE, Action::STORE, false);
 		ctrl_lock.unlock();
-		queue_lock.unlock();
 	}
 	return(0);
 }
@@ -8026,11 +8062,9 @@ int SpellMap::ViewRange::RestoreUnitsView(bool immediate)
 	else
 	{
 		// task mode
-		queue_lock.lock();
 		ctrl_lock.lock();
 		pending.emplace_back((MapUnit*)NULL,ClearMode::NONE,Action::RESTORE, false);
 		ctrl_lock.unlock();
-		queue_lock.unlock();
 	}
 	return(0);
 }
