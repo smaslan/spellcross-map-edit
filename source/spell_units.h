@@ -95,7 +95,11 @@ class SpellUnitRec
 		static constexpr int FIRE_MLRS = 0x20;
 		static constexpr int FIRE_FIRE_PROJECTILE = 0x40;
 		static constexpr int FIRE_FIRE_SENSITIVE = 0x80;
-		static constexpr int FIRE_FIRE_HEALED = 0x100;
+		static constexpr int FIRE_FIRE_HEALED = 0x100;		
+		static constexpr int FIRE_IGNORE_ARMORED_TARGET_DEFENCE = 0x200;
+		static constexpr int FIRE_IGNORE_AIR_TARGET_DEFENCE = 0x400;
+		static constexpr int FIRE_IGNORE_LIGHT_TARGET_DEFENCE = 0x800;
+				
 
 		int isIndirectFire() {return(fire_flags & FIRE_INDIRECT || fire_flags & FIRE_MLRS);}; // any indirect shot
 

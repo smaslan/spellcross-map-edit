@@ -1190,8 +1190,13 @@ void FormUnitsEdit::OnSelectUnit(wxCommandEvent& event)
 	pgPropBasic->AppendIn(grp,new wxBoolPropertyExt("MLRS side-fire",wxT(""),(bool*)&m_unit->fire_flags,SpellUnitRec::FIRE_MLRS));
 	pgPropBasic->AppendIn(grp,new wxBoolPropertyExt("Uses fire projectile",wxT(""),(bool*)&m_unit->fire_flags,SpellUnitRec::FIRE_FIRE_PROJECTILE));
 	pgPropBasic->AppendIn(grp,new wxBoolPropertyExt("Sensitive to fire",wxT(""),(bool*)&m_unit->fire_flags,SpellUnitRec::FIRE_FIRE_SENSITIVE));
-	if(m_units->isEng())
-		pgPropBasic->AppendIn(grp,new wxBoolPropertyExt("Fire-healed",wxT(""),(bool*)&m_unit->fire_flags,SpellUnitRec::FIRE_FIRE_HEALED));
+	if (m_units->isEng())
+	{
+		pgPropBasic->AppendIn(grp, new wxBoolPropertyExt("Fire-healed (ENG engine only)", wxT(""), (bool*)&m_unit->fire_flags, SpellUnitRec::FIRE_FIRE_HEALED));
+		pgPropBasic->AppendIn(grp, new wxBoolPropertyExt("Ignore light target defence (HonzaQ patch V1.20+)", wxT(""), (bool*)&m_unit->fire_flags, SpellUnitRec::FIRE_IGNORE_LIGHT_TARGET_DEFENCE));
+		pgPropBasic->AppendIn(grp, new wxBoolPropertyExt("Ignore armored target defence (HonzaQ patch V1.20+)", wxT(""), (bool*)&m_unit->fire_flags, SpellUnitRec::FIRE_IGNORE_ARMORED_TARGET_DEFENCE));
+		pgPropBasic->AppendIn(grp, new wxBoolPropertyExt("Ignore air target defence (HonzaQ patch V1.20+)", wxT(""), (bool*)&m_unit->fire_flags, SpellUnitRec::FIRE_IGNORE_AIR_TARGET_DEFENCE));
+	}
 	
 	pgPropBasic->Thaw();
 	pgPropBasic->FitColumns();

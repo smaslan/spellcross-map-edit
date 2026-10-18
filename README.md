@@ -232,7 +232,7 @@ The project uses few very useful external open source libraries:
 
 ## Building the project
 
-If you like to make your own builds you certainly can. The project was made in pure C++20 in Microsoft Visual Studio 2019, so there should be no problem building it. The whole thing was made 100% using standard C++ libraries and a few multiplatform open source libraries listed above. The only hurdle is to properly link it with `wxWidgets` libraries. You have to download those and build them first, then set some system path variables and also change paths in the MSVC project file. That is always a bit of a mess when I start on a new PC. 
+If you like to make your own builds you certainly can. The project was made in pure C++20 in Microsoft Visual Studio 2026, so there should be no problem building it. The whole thing was made 100% using standard C++ libraries and a few multiplatform open source libraries listed above. The only hurdle is to properly link it with `wxWidgets` libraries. You have to download those and build them first, then set some system path variables and also change paths in the MSVC project file. That is always a bit of a mess when I start on a new PC. 
 
 
 ## Releases
@@ -244,6 +244,11 @@ Also, you can star my project here on GitHub if you like to help me out on a way
   - First release (careful, not fully tested).
   - Not finished. 
   - Very very buggy.
+- [V0.91 beta, 18th October 2026 (7zip file)](./builds/x64/Spellcross-Map-Editor-V0.91-beta.7z) 
+  - Fixed wall autotiling for end segments.
+  - Add units DEF editor.
+  - Little less buggy.
+  - Not finished. 
 
                                  
 ## License

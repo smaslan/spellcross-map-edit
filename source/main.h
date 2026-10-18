@@ -228,7 +228,7 @@ private:
     void OnUnitClick_cb(int action);
 
     // version string
-    const std::string c_str_ver_label = "V0.90 (beta), build: " __DATE__;
+    const std::string c_str_ver_label = "V0.91 (beta), build: " __DATE__;
 
 
     MapXY m_drag_sel_start;
