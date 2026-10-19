@@ -23,7 +23,7 @@ FormUnitsEdit::FormUnitsEdit( wxWindow* parent, wxWindowID id,SpellData *spell_d
 	: wxFrame( parent, id, title, pos, size, style ),
 	m_spell_data(spell_data)
 {
-	// <wxFormsBuilder> - Section auto-inserted from 'forms.cpp' class 'FormUnitsEdit' on 2026-10-12 19:24:03
+	// <wxFormsBuilder> - Section auto-inserted from 'forms.cpp' class 'FormUnitsEdit' on 2026-10-19 18:36:50
 	this->SetSizeHints( wxDefaultSize, wxDefaultSize );
 	this->SetBackgroundColour( wxSystemSettings::GetColour( wxSYS_COLOUR_MENU ) );
 	
@@ -96,10 +96,13 @@ FormUnitsEdit::FormUnitsEdit( wxWindow* parent, wxWindowID id,SpellData *spell_d
 	pageProps = new wxNotebook( this, wxID_PAGE_PROPS, wxDefaultPosition, wxDefaultSize, 0 );
 	pagePropBasic = new wxPanel( pageProps, wxID_PAGE_BASIC, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL );
 	wxBoxSizer* bSizer133;
-	bSizer133 = new wxBoxSizer( wxVERTICAL );
+	bSizer133 = new wxBoxSizer( wxHORIZONTAL );
 	
 	pgPropBasic = new wxPropertyGrid(pagePropBasic, wxID_PG_PROP_BASIC, wxDefaultPosition, wxDefaultSize, wxPG_DEFAULT_STYLE);
 	bSizer133->Add( pgPropBasic, 1, wxEXPAND|wxALL, 5 );
+	
+	pgPropBasic2 = new wxPropertyGrid(pagePropBasic, wxID_PG_PROP_BASIC2, wxDefaultPosition, wxDefaultSize, wxPG_DEFAULT_STYLE);
+	bSizer133->Add( pgPropBasic2, 1, wxALL|wxEXPAND, 5 );
 	
 	
 	pagePropBasic->SetSizer( bSizer133 );
@@ -433,7 +436,7 @@ FormUnitsEdit::FormUnitsEdit( wxWindow* parent, wxWindowID id,SpellData *spell_d
 	this->Centre( wxBOTH );
 	
 
-	// </wxFormsBuilder> - Section auto-inserted from 'forms.cpp' class 'FormUnitsEdit' on 2026-10-12 19:24:03
+	// </wxFormsBuilder> - Section auto-inserted from 'forms.cpp' class 'FormUnitsEdit' on 2026-10-19 18:36:50
 
 	RescaleWindowDPI(this);
 	
@@ -498,6 +501,7 @@ FormUnitsEdit::FormUnitsEdit( wxWindow* parent, wxWindowID id,SpellData *spell_d
 	Bind(wxEVT_LIST_BEGIN_DRAG,&FormUnitsEdit::OnUnitBeginDrag,this,wxID_LBOX_UNITS);
 
 	Bind(wxEVT_PG_CHANGED,&FormUnitsEdit::OnPGpropChange,this,wxID_PG_PROP_BASIC);
+	Bind(wxEVT_PG_CHANGED,&FormUnitsEdit::OnPGpropChange,this,wxID_PG_PROP_BASIC2);
 	Bind(wxEVT_PG_CHANGED,&FormUnitsEdit::OnPGpropChange,this,wxID_PG_PROP_GRP);
 	Bind(wxEVT_PG_CHANGED,&FormUnitsEdit::OnPGpropChange,this,wxID_PG_PROP_SOUND);
 	Bind(wxEVT_PG_CHANGED,&FormUnitsEdit::OnPGpropChange,this,wxID_PG_PROP_ACTION);
@@ -1127,8 +1131,9 @@ wxString FormUnitsEdit::OnGetUnitName(long item)
 void FormUnitsEdit::OnSelectUnit(wxCommandEvent& event)
 {
 	auto act_prop_sel = GetPGselectionID(pgPropAction);
-	
+		
 	pgPropBasic->Clear();
+	pgPropBasic2->Clear();
 	pgPropGrp->Clear();
 	pgPropSound->Clear();
 	pgPropAction->Clear();
@@ -1163,8 +1168,7 @@ void FormUnitsEdit::OnSelectUnit(wxCommandEvent& event)
 	pgPropBasic->AppendIn(grp,new wxIntPropertyExt("Objects attack",wxT(""),&m_unit->attack_objects,0,255));
 	pgPropBasic->AppendIn(grp,new wxIntPropertyExt("Attack range",wxT(""),&m_unit->fire_range,0,255));
 	pgPropBasic->AppendIn(grp,new wxIntPropertyExt("Defence",wxT(""),&m_unit->defence,0,255));
-	pgPropBasic->AppendIn(grp,new wxIntPropertyExt("Sight",wxT(""),&m_unit->sdir,0,255));
-	
+	pgPropBasic->AppendIn(grp,new wxIntPropertyExt("Sight",wxT(""),&m_unit->sdir,0,255));	
 
 	grp = pgPropBasic->Append(new wxPropertyCategory("Action points:"));
 	pgPropBasic->AppendIn(grp,new wxIntPropertyExt("Action points",wxT(""),&m_unit->ap,0,255));
@@ -1172,35 +1176,38 @@ void FormUnitsEdit::OnSelectUnit(wxCommandEvent& event)
 	pgPropBasic->AppendIn(grp,new wxIntPropertyExt("AP per forrest move",wxT(""),&m_unit->apfw,0,255));
 	pgPropBasic->AppendIn(grp,new wxIntPropertyExt("AP per shot",wxT(""),&m_unit->aps,0,255));
 	pgPropBasic->AppendIn(grp,new wxIntPropertyExt("Rounds to dig",wxT(""),&m_unit->dig_turns,0,255));
-	
-	grp = pgPropBasic->Append(new wxPropertyCategory("Special flags:"));
-	pgPropBasic->AppendIn(grp,new wxBoolPropertyExt("Walk movement",wxT(""),(bool*)&m_unit->utype,SpellUnitRec::UTYPE_WALK));
-	pgPropBasic->AppendIn(grp,new wxBoolPropertyExt("Hover movement",wxT(""),(bool*)&m_unit->utype,SpellUnitRec::UTYPE_HOVER));
-	pgPropBasic->AppendIn(grp,new wxBoolPropertyExt("Flight movement",wxT(""),(bool*)&m_unit->utype,SpellUnitRec::UTYPE_FLY));
-	pgPropBasic->AppendIn(grp,new wxBoolPropertyExt("Has turret",wxT(""),(bool*)&m_unit->utype,SpellUnitRec::UTYPE_TURRET));
-	pgPropBasic->AppendIn(grp,new wxBoolPropertyExt("Flash&bones",wxT(""),(bool*)&m_unit->utype,SpellUnitRec::UTYPE_FLAHS));
-	pgPropBasic->AppendIn(grp,new wxBoolPropertyExt("Demon?",wxT(""),(bool*)&m_unit->utype,SpellUnitRec::UTYPE_DEMON));
-
-	grp = pgPropBasic->Append(new wxPropertyCategory("Fire flags:"));
-	pgPropBasic->AppendIn(grp,new wxBoolPropertyExt("High turret origing",wxT(""),(bool*)&m_unit->fire_flags,SpellUnitRec::FIRE_HIGH_TURRET));
-	pgPropBasic->AppendIn(grp,new wxBoolPropertyExt("Artillery fire",wxT(""),(bool*)&m_unit->fire_flags,SpellUnitRec::FIRE_INDIRECT));
-	pgPropBasic->AppendIn(grp,new wxBoolPropertyExt("Steal enemy AP",wxT(""),(bool*)&m_unit->fire_flags,SpellUnitRec::FIRE_STEAL_AP));
-	pgPropBasic->AppendIn(grp,new wxBoolPropertyExt("Inefficient to armored",wxT(""),(bool*)&m_unit->fire_flags,SpellUnitRec::FIRE_INEFFICIENT_TO_ARMORRED));
-	pgPropBasic->AppendIn(grp,new wxBoolPropertyExt("Cannot fire from slopes",wxT(""),(bool*)&m_unit->fire_flags,SpellUnitRec::FIRE_NOT_SLOPES));
-	pgPropBasic->AppendIn(grp,new wxBoolPropertyExt("MLRS side-fire",wxT(""),(bool*)&m_unit->fire_flags,SpellUnitRec::FIRE_MLRS));
-	pgPropBasic->AppendIn(grp,new wxBoolPropertyExt("Uses fire projectile",wxT(""),(bool*)&m_unit->fire_flags,SpellUnitRec::FIRE_FIRE_PROJECTILE));
-	pgPropBasic->AppendIn(grp,new wxBoolPropertyExt("Sensitive to fire",wxT(""),(bool*)&m_unit->fire_flags,SpellUnitRec::FIRE_FIRE_SENSITIVE));
-	if (m_units->isEng())
-	{
-		pgPropBasic->AppendIn(grp, new wxBoolPropertyExt("Fire-healed (ENG engine only)", wxT(""), (bool*)&m_unit->fire_flags, SpellUnitRec::FIRE_FIRE_HEALED));
-		pgPropBasic->AppendIn(grp, new wxBoolPropertyExt("Ignore light target defence (HonzaQ patch V1.20+)", wxT(""), (bool*)&m_unit->fire_flags, SpellUnitRec::FIRE_IGNORE_LIGHT_TARGET_DEFENCE));
-		pgPropBasic->AppendIn(grp, new wxBoolPropertyExt("Ignore armored target defence (HonzaQ patch V1.20+)", wxT(""), (bool*)&m_unit->fire_flags, SpellUnitRec::FIRE_IGNORE_ARMORED_TARGET_DEFENCE));
-		pgPropBasic->AppendIn(grp, new wxBoolPropertyExt("Ignore air target defence (HonzaQ patch V1.20+)", wxT(""), (bool*)&m_unit->fire_flags, SpellUnitRec::FIRE_IGNORE_AIR_TARGET_DEFENCE));
-	}
-	
 	pgPropBasic->Thaw();
 	pgPropBasic->FitColumns();
-	//setPGsize(pgPropBasic);
+
+
+	pgPropBasic2->Freeze();
+	pgPropBasic2->Clear();
+	grp = pgPropBasic2->Append(new wxPropertyCategory("Special flags:"));
+	pgPropBasic2->AppendIn(grp,new wxBoolPropertyExt("Walk movement",wxT(""),&m_unit->utype,SpellUnitRec::UTYPE_WALK));
+	pgPropBasic2->AppendIn(grp,new wxBoolPropertyExt("Hover movement",wxT(""),&m_unit->utype,SpellUnitRec::UTYPE_HOVER));
+	pgPropBasic2->AppendIn(grp,new wxBoolPropertyExt("Flight movement",wxT(""),&m_unit->utype,SpellUnitRec::UTYPE_FLY));
+	pgPropBasic2->AppendIn(grp,new wxBoolPropertyExt("Has turret",wxT(""),&m_unit->utype,SpellUnitRec::UTYPE_TURRET));
+	pgPropBasic2->AppendIn(grp,new wxBoolPropertyExt("Flash&bones",wxT(""),&m_unit->utype,SpellUnitRec::UTYPE_FLAHS));
+	pgPropBasic2->AppendIn(grp,new wxBoolPropertyExt("Demon?",wxT(""),&m_unit->utype,SpellUnitRec::UTYPE_DEMON));
+
+	grp = pgPropBasic2->Append(new wxPropertyCategory("Fire flags:"));
+	pgPropBasic2->AppendIn(grp,new wxBoolPropertyExt("High turret origing",wxT(""),&m_unit->fire_flags,SpellUnitRec::FIRE_HIGH_TURRET));
+	pgPropBasic2->AppendIn(grp,new wxBoolPropertyExt("Artillery fire",wxT(""),&m_unit->fire_flags,SpellUnitRec::FIRE_INDIRECT));
+	pgPropBasic2->AppendIn(grp,new wxBoolPropertyExt("Steal enemy AP",wxT(""),&m_unit->fire_flags,SpellUnitRec::FIRE_STEAL_AP));
+	pgPropBasic2->AppendIn(grp,new wxBoolPropertyExt("Inefficient to armored",wxT(""),&m_unit->fire_flags,SpellUnitRec::FIRE_INEFFICIENT_TO_ARMORRED));
+	pgPropBasic2->AppendIn(grp,new wxBoolPropertyExt("Cannot fire from slopes",wxT(""),&m_unit->fire_flags,SpellUnitRec::FIRE_NOT_SLOPES));
+	pgPropBasic2->AppendIn(grp,new wxBoolPropertyExt("MLRS side-fire",wxT(""),&m_unit->fire_flags,SpellUnitRec::FIRE_MLRS));
+	pgPropBasic2->AppendIn(grp,new wxBoolPropertyExt("Uses fire projectile",wxT(""),&m_unit->fire_flags,SpellUnitRec::FIRE_FIRE_PROJECTILE));
+	pgPropBasic2->AppendIn(grp,new wxBoolPropertyExt("Sensitive to fire",wxT(""),&m_unit->fire_flags,SpellUnitRec::FIRE_FIRE_SENSITIVE));
+	if (m_units->isEng())
+	{
+		pgPropBasic2->AppendIn(grp, new wxBoolPropertyExt("Fire-healed (ENG engine only)", wxT(""), &m_unit->fire_flags, SpellUnitRec::FIRE_FIRE_HEALED));
+		pgPropBasic2->AppendIn(grp, new wxBoolPropertyExt("Ignore light target defence (HonzaQ patch V1.20+)", wxT(""), &m_unit->fire_flags, SpellUnitRec::FIRE_IGNORE_LIGHT_TARGET_DEFENCE));
+		pgPropBasic2->AppendIn(grp, new wxBoolPropertyExt("Ignore armored target defence (HonzaQ patch V1.20+)", wxT(""), &m_unit->fire_flags, SpellUnitRec::FIRE_IGNORE_ARMORED_TARGET_DEFENCE));
+		pgPropBasic2->AppendIn(grp, new wxBoolPropertyExt("Ignore air target defence (HonzaQ patch V1.20+)", wxT(""), &m_unit->fire_flags, SpellUnitRec::FIRE_IGNORE_AIR_TARGET_DEFENCE));
+	}	
+	pgPropBasic2->Thaw();
+	pgPropBasic2->FitColumns();
 
 
 	
@@ -1229,21 +1236,21 @@ void FormUnitsEdit::OnSelectUnit(wxCommandEvent& event)
 	pgPropBasic->AppendIn(grp,new wxIntPropertyExt("Visible man count",wxT(""),&m_unit->vis,0,5));
 	
 	grp = pgPropGrp->Append(new wxPropertyCategory("Light unit attack:"));
-	pgPropGrp->AppendIn(grp,new wxBoolPropertyExt("Visible projectile",wxT(""),(bool*)&m_unit->projectile_visible,SpellUnitRec::PROJECTILE_LIGHT));
+	pgPropGrp->AppendIn(grp,new wxBoolPropertyExt("Visible projectile",wxT(""),&m_unit->projectile_visible,SpellUnitRec::PROJECTILE_LIGHT));
 	pgPropGrp->AppendIn(grp,new wxEnumPropertyExt("Attack animation",wxT("anim_light"),MapToPGenumChoices(grp_res_list),&m_unit->anim_atack_light_name));
 	pgPropGrp->AppendIn(grp,new wxIntPropertyExt("Animation frames limit",wxT("anim_light_frames"),&m_unit->anim_atack_light_frames,0,255));
 	pgPropGrp->AppendIn(grp,new wxEnumPropertyExt("Shot PNM",wxT(""),MapToPGenumChoices(pnm_names),&m_unit->pnm_light_shot_name));
 	pgPropGrp->AppendIn(grp,new wxEnumPropertyExt("Target hit PNM",wxT(""),MapToPGenumChoices(pnm_names),&m_unit->pnm_light_hit_name));
 
 	grp = pgPropGrp->Append(new wxPropertyCategory("Armored unit attack:"));
-	pgPropGrp->AppendIn(grp,new wxBoolPropertyExt("Visible projectile",wxT(""),(bool*)&m_unit->projectile_visible,SpellUnitRec::PROJECTILE_ARMOR));
+	pgPropGrp->AppendIn(grp,new wxBoolPropertyExt("Visible projectile",wxT(""),&m_unit->projectile_visible,SpellUnitRec::PROJECTILE_ARMOR));
 	pgPropGrp->AppendIn(grp,new wxEnumPropertyExt("Attack animation",wxT("anim_armored"),MapToPGenumChoices(grp_res_list),&m_unit->anim_atack_armor_name));
 	pgPropGrp->AppendIn(grp,new wxIntPropertyExt("Animation frames limit",wxT("anim_armored_frames"),&m_unit->anim_atack_armor_frames,0,255));
 	pgPropGrp->AppendIn(grp,new wxEnumPropertyExt("Shot PNM",wxT(""),MapToPGenumChoices(pnm_names),&m_unit->pnm_armored_shot_name));
 	pgPropGrp->AppendIn(grp,new wxEnumPropertyExt("Target hit PNM",wxT(""),MapToPGenumChoices(pnm_names),&m_unit->pnm_armored_hit_name));
 
 	grp = pgPropGrp->Append(new wxPropertyCategory("Air unit attack:"));
-	pgPropGrp->AppendIn(grp,new wxBoolPropertyExt("Visible projectile",wxT(""),(bool*)&m_unit->projectile_visible,SpellUnitRec::PROJECTILE_AIR));
+	pgPropGrp->AppendIn(grp,new wxBoolPropertyExt("Visible projectile",wxT(""),&m_unit->projectile_visible,SpellUnitRec::PROJECTILE_AIR));
 	pgPropGrp->AppendIn(grp,new wxEnumPropertyExt("Attack animation",wxT("anim_air"),MapToPGenumChoices(grp_res_list),&m_unit->anim_atack_air_name));
 	pgPropGrp->AppendIn(grp,new wxIntPropertyExt("Animation frames limit",wxT("anim_air_frames"),&m_unit->anim_atack_air_frames,0,255));
 	pgPropGrp->AppendIn(grp,new wxEnumPropertyExt("Shot PNM",wxT(""),MapToPGenumChoices(pnm_names),&m_unit->pnm_air_shot_name));

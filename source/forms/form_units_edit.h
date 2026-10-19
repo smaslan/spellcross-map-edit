@@ -7,7 +7,7 @@
 
 #pragma once
 
-// <wxFormsBuilder-include> - Section auto-inserted from 'forms.h' class 'FormUnitsEdit' on 2026-10-12 19:24:03
+// <wxFormsBuilder-include> - Section auto-inserted from 'forms.h' class 'FormUnitsEdit' on 2026-10-19 18:36:51
 #include <wx/artprov.h>
 #include <wx/xrc/xmlres.h>
 #include <wx/string.h>
@@ -43,7 +43,7 @@
 #include <wx/scrolbar.h>
 #include <wx/bmpbuttn.h>
 
-// </wxFormsBuilder-include> - Section auto-inserted from 'forms.h' class 'FormUnitsEdit' on 2026-10-12 19:24:03
+// </wxFormsBuilder-include> - Section auto-inserted from 'forms.h' class 'FormUnitsEdit' on 2026-10-19 18:36:51
 
 #include <wx/timer.h>
 
@@ -117,7 +117,7 @@ class FormUnitsEdit : public wxFrame
 
 	protected:
 		
-		// <wxFormsBuilder> - Section auto-inserted from 'forms.h' class 'FormUnitsEdit' on 2026-10-12 19:24:03
+		// <wxFormsBuilder> - Section auto-inserted from 'forms.h' class 'FormUnitsEdit' on 2026-10-19 18:36:51
 		enum
 		{
 			wxID_MM_OPEN_DEF = 5999,
@@ -130,6 +130,7 @@ class FormUnitsEdit : public wxFrame
 			wxID_PAGE_PROPS,
 			wxID_PAGE_BASIC,
 			wxID_PG_PROP_BASIC,
+			wxID_PG_PROP_BASIC2,
 			wxID_PAGE_GRP,
 			wxID_PG_PROP_GRP,
 			wxID_CANVAS_ICON,
@@ -167,6 +168,7 @@ class FormUnitsEdit : public wxFrame
 		wxNotebook* pageProps;
 		wxPanel* pagePropBasic;
 		wxPropertyGrid* pgPropBasic;
+		wxPropertyGrid* pgPropBasic2;
 		wxPanel* pageGrp;
 		wxPropertyGrid* pgPropGrp;
 		wxStaticText* m_staticText141;
@@ -208,12 +210,12 @@ class FormUnitsEdit : public wxFrame
 		wxStaticText* m_staticText14121;
 		wxPanel* canvasGrpDie;
 
-		// </wxFormsBuilder> - Section auto-inserted from 'forms.h' class 'FormUnitsEdit' on 2026-10-12 19:24:03
+		// </wxFormsBuilder> - Section auto-inserted from 'forms.h' class 'FormUnitsEdit' on 2026-10-19 18:36:51
 
 	public:
 
 		FormUnitsEdit( wxWindow* parent, wxWindowID id,SpellData *spell_data,const wxString& title = wxT("Units edit tool"), const wxPoint& pos = wxDefaultPosition, 
-			const wxSize& size = wxSize( 1300,900 ), long style = wxDEFAULT_FRAME_STYLE|wxFRAME_FLOAT_ON_PARENT|wxTAB_TRAVERSAL );
+			const wxSize& size = wxSize( 1400,900 ), long style = wxDEFAULT_FRAME_STYLE|wxFRAME_FLOAT_ON_PARENT|wxTAB_TRAVERSAL );
 		~FormUnitsEdit();
 
 };

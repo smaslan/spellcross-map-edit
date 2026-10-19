@@ -807,7 +807,7 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 				}
 
 				// make map path				
-				dta_path = (std::filesystem::path(map_path).parent_path() / std::filesystem::path(cmd->parameters.at(0))).wstring() + ".DTA";
+				dta_path = (std::filesystem::path(map_path).parent_path() / std::filesystem::path(cmd->parameters.at(0))).concat(".DTA");
 				break;
 			}
 		}
@@ -1989,8 +1989,15 @@ int SpellMap::SaveDTA(std::wstring path)
 	fw.write((uint32_t)L4_count);
 
 	// write PNM names list
-	for(auto pnm: L4_list)
-		fw.write_str(pnm->name,8);
+	for(auto pnm : L4_list)
+	{
+		if(pnm->name.empty())
+		{
+			last_error = string_format("Saving DTA file: crippled PNM list!");
+			return(1);
+		}
+		fw.write_str(pnm->name, 8);
+	}
 
 	// write PNM items count in map
 	if(L4_count)
@@ -3293,10 +3300,6 @@ void SpellMap::PasteBuffer(std::vector<MapSprite>& tiles, std::vector<MapLayer3>
 				PlaceStartEscape(sspos,start,escape,target,ca_aliance,ca_os,portal_pos,SpellMap::SPEC_TILE_ESCAPE);
 			else if(tile.L2 == target_sprite)
 				PlaceStartEscape(sspos,start,escape,target,ca_aliance,ca_os,portal_pos,SpellMap::SPEC_TILE_TARGET);
-			/*else if(tile.L2 == ca_start_aliance_sprite)
-				PlaceStartEscape(sspos,start,escape,target,ca_aliance,ca_os,SpellMap::SPEC_TILE_CA_ALIANCE);
-			else if(tile.L2 == ca_start_os_sprite)
-				PlaceStartEscape(sspos,start,escape,target,ca_aliance,ca_os,SpellMap::SPEC_TILE_CA_OS);*/
 			else
 			{
 				// terrain and objects layers
