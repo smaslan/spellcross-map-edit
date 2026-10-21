@@ -896,7 +896,7 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 	this->terrain = spelldata->GetTerrain(terrain_name.c_str());
 	if(!this->terrain)
 	{
-		last_error = string_format("Map DTA files references unknown terrain '%s'!",terrain_name.c_str());
+		last_error = string_format("Map DTA files references unknown terrain '%s'!",terrain_name);
 		Close();
 		return(1);
 	}
@@ -1887,7 +1887,7 @@ int SpellMap::SaveDTA(std::wstring path)
 	for(auto spr: L2_list)
 		if(spr->is_dummy)
 		{
-			last_error = string_format("Saving DTA file: sprite %s in objects layer not available in loaded data!",spr->name.c_str());
+			last_error = string_format("Saving DTA file: sprite %s in objects layer not available in loaded data!",spr->name);
 			fw.close();
 			return(1);
 		}
@@ -1979,7 +1979,7 @@ int SpellMap::SaveDTA(std::wstring path)
 	for(auto spr: L4_list)
 		if(spr->is_dummy)
 		{
-			last_error = string_format("Saving DTA file: sprite %s in PNM layer not available in loaded data!",spr->name.c_str());
+			last_error = string_format("Saving DTA file: sprite %s in PNM layer not available in loaded data!",spr->name);
 			fw.close();
 			return(1);
 		}
@@ -2191,7 +2191,7 @@ int SpellMap::SaveDEF(std::wstring path)
 	if(SortUnitIDs())
 	{
 		// failed
-		last_error = string_format("Saving map DEF file: assigning units IDs failed with error:\n",last_error.c_str());
+		last_error = string_format("Saving map DEF file: assigning units IDs failed with error:\n",last_error);
 		return(1);
 	}
 
@@ -2210,7 +2210,7 @@ int SpellMap::SaveDEF(std::wstring path)
 		std::string name = wstring2stringCP895(unit->name);
 		if(name.empty())
 			name = "-";
-		mission_data += string_format("    AddUnit(%d,%d,%d,%d,%d,%s,%s)", unit->id, unit->unit->type_id, ConvXY(unit->coor), unit->experience_init, unit->man, unit->behave.GetString().c_str(), name.c_str());
+		mission_data += string_format("    AddUnit(%d,%d,%d,%d,%d,%s,%s)", unit->id, unit->unit->type_id, ConvXY(unit->coor), unit->experience_init, unit->man, unit->behave.GetString(), name);
 		
 		// append randomizer setup
 		if(unit->randomize_mode == MapUnit::RandomizeMode::OFF)
@@ -2299,25 +2299,17 @@ int SpellMap::SaveDEF(std::wstring path)
 	std::string mission_params = "MissionParameters {\n";
 	mission_params += "    Time(t)\n"; // this is likely constant in all maps?
 	// don't know what happens when empty resource is used (first map has non-existent resources)
-	mission_params += string_format("    MissionText(%s)\n",params.mission_text.c_str());
-	mission_params += string_format("    MissionStartText(%s)\n",params.start_text.c_str());
-	mission_params += string_format("    MissionEndOKText(%s)\n",params.end_ok_text.c_str());
-	mission_params += string_format("    MissionEndBadText(%s)\n",params.end_bad_text.c_str());
+	mission_params += string_format("    MissionText(%s)\n",params.mission_text);
+	mission_params += string_format("    MissionStartText(%s)\n",params.start_text);
+	mission_params += string_format("    MissionEndOKText(%s)\n",params.end_ok_text);
+	mission_params += string_format("    MissionEndBadText(%s)\n",params.end_bad_text);
 	mission_params += "}\n";
 
 	// append event data
 	std::string def_data = mission_data + event_data + mission_params;
 	
-	// try open file
-	ofstream fw(path,ios::out | ios::trunc);
-	if(!fw.is_open())
+	if(savestr(path, def_data))
 		return(1);
-
-	// write DEF
-	fw.write(def_data.c_str(), def_data.size());
-
-	// close file
-	fw.close();
 
 	return(0);
 }
