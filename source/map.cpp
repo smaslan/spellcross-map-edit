@@ -2498,9 +2498,9 @@ int SpellMap::ConvXY(MapXY *mxy)
 {
 	return(ConvXY(mxy->x,mxy->y));
 }
-int SpellMap::ConvXY(MapXY &mxy)
+int SpellMap::ConvXY(const MapXY &mxy)
 {
-	return(ConvXY(&mxy));
+	return(ConvXY(mxy.x,mxy.y));
 }
 // is x,y within valid range?
 int SpellMap::isXYok(int x,int y)
@@ -12561,6 +12561,8 @@ int SpellMap::EditClass(vector<MapXY>& selection, SpellTool *tool, std::function
 
 	std::vector<int> modz(x_size*y_size,0);
 
+
+	
 	for(auto &sel: selection)
 	{
 		// initial tile to alter
@@ -12655,6 +12657,7 @@ int SpellMap::EditClass(vector<MapXY>& selection, SpellTool *tool, std::function
 
 			// make list of neighbors to all modified tiles
 			list.clear();
+			auto old_targer_flags = target_flags;
 			for(auto mpos: mod_list)
 			{
 				auto pxy = ConvXY(mpos);
@@ -12671,15 +12674,40 @@ int SpellMap::EditClass(vector<MapXY>& selection, SpellTool *tool, std::function
 					if(modz[nxy])
 						continue;
 					modz[nxy] = 1;
-					auto &nflags = L1_flags[nxy];
-					if(flags & target_flags && !(flags & blend_flags) && !(nflags & target_flags))
+					auto &nflags = L1_flags[nxy];				
+					if(!cleanup && (flags & target_flags) && !(flags & blend_flags) && !(nflags & target_flags))
+						list.push_back(npos);					
+					if(cleanup && (flags & target_flags) && (flags & blend_flags) && !(nflags & target_flags) && popcount(nflags) == 1)
 						list.push_back(npos);
 				}
 			}
+			std::ranges::replace_if(modz,[](int m){return m == 1;},0);
+			
 
-		}while(!list.empty()); // repeat until no more modified tiles
-
+		}while(!list.empty() || !cleanup); // repeat until no more modified tiles
 	}
+
+
+
+	// grow modified region to include all neighbors of modified tiles
+	for(int y = 0; y < y_size; y++)
+	{
+		for(int x = 0; x < x_size; x++)
+		{
+			auto pxy = ConvXY(MapXY(x,y));
+			if(modz[pxy] < 2)
+				continue;
+			for(int nid = 0; nid < 8; nid++)
+			{
+				auto npos = GetNeighborTile8D(MapXY(x,y),nid);
+				if(!npos.IsSelected())
+					continue;
+				auto nxy = ConvXY(npos);
+				modz[nxy] = 1;
+			}
+		}
+	}
+
 
 
 	for(int y = 0; y < y_size; y++)

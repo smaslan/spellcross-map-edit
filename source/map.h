@@ -890,7 +890,7 @@ class SpellMap
 		wstring GetTopPath();
 		
 		int ConvXY(int x, int y);
-		int ConvXY(MapXY &mxy);
+		int ConvXY(const MapXY &mxy);
 		int ConvXY(MapXY *mxy);
 		int isXYok(int x,int y);
 		int isXYok(MapXY& mxy);
