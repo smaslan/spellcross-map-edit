@@ -488,7 +488,8 @@ class SpellMap
 			std::string start_text = "";
 			std::string end_ok_text = "";
 			std::string end_bad_text = "";
-			void Clear() { is_night = false; mission_text = "";start_text = "";end_ok_text = "";end_bad_text = "";};
+			int time_limit = 0;
+			void Clear() { is_night = false; mission_text = "";start_text = "";end_ok_text = "";end_bad_text = ""; time_limit = 0;};
 		};
 		MissionParams params;
 

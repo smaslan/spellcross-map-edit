@@ -19,7 +19,7 @@ FormMissionParams::FormMissionParams( wxWindow* parent,SpellData* spell_data,Spe
 	m_spell_map = spell_map;
 
 	// === START OF AUTO GENERATED STUFF ===
-	// <wxFormsBuilder> - Section auto-inserted from 'forms.cpp' class 'FormMissionParams' on 2026-07-06 19:31:50
+	// <wxFormsBuilder> - Section auto-inserted from 'forms.cpp' class 'FormMissionParams' on 2026-10-28 09:44:13
 	this->SetSizeHints( wxSize( 600,400 ), wxDefaultSize );
 	
 	wxBoxSizer* bSizer69;
@@ -68,8 +68,24 @@ FormMissionParams::FormMissionParams( wxWindow* parent,SpellData* spell_data,Spe
 	chBadEndText->SetSelection( 0 );
 	bSizer70->Add( chBadEndText, 0, wxEXPAND|wxLEFT|wxRIGHT, 5 );
 	
+	m_staticline49 = new wxStaticLine( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLI_HORIZONTAL );
+	bSizer70->Add( m_staticline49, 0, wxEXPAND | wxALL, 5 );
+	
 	cbNight = new wxCheckBox( this, wxID_CB_NIGHT, wxT("Is Night Mission?"), wxDefaultPosition, wxDefaultSize, 0 );
 	bSizer70->Add( cbNight, 0, wxALL, 5 );
+	
+	m_staticline48 = new wxStaticLine( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLI_HORIZONTAL );
+	bSizer70->Add( m_staticline48, 0, wxEXPAND | wxALL, 5 );
+	
+	cbTimeLimit = new wxCheckBox( this, wxID_ANY, wxT("Enable mission time limit?"), wxDefaultPosition, wxDefaultSize, 0 );
+	bSizer70->Add( cbTimeLimit, 0, wxTOP|wxRIGHT|wxLEFT, 5 );
+	
+	m_staticText157 = new wxStaticText( this, wxID_ANY, wxT("Mission TimeLimit() value (turns):"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText157->Wrap( -1 );
+	bSizer70->Add( m_staticText157, 0, wxTOP|wxRIGHT|wxLEFT, 5 );
+	
+	spinTimeLimit = new wxSpinCtrl( this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, 0, 10, 0 );
+	bSizer70->Add( spinTimeLimit, 0, wxEXPAND|wxBOTTOM|wxRIGHT|wxLEFT, 5 );
 	
 	
 	bSizer70->Add( 0, 0, 1, wxEXPAND, 5 );
@@ -152,7 +168,7 @@ FormMissionParams::FormMissionParams( wxWindow* parent,SpellData* spell_data,Spe
 	this->Centre( wxBOTH );
 	
 
-	// </wxFormsBuilder> - Section auto-inserted from 'forms.cpp' class 'FormMissionParams' on 2026-07-06 19:31:50
+	// </wxFormsBuilder> - Section auto-inserted from 'forms.cpp' class 'FormMissionParams' on 2026-10-28 09:44:13
 	// === END OF AUTO GENERATED STUFF ===
 
 	Bind(wxEVT_COMMAND_BUTTON_CLICKED,&FormMissionParams::OnClose,this,wxID_BTN_OK);
@@ -194,6 +210,11 @@ FormMissionParams::FormMissionParams( wxWindow* parent,SpellData* spell_data,Spe
 	// night flag
 	cbNight->SetValue(m_spell_map->params.is_night);
 
+	// global mission time limit
+	cbTimeLimit->SetValue(m_spell_map->params.time_limit > 0);
+	spinTimeLimit->SetValue(m_spell_map->params.time_limit);
+	spinTimeLimit->SetRange(0, 10000);
+
 	// list of available units
 	int unit_type = 0;
 	for(auto& unit : m_spell_data->units->GetUnits())
@@ -217,6 +238,8 @@ void FormMissionParams::OnClose(wxCommandEvent& event)
 	{
 		// is night mission?
 		m_spell_map->params.is_night = cbNight->GetValue();
+		// mission time limit?
+		m_spell_map->params.time_limit = cbTimeLimit->GetValue() ? spinTimeLimit->GetValue() : 0;
 
 		// get text resources
 		std::vector<std::string*> list_values ={&m_spell_map->params.mission_text, &m_spell_map->params.start_text, &m_spell_map->params.end_ok_text, &m_spell_map->params.end_bad_text};

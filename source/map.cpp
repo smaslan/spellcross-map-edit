@@ -1690,6 +1690,17 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 					return(1);
 				}
 			}
+			else if(cmd->name.compare("TimeLimit") == 0)
+			{
+				// --- Time limit command
+				if(cmd->parameters.size() != 1)
+				{
+					last_error = string_format("TimeLimit() command requires exactly one parameter!");
+					Close();
+					return(1);
+				}
+				params.time_limit = std::strtol(cmd->parameters.at(0).c_str(), NULL, 10);
+			}
 			else
 			{
 				// unknown stuff in MissionData
@@ -2200,6 +2211,10 @@ int SpellMap::SaveDEF(std::wstring path)
 	// MissionMap()
 	auto map_name = wstring2string(std::wstring(filesystem::path(map_path).stem()));
 	mission_data += "    MissionMap(" + map_name + ")\n";
+
+	// global mission time limit?
+	if(params.time_limit > 0)
+		mission_data += string_format("    TimeLimit(%d)\n", params.time_limit);
 
 	// put auto unit randomizer setup
 	mission_data += unit_randomizer.MakeRulesDEF("    ");

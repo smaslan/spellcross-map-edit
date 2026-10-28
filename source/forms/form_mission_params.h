@@ -10,7 +10,7 @@
 #include "../map.h"
 #include <map>
 
-// <wxFormsBuilder-include> - Section auto-inserted from 'forms.h' class 'FormMissionParams' on 2026-07-06 19:31:50
+// <wxFormsBuilder-include> - Section auto-inserted from 'forms.h' class 'FormMissionParams' on 2026-10-28 09:44:13
 #include <wx/artprov.h>
 #include <wx/xrc/xmlres.h>
 #include <wx/string.h>
@@ -46,7 +46,7 @@
 #include <wx/scrolbar.h>
 #include <wx/bmpbuttn.h>
 
-// </wxFormsBuilder-include> - Section auto-inserted from 'forms.h' class 'FormMissionParams' on 2026-07-06 19:31:50
+// </wxFormsBuilder-include> - Section auto-inserted from 'forms.h' class 'FormMissionParams' on 2026-10-28 09:44:13
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -69,7 +69,7 @@ class FormMissionParams : public wxDialog
 		void OnUnitsRandChange(wxCommandEvent& event);
 
 	protected:
-		// <wxFormsBuilder> - Section auto-inserted from 'forms.h' class 'FormMissionParams' on 2026-07-06 19:31:50
+		// <wxFormsBuilder> - Section auto-inserted from 'forms.h' class 'FormMissionParams' on 2026-10-28 09:44:13
 		enum
 		{
 			wxID_WIN_MISSION_PARAMS = 5999,
@@ -95,7 +95,12 @@ class FormMissionParams : public wxDialog
 		wxChoice* chGoodEndText;
 		wxStaticText* m_staticText78;
 		wxChoice* chBadEndText;
+		wxStaticLine* m_staticline49;
 		wxCheckBox* cbNight;
+		wxStaticLine* m_staticline48;
+		wxCheckBox* cbTimeLimit;
+		wxStaticText* m_staticText157;
+		wxSpinCtrl* spinTimeLimit;
 		wxStaticLine* m_staticline28;
 		wxStaticText* txtPrevLbl;
 		wxTextCtrl* txtPreview;
@@ -111,7 +116,7 @@ class FormMissionParams : public wxDialog
 		wxStaticLine* m_staticline27;
 		wxButton* btnOK;
 
-		// </wxFormsBuilder> - Section auto-inserted from 'forms.h' class 'FormMissionParams' on 2026-07-06 19:31:50
+		// </wxFormsBuilder> - Section auto-inserted from 'forms.h' class 'FormMissionParams' on 2026-10-28 09:44:13
 
 	public:
 
