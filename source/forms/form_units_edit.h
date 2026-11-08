@@ -111,6 +111,7 @@ class FormUnitsEdit : public wxFrame
 			SEL_ALL_UNITS,
 			CLR_ALL_UNITS,
 			ADD_UNIT,
+			DUP_UNIT,
 			COPY_TO_TARGET,
 			RESET_ANIM_FRAMES
 		};

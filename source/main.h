@@ -370,6 +370,8 @@ private:
         ID_POP_REM_SEEUNIT,
         ID_POP_ADD_SEE_PLACE,
         ID_POP_REM_SEE_PLACE,
+        ID_POP_ADD_TURN,
+        ID_POP_REM_TURN,
         ID_POP_ADD_SAVE_UNIT,
         ID_POP_ADD_TRANSPORT_UNIT,
         ID_POP_ADD_DESTROY_UNIT,

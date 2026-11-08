@@ -1507,6 +1507,10 @@ void FormUnitsEdit::OnUnitsPupupOpen(wxMouseEvent& event)
 	menu.AppendSeparator();
 	menu.Append((int)PopupActions::ADD_UNIT,"Add new unit");
 
+	auto unit_id = lboxUnits->GetNextItem(-1,wxLIST_NEXT_ALL,wxLIST_STATE_SELECTED);
+	if(unit_id >= 0 && lboxUnits->GetSelectedItemCount() == 1)
+		menu.Append((int)PopupActions::DUP_UNIT,"Duplicate unit");
+
 	wxArrayInt sel;
 	lboxTargetDef->GetSelections(sel);
 	if(lboxUnits->GetSelectedItemCount() > 0 && !sel.empty())
@@ -1540,6 +1544,26 @@ void FormUnitsEdit::OnUnitsPupup(wxCommandEvent& event)
 		auto unit = m_units->AddUnit();
 		
 				
+		wxCommandEvent evt;
+		evt.SetEventObject(lboxTargetDef);
+		OnSelectDEF(evt);
+
+		lboxUnits->SetItemState(-1,0,wxLIST_STATE_SELECTED);
+		lboxUnits->SetItemState(unit->type_id,wxLIST_STATE_SELECTED,wxLIST_STATE_SELECTED);
+		lboxUnits->EnsureVisible(unit->type_id);
+		lboxUnits->Refresh();
+	}
+	else if(menu_id == PopupActions::DUP_UNIT)
+	{
+		if(!m_units)
+			return;
+		auto unit_id = lboxUnits->GetNextItem(-1,wxLIST_NEXT_ALL,wxLIST_STATE_SELECTED);
+		if(unit_id < 0)
+			return;
+
+		auto unit = m_units->AddUnit();		
+		m_units->CopyUnit(unit_id,unit->type_id);		
+						
 		wxCommandEvent evt;
 		evt.SetEventObject(lboxTargetDef);
 		OnSelectDEF(evt);

@@ -2248,11 +2248,14 @@ int SpellMap::SaveDEF(std::wstring path)
 			
 	// place events in this order:
 	std::vector<SpellMapEventRec::EvtTypes> event_types = {
+		SpellMapEventRec::EvtTypes::EVT_TIME_LIMIT,
 		SpellMapEventRec::EvtTypes::EVT_MISSION_START,
 		SpellMapEventRec::EvtTypes::EVT_SEE_PLACE,
 		SpellMapEventRec::EvtTypes::EVT_SEE_UNIT,
 		SpellMapEventRec::EvtTypes::EVT_TRANSPORT_UNIT,
 		SpellMapEventRec::EvtTypes::EVT_SAVE_UNIT,
+		SpellMapEventRec::EvtTypes::EVT_SURVIVE_TURNS,
+		SpellMapEventRec::EvtTypes::EVT_TURN,		
 		SpellMapEventRec::EvtTypes::EVT_DESTROY_UNIT,
 		SpellMapEventRec::EvtTypes::EVT_DESTROY_OBJ,
 		SpellMapEventRec::EvtTypes::EVT_DESTROY_ALL};
@@ -5084,6 +5087,8 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 				if(evt->is_objective)
 					label += "\x17";
 				label += evt->type_name;
+				if(evt->hasTimer() && (evt->time_param > 0 || evt->isTurn()))
+					label += string_format("(T:%d)",evt->time_param);
 				if(evt->probability != 100)
 					label += string_format("(%d%%)",evt->probability);
 				if(!evt->units.empty())
@@ -8243,6 +8248,21 @@ bool SpellMap::TileIsVisible(int x,int y)
 	int is_even = !!(y&1);
 	int x_ok = (x >= (1 + is_even)) && (x < x_size-3);	
 	return(x_ok && y >= 8 && y < (y_size-14));
+}
+// returns true when tile is in the normally visible area of map, false for the dark map bevel
+bool SpellMap::TileIsVisible(MapXY &pos)
+{
+	if(!pos.IsSelected())
+		return(false);
+	return(TileIsVisible(pos.x, pos.y));
+}
+// returns true when tile is in the normally visible area of map, false for the dark map bevel
+bool SpellMap::TileIsVisible()
+{
+	auto pos = GetSelection();
+	if(!pos.IsSelected())
+		return(false);
+	return(TileIsVisible(pos.x, pos.y));
 }
 
 

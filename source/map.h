@@ -735,6 +735,8 @@ class SpellMap
 		int SaveDEF(std::wstring path);
 		int IsLoaded();
 		bool TileIsVisible(int x, int y);
+		bool TileIsVisible(MapXY &pos);
+		bool TileIsVisible();
 		tuple<int,int> GetSurfPos(MapXY &pos);
 
 		

@@ -53,9 +53,12 @@ public:
         EVT_DESTROY_OBJ,
         EVT_DESTROY_ALL,
         EVT_TRANSPORT_UNIT,
-        EVT_SAVE_UNIT
+        EVT_SAVE_UNIT,
+        EVT_TURN,
+        EVT_SURVIVE_TURNS,
+        EVT_TIME_LIMIT
     };
-    string EvtNames[9] = 
+    string EvtNames[12] = 
     {
         "Void",
         "MissionStart",
@@ -65,7 +68,10 @@ public:
         "DestroyObject",
         "DestroyAllUnits",
         "TransportUnit",
-        "SaveUnit"
+        "SaveUnit",
+        "Turn",
+		"SurviveTurns",
+        "TimeLimit"
     };       
 
     // event is being placed in edit mode?
@@ -77,6 +83,7 @@ public:
     int evt_type;
     MapXY position;
     int probability;
+    int time_param;
     int trig_unit_id;
     MapUnit *trig_unit;
     string type_name;
@@ -116,14 +123,16 @@ public:
     int isMissionStart();
     int isSeePlace();
     int isSeeUnit();
+    int isTurn();
     int isDone();
     int isDestroyObject();
     int isTransportSave();
     int isTransportSaveDestroy();
     int hasTargetUnit();
-    int hasPosition();
+    int hasPosition(bool with_virtual=false);
     int isObjectiveType();
     int isEventType();
+	int hasTimer();
 
 
     vector<string> GetEventTypes();
@@ -151,7 +160,7 @@ private:
     int ConvXY(MapXY pos);
     int GetNextID();
     SpellMapEventRec *FindEvent(int type, int probab, MapXY pos={-1,-1});
-    SpellMapEventRec *FindEvent(int type,int probab,int trig_unit);
+    SpellMapEventRec *FindEvent(int type,int probab,int trig_unit,int time_param=0);
     SpellMapEventRec **EventMap(MapXY pos);
 
 public:
@@ -185,6 +194,7 @@ public:
     SpellMapEventRec* AddSeeUnitEvent(MapUnit* unit,int probab=100);
     SpellMapEventRec* AddUnitObjective(MapUnit* unit,SpellMapEventRec::EvtTypes type);
     SpellMapEventRec* AddSeePlaceEvent(MapXY pos,int probab=100);
+    SpellMapEventRec* AddTurnEvent(MapXY pos,int turns=1,int probab=100);
     int ObjectivesDone();
     int GetEventID(SpellMapEventRec * target);
     //SpellMapEventRec::EvtTypes Check

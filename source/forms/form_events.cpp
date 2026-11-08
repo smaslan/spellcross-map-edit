@@ -1,4 +1,4 @@
-///////////////////////////////////////////////////////////////////////////
+﻿///////////////////////////////////////////////////////////////////////////
 // C++ code generated with wxFormBuilder (version 3.10.1-0-g8feb16b3)
 // http://www.wxformbuilder.org/
 //
@@ -23,245 +23,256 @@ FormEvent::FormEvent(wxWindow* parent,SpellData* spell_data,wxWindowID id,const 
 
 	
 	// === AUTO GENERATED START ===	
+	// <wxFormsBuilder> - Section auto-inserted from 'forms.cpp' class 'FormEvent' on 2026-10-28 10:33:37
+	this->SetSizeHints( wxSize( 900,600 ), wxDefaultSize );
+	this->SetBackgroundColour( wxSystemSettings::GetColour( wxSYS_COLOUR_MENU ) );
 	
-	this->SetSizeHints(wxSize(900,600),wxDefaultSize);
-	this->SetBackgroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_MENU));
-
-	mMenu = new wxMenuBar(0);
+	mMenu = new wxMenuBar( 0 );
 	mmFile = new wxMenu();
 	wxMenuItem* mmOk;
-	mmOk = new wxMenuItem(mmFile,wxID_MM_OK,wxString(wxT("Place/Update")) + wxT('\t') + wxT("Enter"),wxEmptyString,wxITEM_NORMAL);
-	mmFile->Append(mmOk);
-
+	mmOk = new wxMenuItem( mmFile, wxID_MM_OK, wxString( wxT("Place/Update") ) + wxT('\t') + wxT("Ctrl+Enter"), wxEmptyString, wxITEM_NORMAL );
+	mmFile->Append( mmOk );
+	
 	wxMenuItem* mmExit;
-	mmExit = new wxMenuItem(mmFile,wxID_MM_EXIT,wxString(wxT("Exit")) + wxT('\t') + wxT("ESC"),wxEmptyString,wxITEM_NORMAL);
-	mmFile->Append(mmExit);
-
-	mMenu->Append(mmFile,wxT("Events"));
-
-	this->SetMenuBar(mMenu);
-
+	mmExit = new wxMenuItem( mmFile, wxID_MM_EXIT, wxString( wxT("Exit") ) + wxT('\t') + wxT("ESC"), wxEmptyString, wxITEM_NORMAL );
+	mmFile->Append( mmExit );
+	
+	mMenu->Append( mmFile, wxT("Events") );
+	
+	this->SetMenuBar( mMenu );
+	
 	wxBoxSizer* bSizer47;
-	bSizer47 = new wxBoxSizer(wxHORIZONTAL);
-
+	bSizer47 = new wxBoxSizer( wxHORIZONTAL );
+	
 	wxBoxSizer* bSizer531;
-	bSizer531 = new wxBoxSizer(wxVERTICAL);
-
-	bSizer531->SetMinSize(wxSize(200,-1));
-	m_staticText57 = new wxStaticText(this,wxID_ANY,wxT("Events list:"),wxDefaultPosition,wxDefaultSize,0);
-	m_staticText57->Wrap(-1);
-	bSizer531->Add(m_staticText57,0,wxTOP|wxRIGHT|wxLEFT,5);
-
-	lbEvents = new wxListBox(this,wxID_LB_EVENTS,wxDefaultPosition,wxDefaultSize,0,NULL,wxLB_ALWAYS_SB);
-	bSizer531->Add(lbEvents,1,wxEXPAND|wxBOTTOM|wxRIGHT|wxLEFT,5);
-
+	bSizer531 = new wxBoxSizer( wxVERTICAL );
+	
+	bSizer531->SetMinSize( wxSize( 200,-1 ) );
+	m_staticText57 = new wxStaticText( this, wxID_ANY, wxT("Events list:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText57->Wrap( -1 );
+	bSizer531->Add( m_staticText57, 0, wxTOP|wxRIGHT|wxLEFT, 5 );
+	
+	lbEvents = new wxListBox( this, wxID_LB_EVENTS, wxDefaultPosition, wxDefaultSize, 0, NULL, wxLB_ALWAYS_SB );
+	bSizer531->Add( lbEvents, 1, wxEXPAND|wxBOTTOM|wxRIGHT|wxLEFT, 5 );
+	
 	wxBoxSizer* bSizer54;
-	bSizer54 = new wxBoxSizer(wxHORIZONTAL);
-
-	btnAddEvent = new wxButton(this,wxID_BTN_ADD_EVENT,wxT("New"),wxDefaultPosition,wxDefaultSize,0);
-	bSizer54->Add(btnAddEvent,1,wxALL,5);
-
-	btnRemoveEvent = new wxButton(this,wxID_BTN_REM_EVENT,wxT("Remove"),wxDefaultPosition,wxDefaultSize,0);
-	bSizer54->Add(btnRemoveEvent,1,wxALL,5);
-
-
-	bSizer531->Add(bSizer54,0,wxEXPAND,5);
-
-	btnCleanup = new wxButton(this,wxID_BTN_CLEANUP,wxT("Cleanup Events"),wxDefaultPosition,wxDefaultSize,0);
-	bSizer531->Add(btnCleanup,0,wxBOTTOM|wxEXPAND|wxLEFT|wxRIGHT,5);
-
-
-	bSizer47->Add(bSizer531,0,wxEXPAND,5);
-
-	m_staticline21 = new wxStaticLine(this,wxID_ANY,wxDefaultPosition,wxDefaultSize,wxLI_VERTICAL);
-	bSizer47->Add(m_staticline21,0,wxEXPAND | wxALL,5);
-
+	bSizer54 = new wxBoxSizer( wxHORIZONTAL );
+	
+	btnAddEvent = new wxButton( this, wxID_BTN_ADD_EVENT, wxT("New"), wxDefaultPosition, wxDefaultSize, 0 );
+	bSizer54->Add( btnAddEvent, 1, wxALL, 5 );
+	
+	btnRemoveEvent = new wxButton( this, wxID_BTN_REM_EVENT, wxT("Remove"), wxDefaultPosition, wxDefaultSize, 0 );
+	bSizer54->Add( btnRemoveEvent, 1, wxALL, 5 );
+	
+	
+	bSizer531->Add( bSizer54, 0, wxEXPAND, 5 );
+	
+	btnCleanup = new wxButton( this, wxID_BTN_CLEANUP, wxT("Cleanup Events"), wxDefaultPosition, wxDefaultSize, 0 );
+	bSizer531->Add( btnCleanup, 0, wxBOTTOM|wxEXPAND|wxLEFT|wxRIGHT, 5 );
+	
+	
+	bSizer47->Add( bSizer531, 0, wxEXPAND, 5 );
+	
+	m_staticline21 = new wxStaticLine( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLI_VERTICAL );
+	bSizer47->Add( m_staticline21, 0, wxEXPAND | wxALL, 5 );
+	
 	wxBoxSizer* bSizer50;
-	bSizer50 = new wxBoxSizer(wxVERTICAL);
-
-	bSizer50->SetMinSize(wxSize(300,-1));
-	m_staticText50 = new wxStaticText(this,wxID_ANY,wxT("Event type:"),wxDefaultPosition,wxDefaultSize,0);
-	m_staticText50->Wrap(-1);
-	bSizer50->Add(m_staticText50,0,wxTOP|wxRIGHT|wxLEFT,5);
-
+	bSizer50 = new wxBoxSizer( wxVERTICAL );
+	
+	bSizer50->SetMinSize( wxSize( 450,-1 ) );
+	m_staticText50 = new wxStaticText( this, wxID_ANY, wxT("Event type:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText50->Wrap( -1 );
+	bSizer50->Add( m_staticText50, 0, wxTOP|wxRIGHT|wxLEFT, 5 );
+	
 	wxArrayString chbTypeChoices;
-	chbType = new wxChoice(this,wxID_CHB_TYPE,wxDefaultPosition,wxDefaultSize,chbTypeChoices,0);
-	chbType->SetSelection(0);
-	bSizer50->Add(chbType,0,wxEXPAND|wxRIGHT|wxLEFT,5);
-
-	m_staticText62 = new wxStaticText(this,wxID_ANY,wxT("MissionObjective() description:"),wxDefaultPosition,wxDefaultSize,0);
-	m_staticText62->Wrap(-1);
-	bSizer50->Add(m_staticText62,0,wxTOP|wxRIGHT|wxLEFT,5);
-
-	txtObjectiveDesc = new wxTextCtrl(this,wxID_TXT_OBJ_DESC,wxEmptyString,wxDefaultPosition,wxDefaultSize,wxTE_PROCESS_ENTER);
-	bSizer50->Add(txtObjectiveDesc,0,wxEXPAND|wxBOTTOM|wxRIGHT|wxLEFT,5);
-
-	cbIsObjective = new wxCheckBox(this,wxID_CB_IS_OBJECTIVE,wxT("is MissionObjective?"),wxDefaultPosition,wxDefaultSize,0);
-	bSizer50->Add(cbIsObjective,0,wxALL,5);
-
+	chbType = new wxChoice( this, wxID_CHB_TYPE, wxDefaultPosition, wxDefaultSize, chbTypeChoices, 0 );
+	chbType->SetSelection( 0 );
+	bSizer50->Add( chbType, 0, wxEXPAND|wxRIGHT|wxLEFT, 5 );
+	
+	m_staticText62 = new wxStaticText( this, wxID_ANY, wxT("MissionObjective() description:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText62->Wrap( -1 );
+	bSizer50->Add( m_staticText62, 0, wxTOP|wxRIGHT|wxLEFT, 5 );
+	
+	txtObjectiveDesc = new wxTextCtrl( this, wxID_TXT_OBJ_DESC, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxTE_PROCESS_ENTER );
+	bSizer50->Add( txtObjectiveDesc, 0, wxEXPAND|wxBOTTOM|wxRIGHT|wxLEFT, 5 );
+	
+	cbIsObjective = new wxCheckBox( this, wxID_CB_IS_OBJECTIVE, wxT("is MissionObjective?"), wxDefaultPosition, wxDefaultSize, 0 );
+	bSizer50->Add( cbIsObjective, 0, wxALL, 5 );
+	
 	wxBoxSizer* bSizer48;
-	bSizer48 = new wxBoxSizer(wxHORIZONTAL);
-
-	m_staticText52 = new wxStaticText(this,wxID_ANY,wxT("Map x-position:"),wxDefaultPosition,wxDefaultSize,0);
-	m_staticText52->Wrap(-1);
-	m_staticText52->SetMinSize(wxSize(110,-1));
-
-	bSizer48->Add(m_staticText52,0,wxALIGN_CENTER|wxALL,5);
-
-	spinXpos = new wxSpinCtrl(this,wxID_SPIN_XPOS,wxEmptyString,wxDefaultPosition,wxDefaultSize,wxSP_ARROW_KEYS,0,10,0);
-	spinXpos->SetMinSize(wxSize(70,-1));
-
-	bSizer48->Add(spinXpos,0,wxTOP|wxBOTTOM|wxRIGHT,5);
-
-	m_staticText54 = new wxStaticText(this,wxID_ANY,wxT("Map y-position:"),wxDefaultPosition,wxDefaultSize,0);
-	m_staticText54->Wrap(-1);
-	bSizer48->Add(m_staticText54,0,wxALIGN_CENTER|wxALL,5);
-
-	spinYpos = new wxSpinCtrl(this,wxID_SPIN_YPOS,wxEmptyString,wxDefaultPosition,wxDefaultSize,wxSP_ARROW_KEYS,0,10,0);
-	spinYpos->SetMinSize(wxSize(70,-1));
-
-	bSizer48->Add(spinYpos,0,wxTOP|wxBOTTOM|wxRIGHT,5);
-
-
-	bSizer50->Add(bSizer48,0,wxEXPAND,5);
-
+	bSizer48 = new wxBoxSizer( wxHORIZONTAL );
+	
+	m_staticText52 = new wxStaticText( this, wxID_ANY, wxT("Map x-position:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText52->Wrap( -1 );
+	m_staticText52->SetMinSize( wxSize( 110,-1 ) );
+	
+	bSizer48->Add( m_staticText52, 0, wxALIGN_CENTER|wxALL, 5 );
+	
+	spinXpos = new wxSpinCtrl( this, wxID_SPIN_XPOS, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, 0, 10, 0 );
+	spinXpos->SetMinSize( wxSize( 70,-1 ) );
+	
+	bSizer48->Add( spinXpos, 0, wxTOP|wxBOTTOM|wxRIGHT, 5 );
+	
+	m_staticText54 = new wxStaticText( this, wxID_ANY, wxT("Map y-position:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText54->Wrap( -1 );
+	bSizer48->Add( m_staticText54, 0, wxALIGN_CENTER|wxALL, 5 );
+	
+	spinYpos = new wxSpinCtrl( this, wxID_SPIN_YPOS, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, 0, 10, 0 );
+	spinYpos->SetMinSize( wxSize( 70,-1 ) );
+	
+	bSizer48->Add( spinYpos, 0, wxTOP|wxBOTTOM|wxRIGHT, 5 );
+	
+	
+	bSizer50->Add( bSizer48, 0, wxEXPAND, 5 );
+	
 	wxBoxSizer* bSizer56;
-	bSizer56 = new wxBoxSizer(wxHORIZONTAL);
-
-	m_staticText59 = new wxStaticText(this,wxID_ANY,wxT("Trigger unit index:"),wxDefaultPosition,wxDefaultSize,0);
-	m_staticText59->Wrap(-1);
-	m_staticText59->SetMinSize(wxSize(110,-1));
-
-	bSizer56->Add(m_staticText59,0,wxALIGN_CENTER_VERTICAL|wxALL,5);
-
-	spinTrigUnit = new wxSpinCtrl(this,wxID_SPIN_TRIG_UNIT,wxEmptyString,wxDefaultPosition,wxDefaultSize,wxSP_ARROW_KEYS,0,99,0);
-	spinTrigUnit->SetMinSize(wxSize(70,-1));
-
-	bSizer56->Add(spinTrigUnit,0,wxALL,5);
-
-
-	bSizer50->Add(bSizer56,0,wxEXPAND,5);
-
+	bSizer56 = new wxBoxSizer( wxHORIZONTAL );
+	
+	m_staticText59 = new wxStaticText( this, wxID_ANY, wxT("Trigger unit index:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText59->Wrap( -1 );
+	m_staticText59->SetMinSize( wxSize( 110,-1 ) );
+	
+	bSizer56->Add( m_staticText59, 0, wxALIGN_CENTER_VERTICAL|wxALL, 5 );
+	
+	spinTrigUnit = new wxSpinCtrl( this, wxID_SPIN_TRIG_UNIT, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, 0, 99, 0 );
+	spinTrigUnit->SetMinSize( wxSize( 70,-1 ) );
+	
+	bSizer56->Add( spinTrigUnit, 0, wxALL, 5 );
+	
+	
+	bSizer50->Add( bSizer56, 0, wxEXPAND, 5 );
+	
 	wxBoxSizer* bSizer561;
-	bSizer561 = new wxBoxSizer(wxHORIZONTAL);
-
-	m_staticText51 = new wxStaticText(this,wxID_ANY,wxT("Probability:"),wxDefaultPosition,wxDefaultSize,0);
-	m_staticText51->Wrap(-1);
-	m_staticText51->SetMinSize(wxSize(110,-1));
-
-	bSizer561->Add(m_staticText51,0,wxALIGN_CENTER_VERTICAL|wxALL,5);
-
-	spinProb = new wxSpinCtrl(this,wxID_SPIN_PROB,wxEmptyString,wxDefaultPosition,wxDefaultSize,wxSP_ARROW_KEYS,1,100,100);
-	spinProb->SetMinSize(wxSize(70,-1));
-
-	bSizer561->Add(spinProb,0,wxALL,5);
-
-
-	bSizer50->Add(bSizer561,0,wxEXPAND,5);
-
-	m_staticline20 = new wxStaticLine(this,wxID_ANY,wxDefaultPosition,wxDefaultSize,wxLI_HORIZONTAL);
-	bSizer50->Add(m_staticline20,0,wxEXPAND | wxALL,5);
-
+	bSizer561 = new wxBoxSizer( wxHORIZONTAL );
+	
+	m_staticText51 = new wxStaticText( this, wxID_ANY, wxT("Probability:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText51->Wrap( -1 );
+	m_staticText51->SetMinSize( wxSize( 110,-1 ) );
+	
+	bSizer561->Add( m_staticText51, 0, wxALIGN_CENTER_VERTICAL|wxALL, 5 );
+	
+	spinProb = new wxSpinCtrl( this, wxID_SPIN_PROB, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, 1, 100, 100 );
+	spinProb->SetMinSize( wxSize( 70,-1 ) );
+	
+	bSizer561->Add( spinProb, 0, wxALL, 5 );
+	
+	m_staticText541 = new wxStaticText( this, wxID_ANY, wxT("Timer (turns):"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText541->Wrap( -1 );
+	bSizer561->Add( m_staticText541, 0, wxALIGN_CENTER_VERTICAL|wxALL, 5 );
+	
+	spinTimer = new wxSpinCtrl( this, wxID_SPIN_TIMER, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, 0, 10000, 0 );
+	spinTimer->SetMinSize( wxSize( 70,-1 ) );
+	
+	bSizer561->Add( spinTimer, 0, wxALL, 5 );
+	
+	
+	bSizer50->Add( bSizer561, 0, wxEXPAND, 5 );
+	
+	m_staticline20 = new wxStaticLine( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLI_HORIZONTAL );
+	bSizer50->Add( m_staticline20, 0, wxEXPAND | wxALL, 5 );
+	
 	wxBoxSizer* bSizer55;
-	bSizer55 = new wxBoxSizer(wxHORIZONTAL);
-
-	strUnits = new wxStaticText(this,wxID_ANY,wxT("Spawned units count:"),wxDefaultPosition,wxDefaultSize,0);
-	strUnits->Wrap(-1);
-	bSizer55->Add(strUnits,0,wxALIGN_CENTER|wxRIGHT|wxLEFT,5);
-
-	txtUnits = new wxTextCtrl(this,wxID_TXT_UNITS,wxEmptyString,wxDefaultPosition,wxDefaultSize,wxTE_READONLY);
-	bSizer55->Add(txtUnits,1,wxRIGHT|wxLEFT,5);
-
-
-	bSizer50->Add(bSizer55,0,wxEXPAND,5);
-
-	m_staticline22 = new wxStaticLine(this,wxID_ANY,wxDefaultPosition,wxDefaultSize,wxLI_HORIZONTAL);
-	bSizer50->Add(m_staticline22,0,wxEXPAND | wxALL,5);
-
-	m_staticText74 = new wxStaticText(this,wxID_ANY,wxT("Play CAN animation:"),wxDefaultPosition,wxDefaultSize,0);
-	m_staticText74->Wrap(-1);
-	bSizer50->Add(m_staticText74,0,wxLEFT|wxRIGHT,5);
-
+	bSizer55 = new wxBoxSizer( wxHORIZONTAL );
+	
+	strUnits = new wxStaticText( this, wxID_ANY, wxT("Spawned units count:"), wxDefaultPosition, wxDefaultSize, 0 );
+	strUnits->Wrap( -1 );
+	bSizer55->Add( strUnits, 0, wxALIGN_CENTER|wxRIGHT|wxLEFT, 5 );
+	
+	txtUnits = new wxTextCtrl( this, wxID_TXT_UNITS, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxTE_READONLY );
+	bSizer55->Add( txtUnits, 1, wxRIGHT|wxLEFT, 5 );
+	
+	
+	bSizer50->Add( bSizer55, 0, wxEXPAND, 5 );
+	
+	m_staticline22 = new wxStaticLine( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLI_HORIZONTAL );
+	bSizer50->Add( m_staticline22, 0, wxEXPAND | wxALL, 5 );
+	
+	m_staticText74 = new wxStaticText( this, wxID_ANY, wxT("Play CAN animation:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText74->Wrap( -1 );
+	bSizer50->Add( m_staticText74, 0, wxLEFT|wxRIGHT, 5 );
+	
 	wxArrayString chbCANanimChoices;
-	chbCANanim = new wxChoice(this,wxID_CAN_ANIM,wxDefaultPosition,wxDefaultSize,chbCANanimChoices,0);
-	chbCANanim->SetSelection(0);
-	bSizer50->Add(chbCANanim,0,wxBOTTOM|wxEXPAND|wxLEFT|wxRIGHT,5);
-
-	m_staticline221 = new wxStaticLine(this,wxID_ANY,wxDefaultPosition,wxDefaultSize,wxLI_HORIZONTAL);
-	bSizer50->Add(m_staticline221,0,wxEXPAND | wxALL,5);
-
-	m_staticText53 = new wxStaticText(this,wxID_ANY,wxT("Event message(s) list:"),wxDefaultPosition,wxDefaultSize,0);
-	m_staticText53->Wrap(-1);
-	bSizer50->Add(m_staticText53,0,wxLEFT|wxRIGHT,5);
-
+	chbCANanim = new wxChoice( this, wxID_CAN_ANIM, wxDefaultPosition, wxDefaultSize, chbCANanimChoices, 0 );
+	chbCANanim->SetSelection( 0 );
+	bSizer50->Add( chbCANanim, 0, wxBOTTOM|wxEXPAND|wxLEFT|wxRIGHT, 5 );
+	
+	m_staticline221 = new wxStaticLine( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLI_HORIZONTAL );
+	bSizer50->Add( m_staticline221, 0, wxEXPAND | wxALL, 5 );
+	
+	m_staticText53 = new wxStaticText( this, wxID_ANY, wxT("Event message(s) list:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText53->Wrap( -1 );
+	bSizer50->Add( m_staticText53, 0, wxLEFT|wxRIGHT, 5 );
+	
 	wxArrayString chbMsgItemChoices;
-	chbMsgItem = new wxChoice(this,wxID_CHB_MSG_ITEM,wxDefaultPosition,wxDefaultSize,chbMsgItemChoices,0);
-	chbMsgItem->SetSelection(0);
-	bSizer50->Add(chbMsgItem,0,wxEXPAND|wxBOTTOM|wxRIGHT|wxLEFT,5);
-
+	chbMsgItem = new wxChoice( this, wxID_CHB_MSG_ITEM, wxDefaultPosition, wxDefaultSize, chbMsgItemChoices, 0 );
+	chbMsgItem->SetSelection( 0 );
+	bSizer50->Add( chbMsgItem, 0, wxEXPAND|wxBOTTOM|wxRIGHT|wxLEFT, 5 );
+	
 	wxBoxSizer* bSizer49;
-	bSizer49 = new wxBoxSizer(wxHORIZONTAL);
-
-	btnNewMsg = new wxButton(this,wxID_BTN_NEW_MSG,wxT("New"),wxDefaultPosition,wxDefaultSize,0);
-	bSizer49->Add(btnNewMsg,1,wxALL,5);
-
-	btnDelMsg = new wxButton(this,wxID_BNT_DEL_MSG,wxT("Delete"),wxDefaultPosition,wxDefaultSize,0);
-	bSizer49->Add(btnDelMsg,1,wxALL,5);
-
-	btnMsgUp = new wxButton(this,wxID_BTN_MSG_UP,wxT("Move up"),wxDefaultPosition,wxDefaultSize,0);
-	bSizer49->Add(btnMsgUp,1,wxALL,5);
-
-	btnMsgDown = new wxButton(this,wxID_BTN_MSG_DOWN,wxT("Move down"),wxDefaultPosition,wxDefaultSize,0);
-	bSizer49->Add(btnMsgDown,1,wxALL,5);
-
-
-	bSizer50->Add(bSizer49,0,wxEXPAND,5);
-
-	m_staticText55 = new wxStaticText(this,wxID_ANY,wxT("Message text resource:"),wxDefaultPosition,wxDefaultSize,0);
-	m_staticText55->Wrap(-1);
-	bSizer50->Add(m_staticText55,0,wxTOP|wxRIGHT|wxLEFT,5);
-
-	lbMsg = new wxListBox(this,wxID_LB_MSG,wxDefaultPosition,wxDefaultSize,0,NULL,wxLB_ALWAYS_SB|wxALWAYS_SHOW_SB|wxVSCROLL);
-	bSizer50->Add(lbMsg,1,wxEXPAND|wxBOTTOM|wxRIGHT|wxLEFT,5);
-
-
-	bSizer47->Add(bSizer50,0,wxEXPAND,5);
-
-	m_staticline19 = new wxStaticLine(this,wxID_ANY,wxDefaultPosition,wxDefaultSize,wxLI_VERTICAL);
-	bSizer47->Add(m_staticline19,0,wxEXPAND|wxTOP|wxBOTTOM,5);
-
+	bSizer49 = new wxBoxSizer( wxHORIZONTAL );
+	
+	btnNewMsg = new wxButton( this, wxID_BTN_NEW_MSG, wxT("New"), wxDefaultPosition, wxDefaultSize, 0 );
+	bSizer49->Add( btnNewMsg, 1, wxALL, 5 );
+	
+	btnDelMsg = new wxButton( this, wxID_BNT_DEL_MSG, wxT("Delete"), wxDefaultPosition, wxDefaultSize, 0 );
+	bSizer49->Add( btnDelMsg, 1, wxALL, 5 );
+	
+	btnMsgUp = new wxButton( this, wxID_BTN_MSG_UP, wxT("Move up"), wxDefaultPosition, wxDefaultSize, 0 );
+	bSizer49->Add( btnMsgUp, 1, wxALL, 5 );
+	
+	btnMsgDown = new wxButton( this, wxID_BTN_MSG_DOWN, wxT("Move down"), wxDefaultPosition, wxDefaultSize, 0 );
+	bSizer49->Add( btnMsgDown, 1, wxALL, 5 );
+	
+	
+	bSizer50->Add( bSizer49, 0, wxEXPAND, 5 );
+	
+	m_staticText55 = new wxStaticText( this, wxID_ANY, wxT("Message text resource:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText55->Wrap( -1 );
+	bSizer50->Add( m_staticText55, 0, wxTOP|wxRIGHT|wxLEFT, 5 );
+	
+	lbMsg = new wxListBox( this, wxID_LB_MSG, wxDefaultPosition, wxDefaultSize, 0, NULL, wxLB_ALWAYS_SB|wxALWAYS_SHOW_SB|wxVSCROLL );
+	bSizer50->Add( lbMsg, 1, wxEXPAND|wxBOTTOM|wxRIGHT|wxLEFT, 5 );
+	
+	
+	bSizer47->Add( bSizer50, 0, wxEXPAND, 5 );
+	
+	m_staticline19 = new wxStaticLine( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLI_VERTICAL );
+	bSizer47->Add( m_staticline19, 0, wxEXPAND|wxTOP|wxBOTTOM, 5 );
+	
 	wxBoxSizer* bSizer52;
-	bSizer52 = new wxBoxSizer(wxVERTICAL);
-
-	m_staticText56 = new wxStaticText(this,wxID_ANY,wxT("Message text:"),wxDefaultPosition,wxDefaultSize,0);
-	m_staticText56->Wrap(-1);
-	bSizer52->Add(m_staticText56,0,wxTOP|wxRIGHT|wxLEFT,5);
-
-	txtMessage = new wxTextCtrl(this,wxID_TXT_MSG,wxEmptyString,wxDefaultPosition,wxDefaultSize,wxTE_BESTWRAP|wxTE_MULTILINE|wxTE_READONLY|wxTE_WORDWRAP);
-	bSizer52->Add(txtMessage,1,wxEXPAND|wxBOTTOM|wxRIGHT|wxLEFT,5);
-
+	bSizer52 = new wxBoxSizer( wxVERTICAL );
+	
+	m_staticText56 = new wxStaticText( this, wxID_ANY, wxT("Message text:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText56->Wrap( -1 );
+	bSizer52->Add( m_staticText56, 0, wxTOP|wxRIGHT|wxLEFT, 5 );
+	
+	txtMessage = new wxTextCtrl( this, wxID_TXT_MSG, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxTE_BESTWRAP|wxTE_MULTILINE|wxTE_READONLY|wxTE_WORDWRAP );
+	bSizer52->Add( txtMessage, 1, wxEXPAND|wxBOTTOM|wxRIGHT|wxLEFT, 5 );
+	
 	wxBoxSizer* bSizer53;
-	bSizer53 = new wxBoxSizer(wxHORIZONTAL);
-
-	btnMsgPlay = new wxButton(this,wxID_BTN_PLAY_MSG,wxT("Play narration"),wxDefaultPosition,wxDefaultSize,0);
-	bSizer53->Add(btnMsgPlay,1,wxALL,5);
-
-	btnMsgStop = new wxButton(this,wxID_BTN_STOP_MSG,wxT("Stop narration"),wxDefaultPosition,wxDefaultSize,0);
-	bSizer53->Add(btnMsgStop,1,wxALL,5);
-
-
-	bSizer52->Add(bSizer53,0,wxEXPAND,5);
-
-
-	bSizer47->Add(bSizer52,1,wxEXPAND,5);
-
-
-	this->SetSizer(bSizer47);
+	bSizer53 = new wxBoxSizer( wxHORIZONTAL );
+	
+	btnMsgPlay = new wxButton( this, wxID_BTN_PLAY_MSG, wxT("Play narration"), wxDefaultPosition, wxDefaultSize, 0 );
+	bSizer53->Add( btnMsgPlay, 1, wxALL, 5 );
+	
+	btnMsgStop = new wxButton( this, wxID_BTN_STOP_MSG, wxT("Stop narration"), wxDefaultPosition, wxDefaultSize, 0 );
+	bSizer53->Add( btnMsgStop, 1, wxALL, 5 );
+	
+	
+	bSizer52->Add( bSizer53, 0, wxEXPAND, 5 );
+	
+	
+	bSizer47->Add( bSizer52, 1, wxEXPAND, 5 );
+	
+	
+	this->SetSizer( bSizer47 );
 	this->Layout();
-	sBar = this->CreateStatusBar(1,wxSTB_SIZEGRIP,wxID_ANY);
+	sBar = this->CreateStatusBar( 1, wxSTB_SIZEGRIP, wxID_ANY );
+	
+	this->Centre( wxBOTH );
+	
 
-	this->Centre(wxBOTH);
-
+	// </wxFormsBuilder> - Section auto-inserted from 'forms.cpp' class 'FormEvent' on 2026-10-28 10:33:37
 	// === AUTO GENERATED END ===
 
 	// set icon
@@ -333,6 +344,7 @@ FormEvent::FormEvent(wxWindow* parent,SpellData* spell_data,wxWindowID id,const 
 	Bind(wxEVT_COMMAND_CHECKBOX_CLICKED,&FormEvent::OnEditParams,this,wxID_CB_IS_OBJECTIVE);
 	Bind(wxEVT_COMMAND_CHOICE_SELECTED,&FormEvent::OnEditParams,this,wxID_CHB_TYPE);
 	Bind(wxEVT_COMMAND_SPINCTRL_UPDATED,&FormEvent::OnEditParams,this,wxID_SPIN_PROB);
+	Bind(wxEVT_COMMAND_SPINCTRL_UPDATED,&FormEvent::OnEditParams,this,wxID_SPIN_TIMER);
 	Bind(wxEVT_COMMAND_SPINCTRL_UPDATED,&FormEvent::OnEditParams,this,wxID_SPIN_XPOS);
 	Bind(wxEVT_COMMAND_SPINCTRL_UPDATED,&FormEvent::OnEditParams,this,wxID_SPIN_YPOS);
 	Bind(wxEVT_COMMAND_SPINCTRL_UPDATED,&FormEvent::OnEditParams,this,wxID_SPIN_TRIG_UNIT);
@@ -493,17 +505,20 @@ void FormEvent::SetMap(SpellMap* map)
 void FormEvent::FillEventsList()
 {
 	// fill events list
+	int sel_id = lbEvents->GetSelection();
 	lbEvents->Freeze();
 	lbEvents->Clear();
 	auto events = spell_map->events->GetEvents();
 	for(int k = 0; k < events.size(); k++)
 	{
-		string label = string_format("#%d - %s",k+1,events[k]->type_name.c_str());
+		string label = string_format("#%d - %s",k+1,events[k]->type_name);
 		if(events[k]->probability != 100)
 			label += string_format(", (p=%d%%)",events[k]->probability);
 		lbEvents->Append(label,(void*)events[k]);
 	}
 	lbEvents->Thaw();
+	if(sel_id >= 0 && sel_id < lbEvents->GetCount())
+		lbEvents->Select(sel_id);
 }
 
 // on add new event to list
@@ -589,6 +604,9 @@ void FormEvent::SelectEvent(SpellMapEventRec *evt)
 	// fill probability
 	spinProb->SetValue(spell_event->probability);
 
+	// timer (turns)
+	spinTimer->SetValue(spell_event->time_param);
+
 	// fill position (if applicable)
 	spinXpos->SetRange(0,spell_map->x_size - 1);
 	spinXpos->SetValue(spell_event->position.x);
@@ -601,8 +619,16 @@ void FormEvent::SelectEvent(SpellMapEventRec *evt)
 	// fill associated units count
 	txtUnits->SetValue(string_format("%d", spell_event->units.size()));
 
-	// is objective?
-	cbIsObjective->SetValue(spell_event->is_objective);
+	// is objective?	
+	bool is_objective = spell_event->is_objective;
+	bool is_evt_obj = spell_event->isObjectiveType() && spell_event->isEventType();
+	cbIsObjective->Enable(is_evt_obj);
+	if(!is_evt_obj && spell_event->isObjectiveType())
+		is_objective = true;
+	if(!is_evt_obj && spell_event->isEventType())
+		is_objective = false;
+	cbIsObjective->SetValue(is_objective);
+
 
 	// objective label
 	txtObjectiveDesc->SetValue(spell_event->label);
@@ -633,7 +659,7 @@ void FormEvent::FillMsgItems()
 		return;		
 	chbMsgItem->Freeze();
 	for(int k = 0; k < spell_event->texts.size(); k++)
-		chbMsgItem->Append(string_format("#%d - %s",k+1,spell_event->texts[k].text->name.c_str()));	
+		chbMsgItem->Append(string_format("#%d - %s",k+1,spell_event->texts[k].text->name));	
 	if(chbMsgItem->GetCount())
 		chbMsgItem->Select(0);
 	chbMsgItem->Thaw();
@@ -774,13 +800,23 @@ void FormEvent::OnEditParams(wxCommandEvent& event)
 	// update event type
 	int type_id = chbType->GetSelection();
 	if(!chbType->IsEmpty() && type_id >= 0)
+	{
+		bool type_changed = spell_event->evt_type != type_id;
 		spell_event->SetType(type_id);
+		if(type_changed)
+			FillEventsList();
+	}
 
 	// mission objective flag
-	if(cbIsObjective->GetValue() && spell_event->evt_type == SpellMapEventRec::EvtTypes::EVT_MISSION_START)
+	if(spell_event->evt_type == SpellMapEventRec::EvtTypes::EVT_MISSION_START)
+		cbIsObjective->SetValue(false);
+	if(spell_event->isObjectiveType() && !spell_event->isEventType())
+		cbIsObjective->SetValue(true);
+	if(!spell_event->isObjectiveType() && spell_event->isEventType())
 		cbIsObjective->SetValue(false);
 	spell_event->is_objective = cbIsObjective->GetValue();
-
+	cbIsObjective->Enable(spell_event->isObjectiveType() && spell_event->isEventType());
+	
 	// update probability	
 	if(!spell_event->isEventType())
 	{
@@ -792,6 +828,18 @@ void FormEvent::OnEditParams(wxCommandEvent& event)
 	{
 		spell_event->probability = spinProb->GetValue();
 		spinProb->Enable(true);
+	}
+
+	// timer (turns)
+	if(spell_event->hasTimer())
+	{
+		spell_event->time_param = spinTimer->GetValue();
+		spinTimer->Enable(true);
+	}
+	else
+	{
+		spell_event->time_param = 0;
+		spinTimer->Enable(false);
 	}
 
 	// objective text label
