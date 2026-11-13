@@ -27,7 +27,7 @@ FormGResEncoder::FormGResEncoder(wxWindow* parent,SpellData* spell_data,wxWindow
 	this->spell_data = spell_data;
 
 	// === AUTO GENERATED START ===	
-	// <wxFormsBuilder> - Section auto-inserted from 'forms.cpp' class 'FormGResEncoder' on 2026-09-21 21:21:11
+	// <wxFormsBuilder> - Section auto-inserted from 'forms.cpp' class 'FormGResEncoder' on 2026-11-13 18:06:10
 	this->SetSizeHints( wxDefaultSize, wxDefaultSize );
 	this->SetBackgroundColour( wxSystemSettings::GetColour( wxSYS_COLOUR_MENU ) );
 	
@@ -201,16 +201,20 @@ FormGResEncoder::FormGResEncoder(wxWindow* parent,SpellData* spell_data,wxWindow
 	m_staticText136->Wrap( -1 );
 	bSizer128->Add( m_staticText136, 0, wxRIGHT|wxLEFT, 5 );
 	
-	pgProperties = new wxPropertyGrid(this, wxID_PG_PROPS, wxDefaultPosition, wxDefaultSize, wxPG_DEFAULT_STYLE);
-	pgProperties->SetMinSize( wxSize( 500,-1 ) );
+	wxBoxSizer* bSizer163;
+	bSizer163 = new wxBoxSizer( wxHORIZONTAL );
 	
-	bSizer128->Add( pgProperties, 0, wxEXPAND|wxBOTTOM|wxRIGHT|wxLEFT, 5 );
+	pgProperties1 = new wxPropertyGrid(this, wxID_PG_PROPS1, wxDefaultPosition, wxDefaultSize, wxPG_DEFAULT_STYLE);
+	bSizer163->Add( pgProperties1, 1, wxEXPAND|wxBOTTOM|wxRIGHT|wxLEFT, 5 );
+	
+	pgProperties2 = new wxPropertyGrid(this, wxID_PG_PROPS2, wxDefaultPosition, wxDefaultSize, wxPG_DEFAULT_STYLE);
+	bSizer163->Add( pgProperties2, 1, wxBOTTOM|wxRIGHT, 5 );
+	
+	
+	bSizer128->Add( bSizer163, 1, wxEXPAND, 5 );
 	
 	
 	bSizer102->Add( bSizer128, 1, wxEXPAND, 5 );
-	
-	
-	bSizer102->Add( 0, 0, 1, wxEXPAND, 5 );
 	
 	btnRegen = new wxButton( this, wxID_BTN_REGEN, wxT("Regenerate"), wxDefaultPosition, wxDefaultSize, 0 );
 	bSizer102->Add( btnRegen, 0, wxALL|wxEXPAND, 5 );
@@ -228,7 +232,7 @@ FormGResEncoder::FormGResEncoder(wxWindow* parent,SpellData* spell_data,wxWindow
 	this->Centre( wxBOTH );
 	
 
-	// </wxFormsBuilder> - Section auto-inserted from 'forms.cpp' class 'FormGResEncoder' on 2026-09-21 21:21:11
+	// </wxFormsBuilder> - Section auto-inserted from 'forms.cpp' class 'FormGResEncoder' on 2026-11-13 18:06:10
 	// === AUTO GENERATED END ===
 	m_thread_active = 0;
 
@@ -262,11 +266,13 @@ FormGResEncoder::FormGResEncoder(wxWindow* parent,SpellData* spell_data,wxWindow
 	Bind(wxEVT_COMMAND_BUTTON_CLICKED,&FormGResEncoder::OnRegenPaletteClick,this,wxID_BTN_REGEN_PAL);
 	Bind(wxEVT_COMMAND_SLIDER_UPDATED,&FormGResEncoder::OnRegenClick,this,wxID_SLIDE_MIN_DITHER);
 	Bind(wxEVT_COMMAND_LISTBOX_SELECTED,&FormGResEncoder::OnSelectClick,this,wxID_LB_LIST);
-	Bind(wxEVT_PG_CHANGED,&FormGResEncoder::OnPropChange,this,wxID_PG_PROPS);
+	Bind(wxEVT_PG_CHANGED,&FormGResEncoder::OnPropChange,this,wxID_PG_PROPS1);
+	Bind(wxEVT_PG_CHANGED,&FormGResEncoder::OnPropChange,this,wxID_PG_PROPS2);
 
 	Bind(wxEVT_THREAD,&FormGResEncoder::OnThreadEvent,this,wxID_PROC_THREAD);
 
-	pgProperties->Bind(wxEVT_PG_RIGHT_CLICK,&FormGResEncoder::OnPropPopupClick,this);
+	pgProperties1->Bind(wxEVT_PG_RIGHT_CLICK,&FormGResEncoder::OnPropPopupClick,this);
+	pgProperties2->Bind(wxEVT_PG_RIGHT_CLICK,&FormGResEncoder::OnPropPopupClick,this);
 
 	
 	// canvas stuff:	
@@ -891,7 +897,8 @@ int FormGResEncoder::LoadResource(std::filesystem::path path,int frame_id)
 {
 	m_last_error.clear();
 	m_source = wxBitmap();
-	pgProperties->Clear();
+	pgProperties1->Clear();
+	pgProperties2->Clear();
 	m_pal.Clear();
 	m_gres.Clear();
 	m_info.Clear();
@@ -944,34 +951,42 @@ int FormGResEncoder::LoadResource(std::filesystem::path path,int frame_id)
 	SetStatusText(m_info.pal_name,4);
 	SetStatusText(m_info.colors_str,5);
 
-	pgProperties->Freeze();
-	pgProperties->Clear();
-	pgProperties->Append(new wxStringPropertyExt(wxT("Resource name"),wxT("name"),&m_info.raw_name));
-	pgProperties->Append(new wxStringPropertyExt(wxT("Image name"),wxT("image"),&m_info.raw_img_name));
-	pgProperties->Append(new wxStringPropertyExt(wxT("Palette name"),wxT(""),&m_info.pal_name));
-	pgProperties->Append(new wxEnumPropertyExt(wxT("Format"),wxT(""),MapToPGenumChoices(SpellGresInfo::c_format_menu),(int*)&m_info.format));
-	pgProperties->Append(new wxIntPropertyExt(wxT("x-size"),wxT(""),&m_info.x_size,-1));
-	pgProperties->Append(new wxIntPropertyExt(wxT("y-size"),wxT(""),&m_info.y_size,-1));
-	pgProperties->Append(new wxIntPropertyExt(wxT("x-offset"),wxT(""),&m_info.x_offset));
-	pgProperties->Append(new wxIntPropertyExt(wxT("y-offset"),wxT(""),&m_info.y_offset));
-	pgProperties->Append(new wxEnumPropertyExt(wxT("Resampling mode"),wxT(""),MapToPGenumChoices(SpellGresInfo::c_resampling),&m_info.resampling));
-	pgProperties->Append(new wxRealPropertyExt(wxT("Gamma correction"),wxT("gamma"),&m_info.gamma,2,0.1,3.0));
-	pgProperties->Append(new wxRealPropertyExt(wxT("Color chroma"),wxT("chroma"),&m_info.chroma,2,-1.0,1.0));
-	pgProperties->Append(new wxRealPropertyExt(wxT("Color hue"),wxT("hue"),&m_info.hue,2,-1.0,1.0));
-	pgProperties->Append(new wxIntPropertyExt(wxT("Alpha threshold"),wxT("alpha"),&m_info.alpha_threshold,0,255));
-	pgProperties->Append(new wxIntPropertyExt(wxT("Centering width"),wxT(""),&m_info.center_width,-1));
-	pgProperties->Append(new wxBoolPropertyExt(wxT("Auto y-offset for tree"),wxT(""),&m_info.is_tree_auto_y_offset));
-	pgProperties->Append(new wxIntPropertyExt(wxT("Land type"),wxT(""),&m_info.land_type,0,13));
-	pgProperties->Append(new wxBoolPropertyExt(wxT("Transparent"),wxT(""),&m_info.is_transparent));
-	pgProperties->Append(new wxBoolPropertyExt(wxT("Regenerate palette"),wxT(""),&m_info.regen_pal));
-	pgProperties->Append(new wxEnumPropertyExt(wxT("Regenerate palette preset"),wxT(""),MapToPGenumChoices(SpellGresInfo::c_regen_palette_presets),(int*)&m_info.regen_pal_preset));
-	pgProperties->Append(new wxBoolPropertyExt(wxT("Export palettes"),wxT(""),&m_info.save_pal));
-	pgProperties->Append(new wxStringPropertyExt(wxT("Colors range"),wxT("colors"),&m_info.colors_str));
+	pgProperties1->Freeze();
+	pgProperties1->Clear();
+	pgProperties2->Freeze();
+	pgProperties2->Clear();
+	
+	pgProperties1->Append(new wxStringPropertyExt(wxT("Resource name"),wxT("name"),&m_info.raw_name));
+	pgProperties1->Append(new wxStringPropertyExt(wxT("Image name"),wxT("image"),&m_info.raw_img_name));
+	pgProperties1->Append(new wxStringPropertyExt(wxT("Palette name"),wxT(""),&m_info.pal_name));
+	pgProperties1->Append(new wxEnumPropertyExt(wxT("Format"),wxT(""),MapToPGenumChoices(SpellGresInfo::c_format_menu),(int*)&m_info.format));
+	pgProperties1->Append(new wxIntPropertyExt(wxT("x-size"),wxT(""),&m_info.x_size,-1));
+	pgProperties1->Append(new wxIntPropertyExt(wxT("y-size"),wxT(""),&m_info.y_size,-1));
+	pgProperties1->Append(new wxIntPropertyExt(wxT("x-offset"),wxT(""),&m_info.x_offset));
+	pgProperties1->Append(new wxIntPropertyExt(wxT("y-offset"),wxT(""),&m_info.y_offset));
+	pgProperties1->Append(new wxEnumPropertyExt(wxT("Resampling mode"),wxT(""),MapToPGenumChoices(SpellGresInfo::c_resampling),&m_info.resampling));
+	pgProperties1->Append(new wxIntPropertyExt(wxT("Centering width"),wxT(""),&m_info.center_width,-1));
+	pgProperties1->Append(new wxBoolPropertyExt(wxT("Auto y-offset for tree"),wxT(""),&m_info.is_tree_auto_y_offset));
 
-	pgProperties->Thaw();
-	pgProperties->FitColumns();
-	setPGsize(pgProperties,10);
-	pgProperties->GetParent()->Layout();
+	pgProperties2->Append(new wxRealPropertyExt(wxT("Gamma correction"),wxT("gamma"),&m_info.gamma,2,0.1,3.0));
+	pgProperties2->Append(new wxRealPropertyExt(wxT("Color chroma"),wxT("chroma"),&m_info.chroma,2,-1.0,1.0));
+	pgProperties2->Append(new wxRealPropertyExt(wxT("Color hue"),wxT("hue"),&m_info.hue,2,-1.0,1.0));
+	pgProperties2->Append(new wxIntPropertyExt(wxT("Alpha threshold"),wxT("alpha"),&m_info.alpha_threshold,0,255));	
+	pgProperties2->Append(new wxIntPropertyExt(wxT("Land type"),wxT(""),&m_info.land_type,0,13));
+	pgProperties2->Append(new wxBoolPropertyExt(wxT("Transparent"),wxT(""),&m_info.is_transparent));
+	pgProperties2->Append(new wxBoolPropertyExt(wxT("Regenerate palette"),wxT(""),&m_info.regen_pal));
+	pgProperties2->Append(new wxEnumPropertyExt(wxT("Regenerate palette preset"),wxT(""),MapToPGenumChoices(SpellGresInfo::c_regen_palette_presets),(int*)&m_info.regen_pal_preset));
+	pgProperties2->Append(new wxBoolPropertyExt(wxT("Export palettes"),wxT(""),&m_info.save_pal));
+	pgProperties2->Append(new wxStringPropertyExt(wxT("Colors range"),wxT("colors"),&m_info.colors_str));
+
+	pgProperties1->Thaw();
+	pgProperties1->FitColumns();
+	setPGsize(pgProperties1,11);
+	pgProperties1->GetParent()->Layout();
+	pgProperties2->Thaw();
+	pgProperties2->FitColumns();
+	setPGsize(pgProperties2,11);
+	pgProperties2->GetParent()->Layout();
 	
 
 	return(0);
@@ -1126,7 +1141,21 @@ void FormGResEncoder::OnRulesPopup(wxCommandEvent& event)
 				continue;
 
 			// update all properties
-			for(wxPropertyGridIterator it = pgProperties->GetIterator(); !it.AtEnd(); ++it)
+			for(wxPropertyGridIterator it = pgProperties1->GetIterator(); !it.AtEnd(); ++it)
+			{
+				wxPGProperty *prop = *it;
+				if(!prop)
+					continue;
+				auto obj = (wxPGobj*)prop->GetClientObject();
+				if(!obj)
+					continue;
+				if(prop->GetName().CmpNoCase("name") == 0 || prop->GetName().CmpNoCase("image") == 0)
+					continue;
+				if(is_color_corr && !(!prop->GetName().CmpNoCase("gamma") || !prop->GetName().CmpNoCase("chroma") || !prop->GetName().CmpNoCase("hue") || !prop->GetName().CmpNoCase("alpha")))
+					continue;
+				obj->Update(prop);
+			}
+			for(wxPropertyGridIterator it = pgProperties2->GetIterator(); !it.AtEnd(); ++it)
 			{
 				wxPGProperty *prop = *it;
 				if(!prop)
@@ -1229,7 +1258,8 @@ void FormGResEncoder::OnOpenClick(wxCommandEvent& event)
 	m_gres.Clear();
 	m_info.Clear();
 	lboxList->Clear();
-	pgProperties->Clear();
+	pgProperties1->Clear();
+	pgProperties2->Clear();
 
 	// force redraw when done
 	canvasSrc->Refresh();
@@ -1337,7 +1367,8 @@ void FormGResEncoder::OnOpenBatchClick(wxCommandEvent& event)
 	m_gres.Clear();
 	m_info.Clear();
 	lboxList->Clear();
-	pgProperties->Clear();
+	pgProperties1->Clear();
+	pgProperties2->Clear();
 
 	// force redraw when done
 	canvasSrc->Refresh();
@@ -1460,7 +1491,8 @@ void FormGResEncoder::OnSelectClick(wxCommandEvent& event)
 		return;
 	}
 
-	pgProperties->Clear();
+	pgProperties1->Clear();
+	pgProperties2->Clear();
 
 	// pick resource
 	auto sel_id = lboxList->GetSelection();

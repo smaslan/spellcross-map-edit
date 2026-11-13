@@ -7,7 +7,7 @@
 
 #pragma once
 
-// <wxFormsBuilder-include> - Section auto-inserted from 'forms.h' class 'FormGResEncoder' on 2026-09-21 21:21:12
+// <wxFormsBuilder-include> - Section auto-inserted from 'forms.h' class 'FormGResEncoder' on 2026-11-13 18:06:11
 #include <wx/artprov.h>
 #include <wx/xrc/xmlres.h>
 #include <wx/string.h>
@@ -43,7 +43,7 @@
 #include <wx/scrolbar.h>
 #include <wx/bmpbuttn.h>
 
-// </wxFormsBuilder-include> - Section auto-inserted from 'forms.h' class 'FormGResEncoder' on 2026-09-21 21:21:12
+// </wxFormsBuilder-include> - Section auto-inserted from 'forms.h' class 'FormGResEncoder' on 2026-11-13 18:06:11
 
 #include "spellcross.h"
 #include "spell_palette.h"
@@ -218,7 +218,7 @@ private:
 
 protected:
 	
-	// <wxFormsBuilder> - Section auto-inserted from 'forms.h' class 'FormGResEncoder' on 2026-09-21 21:21:12
+	// <wxFormsBuilder> - Section auto-inserted from 'forms.h' class 'FormGResEncoder' on 2026-11-13 18:06:11
 	enum
 	{
 		wxID_MM_OPEN = 5999,
@@ -237,7 +237,8 @@ protected:
 		wxID_SLIDE_MIN_DITHER,
 		wxID_SPIN_EX_OFS,
 		wxID_SPIN_EY_OFS,
-		wxID_PG_PROPS,
+		wxID_PG_PROPS1,
+		wxID_PG_PROPS2,
 		wxID_BTN_REGEN,
 		wxID_BTN_REGEN_PAL,
 	};
@@ -269,11 +270,12 @@ protected:
 	wxSpinCtrl* spinExtraYoffset;
 	wxStaticLine* m_staticline42;
 	wxStaticText* m_staticText136;
-	wxPropertyGrid* pgProperties;
+	wxPropertyGrid* pgProperties1;
+	wxPropertyGrid* pgProperties2;
 	wxButton* btnRegen;
 	wxButton* btnRegenPalette;
 
-	// </wxFormsBuilder> - Section auto-inserted from 'forms.h' class 'FormGResEncoder' on 2026-09-21 21:21:12
+	// </wxFormsBuilder> - Section auto-inserted from 'forms.h' class 'FormGResEncoder' on 2026-11-13 18:06:11
 
 public:
 	
