@@ -2361,12 +2361,12 @@ int SpellMap::HistoryPush()
 	HaltUnitRanging(true);
 
 	// make new entry
-	history.push_back(std::make_unique<HistoryState>());
+	history.push_back(std::make_unique<HistoryState>(this));
 	auto &hist = history.back();
 	history_pos = (int)history.size() - 1;
-
+		
 	// save state
-	hist->tiles = tiles;
+	hist->tiles = tiles;	
 	hist->anms = anms;
 	hist->pnms = pnms;
 	hist->select = select;
@@ -2506,7 +2506,7 @@ bool SpellMap::HistoryCanPop(bool redo)
 
 
 // convert x,y to combined tile position
-int SpellMap::ConvXY(int x, int y)
+int SpellMap::ConvXY(const int x, const int y) const
 {
 	if(x >= 0 && y >= 0 && x < x_size && y < y_size)
 		return(x + y * x_size);
@@ -2516,17 +2516,17 @@ int SpellMap::ConvXY(MapXY *mxy)
 {
 	return(ConvXY(mxy->x,mxy->y));
 }
-int SpellMap::ConvXY(const MapXY &mxy)
+int SpellMap::ConvXY(const MapXY &mxy) const
 {
 	return(ConvXY(mxy.x,mxy.y));
 }
 // is x,y within valid range?
-int SpellMap::isXYok(int x,int y)
+int SpellMap::isXYok(const int x, const int y) const
 {
 	return(x >=0 && x < x_size && y >=0 && y < y_size);
 }
 // is x,y within valid range?
-int SpellMap::isXYok(MapXY& mxy)
+int SpellMap::isXYok(const MapXY& mxy) const
 {
 	return(mxy.x >=0 && mxy.x < x_size&& mxy.y >=0 && mxy.y < y_size);
 }
@@ -10143,7 +10143,7 @@ int SpellMap::Saves::Save(SpellMap::SavedState *slot)
 	if(!save)
 	{
 		// add save slot if not provided explicitely
-		saves.push_back(new SpellMap::SavedState());
+		saves.push_back(new SpellMap::SavedState(map));
 		save = saves.back();
 	}
 

@@ -449,7 +449,7 @@ MainFrame::MainFrame(SpellConfig* config, SpellMap *&map, SpellData *&spelldata,
     
     // tools
     wxMenu* menuTools = new wxMenu;
-    menuTools->Append(ID_ViewSprites,"Sprites viewer","",wxITEM_NORMAL);
+    menuTools->Append(ID_ViewSprites,"Sprites viewer\tCtrl+Shift+S","",wxITEM_NORMAL);
     menuTools->Append(ID_ViewAnms,"Animations (ANM) viewer","",wxITEM_NORMAL);
     menuTools->Append(ID_ViewPnms,"Animations (PNM) viewer","",wxITEM_NORMAL);
     menuTools->Append(ID_SoundsViewer,"Sounds viewer","",wxITEM_NORMAL);
@@ -1610,7 +1610,22 @@ void MainFrame::OnViewSprites(wxCommandEvent& event)
     {
         form_sprites = new FormSprite(this, spell_data, ID_SPRITES_WIN);
         if(spell_map)
-            form_sprites->SetSprite(spell_map->terrain);
+        {
+            Sprite *spr = NULL;
+            if(spell_map->isCopyBufferFull() && !spell_map->copy_buf.tiles.empty())
+            {
+                // preset copy buffer sprite?
+                spr = spell_map->copy_buf.tiles.front().L1;
+            }
+            else
+            {
+				// preset cursor sprite?
+				auto pos = spell_map->GetSelection();
+                if(pos.isOK())
+				    spr = spell_map->tiles[pos].L1;
+            }
+            form_sprites->SetSprite(spell_map->terrain,spr);
+        }
         form_sprites->Show();
     }
 }
