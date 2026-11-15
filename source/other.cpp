@@ -16,6 +16,8 @@
 #include <sstream>
 #include <chrono>
 #include <format>
+#include <string_view>
+#include <ranges>
 
 // converts wstring to ascii string (removes accents, then leaves out anything >255)
 std::string str_to_ascii(std::wstring str)
@@ -899,16 +901,16 @@ std::vector<std::string> get_text_lines(std::vector<uint8_t> &data,bool trim_whi
 // split string by lines (or other separators), by default also trims white chars both ends
 std::vector<std::string> get_text_lines(std::string string, bool trim_white, char separator)
 {
-    // split rows
-    std::vector<std::string> rows;
-    std::istringstream iss(string);
-    std::string line;
-    while(std::getline(iss,line,separator)) {
-        if(trim_white)
-            line = trim_whites(line);
-        rows.push_back(line);
-    };
-    return(rows);
+    auto tokens = string 
+        | std::views::split(separator)
+        | std::views::transform([trim_white](auto&& rng) {
+            auto common = rng | std::views::common;
+			auto token = std::string(common.begin(), common.end());
+            if(trim_white)
+                token = trim_whites(token);
+            return(token);
+        });    
+    return {tokens.begin(), tokens.end()};
 }
 
 // merge string lines with separators

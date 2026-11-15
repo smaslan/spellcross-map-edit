@@ -1052,32 +1052,40 @@ std::tuple<std::string, std::string> SpellMapEventRec::FormatDEFrecord(int *init
 	if(is_objective && save_obj)
 	{
 		// --- AddMissionObjective():
-
+		std::wstring lbl;
 		switch(evt_type)
 		{
 			case EvtTypes::EVT_TIME_LIMIT:
-				head += string_format("    AddMissionObjective(TimeLimit,%d,%s)\n",time_param,wstring2stringCP895(label));
+				lbl = label.empty() ? L"Time limit" : label;
+				head += string_format("    AddMissionObjective(TimeLimit,%d,%s)\n",time_param,wstring2stringCP895(lbl));
 				break;
 			case EvtTypes::EVT_SURVIVE_TURNS:
-				head += string_format("    AddMissionObjective(SurviveTurns,%d,%s)\n",time_param,wstring2stringCP895(label));
+				lbl = label.empty() ? L"Survive turns" : label;
+				head += string_format("    AddMissionObjective(SurviveTurns,%d,%s)\n",time_param,wstring2stringCP895(lbl));
 				break;
 			case EvtTypes::EVT_TRANSPORT_UNIT:
-				head += string_format("    AddMissionObjective(TransportUnit,%d,%s)\n",trig_unit_id,wstring2stringCP895(label));
+				lbl = label.empty() ? L"Transport unit" : label;
+				head += string_format("    AddMissionObjective(TransportUnit,%d,%s)\n",trig_unit_id,wstring2stringCP895(lbl));
 				break;
 			case EvtTypes::EVT_SAVE_UNIT:
-				head += string_format("    AddMissionObjective(SaveUnit,%d,%s)\n",trig_unit_id,wstring2stringCP895(label));
+				lbl = label.empty() ? L"Save unit" : label;
+				head += string_format("    AddMissionObjective(SaveUnit,%d,%s)\n",trig_unit_id,wstring2stringCP895(lbl));
 				break;
 			case EvtTypes::EVT_SEE_PLACE:
-				head += string_format("    AddMissionObjective(SeePlace,%d,%s)\n",map->ConvXY(position),wstring2stringCP895(label));
+				lbl = label.empty() ? L"See place" : label;
+				head += string_format("    AddMissionObjective(SeePlace,%d,%s)\n",map->ConvXY(position),wstring2stringCP895(lbl));
 				break;
 			case EvtTypes::EVT_DESTROY_OBJ:
-				head += string_format("    AddMissionObjective(DestroyObject,%d,%s)\n",map->ConvXY(position),wstring2stringCP895(label));
+				lbl = label.empty() ? L"Destroy object" : label;
+				head += string_format("    AddMissionObjective(DestroyObject,%d,%s)\n",map->ConvXY(position),wstring2stringCP895(lbl));
 				break;
 			case EvtTypes::EVT_DESTROY_UNIT:
-				head += string_format("    AddMissionObjective(DestroyUnit,%d,%s)\n",trig_unit_id,wstring2stringCP895(label));
+				lbl = label.empty() ? L"Destroy unit" : label;
+				head += string_format("    AddMissionObjective(DestroyUnit,%d,%s)\n",trig_unit_id,wstring2stringCP895(lbl));
 				break;
 			case EvtTypes::EVT_DESTROY_ALL:
-				head += string_format("    AddMissionObjective(DestroyAllUnits,%s)\n",wstring2stringCP895(label));
+				lbl = label.empty() ? L"Destroy all units" : label;
+				head += string_format("    AddMissionObjective(DestroyAllUnits,%s)\n",wstring2stringCP895(lbl));
 				break;
 			default:
 				break;

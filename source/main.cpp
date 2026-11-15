@@ -664,6 +664,8 @@ MainFrame::MainFrame(SpellConfig* config, SpellMap *&map, SpellData *&spelldata,
     
     HistoryCheck();
 
+    //auto list = get_text_lines("SurviveTurns,3,",true,',');
+
     // main sizer 
     /*auto sizer2 = new wxBoxSizer(wxVERTICAL);
 
