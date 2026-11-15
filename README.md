@@ -248,7 +248,13 @@ Also, you can star my project here on GitHub if you like to help me out on a way
   - Fixed wall autotiling for end segments.
   - Add units DEF editor.
   - Little less buggy.
-  - Not finished. 
+  - Not finished.
+- [V0.92 beta, 15th November 2026 (7zip file)](./builds/x64/Spellcross-Map-Editor-V0.92-beta.7z) 
+  - Minor improvements in GUI.
+  - Add new event types for HonzaQ patch V1.25+: Turn, SurviveTurns, TimeLimit (see [Spellcross Mod Launcher V1.51+](https://github.com/smaslan/Spellcross-Mod-Launcher)).
+  - Add ridge bridges to templates.
+  - Little less buggy.
+  - Not finished.  
 
                                  
 ## License
