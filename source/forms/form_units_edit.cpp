@@ -512,6 +512,9 @@ FormUnitsEdit::FormUnitsEdit( wxWindow* parent, wxWindowID id,SpellData *spell_d
 	pgSndRes->Bind(wxEVT_PG_DOUBLE_CLICK,&FormUnitsEdit::OnSndDoubleClick,this);
 
 	//pgPropGrp->Bind(wxEVT_PG_RIGHT_CLICK,&FormUnitsEdit::OnUnitPropsPupup,this);
+	Bind(wxEVT_PG_RIGHT_CLICK,&FormUnitsEdit::OnUnitPropsPupupOpen,this,wxID_PG_PROP_BASIC);
+	Bind(wxEVT_PG_RIGHT_CLICK,&FormUnitsEdit::OnUnitPropsPupupOpen,this,wxID_PG_PROP_BASIC2);
+	Bind(wxEVT_PG_RIGHT_CLICK,&FormUnitsEdit::OnUnitPropsPupupOpen,this,wxID_PG_PROP_SOUND);
 	Bind(wxEVT_PG_RIGHT_CLICK,&FormUnitsEdit::OnUnitPropsPupupOpen,this,wxID_PG_PROP_GRP);
 	Bind(wxEVT_PG_RIGHT_CLICK,&FormUnitsEdit::OnUnitPropsPupupOpen,this,wxID_PG_PROP_ACTION);
 	
@@ -1601,6 +1604,13 @@ void FormUnitsEdit::OnUnitsPupup(wxCommandEvent& event)
 
 
 
+
+class pgPropData : public wxClientData {
+public:
+	wxPGProperty* prop;
+	std::string* anim_name;
+};
+
 // props popup menu
 void FormUnitsEdit::OnUnitPropsPupupOpen(wxPropertyGridEvent& event)
 {
@@ -1612,7 +1622,7 @@ void FormUnitsEdit::OnUnitPropsPupupOpen(wxPropertyGridEvent& event)
 	if(!m_unit)
 		return;
 
-	std::string *anim_name;
+	std::string *anim_name = NULL;
 	auto name = prop->GetName();
 	if(name == "anim_light_frames")
 		anim_name = &m_unit->anim_atack_light_name;
@@ -1623,19 +1633,22 @@ void FormUnitsEdit::OnUnitPropsPupupOpen(wxPropertyGridEvent& event)
 	else if(name == "spec_anim_frames")
 		anim_name = &m_unit->action_fsu_name;
 	else if(name == "die_anim_frames")
-		anim_name = &m_unit->die_anim_name;
-	else
-		return;
-	auto grp = m_spell_data->units_fsu->GetResource(*anim_name);
-	if(!grp)
-		return;
-	if(!grp->anim.frames)
-		return;
+		anim_name = &m_unit->die_anim_name;	
+	if(anim_name)
+	{
+		auto grp = m_spell_data->units_fsu->GetResource(*anim_name);
+		if(grp && grp->anim.frames)
+			menu.Append((int)PopupActions::RESET_ANIM_FRAMES,"Set frames to max");
+	}
 
-	menu.Append((int)PopupActions::RESET_ANIM_FRAMES,"Set frames to max");
-
-	menu.SetClientData(anim_name);
+	menu.Append((int)PopupActions::COPY_PROP,string_format("Copy property '%s' to target DEFs", prop->GetLabel().ToStdString()));
+	menu.Append((int)PopupActions::COPY_PROPS_PAGE,string_format("Copy properties of this page to target DEFs"));
 		
+	auto data = new pgPropData();
+	data->prop = prop;
+	data->anim_name = anim_name;
+	menu.SetClientObject(data);
+				
 	menu.Connect(wxEVT_COMMAND_MENU_SELECTED,wxCommandEventHandler(FormUnitsEdit::OnUnitPropsPupup),NULL,this);
 	PopupMenu(&menu);
 }
@@ -1645,10 +1658,13 @@ void FormUnitsEdit::OnUnitPropsPupup(wxCommandEvent& event)
 	auto menu = (wxMenu*)event.GetEventObject();
 	if(!menu)
 		return;
+	auto data = (pgPropData*)menu->GetClientObject();
+	if(!data)
+		return;
 
 	if(menu_id == PopupActions::RESET_ANIM_FRAMES)
 	{
-		auto *anim_name = (std::string*)menu->GetClientData();
+		auto *anim_name = data->anim_name;
 		if(!anim_name)
 			return;
 		if(!m_unit)
@@ -1675,8 +1691,66 @@ void FormUnitsEdit::OnUnitPropsPupup(wxCommandEvent& event)
 		event.SetEventType(wxEVT_COMMAND_LIST_ITEM_SELECTED);
 		wxPostEvent(this->GetEventHandler(),event);
 	}
-	
+	else if(menu_id == PopupActions::COPY_PROP || menu_id == PopupActions::COPY_PROPS_PAGE)
+	{
+		// copy property to target DEFs
 
+		// target DEFs
+		std::vector<std::shared_ptr<SpellUnits>> def_list;
+		wxArrayInt sel;
+		lboxTargetDef->GetSelections(sel);
+		for(auto &id: sel)
+			if(id >= 0 && id < m_defs.size())
+				def_list.push_back(m_defs[id]);
+
+		// target unit
+		if(!m_units)
+			return;
+		if(!m_unit)
+			return;
+		int uid = m_unit->type_id;		
+
+		std::vector<wxPGProperty*> prop_list;
+		if(menu_id == PopupActions::COPY_PROP)
+		{
+			// single prop
+			auto prop = data->prop;
+			if(!prop)
+				return;
+			prop_list.push_back(prop);
+		}
+		else if(menu_id == PopupActions::COPY_PROPS_PAGE)
+		{
+			// all props
+			auto prop = data->prop;
+			if(!prop)
+				return;
+			auto pg = prop->GetGrid();
+			if(!pg)
+				return;			
+			for(auto it = pg->GetIterator(wxPG_ITERATE_PROPERTIES); !it.AtEnd(); it++)
+				prop_list.push_back(*it);
+		}
+		
+		// for each property:
+		for(auto &prop: prop_list)
+		{
+			if(!prop)			
+				continue;
+			auto obj = (wxPGobj*)prop->GetClientObject();
+			if(!obj)
+				return;
+
+			// for each target:
+			for(auto &def: def_list)
+			{
+				auto target_unit = def->GetUnit(uid);
+				if(!target_unit)
+					continue;
+				obj->Copy(prop,m_unit,target_unit);
+			}
+		}
+	}
 }
 
 

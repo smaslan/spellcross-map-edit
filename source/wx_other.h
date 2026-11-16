@@ -209,6 +209,37 @@ public:
 			return(false);
 		return(true);
 	};
+
+	// copy property value from source to destination assuming both source and dest are part of same structure type
+	bool Copy(wxPGProperty *prop, void *src_ref, void *dest_ref)
+	{
+		void *dest = (void*)((char*)m_data - (char*)src_ref + (char*)dest_ref);
+
+		if(m_type == wxPGobj::DataType::INT)
+			*(int*)dest = *(int*)m_data;
+		else if(m_type == wxPGobj::DataType::UINT)
+			*(unsigned int*)dest = *(unsigned int*)m_data;
+		else if(m_type == wxPGobj::DataType::BOOL)
+			*(int*)dest = *(int*)m_data;
+		else if(m_type == wxPGobj::DataType::REAL)
+			*(double*)dest = *(double*)m_data;
+		else if(m_type == wxPGobj::DataType::STRING)
+			*(std::string*)dest = *(std::string*)m_data;
+		else if(m_type == wxPGobj::DataType::WSTRING)
+			*(std::wstring*)dest = *(std::wstring*)m_data;
+		else if(m_type == wxPGobj::DataType::ENUM)
+			*(int*)dest = *(int*)m_data;
+		else if(m_type == wxPGobj::DataType::ENUM_STR)
+			*(std::string*)dest = *(std::string*)m_data;
+		else if(m_type == wxPGobj::DataType::ARRAY)
+			*(std::vector<int>*)dest = *(std::vector<int>*)m_data;
+		else if(m_type == wxPGobj::DataType::BITARRAY)
+			*(uint32_t*)dest = *(uint32_t*)m_data;
+		else
+			return(false);
+		return(true);
+	};
+
 };
 
 // PropGrid integer property using pointer to linked variable

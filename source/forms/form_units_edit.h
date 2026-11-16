@@ -113,7 +113,9 @@ class FormUnitsEdit : public wxFrame
 			ADD_UNIT,
 			DUP_UNIT,
 			COPY_TO_TARGET,
-			RESET_ANIM_FRAMES
+			RESET_ANIM_FRAMES,
+			COPY_PROP,
+			COPY_PROPS_PAGE
 		};
 
 	protected:
