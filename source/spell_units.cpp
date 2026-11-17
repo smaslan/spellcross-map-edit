@@ -168,7 +168,6 @@ SpellUnitRec::SpellUnitRec(SpellUnitRec& rec)
 	sound_attack_air = NULL;
 	sound_action = NULL;
 	sound_level_up = NULL;
-	info_text = NULL;
 }
 
 SpellUnitRec::~SpellUnitRec()
@@ -196,8 +195,6 @@ void SpellUnitRec::ClearSounds()
 		delete sound_attack_air;
 	if(sound_action)
 		delete sound_action;
-	if(info_text)
-		delete info_text;
 }
 
 // get name of special action parameter par_id = 1 to 3
@@ -657,8 +654,20 @@ SpellUnits::SpellUnits(uint8_t* data,int dlen,FSUarchive* fsu,FSarchive* fs_info
 				if(info_text_raw.empty())
 					continue;
 
+				// priority of already loaded texts to prevent duplicates
+				for(auto &unt: units)
+				{
+					if(!unt->info_text)
+						continue;
+					if(unt->info_text->name.compare(art_info_name) == 0)
+					{
+						unit->info_text = unt->info_text;
+						break;
+					}
+				}
+
 				// force CZ language because of language mods
-				unit->info_text = new SpellTextRec(info_text_raw, SpellLang::CZE, art_info_name.c_str(),SpellTextRec::TextPanel::UNIT_INFO);
+				unit->info_text = std::make_shared<SpellTextRec>(info_text_raw, SpellLang::CZE, art_info_name.c_str(),SpellTextRec::TextPanel::UNIT_INFO);
 				if(unit->info_text)
 					break;
 			}

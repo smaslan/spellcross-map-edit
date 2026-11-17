@@ -413,7 +413,7 @@ void FormMissionParams::OnUnitPropChange(wxPropertyGridEvent& event)
 		auto old_rule = rule;
 		
 		// update
-		obj->Update(prop);		
+		obj->Update();		
 		if(m_spell_map->unit_randomizer.CheckRules())
 		{
 			// failed - restore original

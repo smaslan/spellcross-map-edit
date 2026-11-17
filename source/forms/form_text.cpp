@@ -372,12 +372,18 @@ void FormText::FillResources()
 	}
 	else if(src_name == "INFO.FS")
 	{
+		std::vector<std::string> names;
 		for(auto& item: m_spell_data->units->GetUnits())
 		{			
 			if(!item->info_text || !wildcmp(txtFilter->GetValue(),item->info_text->name.c_str()))
 				continue;
-			listResources->Append(item->info_text->name);
+			names.push_back(item->info_text->name);			
 		}
+		std::ranges::sort(names);
+		auto [first, last] = std::ranges::unique(names);
+		names.erase(first, last);
+		for(const auto& name: names)
+			listResources->Append(name);
 	}
 	listResources->Thaw();
 	if(!item_name.empty())
@@ -540,7 +546,7 @@ SpellTextRec *FormText::GetText(std::string name)
 		for(auto &item: m_spell_data->units->GetUnits())
 		{
 			if(item->info_text && item->info_text->name.compare(name) == 0)
-				return(item->info_text);
+				return(item->info_text.get());
 		}
 	}
 	return(NULL);

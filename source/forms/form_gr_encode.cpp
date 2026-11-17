@@ -343,7 +343,7 @@ wxThread::ExitCode ProcTh::Entry()
 		if(info.LoadInfo(path))
 		{
 			m_config.mutex->lock();
-			if(!m_config.list->empty())
+			//if(!m_config.list->empty())
 				m_config.failed_list->push_back(path.filename().string());
 			m_config.mutex->unlock();			
 			continue;
@@ -358,7 +358,7 @@ wxThread::ExitCode ProcTh::Entry()
 		if(pal.LoadInfo(pal_path) && !regen_pal)
 		{
 			m_config.mutex->lock();
-			if(!m_config.list->empty())
+			//if(!m_config.list->empty())
 				m_config.failed_list->push_back(path.filename().string());
 			m_config.mutex->unlock();
 			continue;
@@ -426,14 +426,30 @@ wxThread::ExitCode ProcTh::Entry()
 				auto colors = ImgQuantize::GenMedianCutPalette(buffer,colors_count);
 				
 				// try assign colors
-				pal.AssignColors(colors);							
+				pal.AssignColors(colors);
+
+				// generate palette name if not present
+				pal.m_name = std::filesystem::path(info.name).stem().string();
+				if(info.pal_name.empty())			
+					info.pal_name = std::filesystem::path(info.name).stem().concat(".palinfo").string();										
 			}
 
 			if(info.save_pal)
 			{
 				// save palette chunks
 				m_config.mutex->lock();
-				pal.SaveChunks(m_config.target_dir);
+				
+				// save meta data in case palette name was added
+				info.SaveInfo();
+				// save palette metadata
+				if(!info.pal_name.empty())
+				{
+					auto palinfo_path = std::filesystem::path(m_config.target_dir).append(info.pal_name);
+					pal.SaveInfo(palinfo_path);
+				}
+				// save palette chunks
+				pal.SaveChunks(m_config.target_dir);				
+
 				m_config.mutex->unlock();
 			}
 
@@ -477,7 +493,7 @@ wxThread::ExitCode ProcTh::Entry()
 				if(err)
 				{
 					m_config.mutex->lock();
-					if(!m_config.list->empty())
+					//if(!m_config.list->empty())
 						m_config.failed_list->push_back(path.filename().string());
 					m_config.mutex->unlock();
 					continue;
@@ -493,7 +509,7 @@ wxThread::ExitCode ProcTh::Entry()
 				if(err)
 				{
 					m_config.mutex->lock();
-					if(!m_config.list->empty())
+					//if(!m_config.list->empty())
 						m_config.failed_list->push_back(path.filename().string());
 					m_config.mutex->unlock();
 					continue;
@@ -507,7 +523,7 @@ wxThread::ExitCode ProcTh::Entry()
 				if(err)
 				{
 					m_config.mutex->lock();
-					if(!m_config.list->empty())
+					//if(!m_config.list->empty())
 						m_config.failed_list->push_back(path.filename().string());
 					m_config.mutex->unlock();
 					continue;
@@ -519,7 +535,7 @@ wxThread::ExitCode ProcTh::Entry()
 				if(gres->Export(save_path))
 				{
 					m_config.mutex->lock();
-					if(!m_config.list->empty())
+					//if(!m_config.list->empty())
 						m_config.failed_list->push_back(path.filename().string());
 					m_config.mutex->unlock();
 					continue;
@@ -573,6 +589,10 @@ void FormGResEncoder::OnThreadEvent(wxThreadEvent& event)
 					msg += string_format(" %s\n",item.c_str());
 			}
 			wxMessageBox(msg, "Encoding graphics resources");
+
+			// refresh selection
+			wxCommandEvent evt;
+			OnSelectClick(evt);
 		}
 	}
 	else if(what == ProcTh::Event::STATUS)
@@ -1004,7 +1024,7 @@ void FormGResEncoder::OnPropChange(wxPropertyGridEvent& event)
 	if(obj)
 	{
 		// update
-		obj->Update(prop);
+		obj->Update();
 
 		// try save changes
 		m_info.SaveInfo();
@@ -1074,22 +1094,26 @@ void FormGResEncoder::OnRulesPopup(wxCommandEvent& event)
 	if(menu_id == POPUP_ACTIONS::COLOR_INFO)
 	{
 		prop->SetValue("0-191");
-		obj->Update(prop);
+		obj->Update();
+		m_info.SaveInfo();
 	}
 	else if(menu_id == POPUP_ACTIONS::COLOR_UNITS)
 	{
 		prop->SetValue("128-223");
-		obj->Update(prop);
+		obj->Update();
+		m_info.SaveInfo();
 	}
 	else if(menu_id == POPUP_ACTIONS::COLOR_TERR)
 	{
 		prop->SetValue("0-223");
-		obj->Update(prop);
+		obj->Update();
+		m_info.SaveInfo();
 	}
 	else if(menu_id == POPUP_ACTIONS::COLOR_TERR_CYCLE)
 	{
 		prop->SetValue("0-223, 240-249");
-		obj->Update(prop);
+		obj->Update();
+		m_info.SaveInfo();
 	}
 	else if(menu_id == POPUP_ACTIONS::COPY_PROP)
 	{
@@ -1107,7 +1131,7 @@ void FormGResEncoder::OnRulesPopup(wxCommandEvent& event)
 				continue;
 			
 			// update property
-			obj->Update(prop);
+			obj->Update();
 
 			// try save changes
 			m_info.SaveInfo();
@@ -1153,7 +1177,7 @@ void FormGResEncoder::OnRulesPopup(wxCommandEvent& event)
 					continue;
 				if(is_color_corr && !(!prop->GetName().CmpNoCase("gamma") || !prop->GetName().CmpNoCase("chroma") || !prop->GetName().CmpNoCase("hue") || !prop->GetName().CmpNoCase("alpha")))
 					continue;
-				obj->Update(prop);
+				obj->Update();
 			}
 			for(wxPropertyGridIterator it = pgProperties2->GetIterator(); !it.AtEnd(); ++it)
 			{
@@ -1167,7 +1191,7 @@ void FormGResEncoder::OnRulesPopup(wxCommandEvent& event)
 					continue;
 				if(is_color_corr && !(!prop->GetName().CmpNoCase("gamma") || !prop->GetName().CmpNoCase("chroma") || !prop->GetName().CmpNoCase("hue") || !prop->GetName().CmpNoCase("alpha")))
 					continue;
-				obj->Update(prop);
+				obj->Update();
 			}
 			
 			// try save changes

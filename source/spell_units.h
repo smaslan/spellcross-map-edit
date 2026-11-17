@@ -202,7 +202,7 @@ class SpellUnitRec
 		// info graphics links
 		std::vector<SpellGraphicItem*> info_imgs;
 		// info text
-		SpellTextRec *info_text;
+		std::shared_ptr<SpellTextRec> info_text;
 		/*std::string info_text_raw;
 		std::wstring info_text;*/
 		// PNM shot/hit

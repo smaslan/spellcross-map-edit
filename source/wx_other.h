@@ -128,22 +128,24 @@ public:
 	DataType m_type;
 	void* m_data;
 	int m_mask;
+	wxPGProperty *m_prop;
 
-	wxPGobj(DataType type,void* data, int mask=0) :
+	wxPGobj(wxPGProperty *prop,DataType type,void* data, int mask=0) :
 		m_type(type),
 		m_data(data),
-		m_mask(mask)
+		m_mask(mask),
+		m_prop(prop)
 	{};
 
-	bool Update(wxPGProperty *prop)
+	bool Update()
 	{
 		if(m_type == wxPGobj::DataType::INT)
-			*(int*)m_data = prop->GetValue().GetLong();
+			*(int*)m_data = m_prop->GetValue().GetLong();
 		else if(m_type == wxPGobj::DataType::UINT)
-			*(unsigned int*)m_data = prop->GetValue().GetLong();
+			*(unsigned int*)m_data = m_prop->GetValue().GetLong();
 		else if(m_type == wxPGobj::DataType::BOOL)
 		{
-			int value = prop->GetValue().GetBool();
+			int value = m_prop->GetValue().GetBool();
 			if(m_mask)
 			{
 				auto old = *(int*)m_data;
@@ -153,14 +155,14 @@ public:
 			*(int*)m_data = value;
 		}
 		else if(m_type == wxPGobj::DataType::REAL)
-			*(double*)m_data = prop->GetValue().GetReal();
+			*(double*)m_data = m_prop->GetValue().GetReal();
 		else if(m_type == wxPGobj::DataType::STRING)
-			*(std::string*)m_data = prop->GetValue().GetString();
+			*(std::string*)m_data = m_prop->GetValue().GetString();
 		else if(m_type == wxPGobj::DataType::WSTRING)
-			*(std::wstring*)m_data = prop->GetValue().GetString();
+			*(std::wstring*)m_data = m_prop->GetValue().GetString();
 		else if(m_type == wxPGobj::DataType::ENUM)
 		{
-			int value = prop->GetValue().GetLong();
+			int value = m_prop->GetValue().GetLong();
 			if(m_mask)
 			{
 				auto old = *(int*)m_data;
@@ -171,8 +173,8 @@ public:
 		}
 		else if(m_type == wxPGobj::DataType::ENUM_STR)
 		{
-			int value = prop->GetValue().GetLong();
-			auto list = prop->GetChoices();
+			int value = m_prop->GetValue().GetLong();
+			auto list = m_prop->GetChoices();
 			for(int k = 0; k < list.GetCount(); k++)
 				if(list.GetValue(k) == value)
 					*(std::string*)m_data = (value < 0)?std::string(""):list.GetLabel(k).ToStdString();
@@ -181,8 +183,8 @@ public:
 		{
 			auto data = (std::vector<int>*)m_data;
 			data->clear();
-			auto selections = prop->GetValue().GetArrayString();
-			auto ch = prop->GetChoices().GetLabels();
+			auto selections = m_prop->GetValue().GetArrayString();
+			auto ch = m_prop->GetChoices().GetLabels();
 			for(auto &sel: selections)
 			{
 				auto sel_id = std::find(ch.begin(), ch.end(), sel);
@@ -195,8 +197,8 @@ public:
 		{
 			auto data = (uint32_t*)m_data;
 			*data = 0;
-			auto selections = prop->GetValue().GetArrayString();
-			auto ch = prop->GetChoices().GetLabels();
+			auto selections = m_prop->GetValue().GetArrayString();
+			auto ch = m_prop->GetChoices().GetLabels();
 			for(auto &sel: selections)
 			{
 				auto sel_id = std::find(ch.begin(), ch.end(), sel);
@@ -211,7 +213,7 @@ public:
 	};
 
 	// copy property value from source to destination assuming both source and dest are part of same structure type
-	bool Copy(wxPGProperty *prop, void *src_ref, void *dest_ref)
+	bool Copy(void *src_ref, void *dest_ref)
 	{
 		void *dest = (void*)((char*)m_data - (char*)src_ref + (char*)dest_ref);
 
@@ -251,7 +253,7 @@ public:
 	{
 		SetAttribute(wxPG_ATTR_MIN,min_range);
 		SetAttribute(wxPG_ATTR_MAX,max_range);
-		SetClientObject(new wxPGobj(wxPGobj::DataType::INT,value));
+		SetClientObject(new wxPGobj(this,wxPGobj::DataType::INT,value));
 	}
 };
 
@@ -267,7 +269,7 @@ public:
 		if(!isnan(max_range))
 			SetAttribute(wxPG_ATTR_MAX,max_range);
 		SetAttribute(wxPG_FLOAT_PRECISION,display_prec);
-		SetClientObject(new wxPGobj(wxPGobj::DataType::REAL,value));
+		SetClientObject(new wxPGobj(this,wxPGobj::DataType::REAL,value));
 	}
 };
 
@@ -289,12 +291,12 @@ public:
 	wxBoolPropertyExt(const wxString& label,const wxString& name,int* value,int mask=0)
 		: wxBoolProperty(label,name,MaskValue(*value,mask))
 	{
-		SetClientObject(new wxPGobj(wxPGobj::DataType::BOOL,value,mask));
+		SetClientObject(new wxPGobj(this,wxPGobj::DataType::BOOL,value,mask));
 	}
 	wxBoolPropertyExt(const wxString& label, const wxString& name, bool* value)
 		: wxBoolProperty(label, name, *value)
 	{
-		SetClientObject(new wxPGobj(wxPGobj::DataType::BOOL, value));
+		SetClientObject(new wxPGobj(this,wxPGobj::DataType::BOOL, value));
 	}
 };
 
@@ -305,7 +307,7 @@ public:
 	wxUIntPropertyExt(const wxString& label,const wxString& name,unsigned int* value)
 		: wxUIntProperty(label,name,*value)
 	{
-		SetClientObject(new wxPGobj(wxPGobj::DataType::UINT,value));
+		SetClientObject(new wxPGobj(this,wxPGobj::DataType::UINT,value));
 	}
 };
 
@@ -318,7 +320,7 @@ public:
 	{
 		if(max_len)
 			SetMaxLength(max_len);
-		SetClientObject(new wxPGobj(wxPGobj::DataType::STRING,value));
+		SetClientObject(new wxPGobj(this,wxPGobj::DataType::STRING,value));
 	};
 
 	wxStringPropertyExt(const wxString& label,const wxString& name,std::wstring* value,int max_len=-1)
@@ -326,7 +328,7 @@ public:
 	{
 		if(max_len)
 			SetMaxLength(max_len);
-		SetClientObject(new wxPGobj(wxPGobj::DataType::WSTRING,value));
+		SetClientObject(new wxPGobj(this,wxPGobj::DataType::WSTRING,value));
 	};
 };
 
@@ -359,14 +361,14 @@ public:
 	wxEnumPropertyExt(const wxString& label,const wxString& name,wxPGChoices &choices, int *value, int mask=0)
 		: wxEnumProperty(label,name,choices,MaskValue(*value,mask))
 	{
-		SetClientObject(new wxPGobj(wxPGobj::DataType::ENUM,value,mask));
+		SetClientObject(new wxPGobj(this,wxPGobj::DataType::ENUM,value,mask));
 	}
 	
 	// enum with string value, index -1 is assumes as no selection and will set value of ""
 	wxEnumPropertyExt(const wxString& label,const wxString& name,wxPGChoices& choices,std::string* value)
 		: wxEnumProperty(label,name,choices,GetIndex(*value,choices))
 	{
-		SetClientObject(new wxPGobj(wxPGobj::DataType::ENUM_STR,value));
+		SetClientObject(new wxPGobj(this,wxPGobj::DataType::ENUM_STR,value));
 	}
 };
 
@@ -395,12 +397,12 @@ public:
 	wxMultiChoicePropertyExt(const wxString& label,const wxString& name,wxPGChoices& choices,std::vector<int> *value)
 		: wxMultiChoiceProperty(label,name,choices,GenSelections(choices,value))
 	{
-		SetClientObject(new wxPGobj(wxPGobj::DataType::ARRAY,value));
+		SetClientObject(new wxPGobj(this,wxPGobj::DataType::ARRAY,value));
 	};
 	wxMultiChoicePropertyExt(const wxString& label,const wxString& name,wxPGChoices& choices,uint32_t *value,int shift = 0)
 		: wxMultiChoiceProperty(label,name,choices,GenSelections(choices,value,shift))
 	{
-		SetClientObject(new wxPGobj(wxPGobj::DataType::BITARRAY,value,shift));
+		SetClientObject(new wxPGobj(this,wxPGobj::DataType::BITARRAY,value,shift));
 	};
 };
 

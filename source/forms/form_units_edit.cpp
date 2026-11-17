@@ -1747,7 +1747,7 @@ void FormUnitsEdit::OnUnitPropsPupup(wxCommandEvent& event)
 				auto target_unit = def->GetUnit(uid);
 				if(!target_unit)
 					continue;
-				obj->Copy(prop,m_unit,target_unit);
+				obj->Copy(m_unit,target_unit);
 			}
 		}
 	}
@@ -1768,7 +1768,7 @@ void FormUnitsEdit::OnPGpropChange(wxPropertyGridEvent& event)
 	auto obj = (wxPGobj*)prop->GetClientObject();
 	if(obj)
 	{
-		obj->Update(prop);
+		obj->Update();
 		
 		auto name = prop->GetName().ToStdString();
 		if(iequals({"action_type"s,"die_action_type"s},name) >= 0)

@@ -332,7 +332,7 @@ void FormTreeRand::OnConfigChange(wxPropertyGridEvent& event)
 	auto obj = (wxPGobj*)prop->GetClientObject();
 	if(obj)
 	{
-		obj->Update(prop);		
+		obj->Update();		
 	}
 }
 
@@ -757,7 +757,7 @@ void FormTreeRand::OnProbChange(wxPropertyGridEvent& event)
 	auto obj = (wxPGobj*)prop->GetClientObject();
 	if(obj)
 	{
-		obj->Update(prop);		
+		obj->Update();		
 	}
 }
 
