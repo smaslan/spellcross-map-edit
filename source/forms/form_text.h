@@ -98,6 +98,7 @@ class FormText : public wxFrame
 		std::vector<SpellWindow> m_windows;
 		SpellWindow *m_window;
 
+		std::vector<std::shared_ptr<SpellTextRec>> m_texts_local;
 		SpellTextRec m_text;
 		SpellTextRec *m_text_org;
 		SpellFont* m_font;

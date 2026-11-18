@@ -382,6 +382,10 @@ void FormText::FillResources()
 		std::ranges::sort(names);
 		auto [first, last] = std::ranges::unique(names);
 		names.erase(first, last);
+
+		for(auto &item: m_texts_local)
+			names.push_back(item->name);
+
 		for(const auto& name: names)
 			listResources->Append(name);
 	}
@@ -461,18 +465,18 @@ void FormText::OnNew(wxCommandEvent& event)
 	auto text = GetText(name);
 	if(text)
 	{
-		wxMessageBox(string_format("Text resource name \"%s\" already present! Use different name.",name.c_str()),"Creating new text resource",wxICON_EXCLAMATION);
+		wxMessageBox(string_format("Text resource name \"%s\" already present! Use different name.",name),"Creating new text resource",wxICON_EXCLAMATION);
 		return;
 	}	
 	if(name.empty() || std::filesystem::path(name).stem().string().length() > 8)
 	{
-		wxMessageBox(string_format("Text resource name \"%s\" not valid! Must be valid DOS name of maximum 8.3 size.",name.c_str()),"Creating new text resource",wxICON_EXCLAMATION);
+		wxMessageBox(string_format("Text resource name \"%s\" not valid! Must be valid DOS name of maximum 8.3 size.",name),"Creating new text resource",wxICON_EXCLAMATION);
 		return;
 	}
 	text = CreateText(name);
 	if(!text)
 	{
-		wxMessageBox(string_format("Creating text resource name \"%s\" failed!",name.c_str()),"Creating new text resource",wxICON_EXCLAMATION);
+		wxMessageBox(string_format("Creating text resource name \"%s\" failed!",name),"Creating new text resource",wxICON_EXCLAMATION);
 		return;
 	}	
 	OnChangeApply(event);
@@ -548,6 +552,11 @@ SpellTextRec *FormText::GetText(std::string name)
 			if(item->info_text && item->info_text->name.compare(name) == 0)
 				return(item->info_text.get());
 		}
+		for(auto &item: m_texts_local)
+		{
+			if(item->name.compare(name) == 0)
+				return(item.get());
+		}
 	}
 	return(NULL);
 }
@@ -569,10 +578,9 @@ SpellTextRec* FormText::CreateText(std::string name)
 	}
 	else if(src_name == "INFO.FS")
 	{
-		// not implemented - place to texts
-		auto text = m_spell_data->texts->AddText(name);
-		m_spell_data->texts->Sort();
-		return(text);
+		// make local text resource only
+		m_texts_local.push_back(std::make_shared<SpellTextRec>("New text...",SpellLang::CZE,name.c_str(),SpellTextRec::TextPanel::UNIT_INFO));
+		return(m_texts_local.back().get());
 	}
 	return(NULL);
 }
