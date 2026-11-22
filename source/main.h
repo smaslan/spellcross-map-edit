@@ -54,6 +54,7 @@
 #include <wx/ribbon/bar.h>
 
 #include <filesystem>
+#include <chrono>
 
 
 // app entry point class
