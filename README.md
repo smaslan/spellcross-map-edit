@@ -43,6 +43,8 @@ retaining the editor's existing commands and keyboard shortcuts.
 
 **Paint terrain and objects.** Pick a tool in the ribbon, then click the map. The right-hand status bar helps you see which sprite was selected and what was actually placed. This fork also fixes a bug where missing mission-marker assets could prevent ordinary L1 terrain and building graphics from appearing.
 
+**Navigate the map.** Move the cursor within approximately 28 pixels of the map canvas edges to scroll continuously, including diagonally. Scrolling stops when you move away from the edge or reach the map boundary, and is suspended while dragging/selecting or interacting with the mission HUD. Right-button drag is still available for direct panning; a stationary right-click still opens the usual editor context menu. Use **Alt+Enter** (or **View → Fullscreen**) to switch between windowed and fullscreen modes. The top menus use the normal Windows appearance.
+
 **Rotate flat ground tiles.** Use these keys with a supported flat L1 brush:
 
 | Control | Action |
