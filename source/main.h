@@ -55,6 +55,7 @@
 
 #include <filesystem>
 #include <chrono>
+#include "editor_edge_pan.h"
 
 
 // app entry point class
@@ -115,6 +116,7 @@ class MainFrame : public wxFrame
 {
 public:
     MainFrame(SpellConfig* config, SpellMap *&map,SpellData *&spelldata,SpellTreeRandomizerRules &tree_rand_rules);
+    ~MainFrame() override;
     void StatusStringCallback(std::string info);
     void CreateHUDbuttons();
     // Open the existing unit placement tool with a newly imported unit selected.
@@ -144,6 +146,8 @@ private:
     void OnToggleFullscreen(wxCommandEvent& event);
     void OnGlobalKeyDown(wxKeyEvent& event);
     void UpdateEdgeScroll();
+    void UpdateEditorCursorClip();
+    void ReleaseEditorCursorClip();
 
     void OnTimer(wxTimerEvent& event);
 
@@ -245,7 +249,16 @@ private:
     bool m_mapPanActive = false;
     bool m_mapPanDragged = false;
     wxPoint m_mapPanStart;
-    std::chrono::steady_clock::time_point m_lastEdgeScrollTick{};
+    spellcross_tactical::EdgePanAccumulator m_edgePan;
+    std::chrono::steady_clock::time_point m_lastEdgePanTick{};
+    // As in the game: cursor confinement is opt-in via View menu,
+    // but only applied while in fullscreen to avoid trapping editing tools.
+    bool m_confineCursorFullscreen = true;
+    bool m_cursorClipped = false;
+    bool m_savedCursorClipValid = false;
+    bool m_nativeMenuOpen = false;
+    wxRect m_savedCursorClip;
+    wxRect m_currentCursorClip;
     // Collapse repeated fullscreen shortcuts while Win32 changes window chrome.
     bool m_fullscreenChangeQueued = false;
     bool m_fullscreenDesired = false;
@@ -448,6 +461,7 @@ enum
     ID_mmUnitViewMode,
     ID_Canvas,
     ID_Fullscreen,
+    ID_ConfineCursorFullscreen,
     ID_ViewTer,
     ID_ViewObj,
     ID_ViewAnm,
