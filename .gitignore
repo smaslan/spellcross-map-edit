@@ -1,2 +1,6 @@
 source/.vs
 builds/x64
+
+# Editor-only build and release artifacts
+support/
+dist/

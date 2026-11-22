@@ -4,8 +4,12 @@ on:
   push:
     branches:
       - main
-    paths-ignore:
-      - .github/workflows/sync-reloaded-editor.yml
+    # Editor-only release scripts, docs and tags must NOT touch the game.
+    # Keep the existing game sync for actual editor code/asset changes only.
+    paths:
+      - 'source/**'
+      - 'data/**'
+      - 'wxFormsBuilder/**'
   workflow_dispatch:
 
 permissions:
