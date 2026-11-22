@@ -256,7 +256,10 @@ bool MyApp::OnInit()
                 
     // --- run main form    
     // main window frame
-    MainFrame* frame = new MainFrame(&m_config, spell_map, spell_data, m_tree_rand_rules);
+    m_confineCursorFullscreen = ini.GetBoolValue(
+        "STATE", "confine_cursor_fullscreen", true);
+    MainFrame* frame = new MainFrame(&m_config, spell_map, spell_data,
+                                      m_tree_rand_rules, m_confineCursorFullscreen);
     frame->SetSize(win_x_size,win_y_size);
     if(win_maximize)
         frame->Maximize();
@@ -307,6 +310,8 @@ int MyApp::OnExit()
     iniSavePathHist(ini,"SPELCROS","spellcd_path",m_config.spell_cd_path, m_config.spell_cd_path_hist,"; spellcross CD copy data path");
     iniSavePathHist(ini,"SPELCROS","mod_path",m_config.spell_mod_path, m_config.spell_mod_path_hist,"; spellcross mod path (optional)");
 
+    // Keep the View-menu cursor confinement setting across editor restarts.
+    ini.SetBoolValue("STATE", "confine_cursor_fullscreen", m_confineCursorFullscreen);
     // save INI
     ini.SaveFile(reloaded_bootstrap::ConfigFile(GetExecutableDir()).wstring().c_str());
 
@@ -327,8 +332,10 @@ MainFrame::~MainFrame()
     ReleaseEditorCursorClip();
 }
 
-MainFrame::MainFrame(SpellConfig* config, SpellMap *&map, SpellData *&spelldata,SpellTreeRandomizerRules& tree_rand_rules):
+MainFrame::MainFrame(SpellConfig* config, SpellMap *&map, SpellData *&spelldata,
+                     SpellTreeRandomizerRules& tree_rand_rules, bool& confineCursorFullscreen):
     wxFrame(NULL, wxID_ANY, "Spellcross Map Editor", wxDefaultPosition, wxSize(1600,1000)),
+    m_confineCursorFullscreen(confineCursorFullscreen),
     spell_data(spelldata),
     spell_map(map),
     m_tree_rand_rules(tree_rand_rules)
