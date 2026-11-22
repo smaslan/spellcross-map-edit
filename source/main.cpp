@@ -1261,7 +1261,7 @@ void MainFrame::UpdateEdgeScroll()
 {
     if (!IsActive() || !canvas->IsShownOnScreen() ||
         m_mapPanActive || m_moveObjectArmed || m_moveObjectPreview ||
-        inSubForm() || inUnitOptions() || canvas->HasCapture())
+        inUnitOptions() || canvas->HasCapture())
         return;
 
     const wxMouseState mouse = wxGetMouseState();
@@ -1310,15 +1310,23 @@ void MainFrame::OnResize(wxSizeEvent& event)
 // Use the native Windows fullscreen transition outside key/menu dispatch.
 void MainFrame::OnToggleFullscreen(wxCommandEvent& event)
 {
-    const bool enable = !IsFullScreen();
-    CallAfter([this, enable]()
+    // A second Alt+Enter before the deferred Win32 transition should undo
+    // the first request instead of queuing two identical transitions.
+    m_fullscreenDesired = m_fullscreenChangeQueued
+        ? !m_fullscreenDesired : !IsFullScreen();
+    if (m_fullscreenChangeQueued)
+        return;
+    m_fullscreenChangeQueued = true;
+
+    CallAfter([this]()
     {
         if (IsBeingDeleted())
             return;
-
-        ShowFullScreen(enable, wxFULLSCREEN_NOCAPTION |
-                               wxFULLSCREEN_NOBORDER |
-                               wxFULLSCREEN_NOSTATUSBAR);
+        const bool requested = m_fullscreenDesired;
+        ShowFullScreen(requested, wxFULLSCREEN_NOCAPTION |
+                                 wxFULLSCREEN_NOBORDER |
+                                 wxFULLSCREEN_NOSTATUSBAR);
+        m_fullscreenChangeQueued = false;
         if (auto* item = GetMenuBar()->FindItem(ID_Fullscreen))
             item->Check(IsFullScreen());
 
