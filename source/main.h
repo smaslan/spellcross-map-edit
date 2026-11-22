@@ -45,7 +45,6 @@
 #include "forms/form_new_map.h"
 #include "forms/form_trees_rand.h"
 #include "forms/form_units_edit.h"
-#include "editor_chrome.h"
 
 #include <wx/ribbon/buttonbar.h>
 #include <wx/ribbon/panel.h>
@@ -123,12 +122,7 @@ public:
     static int LoadSpellData(wxWindow* parent, SpellConfig &config,SpellData *&spell_data);
 
 private:
-    wxMenuBar* GetMenuBar() const
-    {
-        auto* model = editor_chrome::Model(const_cast<MainFrame*>(this));
-        return model ? model : wxFrame::GetMenuBar();
-    }
-
+    // Native menu model: preserve normal Windows menu colors and accelerator keys.
     void OnViewLayer(wxCommandEvent& event);
     void OnOpenMap(wxCommandEvent& event);
     void OnSaveMap(wxCommandEvent& event);
@@ -146,6 +140,9 @@ private:
 
     void OnPaint(wxPaintEvent& event);
     void OnResize(wxSizeEvent& event);
+    void OnToggleFullscreen(wxCommandEvent& event);
+    void OnGlobalKeyDown(wxKeyEvent& event);
+    void UpdateEdgeScroll();
 
     void OnTimer(wxTimerEvent& event);
 
@@ -247,6 +244,7 @@ private:
     bool m_mapPanActive = false;
     bool m_mapPanDragged = false;
     wxPoint m_mapPanStart;
+    std::chrono::steady_clock::time_point m_lastEdgeScrollTick{};
     // Armed on left-down over an existing L2 map object while no brush is
     // active. Moving starts only after the cursor reaches another tile.
     bool m_moveObjectArmed = false;
@@ -445,6 +443,7 @@ enum
     ID_mmResetViewMap,
     ID_mmUnitViewMode,
     ID_Canvas,
+    ID_Fullscreen,
     ID_ViewTer,
     ID_ViewObj,
     ID_ViewAnm,
