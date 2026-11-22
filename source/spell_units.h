@@ -87,10 +87,10 @@ class SpellUnitRec
 		// range
 		int fire_range;
 		int fire_flags;
-		static constexpr int FIRE_HIGH_TURRET = 0x01;
+		static constexpr int FIRE_NO_TURN = 0x01;
 		static constexpr int FIRE_INDIRECT = 0x02;
 		static constexpr int FIRE_STEAL_AP = 0x04;
-		static constexpr int FIRE_INEFFICIENT_TO_ARMORRED = 0x08;
+		static constexpr int FIRE_RESET_SPRITE_AFTER = 0x08;
 		static constexpr int FIRE_NOT_SLOPES = 0x10;
 		static constexpr int FIRE_MLRS = 0x20;
 		static constexpr int FIRE_FIRE_PROJECTILE = 0x40;
@@ -115,7 +115,7 @@ class SpellUnitRec
 		int ap;
 		int aps;
 		int apw;
-		int apfw;
+		//int apfw; // does not exist, was actually FSU graphics frames count for walk
 
 		// dig
 		int dig_turns;
@@ -148,6 +148,7 @@ class SpellUnitRec
 		// animations/graphics
 		std::string info;
 		std::string gra;
+		int gra_frames;
 		std::string grb;
 		std::string icon;
 		std::string anim_atack_light_name;
@@ -202,7 +203,7 @@ class SpellUnitRec
 		// info graphics links
 		std::vector<SpellGraphicItem*> info_imgs;
 		// info text
-		SpellTextRec *info_text;
+		std::shared_ptr<SpellTextRec> info_text;
 		/*std::string info_text_raw;
 		std::wstring info_text;*/
 		// PNM shot/hit
@@ -243,7 +244,7 @@ class SpellUnitRec
 		int usingTeleportMove();
 		int isFlashAndBones();
 		int isMetal();
-		int isInefficientToArmor();
+		int isResetSpriteAfterFire();
 		int isFireSensitive();
 		int isFireHealed();
 		int hasFireAttack();

@@ -16,6 +16,8 @@
 #include <sstream>
 #include <chrono>
 #include <format>
+#include <string_view>
+#include <ranges>
 
 // converts wstring to ascii string (removes accents, then leaves out anything >255)
 std::string str_to_ascii(std::wstring str)
@@ -218,18 +220,19 @@ std::string toupper(const std::string &str)
     return(res);
 }
 
-// inplace replacement of key occurences to rep
-std::string& strrep(std::string& str,std::string key,std::string rep)
-{
+// replacement of key occurences to rep
+std::string strrep(const std::string& str,std::string key,std::string rep)
+{    
+	auto result = str;
     size_t index = 0;
     while(true) {
-        index = str.find(key,index);
+        index = result.find(key,index);
         if(index == std::string::npos)
             break;
-        str.replace(index,key.size(),rep);
+        result.replace(index,key.size(),rep);
         index += rep.size();
     }
-    return(str);
+    return(result);
 }
 
 // string to integer with string validity check
@@ -623,6 +626,23 @@ int info_get_int(std::vector<std::string>& lines,std::string key,int default_val
     return(std::atoi(str.c_str()));
 }
 
+// fetch info file key integer value
+uint64_t info_get_uint64(std::string &info,std::string key,uint64_t default_value)
+{
+    auto str = info_get_string(info,key,"");
+    if(str.empty())
+        return(default_value);
+    return(std::stoull(str));
+}
+// fetch info file key integer value
+uint64_t info_get_uint64(std::vector<std::string>& lines,std::string key,uint64_t default_value)
+{        
+    auto str = info_get_string(lines,key,"");
+    if(str.empty())
+        return(default_value);
+    return(std::stoull(str));
+}
+
 // fetch info file key real value
 double info_get_real(std::string& info,std::string key,double default_value)
 {
@@ -661,6 +681,16 @@ std::string info_make_int(std::string key,int value,std::string comment)
     if(!comment.empty())
         info += string_format("\n");
     info += string_format("%s:: %d\n",key,value);
+    return(info);
+}
+
+// make info uint64 variable
+std::string info_make_uint64(std::string key,uint64_t value,std::string comment)
+{
+    std::string info = comment;
+    if(!comment.empty())
+        info += string_format("\n");
+    info += string_format("%s:: %llu\n",key,value);
     return(info);
 }
 
@@ -871,16 +901,16 @@ std::vector<std::string> get_text_lines(std::vector<uint8_t> &data,bool trim_whi
 // split string by lines (or other separators), by default also trims white chars both ends
 std::vector<std::string> get_text_lines(std::string string, bool trim_white, char separator)
 {
-    // split rows
-    std::vector<std::string> rows;
-    std::istringstream iss(string);
-    std::string line;
-    while(std::getline(iss,line,separator)) {
-        if(trim_white)
-            line = trim_whites(line);
-        rows.push_back(line);
-    };
-    return(rows);
+    auto tokens = string 
+        | std::views::split(separator)
+        | std::views::transform([trim_white](auto&& rng) {
+            auto common = rng | std::views::common;
+			auto token = std::string(common.begin(), common.end());
+            if(trim_white)
+                token = trim_whites(token);
+            return(token);
+        });    
+    return {tokens.begin(), tokens.end()};
 }
 
 // merge string lines with separators
@@ -971,6 +1001,17 @@ std::string get_local_time_str()
     return(buffer.str());
 }
 
+// get local data ad YYYYMMDD
+std::string get_date_str_yyyymmdd()
+{
+    auto time = std::chrono::system_clock::now();
+    std::time_t tt = std::chrono::system_clock::to_time_t(std::chrono::time_point_cast<std::chrono::system_clock::duration>(time));
+    std::tm* gmt = std::localtime(&tt);
+    std::stringstream buffer;
+    buffer << std::put_time(gmt,"%Y%m%d");
+    return(buffer.str());
+}
+
 // initialize random number generator by time
 void srand_init()
 {
@@ -994,13 +1035,24 @@ int savestr(std::filesystem::path path, const std::string &str)
     return(0);
 }
 
-// save string to a file (save as binary - no alteration of line breaks)
+// save data to a file
 int savedata(std::filesystem::path path,const std::vector<uint8_t>& data)
 {
     std::ofstream fw(path,std::ios::out | std::ios::binary | std::ios::trunc);
     if(!fw.is_open())
         return(1);
     fw.write((const char*)data.data(),data.size());
+    fw.close();
+    return(0);
+}
+
+// save data to a file
+int savedata(std::filesystem::path path,const std::vector<uint32_t>& data)
+{
+    std::ofstream fw(path,std::ios::out | std::ios::binary | std::ios::trunc);
+    if(!fw.is_open())
+        return(1);
+    fw.write((const char*)data.data(),data.size()*sizeof(uint32_t));
     fw.close();
     return(0);
 }

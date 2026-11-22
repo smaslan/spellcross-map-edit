@@ -1,4 +1,4 @@
-///////////////////////////////////////////////////////////////////////////
+﻿///////////////////////////////////////////////////////////////////////////
 // C++ code generated with wxFormBuilder (version 3.10.1-0-g8feb16b3)
 // http://www.wxformbuilder.org/
 //
@@ -7,6 +7,7 @@
 
 #pragma once
 
+// <wxFormsBuilder-include> - Section auto-inserted from 'forms.h' class 'FormEvent' on 2026-10-28 10:33:37
 #include <wx/artprov.h>
 #include <wx/xrc/xmlres.h>
 #include <wx/string.h>
@@ -19,16 +20,30 @@
 #include <wx/colour.h>
 #include <wx/settings.h>
 #include <wx/stattext.h>
-#include <wx/listbox.h>
-#include <wx/button.h>
-#include <wx/sizer.h>
-#include <wx/statline.h>
-#include <wx/choice.h>
-#include <wx/checkbox.h>
-#include <wx/spinctrl.h>
 #include <wx/textctrl.h>
+#include <wx/sizer.h>
+#include <wx/listbox.h>
+#include <wx/panel.h>
+#include <wx/statbox.h>
+#include <wx/slider.h>
+#include <wx/checkbox.h>
+#include <wx/choice.h>
+#include <wx/statline.h>
+#include <wx/treectrl.h>
 #include <wx/statusbr.h>
 #include <wx/frame.h>
+#include <wx/button.h>
+#include <wx/dialog.h>
+#include <wx/spinctrl.h>
+#include <wx/timer.h>
+#include <wx/propgrid/propgrid.h>
+#include <wx/propgrid/advprops.h>
+#include <wx/notebook.h>
+#include <wx/radiobut.h>
+#include <wx/scrolbar.h>
+#include <wx/bmpbuttn.h>
+
+// </wxFormsBuilder-include> - Section auto-inserted from 'forms.h' class 'FormEvent' on 2026-10-28 10:33:37
 
 #include "spellcross.h"
 #include "sprites.h"
@@ -76,6 +91,7 @@ private:
 	void SelectMsgResource();
 
 protected:
+	// <wxFormsBuilder> - Section auto-inserted from 'forms.h' class 'FormEvent' on 2026-10-28 10:33:37
 	enum
 	{
 		wxID_MM_OK = 5999,
@@ -91,6 +107,7 @@ protected:
 		wxID_SPIN_YPOS,
 		wxID_SPIN_TRIG_UNIT,
 		wxID_SPIN_PROB,
+		wxID_SPIN_TIMER,
 		wxID_TXT_UNITS,
 		wxID_CAN_ANIM,
 		wxID_CHB_MSG_ITEM,
@@ -103,7 +120,7 @@ protected:
 		wxID_BTN_PLAY_MSG,
 		wxID_BTN_STOP_MSG,
 	};
-
+	
 	wxMenuBar* mMenu;
 	wxMenu* mmFile;
 	wxStaticText* m_staticText57;
@@ -125,6 +142,8 @@ protected:
 	wxSpinCtrl* spinTrigUnit;
 	wxStaticText* m_staticText51;
 	wxSpinCtrl* spinProb;
+	wxStaticText* m_staticText541;
+	wxSpinCtrl* spinTimer;
 	wxStaticLine* m_staticline20;
 	wxStaticText* strUnits;
 	wxTextCtrl* txtUnits;
@@ -146,6 +165,8 @@ protected:
 	wxButton* btnMsgPlay;
 	wxButton* btnMsgStop;
 	wxStatusBar* sBar;
+
+	// </wxFormsBuilder> - Section auto-inserted from 'forms.h' class 'FormEvent' on 2026-10-28 10:33:37
 
 public:
 

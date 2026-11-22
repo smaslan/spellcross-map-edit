@@ -24,10 +24,10 @@
 
 FormGResEncoder::FormGResEncoder(wxWindow* parent,SpellData* spell_data,wxWindowID id,const wxString& title,const wxPoint& pos,const wxSize& size,long style) : wxFrame(parent,id,title,pos,size,style)
 {
-	this->spell_data = spell_data;
+	m_spell_data = spell_data;
 
 	// === AUTO GENERATED START ===	
-	// <wxFormsBuilder> - Section auto-inserted from 'forms.cpp' class 'FormGResEncoder' on 2026-09-21 21:21:11
+	// <wxFormsBuilder> - Section auto-inserted from 'forms.cpp' class 'FormGResEncoder' on 2026-11-13 18:06:10
 	this->SetSizeHints( wxDefaultSize, wxDefaultSize );
 	this->SetBackgroundColour( wxSystemSettings::GetColour( wxSYS_COLOUR_MENU ) );
 	
@@ -201,16 +201,20 @@ FormGResEncoder::FormGResEncoder(wxWindow* parent,SpellData* spell_data,wxWindow
 	m_staticText136->Wrap( -1 );
 	bSizer128->Add( m_staticText136, 0, wxRIGHT|wxLEFT, 5 );
 	
-	pgProperties = new wxPropertyGrid(this, wxID_PG_PROPS, wxDefaultPosition, wxDefaultSize, wxPG_DEFAULT_STYLE);
-	pgProperties->SetMinSize( wxSize( 500,-1 ) );
+	wxBoxSizer* bSizer163;
+	bSizer163 = new wxBoxSizer( wxHORIZONTAL );
 	
-	bSizer128->Add( pgProperties, 0, wxEXPAND|wxBOTTOM|wxRIGHT|wxLEFT, 5 );
+	pgProperties1 = new wxPropertyGrid(this, wxID_PG_PROPS1, wxDefaultPosition, wxDefaultSize, wxPG_DEFAULT_STYLE);
+	bSizer163->Add( pgProperties1, 1, wxEXPAND|wxBOTTOM|wxRIGHT|wxLEFT, 5 );
+	
+	pgProperties2 = new wxPropertyGrid(this, wxID_PG_PROPS2, wxDefaultPosition, wxDefaultSize, wxPG_DEFAULT_STYLE);
+	bSizer163->Add( pgProperties2, 1, wxBOTTOM|wxRIGHT, 5 );
+	
+	
+	bSizer128->Add( bSizer163, 1, wxEXPAND, 5 );
 	
 	
 	bSizer102->Add( bSizer128, 1, wxEXPAND, 5 );
-	
-	
-	bSizer102->Add( 0, 0, 1, wxEXPAND, 5 );
 	
 	btnRegen = new wxButton( this, wxID_BTN_REGEN, wxT("Regenerate"), wxDefaultPosition, wxDefaultSize, 0 );
 	bSizer102->Add( btnRegen, 0, wxALL|wxEXPAND, 5 );
@@ -228,7 +232,7 @@ FormGResEncoder::FormGResEncoder(wxWindow* parent,SpellData* spell_data,wxWindow
 	this->Centre( wxBOTH );
 	
 
-	// </wxFormsBuilder> - Section auto-inserted from 'forms.cpp' class 'FormGResEncoder' on 2026-09-21 21:21:11
+	// </wxFormsBuilder> - Section auto-inserted from 'forms.cpp' class 'FormGResEncoder' on 2026-11-13 18:06:10
 	// === AUTO GENERATED END ===
 	m_thread_active = 0;
 
@@ -262,11 +266,13 @@ FormGResEncoder::FormGResEncoder(wxWindow* parent,SpellData* spell_data,wxWindow
 	Bind(wxEVT_COMMAND_BUTTON_CLICKED,&FormGResEncoder::OnRegenPaletteClick,this,wxID_BTN_REGEN_PAL);
 	Bind(wxEVT_COMMAND_SLIDER_UPDATED,&FormGResEncoder::OnRegenClick,this,wxID_SLIDE_MIN_DITHER);
 	Bind(wxEVT_COMMAND_LISTBOX_SELECTED,&FormGResEncoder::OnSelectClick,this,wxID_LB_LIST);
-	Bind(wxEVT_PG_CHANGED,&FormGResEncoder::OnPropChange,this,wxID_PG_PROPS);
+	Bind(wxEVT_PG_CHANGED,&FormGResEncoder::OnPropChange,this,wxID_PG_PROPS1);
+	Bind(wxEVT_PG_CHANGED,&FormGResEncoder::OnPropChange,this,wxID_PG_PROPS2);
 
 	Bind(wxEVT_THREAD,&FormGResEncoder::OnThreadEvent,this,wxID_PROC_THREAD);
 
-	pgProperties->Bind(wxEVT_PG_RIGHT_CLICK,&FormGResEncoder::OnPropPopupClick,this);
+	pgProperties1->Bind(wxEVT_PG_RIGHT_CLICK,&FormGResEncoder::OnPropPopupClick,this);
+	pgProperties2->Bind(wxEVT_PG_RIGHT_CLICK,&FormGResEncoder::OnPropPopupClick,this);
 
 	
 	// canvas stuff:	
@@ -337,7 +343,7 @@ wxThread::ExitCode ProcTh::Entry()
 		if(info.LoadInfo(path))
 		{
 			m_config.mutex->lock();
-			if(!m_config.list->empty())
+			//if(!m_config.list->empty())
 				m_config.failed_list->push_back(path.filename().string());
 			m_config.mutex->unlock();			
 			continue;
@@ -352,7 +358,7 @@ wxThread::ExitCode ProcTh::Entry()
 		if(pal.LoadInfo(pal_path) && !regen_pal)
 		{
 			m_config.mutex->lock();
-			if(!m_config.list->empty())
+			//if(!m_config.list->empty())
 				m_config.failed_list->push_back(path.filename().string());
 			m_config.mutex->unlock();
 			continue;
@@ -420,14 +426,30 @@ wxThread::ExitCode ProcTh::Entry()
 				auto colors = ImgQuantize::GenMedianCutPalette(buffer,colors_count);
 				
 				// try assign colors
-				pal.AssignColors(colors);							
+				pal.AssignColors(colors);
+
+				// generate palette name if not present
+				pal.m_name = std::filesystem::path(info.name).stem().string();
+				if(info.pal_name.empty())			
+					info.pal_name = std::filesystem::path(info.name).stem().concat(".palinfo").string();										
 			}
 
 			if(info.save_pal)
 			{
 				// save palette chunks
 				m_config.mutex->lock();
-				pal.SaveChunks(m_config.target_dir);
+				
+				// save meta data in case palette name was added
+				info.SaveInfo();
+				// save palette metadata
+				if(!info.pal_name.empty())
+				{
+					auto palinfo_path = std::filesystem::path(m_config.target_dir).append(info.pal_name);
+					pal.SaveInfo(palinfo_path);
+				}
+				// save palette chunks
+				pal.SaveChunks(m_config.target_dir);				
+
 				m_config.mutex->unlock();
 			}
 
@@ -446,6 +468,16 @@ wxThread::ExitCode ProcTh::Entry()
 				&pal,info.gamma,info.chroma,info.hue,
 				info.x_size,info.y_size,(wxImageResizeQuality)info.resampling,
 				m_config.dither_randomize,info.alpha_threshold,shadow_color,0xFD);
+
+			// render overlay name string
+			if(info.name_overlay_color > 0)
+			{
+				auto font = m_config.spell_data->font7;
+				std::string name = std::filesystem::path(info.name).stem().string();
+				auto &pixels = gres->pixels;
+				font->Render(pixels.data(), pixels.data() + pixels.size(), gres->x_size, 0, 0, gres->x_size, gres->y_size,
+					name, info.name_overlay_color, info.name_overlay_bg_color, SpellFont::FontShadow::BGCOLOR);
+			}
 
 			// just collect frames for animations
 			if(info.isPNM() && frame_id < info.img_names.size() - 1)
@@ -471,7 +503,7 @@ wxThread::ExitCode ProcTh::Entry()
 				if(err)
 				{
 					m_config.mutex->lock();
-					if(!m_config.list->empty())
+					//if(!m_config.list->empty())
 						m_config.failed_list->push_back(path.filename().string());
 					m_config.mutex->unlock();
 					continue;
@@ -481,13 +513,13 @@ wxThread::ExitCode ProcTh::Entry()
 			else if(info.isUnitsFSU())
 			{
 				// UNITS.FSU sprite
-				auto x_ofs = m_config.x_offset;
+				auto x_ofs = info.x_offset + m_config.x_offset;
 				auto y_ofs = info.y_offset + m_config.y_offset;
 				auto err = FSU_sprite::SaveSprite(save_path,gres->pixels,gres->x_size,x_ofs,y_ofs,0xFD);
 				if(err)
 				{
 					m_config.mutex->lock();
-					if(!m_config.list->empty())
+					//if(!m_config.list->empty())
 						m_config.failed_list->push_back(path.filename().string());
 					m_config.mutex->unlock();
 					continue;
@@ -501,7 +533,7 @@ wxThread::ExitCode ProcTh::Entry()
 				if(err)
 				{
 					m_config.mutex->lock();
-					if(!m_config.list->empty())
+					//if(!m_config.list->empty())
 						m_config.failed_list->push_back(path.filename().string());
 					m_config.mutex->unlock();
 					continue;
@@ -513,7 +545,7 @@ wxThread::ExitCode ProcTh::Entry()
 				if(gres->Export(save_path))
 				{
 					m_config.mutex->lock();
-					if(!m_config.list->empty())
+					//if(!m_config.list->empty())
 						m_config.failed_list->push_back(path.filename().string());
 					m_config.mutex->unlock();
 					continue;
@@ -567,6 +599,10 @@ void FormGResEncoder::OnThreadEvent(wxThreadEvent& event)
 					msg += string_format(" %s\n",item.c_str());
 			}
 			wxMessageBox(msg, "Encoding graphics resources");
+
+			// refresh selection
+			wxCommandEvent evt;
+			OnSelectClick(evt);
 		}
 	}
 	else if(what == ProcTh::Event::STATUS)
@@ -656,6 +692,8 @@ void SpellGresInfo::Clear()
 	regen_pal = false;
 	regen_pal_preset = RegenPalPreset::NONE;
 	save_pal = false;
+	name_overlay_color = 0;
+	name_overlay_bg_color = 223;
 
 	m_last_error.clear();
 }
@@ -822,6 +860,9 @@ int SpellGresInfo::LoadInfo(std::filesystem::path path)
 	// try read image names (optional for PNM format)
 	img_names = info_get_text_vector(info, "images");
 
+	// overlay name generator color index (0 to disable)
+	name_overlay_color = info_get_int(info, "name_overlay_color", 0);
+
 	return(0);
 }
 
@@ -874,8 +915,9 @@ int SpellGresInfo::SaveInfo(std::filesystem::path path)
 
 	info += info_make_int("export_palette",save_pal);
 
-
 	info += info_make_string("colors",colors_str);
+
+	info += info_make_int("name_overlay_color",name_overlay_color);
 
 	if(!img_names.empty())
 	{
@@ -891,7 +933,8 @@ int FormGResEncoder::LoadResource(std::filesystem::path path,int frame_id)
 {
 	m_last_error.clear();
 	m_source = wxBitmap();
-	pgProperties->Clear();
+	pgProperties1->Clear();
+	pgProperties2->Clear();
 	m_pal.Clear();
 	m_gres.Clear();
 	m_info.Clear();
@@ -944,34 +987,43 @@ int FormGResEncoder::LoadResource(std::filesystem::path path,int frame_id)
 	SetStatusText(m_info.pal_name,4);
 	SetStatusText(m_info.colors_str,5);
 
-	pgProperties->Freeze();
-	pgProperties->Clear();
-	pgProperties->Append(new wxStringPropertyExt(wxT("Resource name"),wxT("name"),&m_info.raw_name));
-	pgProperties->Append(new wxStringPropertyExt(wxT("Image name"),wxT("image"),&m_info.raw_img_name));
-	pgProperties->Append(new wxStringPropertyExt(wxT("Palette name"),wxT(""),&m_info.pal_name));
-	pgProperties->Append(new wxEnumPropertyExt(wxT("Format"),wxT(""),MapToPGenumChoices(SpellGresInfo::c_format_menu),(int*)&m_info.format));
-	pgProperties->Append(new wxIntPropertyExt(wxT("x-size"),wxT(""),&m_info.x_size,-1));
-	pgProperties->Append(new wxIntPropertyExt(wxT("y-size"),wxT(""),&m_info.y_size,-1));
-	pgProperties->Append(new wxIntPropertyExt(wxT("x-offset"),wxT(""),&m_info.x_offset));
-	pgProperties->Append(new wxIntPropertyExt(wxT("y-offset"),wxT(""),&m_info.y_offset));
-	pgProperties->Append(new wxEnumPropertyExt(wxT("Resampling mode"),wxT(""),MapToPGenumChoices(SpellGresInfo::c_resampling),&m_info.resampling));
-	pgProperties->Append(new wxRealPropertyExt(wxT("Gamma correction"),wxT("gamma"),&m_info.gamma,2,0.1,3.0));
-	pgProperties->Append(new wxRealPropertyExt(wxT("Color chroma"),wxT("chroma"),&m_info.chroma,2,-1.0,1.0));
-	pgProperties->Append(new wxRealPropertyExt(wxT("Color hue"),wxT("hue"),&m_info.hue,2,-1.0,1.0));
-	pgProperties->Append(new wxIntPropertyExt(wxT("Alpha threshold"),wxT("alpha"),&m_info.alpha_threshold,0,255));
-	pgProperties->Append(new wxIntPropertyExt(wxT("Centering width"),wxT(""),&m_info.center_width,-1));
-	pgProperties->Append(new wxBoolPropertyExt(wxT("Auto y-offset for tree"),wxT(""),&m_info.is_tree_auto_y_offset));
-	pgProperties->Append(new wxIntPropertyExt(wxT("Land type"),wxT(""),&m_info.land_type,0,13));
-	pgProperties->Append(new wxBoolPropertyExt(wxT("Transparent"),wxT(""),&m_info.is_transparent));
-	pgProperties->Append(new wxBoolPropertyExt(wxT("Regenerate palette"),wxT(""),&m_info.regen_pal));
-	pgProperties->Append(new wxEnumPropertyExt(wxT("Regenerate palette preset"),wxT(""),MapToPGenumChoices(SpellGresInfo::c_regen_palette_presets),(int*)&m_info.regen_pal_preset));
-	pgProperties->Append(new wxBoolPropertyExt(wxT("Export palettes"),wxT(""),&m_info.save_pal));
-	pgProperties->Append(new wxStringPropertyExt(wxT("Colors range"),wxT("colors"),&m_info.colors_str));
+	pgProperties1->Freeze();
+	pgProperties1->Clear();
+	pgProperties2->Freeze();
+	pgProperties2->Clear();
+	
+	pgProperties1->Append(new wxStringPropertyExt(wxT("Resource name"),wxT("name"),&m_info.raw_name));
+	pgProperties1->Append(new wxStringPropertyExt(wxT("Image name"),wxT("image"),&m_info.raw_img_name));
+	pgProperties1->Append(new wxStringPropertyExt(wxT("Palette name"),wxT(""),&m_info.pal_name));
+	pgProperties1->Append(new wxEnumPropertyExt(wxT("Format"),wxT(""),MapToPGenumChoices(SpellGresInfo::c_format_menu),(int*)&m_info.format));
+	pgProperties1->Append(new wxIntPropertyExt(wxT("x-size"),wxT(""),&m_info.x_size,-1));
+	pgProperties1->Append(new wxIntPropertyExt(wxT("y-size"),wxT(""),&m_info.y_size,-1));
+	pgProperties1->Append(new wxIntPropertyExt(wxT("x-offset"),wxT(""),&m_info.x_offset));
+	pgProperties1->Append(new wxIntPropertyExt(wxT("y-offset"),wxT(""),&m_info.y_offset));
+	pgProperties1->Append(new wxEnumPropertyExt(wxT("Resampling mode"),wxT(""),MapToPGenumChoices(SpellGresInfo::c_resampling),&m_info.resampling));
+	pgProperties1->Append(new wxIntPropertyExt(wxT("Centering width"),wxT(""),&m_info.center_width,-1));
+	pgProperties1->Append(new wxBoolPropertyExt(wxT("Auto y-offset for tree"),wxT(""),&m_info.is_tree_auto_y_offset));
 
-	pgProperties->Thaw();
-	pgProperties->FitColumns();
-	setPGsize(pgProperties,10);
-	pgProperties->GetParent()->Layout();
+	pgProperties2->Append(new wxRealPropertyExt(wxT("Gamma correction"),wxT("gamma"),&m_info.gamma,2,0.1,3.0));
+	pgProperties2->Append(new wxRealPropertyExt(wxT("Color chroma"),wxT("chroma"),&m_info.chroma,2,-1.0,1.0));
+	pgProperties2->Append(new wxRealPropertyExt(wxT("Color hue"),wxT("hue"),&m_info.hue,2,-1.0,1.0));
+	pgProperties2->Append(new wxIntPropertyExt(wxT("Alpha threshold"),wxT("alpha"),&m_info.alpha_threshold,0,255));	
+	pgProperties2->Append(new wxIntPropertyExt(wxT("Land type"),wxT(""),&m_info.land_type,0,13));
+	pgProperties2->Append(new wxBoolPropertyExt(wxT("Transparent"),wxT(""),&m_info.is_transparent));
+	pgProperties2->Append(new wxBoolPropertyExt(wxT("Regenerate palette"),wxT(""),&m_info.regen_pal));
+	pgProperties2->Append(new wxEnumPropertyExt(wxT("Regenerate palette preset"),wxT(""),MapToPGenumChoices(SpellGresInfo::c_regen_palette_presets),(int*)&m_info.regen_pal_preset));
+	pgProperties2->Append(new wxBoolPropertyExt(wxT("Export palettes"),wxT(""),&m_info.save_pal));
+	pgProperties2->Append(new wxStringPropertyExt(wxT("Colors range"),wxT("colors"),&m_info.colors_str));	
+	pgProperties2->Append(new wxIntPropertyExt(wxT("Overlay name color (0: off)"),wxT(""),&m_info.name_overlay_color,0,255));
+
+	pgProperties1->Thaw();
+	pgProperties1->FitColumns();
+	setPGsize(pgProperties1,11);
+	pgProperties1->GetParent()->Layout();
+	pgProperties2->Thaw();
+	pgProperties2->FitColumns();
+	setPGsize(pgProperties2,11);
+	pgProperties2->GetParent()->Layout();
 	
 
 	return(0);
@@ -989,7 +1041,7 @@ void FormGResEncoder::OnPropChange(wxPropertyGridEvent& event)
 	if(obj)
 	{
 		// update
-		obj->Update(prop);
+		obj->Update();
 
 		// try save changes
 		m_info.SaveInfo();
@@ -1059,22 +1111,26 @@ void FormGResEncoder::OnRulesPopup(wxCommandEvent& event)
 	if(menu_id == POPUP_ACTIONS::COLOR_INFO)
 	{
 		prop->SetValue("0-191");
-		obj->Update(prop);
+		obj->Update();
+		m_info.SaveInfo();
 	}
 	else if(menu_id == POPUP_ACTIONS::COLOR_UNITS)
 	{
 		prop->SetValue("128-223");
-		obj->Update(prop);
+		obj->Update();
+		m_info.SaveInfo();
 	}
 	else if(menu_id == POPUP_ACTIONS::COLOR_TERR)
 	{
 		prop->SetValue("0-223");
-		obj->Update(prop);
+		obj->Update();
+		m_info.SaveInfo();
 	}
 	else if(menu_id == POPUP_ACTIONS::COLOR_TERR_CYCLE)
 	{
 		prop->SetValue("0-223, 240-249");
-		obj->Update(prop);
+		obj->Update();
+		m_info.SaveInfo();
 	}
 	else if(menu_id == POPUP_ACTIONS::COPY_PROP)
 	{
@@ -1092,7 +1148,7 @@ void FormGResEncoder::OnRulesPopup(wxCommandEvent& event)
 				continue;
 			
 			// update property
-			obj->Update(prop);
+			obj->Update();
 
 			// try save changes
 			m_info.SaveInfo();
@@ -1126,7 +1182,7 @@ void FormGResEncoder::OnRulesPopup(wxCommandEvent& event)
 				continue;
 
 			// update all properties
-			for(wxPropertyGridIterator it = pgProperties->GetIterator(); !it.AtEnd(); ++it)
+			for(wxPropertyGridIterator it = pgProperties1->GetIterator(); !it.AtEnd(); ++it)
 			{
 				wxPGProperty *prop = *it;
 				if(!prop)
@@ -1138,7 +1194,21 @@ void FormGResEncoder::OnRulesPopup(wxCommandEvent& event)
 					continue;
 				if(is_color_corr && !(!prop->GetName().CmpNoCase("gamma") || !prop->GetName().CmpNoCase("chroma") || !prop->GetName().CmpNoCase("hue") || !prop->GetName().CmpNoCase("alpha")))
 					continue;
-				obj->Update(prop);
+				obj->Update();
+			}
+			for(wxPropertyGridIterator it = pgProperties2->GetIterator(); !it.AtEnd(); ++it)
+			{
+				wxPGProperty *prop = *it;
+				if(!prop)
+					continue;
+				auto obj = (wxPGobj*)prop->GetClientObject();
+				if(!obj)
+					continue;
+				if(prop->GetName().CmpNoCase("name") == 0 || prop->GetName().CmpNoCase("image") == 0)
+					continue;
+				if(is_color_corr && !(!prop->GetName().CmpNoCase("gamma") || !prop->GetName().CmpNoCase("chroma") || !prop->GetName().CmpNoCase("hue") || !prop->GetName().CmpNoCase("alpha")))
+					continue;
+				obj->Update();
 			}
 			
 			// try save changes
@@ -1229,7 +1299,8 @@ void FormGResEncoder::OnOpenClick(wxCommandEvent& event)
 	m_gres.Clear();
 	m_info.Clear();
 	lboxList->Clear();
-	pgProperties->Clear();
+	pgProperties1->Clear();
+	pgProperties2->Clear();
 
 	// force redraw when done
 	canvasSrc->Refresh();
@@ -1237,12 +1308,12 @@ void FormGResEncoder::OnOpenClick(wxCommandEvent& event)
 	palette->Refresh();
 
 	// show open dialog
-	wxFileDialog openFileDialog(this,"Open glyph resource",spell_data->export_path,L"","Graphic resource file (*.png)|*.png|Graphic resource meta file (*.info)|*.info",
+	wxFileDialog openFileDialog(this,"Open glyph resource",m_spell_data->export_path,L"","Graphic resource file (*.png)|*.png|Graphic resource meta file (*.info)|*.info",
 		wxFD_OPEN|wxFD_FILE_MUST_EXIST);
 	if(openFileDialog.ShowModal() == wxID_CANCEL)
 		return;
 	wstring dir = openFileDialog.GetDirectory().ToStdWstring();
-	spell_data->export_path = dir;
+	m_spell_data->export_path = dir;
 	wstring path = wstring(openFileDialog.GetPath().ToStdWstring());	
 	std::string ext = std::filesystem::path(path).extension().string();	
 	if(iequals(ext,".info"))
@@ -1351,7 +1422,8 @@ void FormGResEncoder::OnOpenBatchClick(wxCommandEvent& event)
 	m_gres.Clear();
 	m_info.Clear();
 	lboxList->Clear();
-	pgProperties->Clear();
+	pgProperties1->Clear();
+	pgProperties2->Clear();
 
 	// force redraw when done
 	canvasSrc->Refresh();
@@ -1359,11 +1431,11 @@ void FormGResEncoder::OnOpenBatchClick(wxCommandEvent& event)
 	palette->Refresh();
 
 	// show open dialog
-	wxFileDialog openFileDialog(this,"Open glyph resource(s)",spell_data->export_path,L"","Graphic resource meta file (*.info)|*.info|Graphic resource image file (*.png)|*.png",
+	wxFileDialog openFileDialog(this,"Open glyph resource(s)",m_spell_data->export_path,L"","Graphic resource meta file (*.info)|*.info|Graphic resource image file (*.png)|*.png",
 		wxFD_OPEN|wxFD_FILE_MUST_EXIST|wxFD_MULTIPLE);
 	if(openFileDialog.ShowModal() == wxID_CANCEL)
 		return;
-	spell_data->export_path = openFileDialog.GetDirectory();
+	m_spell_data->export_path = openFileDialog.GetDirectory();
 	wxArrayString list;
 	std::vector<std::filesystem::path> paths;
 	openFileDialog.GetFilenames(list);
@@ -1474,7 +1546,8 @@ void FormGResEncoder::OnSelectClick(wxCommandEvent& event)
 		return;
 	}
 
-	pgProperties->Clear();
+	pgProperties1->Clear();
+	pgProperties2->Clear();
 
 	// pick resource
 	auto sel_id = lboxList->GetSelection();
@@ -1523,6 +1596,16 @@ void FormGResEncoder::OnRegenClick(wxCommandEvent& event)
 		m_info.x_size,m_info.y_size,(wxImageResizeQuality)m_info.resampling,
 		slideMinDither->GetValue(),m_info.alpha_threshold,shadow_color,0xFD);
 
+	// render overlay name string
+	if(m_info.name_overlay_color > 0)
+	{
+		auto font = m_spell_data->font7;
+		std::string name = std::filesystem::path(m_info.name).stem().string();
+		auto &pixels = m_gres.pixels;
+		font->Render(pixels.data(), pixels.data() + pixels.size(), m_gres.x_size, 0, 0, m_gres.x_size, m_gres.y_size, 
+			name, m_info.name_overlay_color, m_info.name_overlay_bg_color, SpellFont::FontShadow::BGCOLOR);
+	}
+
 	// auto y-offset for trees?
 	m_gres.aux.y_offset = m_info.y_offset;
 	if(m_info.is_tree_auto_y_offset)
@@ -1553,11 +1636,11 @@ void FormGResEncoder::OnSaveClick(wxCommandEvent& event)
 	}
 
 	// show save dialog
-	wxDirDialog saveDirDialog(this,"Export resource data to directory",spell_data->export_path,wxDD_DIR_MUST_EXIST);
+	wxDirDialog saveDirDialog(this,"Export resource data to directory",m_spell_data->export_path,wxDD_DIR_MUST_EXIST);
 	if(saveDirDialog.ShowModal() == wxID_CANCEL)
 		return;
 	wstring dir = wstring(saveDirDialog.GetPath().ToStdWstring());
-	spell_data->export_path = dir;
+	m_spell_data->export_path = dir;
 
 	// rather ask for permission
 	wxMessageDialog msg(NULL,"Files in the selected folder might be overwritten! Continue?","Export glyphs",wxYES_NO | wxYES_DEFAULT | wxICON_QUESTION);
@@ -1582,6 +1665,7 @@ void FormGResEncoder::OnSaveClick(wxCommandEvent& event)
 
 	// build tasks
 	ProcTh::Params params;
+	params.spell_data = m_spell_data;
 	params.x_offset = spinExtraXoffset->GetValue();
 	params.y_offset = spinExtraYoffset->GetValue();
 	params.dither_randomize = slideMinDither->GetValue();
@@ -1632,11 +1716,11 @@ void FormGResEncoder::OnSaveAllClick(wxCommandEvent& event)
 	}
 
 	// show save dialog
-	wxDirDialog saveDirDialog(this,"Export multiple resources",spell_data->export_path,wxDD_DIR_MUST_EXIST);
+	wxDirDialog saveDirDialog(this,"Export multiple resources",m_spell_data->export_path,wxDD_DIR_MUST_EXIST);
 	if(saveDirDialog.ShowModal() == wxID_CANCEL)
 		return;
 	wstring dir = wstring(saveDirDialog.GetPath().ToStdWstring());
-	spell_data->export_path = dir;
+	m_spell_data->export_path = dir;
 
 	// rather ask for permission
 	wxMessageDialog msg(NULL,"Files in the selected folder might be overwritten! Continue?","Export glyphs",wxYES_NO | wxYES_DEFAULT | wxICON_QUESTION);
@@ -1658,6 +1742,7 @@ void FormGResEncoder::OnSaveAllClick(wxCommandEvent& event)
 
 	// build tasks
 	ProcTh::Params params;
+	params.spell_data = m_spell_data;
 	params.x_offset = spinExtraXoffset->GetValue();
 	params.y_offset = spinExtraYoffset->GetValue();
 	params.dither_randomize = slideMinDither->GetValue();
@@ -1703,11 +1788,11 @@ void FormGResEncoder::OnSavePalClick(wxCommandEvent& event)
 		return;
 
 	// directory dialog
-	wxDirDialog saveDirDialog(this,"Export palette file(s)",spell_data->export_path,wxDD_DIR_MUST_EXIST);
+	wxDirDialog saveDirDialog(this,"Export palette file(s)",m_spell_data->export_path,wxDD_DIR_MUST_EXIST);
 	if(saveDirDialog.ShowModal() == wxID_CANCEL)
 		return;
 	wstring dir = wstring(saveDirDialog.GetPath().ToStdWstring());
-	spell_data->export_path = dir;
+	m_spell_data->export_path = dir;
 
 	// rather ask for permission
 	wxMessageDialog msg(NULL,"Files in the selected folder might be overwritten! Continue?","Export palette(s)",wxYES_NO | wxNO_DEFAULT | wxICON_QUESTION);
@@ -1882,7 +1967,7 @@ void FormGResEncoder::OnPaintResult(wxPaintEvent& event)
 			if(m_info.format == SpellGresInfo::Format::DTA)
 			{
 				auto land_type = std::max(std::min(m_info.land_type,13) - 1,0);
-				auto& tile = spell_data->special.frame[land_type];
+				auto& tile = m_spell_data->special.frame[land_type];
 				std::vector<uint8_t> pal(256*3,0);
 				pal[3 + 0] = 0x11;
 				pal[3 + 1] = 0xFF;

@@ -561,6 +561,9 @@ FormUnitsEdit::FormUnitsEdit( wxWindow* parent, wxWindowID id,SpellData *spell_d
 	pgSndRes->Bind(wxEVT_PG_DOUBLE_CLICK,&FormUnitsEdit::OnSndDoubleClick,this);
 
 	//pgPropGrp->Bind(wxEVT_PG_RIGHT_CLICK,&FormUnitsEdit::OnUnitPropsPupup,this);
+	Bind(wxEVT_PG_RIGHT_CLICK,&FormUnitsEdit::OnUnitPropsPupupOpen,this,wxID_PG_PROP_BASIC);
+	Bind(wxEVT_PG_RIGHT_CLICK,&FormUnitsEdit::OnUnitPropsPupupOpen,this,wxID_PG_PROP_BASIC2);
+	Bind(wxEVT_PG_RIGHT_CLICK,&FormUnitsEdit::OnUnitPropsPupupOpen,this,wxID_PG_PROP_SOUND);
 	Bind(wxEVT_PG_RIGHT_CLICK,&FormUnitsEdit::OnUnitPropsPupupOpen,this,wxID_PG_PROP_GRP);
 	Bind(wxEVT_PG_RIGHT_CLICK,&FormUnitsEdit::OnUnitPropsPupupOpen,this,wxID_PG_PROP_ACTION);
 	
@@ -791,7 +794,10 @@ void FormUnitsEdit::OnPaintFSU(wxPaintEvent& event)
 	std::string grp_name;
 	int frame_limit = -1;
 	if(event.GetId() == wxID_CANVAS_GRP)
+	{
+		frame_limit = m_unit->gra_frames;
 		grp_name = m_unit->gra;
+	}
 	else if(event.GetId() == wxID_CANVAS_GRP_AUX)
 		grp_name = m_unit->grb;
 	else if(event.GetId() == wxID_CANVAS_LIGHT_FIRE_ANIM)
@@ -1226,7 +1232,7 @@ void FormUnitsEdit::OnSelectUnit(wxCommandEvent& event)
 	grp = pgPropBasic->Append(new wxPropertyCategory("Action points:"));
 	pgPropBasic->AppendIn(grp,new wxIntPropertyExt("Action points",wxT(""),&m_unit->ap,0,255));
 	pgPropBasic->AppendIn(grp,new wxIntPropertyExt("AP per move",wxT(""),&m_unit->apw,0,255));
-	pgPropBasic->AppendIn(grp,new wxIntPropertyExt("AP per forrest move",wxT(""),&m_unit->apfw,0,255));
+	//pgPropBasic->AppendIn(grp,new wxIntPropertyExt("AP per forrest move",wxT(""),&m_unit->apfw,0,255));
 	pgPropBasic->AppendIn(grp,new wxIntPropertyExt("AP per shot",wxT(""),&m_unit->aps,0,255));
 	pgPropBasic->AppendIn(grp,new wxIntPropertyExt("Rounds to dig",wxT(""),&m_unit->dig_turns,0,255));
 	pgPropBasic->Thaw();
@@ -1244,10 +1250,10 @@ void FormUnitsEdit::OnSelectUnit(wxCommandEvent& event)
 	pgPropBasic2->AppendIn(grp,new wxBoolPropertyExt("Demon?",wxT(""),&m_unit->utype,SpellUnitRec::UTYPE_DEMON));
 
 	grp = pgPropBasic2->Append(new wxPropertyCategory("Fire flags:"));
-	pgPropBasic2->AppendIn(grp,new wxBoolPropertyExt("High turret origing",wxT(""),&m_unit->fire_flags,SpellUnitRec::FIRE_HIGH_TURRET));
+	pgPropBasic2->AppendIn(grp,new wxBoolPropertyExt("No unit turn before fire",wxT(""),&m_unit->fire_flags,SpellUnitRec::FIRE_NO_TURN));
 	pgPropBasic2->AppendIn(grp,new wxBoolPropertyExt("Artillery fire",wxT(""),&m_unit->fire_flags,SpellUnitRec::FIRE_INDIRECT));
 	pgPropBasic2->AppendIn(grp,new wxBoolPropertyExt("Steal enemy AP",wxT(""),&m_unit->fire_flags,SpellUnitRec::FIRE_STEAL_AP));
-	pgPropBasic2->AppendIn(grp,new wxBoolPropertyExt("Inefficient to armored",wxT(""),&m_unit->fire_flags,SpellUnitRec::FIRE_INEFFICIENT_TO_ARMORRED));
+	pgPropBasic2->AppendIn(grp,new wxBoolPropertyExt("Reset sprite immediately after fire anim",wxT(""),&m_unit->fire_flags,SpellUnitRec::FIRE_RESET_SPRITE_AFTER));
 	pgPropBasic2->AppendIn(grp,new wxBoolPropertyExt("Cannot fire from slopes",wxT(""),&m_unit->fire_flags,SpellUnitRec::FIRE_NOT_SLOPES));
 	pgPropBasic2->AppendIn(grp,new wxBoolPropertyExt("MLRS side-fire",wxT(""),&m_unit->fire_flags,SpellUnitRec::FIRE_MLRS));
 	pgPropBasic2->AppendIn(grp,new wxBoolPropertyExt("Uses fire projectile",wxT(""),&m_unit->fire_flags,SpellUnitRec::FIRE_FIRE_PROJECTILE));
@@ -1281,8 +1287,9 @@ void FormUnitsEdit::OnSelectUnit(wxCommandEvent& event)
 	pgPropGrp->Clear();
 
 	grp = pgPropGrp->Append(new wxPropertyCategory("General:"));
-	pgPropGrp->AppendIn(grp,new wxEnumPropertyExt("Graphics resource",wxT(""),MapToPGenumChoices(grp_res_list),&m_unit->gra));
-	pgPropGrp->AppendIn(grp,new wxEnumPropertyExt("Turret Graphics resource",wxT(""),MapToPGenumChoices(grp_res_list),&m_unit->grb));
+	pgPropGrp->AppendIn(grp,new wxEnumPropertyExt("Main graphics resource",wxT("anim_main"),MapToPGenumChoices(grp_res_list),&m_unit->gra));
+	pgPropGrp->AppendIn(grp,new wxIntPropertyExt("Main graphics movement frames limit",wxT("anim_main_frames"),&m_unit->gra_frames,0,255));
+	pgPropGrp->AppendIn(grp,new wxEnumPropertyExt("Aux Graphics resource (tank turret)",wxT(""),MapToPGenumChoices(grp_res_list),&m_unit->grb));
 	pgPropGrp->AppendIn(grp,new wxEnumPropertyExt("Projectile name",wxT(""),MapToPGenumChoices(proj_names),&m_unit->projetile_name));
 	pgPropGrp->AppendIn(grp,new wxEnumPropertyExt("Unit INFO.FS resource name",wxT(""),MapToPGenumChoices(info_names),&m_unit->info));
 	pgPropGrp->AppendIn(grp,new wxEnumPropertyExt("Unit glyph icon name",wxT(""),MapToPGenumChoices(icon_names),&m_unit->icon));
@@ -3427,6 +3434,10 @@ void FormUnitsEdit::OnUnitsPupupOpen(wxMouseEvent& event)
 	menu.AppendSeparator();
 	menu.Append((int)PopupActions::ADD_UNIT,"New unit...");
 
+	auto unit_id = lboxUnits->GetNextItem(-1,wxLIST_NEXT_ALL,wxLIST_STATE_SELECTED);
+	if(unit_id >= 0 && lboxUnits->GetSelectedItemCount() == 1)
+		menu.Append((int)PopupActions::DUP_UNIT,"Duplicate unit");
+
 	wxArrayInt sel;
 	lboxTargetDef->GetSelections(sel);
 	if(lboxUnits->GetSelectedItemCount() > 0 && !sel.empty())
@@ -3458,6 +3469,26 @@ void FormUnitsEdit::OnUnitsPupup(wxCommandEvent& event)
 		wxCommandEvent createEvent;
 		OnNewUnit(createEvent);
 	}
+	else if(menu_id == PopupActions::DUP_UNIT)
+	{
+		if(!m_units)
+			return;
+		auto unit_id = lboxUnits->GetNextItem(-1,wxLIST_NEXT_ALL,wxLIST_STATE_SELECTED);
+		if(unit_id < 0)
+			return;
+
+		auto unit = m_units->AddUnit();		
+		m_units->CopyUnit(unit_id,unit->type_id);		
+						
+		wxCommandEvent evt;
+		evt.SetEventObject(lboxTargetDef);
+		OnSelectDEF(evt);
+
+		lboxUnits->SetItemState(-1,0,wxLIST_STATE_SELECTED);
+		lboxUnits->SetItemState(unit->type_id,wxLIST_STATE_SELECTED,wxLIST_STATE_SELECTED);
+		lboxUnits->EnsureVisible(unit->type_id);
+		lboxUnits->Refresh();
+	}
 	else if(menu_id == PopupActions::COPY_TO_TARGET)
 	{
 		// target DEFs
@@ -3486,6 +3517,13 @@ void FormUnitsEdit::OnUnitsPupup(wxCommandEvent& event)
 
 
 
+
+class pgPropData : public wxClientData {
+public:
+	wxPGProperty* prop;
+	std::string* anim_name;
+};
+
 // props popup menu
 void FormUnitsEdit::OnUnitPropsPupupOpen(wxPropertyGridEvent& event)
 {
@@ -3497,9 +3535,11 @@ void FormUnitsEdit::OnUnitPropsPupupOpen(wxPropertyGridEvent& event)
 	if(!m_unit)
 		return;
 
-	std::string *anim_name;
+	std::string *anim_name = NULL;
 	auto name = prop->GetName();
-	if(name == "anim_light_frames")
+	if(name == "anim_main_frames")
+		anim_name = &m_unit->gra;
+	else if(name == "anim_light_frames")
 		anim_name = &m_unit->anim_atack_light_name;
 	else if(name == "anim_armored_frames")
 		anim_name = &m_unit->anim_atack_armor_name;
@@ -3508,19 +3548,22 @@ void FormUnitsEdit::OnUnitPropsPupupOpen(wxPropertyGridEvent& event)
 	else if(name == "spec_anim_frames")
 		anim_name = &m_unit->action_fsu_name;
 	else if(name == "die_anim_frames")
-		anim_name = &m_unit->die_anim_name;
-	else
-		return;
-	auto grp = m_spell_data->units_fsu->GetResource(*anim_name);
-	if(!grp)
-		return;
-	if(!grp->anim.frames)
-		return;
+		anim_name = &m_unit->die_anim_name;	
+	if(anim_name)
+	{
+		auto grp = m_spell_data->units_fsu->GetResource(*anim_name);
+		if(grp && grp->anim.frames)
+			menu.Append((int)PopupActions::RESET_ANIM_FRAMES,"Set frames to max");
+	}
 
-	menu.Append((int)PopupActions::RESET_ANIM_FRAMES,"Set frames to max");
-
-	menu.SetClientData(anim_name);
+	menu.Append((int)PopupActions::COPY_PROP,string_format("Copy property '%s' to target DEFs", prop->GetLabel().ToStdString()));
+	menu.Append((int)PopupActions::COPY_PROPS_PAGE,string_format("Copy properties of this page to target DEFs"));
 		
+	auto data = new pgPropData();
+	data->prop = prop;
+	data->anim_name = anim_name;
+	menu.SetClientObject(data);
+				
 	menu.Connect(wxEVT_COMMAND_MENU_SELECTED,wxCommandEventHandler(FormUnitsEdit::OnUnitPropsPupup),NULL,this);
 	PopupMenu(&menu);
 }
@@ -3530,10 +3573,13 @@ void FormUnitsEdit::OnUnitPropsPupup(wxCommandEvent& event)
 	auto menu = (wxMenu*)event.GetEventObject();
 	if(!menu)
 		return;
+	auto data = (pgPropData*)menu->GetClientObject();
+	if(!data)
+		return;
 
 	if(menu_id == PopupActions::RESET_ANIM_FRAMES)
 	{
-		auto *anim_name = (std::string*)menu->GetClientData();
+		auto *anim_name = data->anim_name;
 		if(!anim_name)
 			return;
 		if(!m_unit)
@@ -3544,7 +3590,9 @@ void FormUnitsEdit::OnUnitPropsPupup(wxCommandEvent& event)
 			return;
 		auto frames = grp->anim.frames;
 		
-		if(anim_name == &m_unit->anim_atack_light_name)
+		if(anim_name == &m_unit->gra)
+			m_unit->gra_frames = frames;
+		else if(anim_name == &m_unit->anim_atack_light_name)
 			m_unit->anim_atack_light_frames = frames;
 		else if(anim_name == &m_unit->anim_atack_armor_name)
 			m_unit->anim_atack_armor_frames = frames;
@@ -3560,8 +3608,66 @@ void FormUnitsEdit::OnUnitPropsPupup(wxCommandEvent& event)
 		event.SetEventType(wxEVT_COMMAND_LIST_ITEM_SELECTED);
 		wxPostEvent(this->GetEventHandler(),event);
 	}
-	
+	else if(menu_id == PopupActions::COPY_PROP || menu_id == PopupActions::COPY_PROPS_PAGE)
+	{
+		// copy property to target DEFs
 
+		// target DEFs
+		std::vector<std::shared_ptr<SpellUnits>> def_list;
+		wxArrayInt sel;
+		lboxTargetDef->GetSelections(sel);
+		for(auto &id: sel)
+			if(id >= 0 && id < m_defs.size())
+				def_list.push_back(m_defs[id]);
+
+		// target unit
+		if(!m_units)
+			return;
+		if(!m_unit)
+			return;
+		int uid = m_unit->type_id;		
+
+		std::vector<wxPGProperty*> prop_list;
+		if(menu_id == PopupActions::COPY_PROP)
+		{
+			// single prop
+			auto prop = data->prop;
+			if(!prop)
+				return;
+			prop_list.push_back(prop);
+		}
+		else if(menu_id == PopupActions::COPY_PROPS_PAGE)
+		{
+			// all props
+			auto prop = data->prop;
+			if(!prop)
+				return;
+			auto pg = prop->GetGrid();
+			if(!pg)
+				return;			
+			for(auto it = pg->GetIterator(wxPG_ITERATE_PROPERTIES); !it.AtEnd(); it++)
+				prop_list.push_back(*it);
+		}
+		
+		// for each property:
+		for(auto &prop: prop_list)
+		{
+			if(!prop)			
+				continue;
+			auto obj = (wxPGobj*)prop->GetClientObject();
+			if(!obj)
+				return;
+
+			// for each target:
+			for(auto &def: def_list)
+			{
+				auto target_unit = def->GetUnit(uid);
+				if(!target_unit)
+					continue;
+				obj->Copy(m_unit,target_unit);
+			}
+		}
+	}
 }
 
 
@@ -3579,7 +3685,7 @@ void FormUnitsEdit::OnPGpropChange(wxPropertyGridEvent& event)
 	auto obj = (wxPGobj*)prop->GetClientObject();
 	if(obj)
 	{
-		obj->Update(prop);
+		obj->Update();
 		
 		auto name = prop->GetName().ToStdString();
 		if(iequals({"action_type"s,"die_action_type"s},name) >= 0)
@@ -3595,7 +3701,9 @@ void FormUnitsEdit::OnPGpropChange(wxPropertyGridEvent& event)
 		{
 			std::string anim_name;
 			std::string name = prop->GetName().ToStdString();
-			if(name == "anim_light")
+			if(name == "anim_main")
+				anim_name = m_unit->gra;
+			else if(name == "anim_light")
 				anim_name = m_unit->anim_atack_light_name;
 			else if(name == "anim_armored")
 				anim_name = m_unit->anim_atack_armor_name;
@@ -3609,7 +3717,9 @@ void FormUnitsEdit::OnPGpropChange(wxPropertyGridEvent& event)
 			int frames = 0;
 			if(grp && grp->anim.frames)
 				frames = grp->anim.frames;
-			if(name == "anim_light")
+			if(name == "anim_main")
+				m_unit->gra_frames = frames;
+			else if(name == "anim_light")
 				m_unit->anim_atack_light_frames = frames;
 			else if(name == "anim_armored")
 				m_unit->anim_atack_armor_frames = frames;
