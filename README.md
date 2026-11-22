@@ -6,7 +6,7 @@ This is the standalone editor included with [Spellcross Reloaded](https://github
 
 It builds on [Stanislav Mašláň's original Spellcross Map Editor](https://github.com/smaslan/spellcross-map-edit). His work on the game formats, editor and resource tools remains the foundation of this fork.
 
-**[Download the latest Spellcross Reloaded release (game + editor)](https://github.com/luboshorak/spellcross-reloaded/releases/latest)** · [Original editor](https://github.com/smaslan/spellcross-map-edit) · [Full editor reference](./doc/UPSTREAM_EDITOR_GUIDE.md)
+**[Download the latest Spellcross Reloaded release (game + editor)](https://github.com/luboshorak/spellcross-reloaded/releases/latest)** · **[Standalone editor releases](https://github.com/luboshorak/spellcross-reloaded-editor/releases)** · [Original editor](https://github.com/smaslan/spellcross-map-edit) · [Full editor reference](./doc/UPSTREAM_EDITOR_GUIDE.md)
 
 ## Start editing
 
@@ -78,6 +78,14 @@ git clone --recurse-submodules https://github.com/luboshorak/spellcross-reloaded
 cd spellcross-reloaded
 .\packaging\Build-CombinedRelease.ps1
 ```
+
+For a **standalone Windows x64 editor release** (no game build, no game data and no game release), run from this editor repository:
+
+```powershell
+.\packaging\Build-EditorRelease.ps1 -Version 0.1.0 -WxRoot 'C:\vcpkg\installed\x64-windows'
+```
+
+The editor-only ZIP and SHA256 appear in `dist/`. Add `-Publish` only when you want to create the separate `editor-vVERSION` GitHub release **in this editor repository**. Publishing requires a clean, pushed editor `main` branch and `gh` CLI authentication. See [standalone release instructions](./packaging/README.md) for prerequisites, validation and options.
 
 For editor-only development, open `source/spellcross_map_editor.sln` from this repository. Reloaded pins the editor as a Git submodule at `external/map-editor`, so new editor commits are not automatically picked up by the game repository.
 
