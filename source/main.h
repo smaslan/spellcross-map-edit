@@ -66,7 +66,8 @@ private:
     SpellMap* spell_map;
     SpellData* spell_data;   
     SpellConfig m_config;
-    SpellTreeRandomizerRules m_tree_rand_rules;    
+    SpellTreeRandomizerRules m_tree_rand_rules;
+    bool m_confineCursorFullscreen = true;    
 public:
     virtual bool OnInit();
     virtual int OnExit();
@@ -115,7 +116,8 @@ private:
 class MainFrame : public wxFrame
 {
 public:
-    MainFrame(SpellConfig* config, SpellMap *&map,SpellData *&spelldata,SpellTreeRandomizerRules &tree_rand_rules);
+    MainFrame(SpellConfig* config, SpellMap *&map,SpellData *&spelldata,
+              SpellTreeRandomizerRules &tree_rand_rules, bool& confineCursorFullscreen);
     ~MainFrame() override;
     void StatusStringCallback(std::string info);
     void CreateHUDbuttons();
@@ -253,7 +255,7 @@ private:
     std::chrono::steady_clock::time_point m_lastEdgePanTick{};
     // As in the game: cursor confinement is opt-in via View menu,
     // but only applied while in fullscreen to avoid trapping editing tools.
-    bool m_confineCursorFullscreen = true;
+    bool& m_confineCursorFullscreen;
     bool m_cursorClipped = false;
     bool m_savedCursorClipValid = false;
     bool m_nativeMenuOpen = false;
