@@ -90,6 +90,16 @@ void TScroll::SetPos(int x,int y)
 	state = 0;
 	modified = true;
 }
+// Scroll the view while preserving xref/yref. Used for edge scrolling,
+// where the mouse is stationary but the map continues to move.
+void TScroll::ScrollBy(int deltaX, int deltaY)
+{
+    if (!deltaX && !deltaY)
+        return;
+    dx += deltaX;
+    dy += deltaY;
+    modified = true;
+}
 // set cursor ref. position (callwed on mouse down event)
 void TScroll::SetRef(int x,int y)
 {
