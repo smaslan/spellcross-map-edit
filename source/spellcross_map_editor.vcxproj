@@ -83,6 +83,7 @@
     <ClCompile Include="wx_other.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="editor_chrome.h" />
     <ClInclude Include="cxxmidi\converters.hpp" />
     <ClInclude Include="cxxmidi\event.hpp" />
     <ClInclude Include="cxxmidi\file.hpp" />

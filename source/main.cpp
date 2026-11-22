@@ -536,6 +536,10 @@ MainFrame::MainFrame(SpellConfig* config, SpellMap *&map, SpellData *&spelldata,
     wxMenu* menuHelp = new wxMenu;
     menuHelp->Append(wxID_ABOUT);
     AssignSVGresourceToMenu(menuHelp,wxID_ABOUT,"IDR_INFO");
+
+    // Match the system chrome used by Spellcross Reloaded. The fullscreen
+    // command stays in the menu model so Alt+Enter works from the map canvas.
+    editor_chrome::AddFullscreen(menuView);
     
     // Main menu
     wxMenuBar* menuBar = new wxMenuBar;    
@@ -545,7 +549,7 @@ MainFrame::MainFrame(SpellConfig* config, SpellMap *&map, SpellData *&spelldata,
     menuBar->Append(menuView, "&View");
     menuBar->Append(menuTools,"&Tools");
     menuBar->Append(menuHelp, "&Help");
-    SetMenuBar(menuBar);
+    editor_chrome::Install(this, menuBar);
     
     
     // Dedicated last field for brush state. The existing unit-status field
@@ -604,6 +608,10 @@ MainFrame::MainFrame(SpellConfig* config, SpellMap *&map, SpellData *&spelldata,
                 spell_map->ClearBuffer();
             m_moveObjectPreview = false;
             m_moveObjectArmed = false;
+            m_mapPanActive = false;
+            m_mapPanDragged = false;
+            if (spell_map)
+                spell_map->scroller.Idle();
             m_drag_sel_start.Clear();
         });
 
@@ -2757,11 +2765,25 @@ void MainFrame::OnCanvasRMouse(wxMouseEvent& event)
         return;
     
     if(event.RightDown())
+    {
+        m_mapPanActive = true;
+        m_mapPanDragged = false;
+        m_mapPanStart = event.GetPosition();
         spell_map->scroller.SetRef(event.GetX(), event.GetY());
+        if (!canvas->HasCapture())
+            canvas->CaptureMouse();
+        return;
+    }
     else if(event.RightUp())
     {
-        int was_moved = spell_map->scroller.Idle();
-        if(!was_moved && !spell_map->isGameMode())
+        const bool was_dragged = m_mapPanDragged;
+        m_mapPanActive = false;
+        m_mapPanDragged = false;
+        spell_map->scroller.Idle();
+        if (canvas->HasCapture())
+            canvas->ReleaseMouse();
+        SetCursor(*wxSTANDARD_CURSOR);
+        if(!was_dragged && !spell_map->isGameMode())
         {
             // --- editor mode popup menu stuff:
             auto cur_unit = spell_map->GetCursorUnit();
@@ -3510,7 +3532,8 @@ void MainFrame::OnCanvasMouseEnter(wxMouseEvent& event)
 // on canvas mouse leave
 void MainFrame::OnCanvasMouseLeave(wxMouseEvent& event)
 {
-    SetCursor(*wxSTANDARD_CURSOR);
+    if (!m_mapPanActive)
+        SetCursor(*wxSTANDARD_CURSOR);
 
     if(!spell_map->IsLoaded())
         return;
@@ -3521,7 +3544,8 @@ void MainFrame::OnCanvasMouseLeave(wxMouseEvent& event)
     spell_map->scroller.ResizeSelection(0);
 
     spell_map->SetUnitRangeViewMode(SpellMap::UNIT_RANGE_NONE);
-    spell_map->scroller.Idle();
+    if (!m_mapPanActive)
+        spell_map->scroller.Idle();
 }
 // on canvas mouse move
 void MainFrame::OnCanvasMouseMove(wxMouseEvent& event)
@@ -3533,7 +3557,35 @@ void MainFrame::OnCanvasMouseMove(wxMouseEvent& event)
     if(inUnitOptions())
         return;
 
-    
+    if (m_mapPanActive)
+    {
+        if (!event.RightIsDown())
+        {
+            m_mapPanActive = false;
+            m_mapPanDragged = false;
+            spell_map->scroller.Idle();
+            if (canvas->HasCapture())
+                canvas->ReleaseMouse();
+            SetCursor(*wxSTANDARD_CURSOR);
+        }
+        else
+        {
+            if (!m_mapPanDragged)
+            {
+                const int threshold = FromDIP(4);
+                m_mapPanDragged =
+                    std::abs(event.GetX() - m_mapPanStart.x) >= threshold ||
+                    std::abs(event.GetY() - m_mapPanStart.y) >= threshold;
+            }
+            if (m_mapPanDragged)
+            {
+                spell_map->scroller.Move(event.GetX(), event.GetY());
+                SetCursor(wxCursor(wxCURSOR_SIZING));
+                canvas->Refresh();
+            }
+            return;
+        }
+    }
 
     static int last_in_hud = false;
 
