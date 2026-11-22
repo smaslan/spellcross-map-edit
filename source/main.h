@@ -246,6 +246,9 @@ private:
     bool m_mapPanDragged = false;
     wxPoint m_mapPanStart;
     std::chrono::steady_clock::time_point m_lastEdgeScrollTick{};
+    // Collapse repeated fullscreen shortcuts while Win32 changes window chrome.
+    bool m_fullscreenChangeQueued = false;
+    bool m_fullscreenDesired = false;
     // Armed on left-down over an existing L2 map object while no brush is
     // active. Moving starts only after the cursor reaches another tile.
     bool m_moveObjectArmed = false;
