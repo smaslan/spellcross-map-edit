@@ -865,7 +865,7 @@ void FormUnits::OnUnitPropChange(wxPropertyGridEvent& event)
 	}*/
 	if(obj)
 	{
-		obj->Update(prop);
+		obj->Update();
 	}
 
 	

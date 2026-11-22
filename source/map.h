@@ -409,6 +409,54 @@ class SpellMap
 		void ResumeUnitRanging(bool resume=true);
 
 
+		// map array vector with MapXY access
+		template <typename T>
+		class mapvector : public std::vector<T> {
+		private:
+			const SpellMap& m_map;
+		public:
+			using std::vector<T>::operator[];
+
+			explicit mapvector(const SpellMap* map)
+				: std::vector<T>(), m_map(*map) {}
+
+			mapvector(const SpellMap& map, std::initializer_list<T> init)
+				: std::vector<T>(init), m_map(map) {}				
+
+			mapvector& operator=(const mapvector& other) {
+				if (this != &other) {
+					std::vector<T>::operator=(other);
+				}
+				return *this;
+			}
+
+			T& operator[](const MapXY& pxy) {
+				std::size_t idx = m_map.ConvXY(pxy);
+				return (*this)[idx];
+			}
+			const T& operator[](const MapXY& pxy) const {
+				std::size_t idx = m_map.ConvXY(pxy);
+				return (*this)[idx];
+			}
+
+			T& at(const int x,const int y) {
+				std::size_t idx = m_map.ConvXY(MapXY(x, y));
+				return (*this)[idx];
+			}
+			const T& at(const int x,const int y) const {
+				std::size_t idx = m_map.ConvXY(MapXY(x, y));
+				return (*this)[idx];
+			}
+
+			bool isValidIndex(const MapXY& pxy) const {
+				return(pxy.isOK());
+			}
+			bool isValidIndex(const int x, const int y) const {
+				return(MapXY(x, y).isOK());
+			}
+		};
+
+
 		// default scroller
 		TScroll scroller;
 
@@ -423,7 +471,7 @@ class SpellMap
 		Terrain* terrain;
 		SpellData* spelldata;
 		// layers:
-		vector<MapSprite> tiles; // terrain tiles map (L1+L2)
+		mapvector<MapSprite> tiles{*this,{}}; // terrain tiles map (L1+L2)
 		vector<MapLayer3> anms; // ANM list
 		vector<MapLayer4> pnms; // PNM list	
 		vector<MapXY> counter_attack_post_enemy; // counter attack enemy
@@ -450,8 +498,13 @@ class SpellMap
 
 		class HistoryState
 		{
+		private:
+			const SpellMap *m_map;
 		public:
-			vector<MapSprite> tiles; // terrain tiles map (L1+L2)
+			HistoryState(const SpellMap *map)
+				: m_map(map) {}
+			
+			mapvector<MapSprite> tiles{*m_map,{}}; // terrain tiles map (L1+L2)
 			vector<MapLayer3> anms; // ANM list
 			vector<MapLayer4> pnms; // PNM list	
 			vector<MapXY> counter_attack_post_enemy; // counter attack enemy
@@ -488,7 +541,8 @@ class SpellMap
 			std::string start_text = "";
 			std::string end_ok_text = "";
 			std::string end_bad_text = "";
-			void Clear() { is_night = false; mission_text = "";start_text = "";end_ok_text = "";end_bad_text = "";};
+			int time_limit = 0;
+			void Clear() { is_night = false; mission_text = "";start_text = "";end_ok_text = "";end_bad_text = ""; time_limit = 0;};
 		};
 		MissionParams params;
 
@@ -685,9 +739,15 @@ class SpellMap
 		// map state save
 		class SavedState
 		{
-		public:		
+		private:
+			const SpellMap* m_map;
+		public:
+
+			SavedState(const SpellMap* map)
+				: m_map(map) {}
+
 			// tiles copy
-			vector<MapSprite> tiles; // terrain tiles map (L1+L2)
+			mapvector<MapSprite> tiles{*m_map,{}}; // terrain tiles map (L1+L2)
 			// list of units
 			vector<MapUnit*> units;
 			MapUnit *sel_unit;
@@ -734,6 +794,8 @@ class SpellMap
 		int SaveDEF(std::wstring path);
 		int IsLoaded();
 		bool TileIsVisible(int x, int y);
+		bool TileIsVisible(MapXY &pos);
+		bool TileIsVisible();
 		tuple<int,int> GetSurfPos(MapXY &pos);
 
 		
@@ -889,11 +951,11 @@ class SpellMap
 		int Tick();
 		wstring GetTopPath();
 		
-		int ConvXY(int x, int y);
-		int ConvXY(MapXY &mxy);
+		int ConvXY(const int x, const int y) const;
+		int ConvXY(const MapXY &mxy) const;
 		int ConvXY(MapXY *mxy);
-		int isXYok(int x,int y);
-		int isXYok(MapXY& mxy);
+		int isXYok(const int x, const int y) const;
+		int isXYok(const MapXY& mxy) const;
 
 			
 		int GetElevation(TScroll* scroll=NULL);

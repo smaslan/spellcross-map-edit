@@ -896,7 +896,7 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 	this->terrain = spelldata->GetTerrain(terrain_name.c_str());
 	if(!this->terrain)
 	{
-		last_error = string_format("Map DTA files references unknown terrain '%s'!",terrain_name.c_str());
+		last_error = string_format("Map DTA files references unknown terrain '%s'!",terrain_name);
 		Close();
 		return(1);
 	}
@@ -1690,6 +1690,17 @@ int SpellMap::Load(std::filesystem::path path, SpellData *spelldata)
 					return(1);
 				}
 			}
+			else if(cmd->name.compare("TimeLimit") == 0)
+			{
+				// --- Time limit command
+				if(cmd->parameters.size() != 1)
+				{
+					last_error = string_format("TimeLimit() command requires exactly one parameter!");
+					Close();
+					return(1);
+				}
+				params.time_limit = std::strtol(cmd->parameters.at(0).c_str(), NULL, 10);
+			}
 			else
 			{
 				// unknown stuff in MissionData
@@ -1887,7 +1898,7 @@ int SpellMap::SaveDTA(std::wstring path)
 	for(auto spr: L2_list)
 		if(spr->is_dummy)
 		{
-			last_error = string_format("Saving DTA file: sprite %s in objects layer not available in loaded data!",spr->name.c_str());
+			last_error = string_format("Saving DTA file: sprite %s in objects layer not available in loaded data!",spr->name);
 			fw.close();
 			return(1);
 		}
@@ -1979,7 +1990,7 @@ int SpellMap::SaveDTA(std::wstring path)
 	for(auto spr: L4_list)
 		if(spr->is_dummy)
 		{
-			last_error = string_format("Saving DTA file: sprite %s in PNM layer not available in loaded data!",spr->name.c_str());
+			last_error = string_format("Saving DTA file: sprite %s in PNM layer not available in loaded data!",spr->name);
 			fw.close();
 			return(1);
 		}
@@ -2191,7 +2202,7 @@ int SpellMap::SaveDEF(std::wstring path)
 	if(SortUnitIDs())
 	{
 		// failed
-		last_error = string_format("Saving map DEF file: assigning units IDs failed with error:\n",last_error.c_str());
+		last_error = string_format("Saving map DEF file: assigning units IDs failed with error:\n",last_error);
 		return(1);
 	}
 
@@ -2200,6 +2211,10 @@ int SpellMap::SaveDEF(std::wstring path)
 	// MissionMap()
 	auto map_name = wstring2string(std::wstring(filesystem::path(map_path).stem()));
 	mission_data += "    MissionMap(" + map_name + ")\n";
+
+	// global mission time limit?
+	if(params.time_limit > 0)
+		mission_data += string_format("    TimeLimit(%d)\n", params.time_limit);
 
 	// put auto unit randomizer setup
 	mission_data += unit_randomizer.MakeRulesDEF("    ");
@@ -2210,7 +2225,7 @@ int SpellMap::SaveDEF(std::wstring path)
 		std::string name = wstring2stringCP895(unit->name);
 		if(name.empty())
 			name = "-";
-		mission_data += string_format("    AddUnit(%d,%d,%d,%d,%d,%s,%s)", unit->id, unit->unit->type_id, ConvXY(unit->coor), unit->experience_init, unit->man, unit->behave.GetString().c_str(), name.c_str());
+		mission_data += string_format("    AddUnit(%d,%d,%d,%d,%d,%s,%s)", unit->id, unit->unit->type_id, ConvXY(unit->coor), unit->experience_init, unit->man, unit->behave.GetString(), name);
 		
 		// append randomizer setup
 		if(unit->randomize_mode == MapUnit::RandomizeMode::OFF)
@@ -2233,11 +2248,14 @@ int SpellMap::SaveDEF(std::wstring path)
 			
 	// place events in this order:
 	std::vector<SpellMapEventRec::EvtTypes> event_types = {
+		SpellMapEventRec::EvtTypes::EVT_TIME_LIMIT,
 		SpellMapEventRec::EvtTypes::EVT_MISSION_START,
 		SpellMapEventRec::EvtTypes::EVT_SEE_PLACE,
 		SpellMapEventRec::EvtTypes::EVT_SEE_UNIT,
 		SpellMapEventRec::EvtTypes::EVT_TRANSPORT_UNIT,
 		SpellMapEventRec::EvtTypes::EVT_SAVE_UNIT,
+		SpellMapEventRec::EvtTypes::EVT_SURVIVE_TURNS,
+		SpellMapEventRec::EvtTypes::EVT_TURN,		
 		SpellMapEventRec::EvtTypes::EVT_DESTROY_UNIT,
 		SpellMapEventRec::EvtTypes::EVT_DESTROY_OBJ,
 		SpellMapEventRec::EvtTypes::EVT_DESTROY_ALL};
@@ -2299,25 +2317,17 @@ int SpellMap::SaveDEF(std::wstring path)
 	std::string mission_params = "MissionParameters {\n";
 	mission_params += "    Time(t)\n"; // this is likely constant in all maps?
 	// don't know what happens when empty resource is used (first map has non-existent resources)
-	mission_params += string_format("    MissionText(%s)\n",params.mission_text.c_str());
-	mission_params += string_format("    MissionStartText(%s)\n",params.start_text.c_str());
-	mission_params += string_format("    MissionEndOKText(%s)\n",params.end_ok_text.c_str());
-	mission_params += string_format("    MissionEndBadText(%s)\n",params.end_bad_text.c_str());
+	mission_params += string_format("    MissionText(%s)\n",params.mission_text);
+	mission_params += string_format("    MissionStartText(%s)\n",params.start_text);
+	mission_params += string_format("    MissionEndOKText(%s)\n",params.end_ok_text);
+	mission_params += string_format("    MissionEndBadText(%s)\n",params.end_bad_text);
 	mission_params += "}\n";
 
 	// append event data
 	std::string def_data = mission_data + event_data + mission_params;
 	
-	// try open file
-	ofstream fw(path,ios::out | ios::trunc);
-	if(!fw.is_open())
+	if(savestr(path, def_data))
 		return(1);
-
-	// write DEF
-	fw.write(def_data.c_str(), def_data.size());
-
-	// close file
-	fw.close();
 
 	return(0);
 }
@@ -2351,12 +2361,12 @@ int SpellMap::HistoryPush()
 	HaltUnitRanging(true);
 
 	// make new entry
-	history.push_back(std::make_unique<HistoryState>());
+	history.push_back(std::make_unique<HistoryState>(this));
 	auto &hist = history.back();
 	history_pos = (int)history.size() - 1;
-
+		
 	// save state
-	hist->tiles = tiles;
+	hist->tiles = tiles;	
 	hist->anms = anms;
 	hist->pnms = pnms;
 	hist->select = select;
@@ -2496,7 +2506,7 @@ bool SpellMap::HistoryCanPop(bool redo)
 
 
 // convert x,y to combined tile position
-int SpellMap::ConvXY(int x, int y)
+int SpellMap::ConvXY(const int x, const int y) const
 {
 	if(x >= 0 && y >= 0 && x < x_size && y < y_size)
 		return(x + y * x_size);
@@ -2506,17 +2516,17 @@ int SpellMap::ConvXY(MapXY *mxy)
 {
 	return(ConvXY(mxy->x,mxy->y));
 }
-int SpellMap::ConvXY(MapXY &mxy)
+int SpellMap::ConvXY(const MapXY &mxy) const
 {
-	return(ConvXY(&mxy));
+	return(ConvXY(mxy.x,mxy.y));
 }
 // is x,y within valid range?
-int SpellMap::isXYok(int x,int y)
+int SpellMap::isXYok(const int x, const int y) const
 {
 	return(x >=0 && x < x_size && y >=0 && y < y_size);
 }
 // is x,y within valid range?
-int SpellMap::isXYok(MapXY& mxy)
+int SpellMap::isXYok(const MapXY& mxy) const
 {
 	return(mxy.x >=0 && mxy.x < x_size&& mxy.y >=0 && mxy.y < y_size);
 }
@@ -5410,6 +5420,8 @@ int SpellMap::Render(wxBitmap &bmp, TScroll* scroll, SpellTool *tool,std::functi
 				if(evt->is_objective)
 					label += "\x17";
 				label += evt->type_name;
+				if(evt->hasTimer() && (evt->time_param > 0 || evt->isTurn()))
+					label += string_format("(T:%d)",evt->time_param);
 				if(evt->probability != 100)
 					label += string_format("(%d%%)",evt->probability);
 				if(!evt->units.empty())
@@ -8570,6 +8582,21 @@ bool SpellMap::TileIsVisible(int x,int y)
 	int x_ok = (x >= (1 + is_even)) && (x < x_size-3);	
 	return(x_ok && y >= 8 && y < (y_size-14));
 }
+// returns true when tile is in the normally visible area of map, false for the dark map bevel
+bool SpellMap::TileIsVisible(MapXY &pos)
+{
+	if(!pos.IsSelected())
+		return(false);
+	return(TileIsVisible(pos.x, pos.y));
+}
+// returns true when tile is in the normally visible area of map, false for the dark map bevel
+bool SpellMap::TileIsVisible()
+{
+	auto pos = GetSelection();
+	if(!pos.IsSelected())
+		return(false);
+	return(TileIsVisible(pos.x, pos.y));
+}
 
 
 
@@ -10449,7 +10476,7 @@ int SpellMap::Saves::Save(SpellMap::SavedState *slot)
 	if(!save)
 	{
 		// add save slot if not provided explicitely
-		saves.push_back(new SpellMap::SavedState());
+		saves.push_back(new SpellMap::SavedState(map));
 		save = saves.back();
 	}
 
@@ -12902,6 +12929,8 @@ int SpellMap::EditClass(vector<MapXY>& selection, SpellTool *tool, std::function
 
 	std::vector<int> modz(x_size*y_size,0);
 
+
+	
 	for(auto &sel: selection)
 	{
 		// initial tile to alter
@@ -12996,6 +13025,7 @@ int SpellMap::EditClass(vector<MapXY>& selection, SpellTool *tool, std::function
 
 			// make list of neighbors to all modified tiles
 			list.clear();
+			auto old_targer_flags = target_flags;
 			for(auto mpos: mod_list)
 			{
 				auto pxy = ConvXY(mpos);
@@ -13012,15 +13042,40 @@ int SpellMap::EditClass(vector<MapXY>& selection, SpellTool *tool, std::function
 					if(modz[nxy])
 						continue;
 					modz[nxy] = 1;
-					auto &nflags = L1_flags[nxy];
-					if(flags & target_flags && !(flags & blend_flags) && !(nflags & target_flags))
+					auto &nflags = L1_flags[nxy];				
+					if(!cleanup && (flags & target_flags) && !(flags & blend_flags) && !(nflags & target_flags))
+						list.push_back(npos);					
+					if(cleanup && (flags & target_flags) && (flags & blend_flags) && !(nflags & target_flags) && popcount(nflags) == 1)
 						list.push_back(npos);
 				}
 			}
+			std::ranges::replace_if(modz,[](int m){return m == 1;},0);
+			
 
-		}while(!list.empty()); // repeat until no more modified tiles
-
+		}while(!list.empty() || !cleanup); // repeat until no more modified tiles
 	}
+
+
+
+	// grow modified region to include all neighbors of modified tiles
+	for(int y = 0; y < y_size; y++)
+	{
+		for(int x = 0; x < x_size; x++)
+		{
+			auto pxy = ConvXY(MapXY(x,y));
+			if(modz[pxy] < 2)
+				continue;
+			for(int nid = 0; nid < 8; nid++)
+			{
+				auto npos = GetNeighborTile8D(MapXY(x,y),nid);
+				if(!npos.IsSelected())
+					continue;
+				auto nxy = ConvXY(npos);
+				modz[nxy] = 1;
+			}
+		}
+	}
+
 
 
 	for(int y = 0; y < y_size; y++)

@@ -483,7 +483,7 @@ MainFrame::MainFrame(SpellConfig* config, SpellMap *&map, SpellData *&spelldata,
     
     // tools
     wxMenu* menuTools = new wxMenu;
-    menuTools->Append(ID_ViewSprites,"Sprites viewer","",wxITEM_NORMAL);
+    menuTools->Append(ID_ViewSprites,"Sprites viewer\tCtrl+Shift+S","",wxITEM_NORMAL);
     menuTools->Append(ID_ViewAnms,"Animations (ANM) viewer","",wxITEM_NORMAL);
     menuTools->Append(ID_ViewPnms,"Animations (PNM) viewer","",wxITEM_NORMAL);
     menuTools->Append(ID_SoundsViewer,"Sounds viewer","",wxITEM_NORMAL);
@@ -710,6 +710,8 @@ MainFrame::MainFrame(SpellConfig* config, SpellMap *&map, SpellData *&spelldata,
     spell_map->SetMessageInterface(bind(&MainFrame::ShowMessage,this,placeholders::_1,placeholders::_2,placeholders::_3), bind(&MainFrame::CheckMessageState,this));    
     
     HistoryCheck();
+
+    //auto list = get_text_lines("SurviveTurns,3,",true,',');
 
     // main sizer 
     /*auto sizer2 = new wxBoxSizer(wxVERTICAL);
@@ -1657,7 +1659,22 @@ void MainFrame::OnViewSprites(wxCommandEvent& event)
     {
         form_sprites = new FormSprite(this, spell_data, ID_SPRITES_WIN);
         if(spell_map)
-            form_sprites->SetSprite(spell_map->terrain);
+        {
+            Sprite *spr = NULL;
+            if(spell_map->isCopyBufferFull() && !spell_map->copy_buf.tiles.empty())
+            {
+                // preset copy buffer sprite?
+                spr = spell_map->copy_buf.tiles.front().L1;
+            }
+            else
+            {
+				// preset cursor sprite?
+				auto pos = spell_map->GetSelection();
+                if(pos.isOK())
+				    spr = spell_map->tiles[pos].L1;
+            }
+            form_sprites->SetSprite(spell_map->terrain,spr);
+        }
         form_sprites->Show();
     }
 }
@@ -2547,6 +2564,20 @@ void MainFrame::OnCanvasPopupSelect(wxCommandEvent& event)
         HistoryPush();
         ViewLayerEvents(true);
     }
+    else if(menu_id == ID_POP_ADD_TURN)
+    {
+        // try create Turn event
+        spell_map->events->AddTurnEvent(spell_pos,1);
+        HistoryPush();
+        ViewLayerEvents(true);
+    }
+    else if(menu_id == ID_POP_REM_TURN)
+    {
+        // try remove Turn event
+        auto evt = spell_map->events->CheckEvent(SpellMapEventRec::EvtTypes::EVT_TURN,&spell_pos);
+        spell_map->events->EraseEvent(evt);
+        HistoryPush();
+    }
     else if(menu_id == ID_POP_SELECT_EVENT)
     {
         // select event
@@ -2820,10 +2851,18 @@ void MainFrame::OnCanvasRMouse(wxMouseEvent& event)
             if(!spell_map->events->CheckEvent(SpellMapEventRec::EvtTypes::EVT_SEE_PLACE,&cur_pos))
             {
                 menu.Append(ID_POP_ADD_SEE_PLACE,"Create SeePlace event");
-            }
+            }            
             if(wEvents && spell_map->events->CheckEvent(SpellMapEventRec::EvtTypes::EVT_SEE_PLACE,&cur_pos))
             {
                 menu.Append(ID_POP_REM_SEE_PLACE,"Remove SeePlace event");
+            }
+            if(!spell_map->events->CheckEvent(SpellMapEventRec::EvtTypes::EVT_TURN,&cur_pos))
+            {
+                menu.Append(ID_POP_ADD_TURN,"Create Turn event");
+            }
+            if(wEvents && spell_map->events->CheckEvent(SpellMapEventRec::EvtTypes::EVT_TURN,&cur_pos))
+            {
+                menu.Append(ID_POP_REM_TURN,"Remove Turn event");
             }
             if(wEvents && cur_unit && sel_evt)
             {
@@ -3194,16 +3233,21 @@ void MainFrame::OnCanvasLMouseDown(wxMouseEvent& event)
             auto sel_anm = spell_map->SelectedANM();
             if(!spell_map->isGameMode())
             {
-                if(cur_unit && (cur_unit == sel_unit || cur_unit->in_placement))
+				auto ctrl_down = event.ControlDown();
+
+                if(!ctrl_down && cur_unit && (cur_unit == sel_unit || cur_unit->in_placement))
                 {
                     // move/place unit
-                    bool was_new_unit = sel_unit->not_placed_yet;
+                    bool was_new_unit = false;
+                    if(spell_map->TileIsVisible())
+                        was_new_unit = sel_unit->not_placed_yet;
 
                     if(sel_evt)
                         sel_evt->in_placement = false;
-                    if(sel_unit->in_placement)
+                    if(sel_unit->in_placement && spell_map->TileIsVisible())
                         sel_unit->not_placed_yet = false;
-                    sel_unit->in_placement = !sel_unit->in_placement;
+                    if(spell_map->TileIsVisible())
+                        sel_unit->in_placement = !sel_unit->in_placement;
 
                     if(sel_unit->in_placement && sel_evt)
                         sel_evt->in_placement = false;
@@ -3243,7 +3287,7 @@ void MainFrame::OnCanvasLMouseDown(wxMouseEvent& event)
                     if(!sel_unit->in_placement)
                         HistoryPush();
                 }
-                else if(wAnms && cur_anm && cur_anm == sel_anm)
+                else if(!ctrl_down && wAnms && cur_anm && cur_anm == sel_anm)
                 {
                     // move ANM
                     sel_anm->in_placement = !sel_anm->in_placement;
@@ -3258,32 +3302,12 @@ void MainFrame::OnCanvasLMouseDown(wxMouseEvent& event)
                     if(sel_anm->in_placement && sel_sound)
                         sel_sound->in_placement = false;
                 }
-                else if(wAnms && cur_anm)
+                else if(!ctrl_down &&wAnms && cur_anm)
                 {
                     // select ANM
                     spell_map->SelectANM(cur_anm);
-                }
-                else if(wPnms && cur_pnm && cur_pnm == sel_pnm)
-                {
-                    // move PNM
-                    sel_pnm->in_placement = !sel_pnm->in_placement;
-                    if(!sel_pnm->in_placement)
-                        HistoryPush();
-                    if(sel_pnm->in_placement && sel_evt)
-                        sel_evt->in_placement = false;
-                    if(sel_pnm->in_placement && sel_anm)
-                        sel_anm->in_placement = false;
-                    if(sel_pnm->in_placement && sel_unit)
-                        sel_unit->in_placement = false;
-                    if(sel_pnm->in_placement && sel_sound)
-                        sel_sound->in_placement = false;
-                }
-                else if(wPnms && cur_pnm)
-                {
-                    // select PNM
-                    spell_map->SelectPNM(cur_pnm);
-                }
-                else if(wSound && cur_sound && cur_sound == sel_sound)
+                }                
+                else if(!ctrl_down && wSound && cur_sound && cur_sound == sel_sound)
                 {
                     // move sound
                     if(sel_sound->in_placement)
@@ -3306,18 +3330,18 @@ void MainFrame::OnCanvasLMouseDown(wxMouseEvent& event)
                     if(sel_sound->in_placement && sel_unit)
                         sel_unit->in_placement = false;                    
                 }
-                else if(wSound && cur_sound)
+                else if(!ctrl_down && wSound && cur_sound)
                 {
                     // select sound
                     spell_map->SoundSelect(cur_sound);
                 }
-                else if(wEvents && sel_evt && cur_unit && event.ControlDown())
+                else if(ctrl_down && wEvents && sel_evt && cur_unit)
                 {
                     // try add/remove unit to event
                     spell_map->UpdateEventUnit(sel_evt, cur_unit);
                     HistoryPush();
                 }
-                else if(wEvents && sel_evt && sel_evt->position == select_pos)
+                else if(!ctrl_down &&wEvents && sel_evt && sel_evt->position == select_pos)
                 {
                     // move/place event
                     if(sel_unit)
@@ -3326,21 +3350,42 @@ void MainFrame::OnCanvasLMouseDown(wxMouseEvent& event)
                     if(!sel_evt->in_placement)
                         HistoryPush();
                 }
-                else if(wEvents && cur_evt && !cur_evt->isMissionStart())
+                else if(!ctrl_down && wEvents && cur_evt && !cur_evt->isMissionStart())
                 {
                     // select event
                     spell_map->SelectEvent(cur_evt);
                 }
-                else if(wEvents && cur_unit && cur_unit->GetTrigEvent(SpellMapEventRec::EvtTypes::EVT_SEE_UNIT))
+                else if(!ctrl_down && wEvents && cur_unit && cur_unit->GetTrigEvent(SpellMapEventRec::EvtTypes::EVT_SEE_UNIT))
                 {
                     // select SeeUnit() event
                     spell_map->SelectEvent(cur_unit->GetTrigEvent(SpellMapEventRec::EvtTypes::EVT_SEE_UNIT));
                 }                
-                else if(cur_unit)
+                else if(!ctrl_down && wPnms && cur_pnm && cur_pnm == sel_pnm)
+                {
+                    // move PNM
+                    sel_pnm->in_placement = !sel_pnm->in_placement;
+                    if(!sel_pnm->in_placement)
+                        HistoryPush();
+                    if(sel_pnm->in_placement && sel_evt)
+                        sel_evt->in_placement = false;
+                    if(sel_pnm->in_placement && sel_anm)
+                        sel_anm->in_placement = false;
+                    if(sel_pnm->in_placement && sel_unit)
+                        sel_unit->in_placement = false;
+                    if(sel_pnm->in_placement && sel_sound)
+                        sel_sound->in_placement = false;
+                }
+                else if(!ctrl_down &&wPnms && cur_pnm)
+                {
+                    // select PNM
+                    spell_map->SelectPNM(cur_pnm);
+                }
+                else if(!ctrl_down && cur_unit)
                 {
                     // try select unit (if on cursor)
                     spell_map->SelectUnit(cur_unit);
                 }
+
 
                 
 
