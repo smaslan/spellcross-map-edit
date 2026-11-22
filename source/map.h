@@ -215,6 +215,8 @@ public:
 	void SetRef(int x, int y);
 	void Move(int x, int y);
 	void SetPos(int x,int y);
+	// Scroll without changing the mouse/cursor reference position.
+	void ScrollBy(int deltaX, int deltaY);
 	int Idle();
 	int ResizeSelection(int delta);
 	bool wasModified();
