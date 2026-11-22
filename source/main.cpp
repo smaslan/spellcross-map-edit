@@ -537,9 +537,9 @@ MainFrame::MainFrame(SpellConfig* config, SpellMap *&map, SpellData *&spelldata,
     menuHelp->Append(wxID_ABOUT);
     AssignSVGresourceToMenu(menuHelp,wxID_ABOUT,"IDR_INFO");
 
-    // Match the system chrome used by Spellcross Reloaded. The fullscreen
-    // command stays in the menu model so Alt+Enter works from the map canvas.
-    editor_chrome::AddFullscreen(menuView);
+    // Restore the ordinary OS menu colors; keep fullscreen as a native item.
+    menuView->AppendSeparator();
+    menuView->AppendCheckItem(ID_Fullscreen, "&Fullscreen\tAlt+Enter");
     
     // Main menu
     wxMenuBar* menuBar = new wxMenuBar;    
@@ -549,7 +549,7 @@ MainFrame::MainFrame(SpellConfig* config, SpellMap *&map, SpellData *&spelldata,
     menuBar->Append(menuView, "&View");
     menuBar->Append(menuTools,"&Tools");
     menuBar->Append(menuHelp, "&Help");
-    editor_chrome::Install(this, menuBar);
+    SetMenuBar(menuBar);
     
     
     // Dedicated last field for brush state. The existing unit-status field
@@ -589,6 +589,7 @@ MainFrame::MainFrame(SpellConfig* config, SpellMap *&map, SpellData *&spelldata,
 
     canvas->Bind(wxEVT_CLOSE_WINDOW,&MainFrame::OnClose,this);
     canvas->Bind(wxEVT_PAINT,&MainFrame::OnPaintCanvas,this);
+    canvas->Bind(wxEVT_SIZE,&MainFrame::OnResize,this);
     canvas->Bind(wxEVT_RIGHT_DOWN,&MainFrame::OnCanvasRMouse,this);
     canvas->Bind(wxEVT_RIGHT_UP,&MainFrame::OnCanvasRMouse,this);
     
@@ -624,6 +625,8 @@ MainFrame::MainFrame(SpellConfig* config, SpellMap *&map, SpellData *&spelldata,
     this->Layout();
 
     Bind(wxEVT_CLOSE_WINDOW, &MainFrame::OnClose, this);
+    Bind(wxEVT_CHAR_HOOK, &MainFrame::OnGlobalKeyDown, this);
+    Bind(wxEVT_MENU, &MainFrame::OnToggleFullscreen, this, ID_Fullscreen);
     
     Bind(wxEVT_MENU,&MainFrame::OnOpenMap,this,ID_OpenMap);
     Bind(wxEVT_MENU,&MainFrame::OnSaveMap,this,ID_SaveMap);
@@ -1247,15 +1250,99 @@ void MainFrame::OnTimer(wxTimerEvent& event)
         return;
     if(!spell_map->IsLoaded())
         return;
+    // Timer-driven edge scroll works even when the mouse is motionless.
+    UpdateEdgeScroll();
     if(spell_map->Tick())
         canvas->Refresh();
 }
+
+// Pan the map whenever the pointer approaches the map-canvas border.
+void MainFrame::UpdateEdgeScroll()
+{
+    if (!IsActive() || !canvas->IsShownOnScreen() ||
+        m_mapPanActive || m_moveObjectArmed || m_moveObjectPreview ||
+        inSubForm() || inUnitOptions() || canvas->HasCapture())
+        return;
+
+    const wxMouseState mouse = wxGetMouseState();
+    if (mouse.LeftIsDown() || mouse.RightIsDown() || mouse.MiddleIsDown())
+        return;
+
+    const wxSize size = canvas->GetClientSize();
+    const wxPoint p = canvas->ScreenToClient(wxGetMousePosition());
+    if (size.x <= 0 || size.y <= 0 || p.x < 0 || p.y < 0 ||
+        p.x >= size.x || p.y >= size.y ||
+        p.y >= spell_map->GetHUDtop(p.x))
+        return;
+
+    using namespace std::chrono;
+    const auto now = steady_clock::now();
+    if (now - m_lastEdgeScrollTick < milliseconds(25))
+        return;
+    m_lastEdgeScrollTick = now;
+
+    const int edge = FromDIP(28);
+    const int step = FromDIP(7);
+    const int vx = p.x < edge ? -step : (p.x >= size.x - edge ? step : 0);
+    const int vy = p.y < edge ? -step : (p.y >= size.y - edge ? step : 0);
+    if (!vx && !vy)
+        return;
+
+    const auto before = spell_map->scroller.GetScroll();
+    spell_map->scroller.ScrollBy(vx, vy);
+    // Clamp to map edges before deciding whether a repaint is needed.
+    spell_map->RenderPrepare();
+    if (spell_map->scroller.GetScroll() != before)
+        canvas->Refresh(false);
+}
+
 // on main panel resizing
 void MainFrame::OnResize(wxSizeEvent& event)
 {
-    if(spell_map)
-        spell_map->scroller.SetSurface(canvas->GetClientSize().GetWidth(),canvas->GetClientSize().GetHeight());
-    Refresh();
+    if (spell_map && canvas)
+        spell_map->scroller.SetSurface(canvas->GetClientSize().GetWidth(),
+                                       canvas->GetClientSize().GetHeight());
+    if (canvas)
+        canvas->Refresh(false);
+    event.Skip();
+}
+
+// Use the native Windows fullscreen transition outside key/menu dispatch.
+void MainFrame::OnToggleFullscreen(wxCommandEvent& event)
+{
+    const bool enable = !IsFullScreen();
+    CallAfter([this, enable]()
+    {
+        if (IsBeingDeleted())
+            return;
+
+        ShowFullScreen(enable, wxFULLSCREEN_NOCAPTION |
+                               wxFULLSCREEN_NOBORDER |
+                               wxFULLSCREEN_NOSTATUSBAR);
+        if (auto* item = GetMenuBar()->FindItem(ID_Fullscreen))
+            item->Check(IsFullScreen());
+
+        Layout();
+        if (canvas)
+        {
+            const wxSize size = canvas->GetClientSize();
+            if (spell_map)
+                spell_map->scroller.SetSurface(size.x, size.y);
+            canvas->Refresh(false);
+        }
+    });
+}
+
+void MainFrame::OnGlobalKeyDown(wxKeyEvent& event)
+{
+    const int key = event.GetKeyCode();
+    if (event.AltDown() && (key == WXK_RETURN || key == WXK_NUMPAD_ENTER))
+    {
+        wxCommandEvent command(wxEVT_MENU, ID_Fullscreen);
+        OnToggleFullscreen(command);
+        return;
+    }
+    event.Skip();
 }
 
 // render canvas repaint event
