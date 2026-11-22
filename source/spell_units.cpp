@@ -60,6 +60,7 @@ SpellUnitRec::SpellUnitRec()
 	// animations/graphics
 	info = "";
 	gra = "";
+	gra_frames = 0;
 	grb = "";
 	icon = "";
 	anim_atack_light_name = "";
@@ -89,7 +90,6 @@ SpellUnitRec::SpellUnitRec()
 	ap = 0;
  	aps = 0;
 	apw = 0;
-	apfw = 0;
 
 	// dig
 	dig_turns = 0;
@@ -411,6 +411,8 @@ SpellUnits::SpellUnits(uint8_t* data,int dlen,FSUarchive* fsu,FSarchive* fs_info
 
 		// unit graphics resource
 		unit->gra = get_char_str(rec + 0x25,5,true);
+		// main unit graphics movement frames count
+		unit->gra_frames = rdu8(rec + 0x3C);
 
 		// unit aditional graphics resource (tank turrets or so)
 		unit->grb = get_char_str(rec + 0x2B,5,true);
@@ -429,10 +431,7 @@ SpellUnits::SpellUnits(uint8_t* data,int dlen,FSUarchive* fsu,FSarchive* fs_info
 		unit->utype = rdu8(rec + 0x3A);
 
 		// ap count
-		unit->ap = rdu8(rec + 0x3B);
-
-		// ap per move in forrest
-		unit->apfw = rdu8(rec + 0x3C);
+		unit->ap = rdu8(rec + 0x3B);			
 
 		// ap per move normal
 		unit->apw = rdu8(rec + 0x3D);
@@ -853,6 +852,8 @@ int SpellUnits::GenerateDEF(std::vector<uint8_t> &def,Format format)
 		// unit graphics resource
 		if(put_char_str(ptr + 0x25,end,unit->gra,6,'_'))
 			return(1);
+		// movement anim frames count
+		ptr[0x3C] = (unsigned)unit->gra_frames;
 
 		// unit aditional graphics resource (tank turrets or so)
 		if(put_char_str(ptr + 0x2B,end,unit->grb,6,'_'))
@@ -873,10 +874,7 @@ int SpellUnits::GenerateDEF(std::vector<uint8_t> &def,Format format)
 		ptr[0x3A] = (unsigned)unit->utype;
 
 		// ap count
-		ptr[0x3B] =	(unsigned)unit->ap;
-
-		// ap per move in forrest
-		ptr[0x3C] = (unsigned)unit->apfw;
+		ptr[0x3B] =	(unsigned)unit->ap;			
 
 		// ap per move normal
 		ptr[0x3D] = (unsigned)unit->apw;
@@ -1125,9 +1123,9 @@ int SpellUnitRec::isMetal()
 	// ###todo: maybe not correct?
 	return(!isFlashAndBones());
 }
-int SpellUnitRec::isInefficientToArmor()
+int SpellUnitRec::isResetSpriteAfterFire()
 {
-	return(!!(fire_flags & FIRE_INEFFICIENT_TO_ARMORRED));
+	return(!!(fire_flags & FIRE_RESET_SPRITE_AFTER));
 }
 int SpellUnitRec::isFireSensitive()
 {
@@ -2663,11 +2661,7 @@ MapUnit::AttackResult MapUnit::DamageTarget(MapUnit* target)
 	target->dig_level = max(target->dig_level - 1, 0);
 
 	// conditional bonuses/penalties
-	double bonus = 1.0;
-		
-	// penalize armored attacks?
-	if(target->unit->isArmored() && unit->isInefficientToArmor())
-		bonus *= 0.7;
+	double bonus = 1.0;		
 
 	// bonus of fire sensitivity
 	if(target->unit->isFireSensitive() && unit->hasFireAttack())

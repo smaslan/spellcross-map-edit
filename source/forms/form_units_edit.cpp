@@ -745,7 +745,10 @@ void FormUnitsEdit::OnPaintFSU(wxPaintEvent& event)
 	std::string grp_name;
 	int frame_limit = -1;
 	if(event.GetId() == wxID_CANVAS_GRP)
+	{
+		frame_limit = m_unit->gra_frames;
 		grp_name = m_unit->gra;
+	}
 	else if(event.GetId() == wxID_CANVAS_GRP_AUX)
 		grp_name = m_unit->grb;
 	else if(event.GetId() == wxID_CANVAS_LIGHT_FIRE_ANIM)
@@ -1176,7 +1179,7 @@ void FormUnitsEdit::OnSelectUnit(wxCommandEvent& event)
 	grp = pgPropBasic->Append(new wxPropertyCategory("Action points:"));
 	pgPropBasic->AppendIn(grp,new wxIntPropertyExt("Action points",wxT(""),&m_unit->ap,0,255));
 	pgPropBasic->AppendIn(grp,new wxIntPropertyExt("AP per move",wxT(""),&m_unit->apw,0,255));
-	pgPropBasic->AppendIn(grp,new wxIntPropertyExt("AP per forrest move",wxT(""),&m_unit->apfw,0,255));
+	//pgPropBasic->AppendIn(grp,new wxIntPropertyExt("AP per forrest move",wxT(""),&m_unit->apfw,0,255));
 	pgPropBasic->AppendIn(grp,new wxIntPropertyExt("AP per shot",wxT(""),&m_unit->aps,0,255));
 	pgPropBasic->AppendIn(grp,new wxIntPropertyExt("Rounds to dig",wxT(""),&m_unit->dig_turns,0,255));
 	pgPropBasic->Thaw();
@@ -1194,10 +1197,10 @@ void FormUnitsEdit::OnSelectUnit(wxCommandEvent& event)
 	pgPropBasic2->AppendIn(grp,new wxBoolPropertyExt("Demon?",wxT(""),&m_unit->utype,SpellUnitRec::UTYPE_DEMON));
 
 	grp = pgPropBasic2->Append(new wxPropertyCategory("Fire flags:"));
-	pgPropBasic2->AppendIn(grp,new wxBoolPropertyExt("High turret origing",wxT(""),&m_unit->fire_flags,SpellUnitRec::FIRE_HIGH_TURRET));
+	pgPropBasic2->AppendIn(grp,new wxBoolPropertyExt("No unit turn before fire",wxT(""),&m_unit->fire_flags,SpellUnitRec::FIRE_NO_TURN));
 	pgPropBasic2->AppendIn(grp,new wxBoolPropertyExt("Artillery fire",wxT(""),&m_unit->fire_flags,SpellUnitRec::FIRE_INDIRECT));
 	pgPropBasic2->AppendIn(grp,new wxBoolPropertyExt("Steal enemy AP",wxT(""),&m_unit->fire_flags,SpellUnitRec::FIRE_STEAL_AP));
-	pgPropBasic2->AppendIn(grp,new wxBoolPropertyExt("Inefficient to armored",wxT(""),&m_unit->fire_flags,SpellUnitRec::FIRE_INEFFICIENT_TO_ARMORRED));
+	pgPropBasic2->AppendIn(grp,new wxBoolPropertyExt("Reset sprite immediately after fire anim",wxT(""),&m_unit->fire_flags,SpellUnitRec::FIRE_RESET_SPRITE_AFTER));
 	pgPropBasic2->AppendIn(grp,new wxBoolPropertyExt("Cannot fire from slopes",wxT(""),&m_unit->fire_flags,SpellUnitRec::FIRE_NOT_SLOPES));
 	pgPropBasic2->AppendIn(grp,new wxBoolPropertyExt("MLRS side-fire",wxT(""),&m_unit->fire_flags,SpellUnitRec::FIRE_MLRS));
 	pgPropBasic2->AppendIn(grp,new wxBoolPropertyExt("Uses fire projectile",wxT(""),&m_unit->fire_flags,SpellUnitRec::FIRE_FIRE_PROJECTILE));
@@ -1231,8 +1234,9 @@ void FormUnitsEdit::OnSelectUnit(wxCommandEvent& event)
 	pgPropGrp->Clear();
 
 	grp = pgPropGrp->Append(new wxPropertyCategory("General:"));
-	pgPropGrp->AppendIn(grp,new wxEnumPropertyExt("Graphics resource",wxT(""),MapToPGenumChoices(grp_res_list),&m_unit->gra));
-	pgPropGrp->AppendIn(grp,new wxEnumPropertyExt("Turret Graphics resource",wxT(""),MapToPGenumChoices(grp_res_list),&m_unit->grb));
+	pgPropGrp->AppendIn(grp,new wxEnumPropertyExt("Main graphics resource",wxT("anim_main"),MapToPGenumChoices(grp_res_list),&m_unit->gra));
+	pgPropGrp->AppendIn(grp,new wxIntPropertyExt("Main graphics movement frames limit",wxT("anim_main_frames"),&m_unit->gra_frames,0,255));
+	pgPropGrp->AppendIn(grp,new wxEnumPropertyExt("Aux Graphics resource (tank turret)",wxT(""),MapToPGenumChoices(grp_res_list),&m_unit->grb));
 	pgPropGrp->AppendIn(grp,new wxEnumPropertyExt("Projectile name",wxT(""),MapToPGenumChoices(proj_names),&m_unit->projetile_name));
 	pgPropGrp->AppendIn(grp,new wxEnumPropertyExt("Unit INFO.FS resource name",wxT(""),MapToPGenumChoices(info_names),&m_unit->info));
 	pgPropGrp->AppendIn(grp,new wxEnumPropertyExt("Unit glyph icon name",wxT(""),MapToPGenumChoices(icon_names),&m_unit->icon));
@@ -1624,7 +1628,9 @@ void FormUnitsEdit::OnUnitPropsPupupOpen(wxPropertyGridEvent& event)
 
 	std::string *anim_name = NULL;
 	auto name = prop->GetName();
-	if(name == "anim_light_frames")
+	if(name == "anim_main_frames")
+		anim_name = &m_unit->gra;
+	else if(name == "anim_light_frames")
 		anim_name = &m_unit->anim_atack_light_name;
 	else if(name == "anim_armored_frames")
 		anim_name = &m_unit->anim_atack_armor_name;
@@ -1675,7 +1681,9 @@ void FormUnitsEdit::OnUnitPropsPupup(wxCommandEvent& event)
 			return;
 		auto frames = grp->anim.frames;
 		
-		if(anim_name == &m_unit->anim_atack_light_name)
+		if(anim_name == &m_unit->gra)
+			m_unit->gra_frames = frames;
+		else if(anim_name == &m_unit->anim_atack_light_name)
 			m_unit->anim_atack_light_frames = frames;
 		else if(anim_name == &m_unit->anim_atack_armor_name)
 			m_unit->anim_atack_armor_frames = frames;
@@ -1784,7 +1792,9 @@ void FormUnitsEdit::OnPGpropChange(wxPropertyGridEvent& event)
 		{
 			std::string anim_name;
 			std::string name = prop->GetName().ToStdString();
-			if(name == "anim_light")
+			if(name == "anim_main")
+				anim_name = m_unit->gra;
+			else if(name == "anim_light")
 				anim_name = m_unit->anim_atack_light_name;
 			else if(name == "anim_armored")
 				anim_name = m_unit->anim_atack_armor_name;
@@ -1798,7 +1808,9 @@ void FormUnitsEdit::OnPGpropChange(wxPropertyGridEvent& event)
 			int frames = 0;
 			if(grp && grp->anim.frames)
 				frames = grp->anim.frames;
-			if(name == "anim_light")
+			if(name == "anim_main")
+				m_unit->gra_frames = frames;
+			else if(name == "anim_light")
 				m_unit->anim_atack_light_frames = frames;
 			else if(name == "anim_armored")
 				m_unit->anim_atack_armor_frames = frames;

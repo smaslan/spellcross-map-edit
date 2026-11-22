@@ -78,6 +78,7 @@ public:
 		int x_offset;
 		int y_offset;
 		int dither_randomize;
+		SpellData *spell_data;
 	};
 
 	ProcTh(wxFrame* parent,Params& config);
@@ -136,6 +137,8 @@ public:
 	bool regen_pal;
 	RegenPalPreset regen_pal_preset;
 	bool save_pal;
+	int name_overlay_color;
+	int name_overlay_bg_color;
 
 	static const std::map<int,std::string> c_resampling;
 	static const std::map<Format,std::string> c_format;
@@ -161,7 +164,7 @@ class FormGResEncoder : public wxFrame
 {
 private:
 	
-	SpellData *spell_data;
+	SpellData *m_spell_data;
 
 	std::string m_last_error;
 	wxBitmap m_source;

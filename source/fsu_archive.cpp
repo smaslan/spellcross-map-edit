@@ -71,6 +71,9 @@ FSUarchive::FSUarchive(std::wstring path,Options options,std::function<void(std:
 	for(auto & batch : lists)
 		m_list.insert(m_list.end(),batch.begin(),batch.end());
 
+	// sort'em by name
+	std::ranges::sort(m_list, [](FSU_resource* a, FSU_resource* b) {return(a->name < b->name); });	
+
 	threads.clear();
 }
 
@@ -133,7 +136,7 @@ int FSUarchive::LoadFolder(std::filesystem::path dir, std::string wild_filter)
 			if(sprite_name.size() != 3)
 			{
 				delete unit;
-				m_last_error = string_format("Loading FSU archive from folder (%ls) failed! Unit folder (%s) contains sprite (%s) with wrong name size (must be 3 characters).",path.wstring().c_str(),name.c_str(),sprite_name.c_str());		
+				m_last_error = string_format("Loading FSU archive from folder (%s) failed! Unit folder (%s) contains sprite (%s) with wrong name size (must be 3 characters).",path,name,sprite_name);		
 				return(1);
 			}
 			auto sprite_path = unit_path / sprite_name;
@@ -151,7 +154,7 @@ int FSUarchive::LoadFolder(std::filesystem::path dir, std::string wild_filter)
 			{
 				delete spr;
 				delete unit;				
-				m_last_error = string_format("Loading FSU archive from folder (%ls) failed! Unit folder (%s) contains sprite (%s) that cannot be read?",path.wstring().c_str(),name.c_str(),sprite_name.c_str());
+				m_last_error = string_format("Loading FSU archive from folder (%s) failed! Unit folder (%s) contains sprite (%s) that cannot be read?",path,name,sprite_name);
 				return(1);
 			}
 			spr->len = spr->data.size();
@@ -161,9 +164,15 @@ int FSUarchive::LoadFolder(std::filesystem::path dir, std::string wild_filter)
 			unit->tot_sprites++;
 		}
 
+		// sort frames
+		std::ranges::sort(unit->list, [](FSU_sprite& a, FSU_sprite& b) {return(a.name < b.name); });
+
 		// add unit to list
 		m_list.push_back(unit);
 	}
+
+	// sort'em by name
+	std::ranges::sort(m_list, [](FSU_resource* a, FSU_resource* b) {return(a->name < b->name); });	
 
 	return(0);
 }

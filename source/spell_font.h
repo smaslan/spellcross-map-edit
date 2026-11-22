@@ -49,7 +49,8 @@ public:
         RIGHT_DOWN,
         DIAG2,
         DIAG3,
-        SOLID
+        SOLID,
+        BGCOLOR
     };
     enum FontAlign : int
     {

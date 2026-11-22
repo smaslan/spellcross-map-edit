@@ -423,6 +423,19 @@ int SpellFont::Render(uint8_t* buffer,uint8_t* buf_end,int buf_x_size,int x_pos,
 					*pix++ = m_filter[*pix];
 			}
 		}
+		else if(sid == 0 && shadow == BGCOLOR && bg_color >= 0)
+		{
+			// optional solid background
+			int x_size_txt = GetTextWidth(text);
+			for(int y = y_pos; y < y_pos + m_max_y; y++)
+			{
+				uint8_t* pix = &buffer[max(x_pos,0) + y*buf_x_size];
+				if(y < 0 || pix >= buf_end)
+					continue;
+				for(int x = max(x_pos,0); x < min(x_pos + x_size_txt,buf_x_size); x++)
+					*pix++ = bg_color;
+			}
+		}
 		else if(sid == 0 || sid == 1)
 			continue;				
 
