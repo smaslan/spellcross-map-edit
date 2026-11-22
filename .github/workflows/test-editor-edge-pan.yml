@@ -1,0 +1,33 @@
+name: Test editor edge-pan physics
+
+on:
+  pull_request:
+    paths:
+      - 'source/editor_edge_pan.h'
+      - 'source/main.cpp'
+      - 'source/main.h'
+      - 'source/map.cpp'
+      - 'source/map.h'
+      - 'tests/test_editor_edge_pan.cpp'
+      - '.github/workflows/test-editor-edge-pan.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'source/editor_edge_pan.h'
+      - 'tests/test_editor_edge_pan.cpp'
+      - '.github/workflows/test-editor-edge-pan.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  edge-pan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out editor
+        uses: actions/checkout@v6
+      - name: Compile pure C++ edge-pan regressions
+        run: g++ -std=c++20 -O2 -Wall -Wextra -Werror tests/test_editor_edge_pan.cpp -o /tmp/editor_edge_pan_test
+      - name: Run edge-pan regressions
+        run: /tmp/editor_edge_pan_test
