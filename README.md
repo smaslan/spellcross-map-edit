@@ -33,6 +33,14 @@ The original editor's viewers, import/export tools and resource browsers are sti
 
 ## Reloaded map-editing features
 
+**Navigate like Spellcross Reloaded.** Hold the right mouse button and drag in
+any direction to pan the map. The editor keeps the drag active at the canvas
+edge; a stationary right click still opens the editing context menu. Press
+`Alt+Enter` or use **View → Fullscreen** to switch display modes.
+
+The main application menu uses Reloaded's dark green grid styling while
+retaining the editor's existing commands and keyboard shortcuts.
+
 **Paint terrain and objects.** Pick a tool in the ribbon, then click the map. The right-hand status bar helps you see which sprite was selected and what was actually placed. This fork also fixes a bug where missing mission-marker assets could prevent ordinary L1 terrain and building graphics from appearing.
 
 **Rotate flat ground tiles.** Use these keys with a supported flat L1 brush:
