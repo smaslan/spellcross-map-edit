@@ -24,6 +24,9 @@
 #include <wx/filedlg.h>
 #include <wx/slider.h>
 #include <wx/stdpaths.h>
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 #include <filesystem>
 #include <codecvt>
@@ -319,6 +322,11 @@ int MyApp::OnExit()
 }
 
 // Main panel init
+MainFrame::~MainFrame()
+{
+    ReleaseEditorCursorClip();
+}
+
 MainFrame::MainFrame(SpellConfig* config, SpellMap *&map, SpellData *&spelldata,SpellTreeRandomizerRules& tree_rand_rules):
     wxFrame(NULL, wxID_ANY, "Spellcross Map Editor", wxDefaultPosition, wxSize(1600,1000)),
     spell_data(spelldata),
@@ -540,6 +548,9 @@ MainFrame::MainFrame(SpellConfig* config, SpellMap *&map, SpellData *&spelldata,
     // Restore the ordinary OS menu colors; keep fullscreen as a native item.
     menuView->AppendSeparator();
     menuView->AppendCheckItem(ID_Fullscreen, "&Fullscreen\tAlt+Enter");
+    menuView->AppendCheckItem(ID_ConfineCursorFullscreen,
+        "Confine cursor to fullscreen window");
+    menuView->Check(ID_ConfineCursorFullscreen, m_confineCursorFullscreen);
     
     // Main menu
     wxMenuBar* menuBar = new wxMenuBar;    
@@ -627,6 +638,36 @@ MainFrame::MainFrame(SpellConfig* config, SpellMap *&map, SpellData *&spelldata,
     Bind(wxEVT_CLOSE_WINDOW, &MainFrame::OnClose, this);
     Bind(wxEVT_CHAR_HOOK, &MainFrame::OnGlobalKeyDown, this);
     Bind(wxEVT_MENU, &MainFrame::OnToggleFullscreen, this, ID_Fullscreen);
+    Bind(wxEVT_MENU, [this](wxCommandEvent& event)
+    {
+        m_confineCursorFullscreen = event.IsChecked();
+        if (!m_confineCursorFullscreen)
+            ReleaseEditorCursorClip();
+    }, ID_ConfineCursorFullscreen);
+    // Match the game: no camera movement or cursor clip under native menus,
+    // and release the system cursor rectangle immediately on loss of focus.
+    Bind(wxEVT_ACTIVATE, [this](wxActivateEvent& event)
+    {
+        if (!event.GetActive())
+        {
+            ReleaseEditorCursorClip();
+            m_edgePan.Reset();
+            m_lastEdgePanTick = {};
+        }
+        event.Skip();
+    });
+    Bind(wxEVT_MENU_OPEN, [this](wxMenuEvent& event)
+    {
+        m_nativeMenuOpen = true;
+        ReleaseEditorCursorClip();
+        m_edgePan.Reset();
+        event.Skip();
+    });
+    Bind(wxEVT_MENU_CLOSE, [this](wxMenuEvent& event)
+    {
+        m_nativeMenuOpen = false;
+        event.Skip();
+    });
     
     Bind(wxEVT_MENU,&MainFrame::OnOpenMap,this,ID_OpenMap);
     Bind(wxEVT_MENU,&MainFrame::OnSaveMap,this,ID_SaveMap);
@@ -1244,56 +1285,190 @@ void MainFrame::OnSelectUnitView(wxCommandEvent& event)
 // map animation periodic refresh tick
 void MainFrame::OnTimer(wxTimerEvent& event)
 {
+    // Clip management runs even when a map was closed, so no stale system-wide
+    // cursor restriction survives a change of mission.
+    UpdateEditorCursorClip();
     if(!spell_data)
         return;
     if(!spell_map || !canvas)
         return;
     if(!spell_map->IsLoaded())
         return;
-    // Timer-driven edge scroll works even when the mouse is motionless.
+    // Timer-driven edge pan uses actual elapsed time, not the event rate.
     UpdateEdgeScroll();
     if(spell_map->Tick())
         canvas->Refresh();
 }
 
-// Pan the map whenever the pointer approaches the map-canvas border.
+// The same frame-time-based easing and edge geometry as Spellcross Reloaded.
+// Full native frame edges are intentional: menus and the HUD don't create dead
+// zones near the top or bottom of the tactical viewport.
 void MainFrame::UpdateEdgeScroll()
 {
-    if (!IsActive() || !canvas->IsShownOnScreen() ||
+    using clock = std::chrono::steady_clock;
+    const auto now = clock::now();
+    double elapsed = 0.0;
+    if (m_lastEdgePanTick != clock::time_point{})
+        elapsed = std::chrono::duration<double>(now - m_lastEdgePanTick).count();
+    m_lastEdgePanTick = now;
+
+    if (!canvas || !spell_map || !spell_map->IsLoaded() ||
+        !IsShownOnScreen() || !IsActive() || IsIconized() ||
+        !canvas->IsShownOnScreen() || m_nativeMenuOpen || inSubForm() ||
         m_mapPanActive || m_moveObjectArmed || m_moveObjectPreview ||
-        inUnitOptions() || canvas->HasCapture())
+        canvas->HasCapture())
+    {
+        m_edgePan.Reset();
         return;
+    }
 
-    const wxMouseState mouse = wxGetMouseState();
-    if (mouse.LeftIsDown() || mouse.RightIsDown() || mouse.MiddleIsDown())
+    const wxMouseState buttons = wxGetMouseState();
+    if (buttons.LeftIsDown() || buttons.RightIsDown() || buttons.MiddleIsDown())
+    {
+        m_edgePan.Reset();
         return;
+    }
 
-    const wxSize size = canvas->GetClientSize();
-    const wxPoint p = canvas->ScreenToClient(wxGetMousePosition());
-    if (size.x <= 0 || size.y <= 0 || p.x < 0 || p.y < 0 ||
-        p.x >= size.x || p.y >= size.y ||
-        p.y >= spell_map->GetHUDtop(p.x))
+    int mouseX = 0, mouseY = 0, frameLeft = 0, frameTop = 0;
+    int frameWidth = 0, frameHeight = 0;
+    double mapPixelsPerScreenPixel = 1.0;
+#ifdef _WIN32
+    // Native physical pixels avoid mixed-DPI and negative-monitor-coordinate
+    // jitter. This matches the game implementation.
+    POINT mouse{};
+    RECT frame{};
+    if (!::GetCursorPos(&mouse) ||
+        !::GetWindowRect(static_cast<HWND>(GetHandle()), &frame))
+    {
+        m_edgePan.Reset();
         return;
+    }
+    mouseX = mouse.x;
+    mouseY = mouse.y;
+    frameLeft = frame.left;
+    frameTop = frame.top;
+    frameWidth = frame.right - frame.left;
+    frameHeight = frame.bottom - frame.top;
 
-    using namespace std::chrono;
-    const auto now = steady_clock::now();
-    if (now - m_lastEdgeScrollTick < milliseconds(25))
+    // The editor doesn't have a tactical zoom setting. Convert native
+    // physical pixels to canvas/map pixels only if DPI scaling requires it.
+    RECT nativeCanvas{};
+    if (::GetClientRect(static_cast<HWND>(canvas->GetHandle()), &nativeCanvas))
+    {
+        const int physicalWidth = nativeCanvas.right - nativeCanvas.left;
+        if (physicalWidth > 0)
+            mapPixelsPerScreenPixel = static_cast<double>(
+                canvas->GetClientSize().x) / physicalWidth;
+    }
+#else
+    const wxPoint mouse = wxGetMousePosition();
+    const wxRect frame = GetScreenRect();
+    mouseX = mouse.x;
+    mouseY = mouse.y;
+    frameLeft = frame.GetLeft();
+    frameTop = frame.GetTop();
+    frameWidth = frame.GetWidth();
+    frameHeight = frame.GetHeight();
+#endif
+    if (frameWidth <= 0 || frameHeight <= 0)
+    {
+        m_edgePan.Reset();
         return;
-    m_lastEdgeScrollTick = now;
+    }
 
-    const int edge = FromDIP(28);
-    const int step = FromDIP(7);
-    const int vx = p.x < edge ? -step : (p.x >= size.x - edge ? step : 0);
-    const int vy = p.y < edge ? -step : (p.y >= size.y - edge ? step : 0);
-    if (!vx && !vy)
+    const auto direction = spellcross_tactical::EdgePanAtScreen(
+        mouseX, mouseY, frameLeft, frameTop, frameWidth, frameHeight,
+        FromDIP(40));
+    const auto [stepX, stepY] = m_edgePan.Advance(
+        direction, elapsed, mapPixelsPerScreenPixel);
+    if (stepX == 0 && stepY == 0)
         return;
 
     const auto before = spell_map->scroller.GetScroll();
-    spell_map->scroller.ScrollBy(vx, vy);
-    // Clamp to map edges before deciding whether a repaint is needed.
+    spell_map->scroller.ScrollBy(stepX, stepY);
+    // The editor has its own game-mode/HUD bounds: use its existing source of
+    // truth for collision with the map limits, rather than ad hoc constants.
     spell_map->RenderPrepare();
     if (spell_map->scroller.GetScroll() != before)
         canvas->Refresh(false);
+}
+
+void MainFrame::ReleaseEditorCursorClip()
+{
+#ifdef _WIN32
+    if (!m_cursorClipped)
+        return;
+    if (m_savedCursorClipValid)
+    {
+        const RECT previous = {
+            m_savedCursorClip.GetLeft(), m_savedCursorClip.GetTop(),
+            m_savedCursorClip.GetRight() + 1,
+            m_savedCursorClip.GetBottom() + 1 };
+        ::ClipCursor(&previous);
+    }
+    else
+        ::ClipCursor(nullptr);
+    m_cursorClipped = false;
+    m_savedCursorClipValid = false;
+    m_currentCursorClip = wxRect();
+#endif
+}
+
+void MainFrame::UpdateEditorCursorClip()
+{
+#ifdef _WIN32
+    // Editor-specific safety: confine only in fullscreen and never during a
+    // drag/menu/dialog, so windowed multi-window editing stays unrestricted.
+    const wxMouseState buttons = wxGetMouseState();
+    const bool active = m_confineCursorFullscreen && IsFullScreen() &&
+        IsShownOnScreen() && IsActive() && !IsIconized() &&
+        canvas && canvas->IsShownOnScreen() && spell_map &&
+        spell_map->IsLoaded() && !inSubForm() && !m_nativeMenuOpen &&
+        !m_mapPanActive && !canvas->HasCapture() &&
+        !buttons.LeftIsDown() && !buttons.RightIsDown() &&
+        !buttons.MiddleIsDown();
+    if (!active)
+    {
+        ReleaseEditorCursorClip();
+        return;
+    }
+
+    RECT nativeFrame{};
+    if (!::GetWindowRect(static_cast<HWND>(GetHandle()), &nativeFrame) ||
+        nativeFrame.right <= nativeFrame.left ||
+        nativeFrame.bottom <= nativeFrame.top)
+    {
+        ReleaseEditorCursorClip();
+        return;
+    }
+    const wxRect target(nativeFrame.left, nativeFrame.top,
+        nativeFrame.right - nativeFrame.left,
+        nativeFrame.bottom - nativeFrame.top);
+    if (m_cursorClipped && target == m_currentCursorClip)
+        return;
+
+    // Do not pull the pointer back from another monitor merely because
+    // the editor still has focus after leaving its window.
+    if (!m_cursorClipped)
+    {
+        POINT pointer{};
+        if (!::GetCursorPos(&pointer) || pointer.x < nativeFrame.left ||
+            pointer.x >= nativeFrame.right || pointer.y < nativeFrame.top ||
+            pointer.y >= nativeFrame.bottom)
+            return;
+
+        RECT oldClip{};
+        m_savedCursorClipValid = ::GetClipCursor(&oldClip) != 0;
+        if (m_savedCursorClipValid)
+            m_savedCursorClip = wxRect(oldClip.left, oldClip.top,
+                oldClip.right - oldClip.left, oldClip.bottom - oldClip.top);
+    }
+    if (::ClipCursor(&nativeFrame))
+    {
+        m_cursorClipped = true;
+        m_currentCursorClip = target;
+    }
+#endif
 }
 
 // on main panel resizing
@@ -1323,6 +1498,8 @@ void MainFrame::OnToggleFullscreen(wxCommandEvent& event)
         if (IsBeingDeleted())
             return;
         const bool requested = m_fullscreenDesired;
+        if (!requested)
+            ReleaseEditorCursorClip();
         ShowFullScreen(requested, wxFULLSCREEN_NOCAPTION |
                                  wxFULLSCREEN_NOBORDER |
                                  wxFULLSCREEN_NOSTATUSBAR);
